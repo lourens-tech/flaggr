@@ -20,8 +20,10 @@ export function SignUpStep2Screen({ navigation, route }: Props) {
   const { signup } = useApp();
   const [email, setEmail] = useState(route.params.email ?? '');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [emailError, setEmailError] = useState<string | undefined>();
   const [passwordError, setPasswordError] = useState<string | undefined>();
+  const [confirmPasswordError, setConfirmPasswordError] = useState<string | undefined>();
   const [submitting, setSubmitting] = useState(false);
 
   const validate = () => {
@@ -33,10 +35,13 @@ export function SignUpStep2Screen({ navigation, route }: Props) {
         : undefined;
     const nextPasswordError =
       password.length < MIN_PASSWORD_LENGTH ? `Password must be at least ${MIN_PASSWORD_LENGTH} characters` : undefined;
+    const nextConfirmPasswordError =
+      !nextPasswordError && confirmPassword !== password ? 'Passwords do not match' : undefined;
 
     setEmailError(nextEmailError);
     setPasswordError(nextPasswordError);
-    return !nextEmailError && !nextPasswordError;
+    setConfirmPasswordError(nextConfirmPasswordError);
+    return !nextEmailError && !nextPasswordError && !nextConfirmPasswordError;
   };
 
   const handleSignUp = async () => {
@@ -104,16 +109,30 @@ export function SignUpStep2Screen({ navigation, route }: Props) {
               icon="lock-closed-outline"
               placeholder="Password"
               isPassword
-              returnKeyType="done"
-              onSubmitEditing={handleSignUp}
+              returnKeyType="next"
               value={password}
               onChangeText={(text) => {
                 setPassword(text);
                 if (passwordError) setPasswordError(undefined);
+                if (confirmPasswordError) setConfirmPasswordError(undefined);
               }}
               error={passwordError}
             />
             {!passwordError ? <Text style={styles.hint}>At least {MIN_PASSWORD_LENGTH} characters</Text> : null}
+            <View style={{ height: spacing.md }} />
+            <TextField
+              icon="lock-closed-outline"
+              placeholder="Confirm Password"
+              isPassword
+              returnKeyType="done"
+              onSubmitEditing={handleSignUp}
+              value={confirmPassword}
+              onChangeText={(text) => {
+                setConfirmPassword(text);
+                if (confirmPasswordError) setConfirmPasswordError(undefined);
+              }}
+              error={confirmPasswordError}
+            />
 
             <View style={{ height: spacing.lg }} />
             <PillButton label="Sign Up" loading={submitting} onPress={handleSignUp} />

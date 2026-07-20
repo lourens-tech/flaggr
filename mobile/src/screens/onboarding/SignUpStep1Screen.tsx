@@ -8,6 +8,7 @@ import { FlagrrLogo } from '../../components/common/FlagrrLogo';
 import { PillButton } from '../../components/common/PillButton';
 import { TextField } from '../../components/common/TextField';
 import { SelectField } from '../../components/common/SelectField';
+import { DateField } from '../../components/common/DateField';
 import { api, type Course } from '../../api/client';
 import { ONBOARDING_BACKGROUNDS, colors, fontFamily, screenPadding, spacing } from '../../theme';
 
@@ -19,21 +20,19 @@ export function SignUpStep1Screen({ navigation }: Props) {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
-  const [birthday, setBirthday] = useState('');
+  const [dateOfBirth, setDateOfBirth] = useState<string | null>(null);
   const [courses, setCourses] = useState<Course[]>([]);
   const [courseId, setCourseId] = useState<string | null>(null);
   const [loadingCourses, setLoadingCourses] = useState(true);
   const [nameError, setNameError] = useState<string | undefined>();
   const [emailError, setEmailError] = useState<string | undefined>();
+  const [dateOfBirthError, setDateOfBirthError] = useState<string | undefined>();
   const [courseError, setCourseError] = useState<string | undefined>();
 
   useEffect(() => {
     api
       .courses()
-      .then((list) => {
-        setCourses(list);
-        if (list.length === 1) setCourseId(list[0].id);
-      })
+      .then((list) => setCourses(list))
       .catch(() => setCourses([]))
       .finally(() => setLoadingCourses(false));
   }, []);
@@ -49,12 +48,14 @@ export function SignUpStep1Screen({ navigation }: Props) {
       : !EMAIL_PATTERN.test(trimmedEmail)
         ? 'Enter a valid email address'
         : undefined;
+    const nextDateOfBirthError = !dateOfBirth ? 'Date of birth is required' : undefined;
     const nextCourseError = !courseId ? 'Select your golf club' : undefined;
 
     setNameError(nextNameError);
     setEmailError(nextEmailError);
+    setDateOfBirthError(nextDateOfBirthError);
     setCourseError(nextCourseError);
-    return !nextNameError && !nextEmailError && !nextCourseError;
+    return !nextNameError && !nextEmailError && !nextDateOfBirthError && !nextCourseError;
   };
 
   const handleNext = () => {
@@ -134,12 +135,15 @@ export function SignUpStep1Screen({ navigation }: Props) {
                 onChangeText={setPhone}
               />
               <View style={{ height: spacing.md }} />
-              <TextField
-                icon="calendar-outline"
-                placeholder="Birthday"
-                returnKeyType="next"
-                value={birthday}
-                onChangeText={setBirthday}
+              <DateField
+                placeholder="Date of Birth"
+                value={dateOfBirth}
+                onChange={(value) => {
+                  setDateOfBirth(value);
+                  if (dateOfBirthError) setDateOfBirthError(undefined);
+                }}
+                error={dateOfBirthError}
+                maximumDate={new Date()}
               />
               <View style={{ height: spacing.md }} />
               <SelectField
