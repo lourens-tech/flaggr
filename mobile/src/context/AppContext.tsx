@@ -60,7 +60,7 @@ interface AppState {
 }
 
 interface AppContextValue extends AppState {
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, keepLoggedIn?: boolean) => Promise<void>;
   signup: (payload: SignupPayload) => Promise<void>;
   logout: () => Promise<void>;
   redeemReward: (rewardId: string) => Promise<Voucher | null>;
@@ -125,9 +125,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     })();
   }, [loadAll]);
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string, keepLoggedIn: boolean = true) => {
     const res = await api.login(email, password);
-    await setToken(res.token);
+    await setToken(res.token, keepLoggedIn);
     await loadAll();
     setIsAuthenticated(true);
   };

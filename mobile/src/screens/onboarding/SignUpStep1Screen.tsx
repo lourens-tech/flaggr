@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ImageBackground, KeyboardAvoidingView, Platform, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, KeyboardAvoidingView, Platform, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -13,6 +13,8 @@ import { ONBOARDING_BACKGROUNDS, colors, fontFamily, screenPadding, spacing } fr
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'SignUpStep1'>;
 
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export function SignUpStep1Screen({ navigation }: Props) {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
@@ -21,6 +23,9 @@ export function SignUpStep1Screen({ navigation }: Props) {
   const [courses, setCourses] = useState<Course[]>([]);
   const [courseId, setCourseId] = useState<string | null>(null);
   const [loadingCourses, setLoadingCourses] = useState(true);
+  const [nameError, setNameError] = useState<string | undefined>();
+  const [emailError, setEmailError] = useState<string | undefined>();
+  const [courseError, setCourseError] = useState<string | undefined>();
 
   useEffect(() => {
     api
@@ -33,15 +38,46 @@ export function SignUpStep1Screen({ navigation }: Props) {
       .finally(() => setLoadingCourses(false));
   }, []);
 
-  const canContinue = fullName.trim().length > 0 && email.trim().length > 0 && !!courseId;
   const [firstName, ...rest] = fullName.trim().split(' ');
 
+  const validate = () => {
+    const trimmedName = fullName.trim();
+    const trimmedEmail = email.trim();
+    const nextNameError = !trimmedName ? 'Full name is required' : undefined;
+    const nextEmailError = !trimmedEmail
+      ? 'Email is required'
+      : !EMAIL_PATTERN.test(trimmedEmail)
+        ? 'Enter a valid email address'
+        : undefined;
+    const nextCourseError = !courseId ? 'Select your golf club' : undefined;
+
+    setNameError(nextNameError);
+    setEmailError(nextEmailError);
+    setCourseError(nextCourseError);
+    return !nextNameError && !nextEmailError && !nextCourseError;
+  };
+
+  const handleNext = () => {
+    if (!validate()) return;
+    navigation.navigate('SignUpStep2', {
+      firstName: firstName ?? '',
+      lastName: rest.join(' '),
+      email: email.trim(),
+      phone,
+      courseId: courseId!,
+    });
+  };
+
   return (
-    <ImageBackground
-      source={ONBOARDING_BACKGROUNDS.signUpStep1}
-      style={styles.background}
-      resizeMode="cover"
-    >
+    <View style={styles.background}>
+      {/* ImageBackground's inner <img> doesn't respect resizeMode="cover" on
+          web (renders at native pixel size, causing horizontal overflow and a
+          gap below) — an absolutely-positioned Image is the reliable fix. */}
+      <Image
+        source={ONBOARDING_BACKGROUNDS.signUpStep1}
+        style={[StyleSheet.absoluteFill, styles.backgroundImageSize]}
+        resizeMode="cover"
+      />
       <StatusBar barStyle="light-content" />
       <View style={styles.overlay} />
       <SafeAreaView style={styles.safeArea}>
@@ -63,36 +99,63 @@ export function SignUpStep1Screen({ navigation }: Props) {
         >
           <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
             <View style={styles.form}>
-              <TextField icon="lock-closed-outline" placeholder="Full Name" value={fullName} onChangeText={setFullName} />
+              <TextField
+                icon="person-outline"
+                placeholder="Full Name"
+                returnKeyType="next"
+                value={fullName}
+                onChangeText={(text) => {
+                  setFullName(text);
+                  if (nameError) setNameError(undefined);
+                }}
+                error={nameError}
+              />
               <View style={{ height: spacing.md }} />
-              <TextField placeholder="Email" autoCapitalize="none" keyboardType="email-address" value={email} onChangeText={setEmail} />
+              <TextField
+                icon="mail-outline"
+                placeholder="Email"
+                autoCapitalize="none"
+                keyboardType="email-address"
+                returnKeyType="next"
+                value={email}
+                onChangeText={(text) => {
+                  setEmail(text);
+                  if (emailError) setEmailError(undefined);
+                }}
+                error={emailError}
+              />
               <View style={{ height: spacing.md }} />
-              <TextField placeholder="Phone Number" keyboardType="phone-pad" value={phone} onChangeText={setPhone} />
+              <TextField
+                icon="call-outline"
+                placeholder="Phone Number"
+                keyboardType="phone-pad"
+                returnKeyType="next"
+                value={phone}
+                onChangeText={setPhone}
+              />
               <View style={{ height: spacing.md }} />
-              <TextField placeholder="Birthday" value={birthday} onChangeText={setBirthday} />
+              <TextField
+                icon="calendar-outline"
+                placeholder="Birthday"
+                returnKeyType="next"
+                value={birthday}
+                onChangeText={setBirthday}
+              />
               <View style={{ height: spacing.md }} />
               <SelectField
                 placeholder={loadingCourses ? 'Loading golf clubs…' : 'Golf Club'}
                 options={courses.map((c) => ({ label: c.name, value: c.id }))}
                 value={courseId}
-                onChange={setCourseId}
+                onChange={(value) => {
+                  setCourseId(value);
+                  if (courseError) setCourseError(undefined);
+                }}
                 disabled={loadingCourses}
               />
+              {courseError ? <Text style={styles.errorText}>{courseError}</Text> : null}
 
               <View style={{ height: spacing.lg }} />
-              <PillButton
-                label="Next Step"
-                disabled={!canContinue}
-                onPress={() =>
-                  navigation.navigate('SignUpStep2', {
-                    firstName: firstName ?? '',
-                    lastName: rest.join(' '),
-                    email,
-                    phone,
-                    courseId: courseId!,
-                  })
-                }
-              />
+              <PillButton label="Next Step" onPress={handleNext} />
             </View>
 
             <TouchableOpacity style={styles.loginRow} onPress={() => navigation.navigate('Login')}>
@@ -102,12 +165,16 @@ export function SignUpStep1Screen({ navigation }: Props) {
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
-    </ImageBackground>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   background: { flex: 1, backgroundColor: colors.darkGreen },
+  // react-native-web's <Image> bakes the source asset's intrinsic width/height
+  // into its own style array, which otherwise wins over absoluteFill's inset
+  // properties — explicit 100% here overrides that.
+  backgroundImageSize: { width: '100%', height: '100%' },
   overlay: { ...StyleSheet.absoluteFill, backgroundColor: colors.overlayDarkGreen },
   safeArea: { flex: 1, paddingHorizontal: screenPadding },
   backButton: { width: 32, height: 32, justifyContent: 'center', marginTop: spacing.sm },
@@ -117,4 +184,5 @@ const styles = StyleSheet.create({
   loginRow: { alignItems: 'center', marginTop: spacing.xl, marginBottom: spacing.xl, gap: 4 },
   loginText: { fontFamily: fontFamily.body, fontSize: 13, color: colors.white },
   loginBold: { fontFamily: fontFamily.bodySemiBold, fontSize: 13, color: colors.lime },
+  errorText: { color: colors.negative, fontFamily: fontFamily.body, fontSize: 12, marginTop: 4, marginLeft: 4 },
 });

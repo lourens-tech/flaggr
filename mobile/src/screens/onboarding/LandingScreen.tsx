@@ -1,5 +1,5 @@
 import React from 'react';
-import { ImageBackground, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from '../../navigation/types';
@@ -11,11 +11,15 @@ type Props = NativeStackScreenProps<AuthStackParamList, 'Landing'>;
 
 export function LandingScreen({ navigation }: Props) {
   return (
-    <ImageBackground
-      source={ONBOARDING_BACKGROUNDS.landing}
-      style={styles.background}
-      resizeMode="cover"
-    >
+    <View style={styles.background}>
+      {/* ImageBackground's inner <img> doesn't respect resizeMode="cover" on
+          web (renders at native pixel size, causing horizontal overflow and a
+          gap below) — an absolutely-positioned Image is the reliable fix. */}
+      <Image
+        source={ONBOARDING_BACKGROUNDS.landing}
+        style={[StyleSheet.absoluteFill, styles.backgroundImageSize]}
+        resizeMode="cover"
+      />
       <StatusBar barStyle="light-content" />
       <View style={styles.overlay} />
       <SafeAreaView style={styles.safeArea}>
@@ -50,12 +54,16 @@ export function LandingScreen({ navigation }: Props) {
           </Text>
         </View>
       </SafeAreaView>
-    </ImageBackground>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   background: { flex: 1, backgroundColor: colors.darkGreen },
+  // react-native-web's <Image> bakes the source asset's intrinsic width/height
+  // into its own style array, which otherwise wins over absoluteFill's inset
+  // properties — explicit 100% here overrides that.
+  backgroundImageSize: { width: '100%', height: '100%' },
   overlay: { ...StyleSheet.absoluteFill, backgroundColor: colors.overlayDarkGreen },
   safeArea: { flex: 1, justifyContent: 'space-between', paddingHorizontal: screenPadding, paddingTop: spacing.xxl },
   logoRow: { alignItems: 'center', marginTop: spacing.xl },

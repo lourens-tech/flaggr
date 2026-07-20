@@ -13,24 +13,49 @@ import { colors, fontFamily, screenPadding, spacing } from '../../theme';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Login'>;
 
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export function LoginScreen({ navigation }: Props) {
   const { login } = useApp();
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [emailError, setEmailError] = useState<string | undefined>();
+  const [passwordError, setPasswordError] = useState<string | undefined>();
   const [keepLoggedIn, setKeepLoggedIn] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
+  const validate = () => {
+    const trimmedEmail = email.trim();
+    const nextEmailError = !trimmedEmail
+      ? 'Email is required'
+      : !EMAIL_PATTERN.test(trimmedEmail)
+        ? 'Enter a valid email address'
+        : undefined;
+    const nextPasswordError = !password ? 'Password is required' : undefined;
+
+    setEmailError(nextEmailError);
+    setPasswordError(nextPasswordError);
+    return !nextEmailError && !nextPasswordError;
+  };
+
   const handleLogin = async () => {
-    if (!username || !password) return;
+    if (!validate()) return;
     setSubmitting(true);
     try {
-      await login(username.trim(), password);
+      await login(email.trim(), password, keepLoggedIn);
     } catch (err) {
       const message = err instanceof ApiError ? err.message : 'Something went wrong. Please try again.';
       Alert.alert('Couldn’t log in', message);
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleForgotPassword = () => {
+    Alert.alert(
+      'Reset your password',
+      'Password reset isn’t available in the app yet — please contact your club for help getting back into your account.',
+    );
   };
 
   return (
@@ -51,19 +76,31 @@ export function LoginScreen({ navigation }: Props) {
 
         <View style={styles.form}>
           <TextField
-            icon="person-outline"
-            placeholder="Username or Email"
+            icon="mail-outline"
+            placeholder="Email"
             autoCapitalize="none"
-            value={username}
-            onChangeText={setUsername}
+            keyboardType="email-address"
+            returnKeyType="next"
+            value={email}
+            onChangeText={(text) => {
+              setEmail(text);
+              if (emailError) setEmailError(undefined);
+            }}
+            error={emailError}
           />
           <View style={{ height: spacing.md }} />
           <TextField
             icon="lock-closed-outline"
             placeholder="Password"
             isPassword
+            returnKeyType="done"
+            onSubmitEditing={handleLogin}
             value={password}
-            onChangeText={setPassword}
+            onChangeText={(text) => {
+              setPassword(text);
+              if (passwordError) setPasswordError(undefined);
+            }}
+            error={passwordError}
           />
 
           <TouchableOpacity
@@ -85,10 +122,10 @@ export function LoginScreen({ navigation }: Props) {
             icon="arrow-forward"
             onPress={handleLogin}
             loading={submitting}
-            disabled={!username || !password}
+            disabled={!email || !password}
           />
 
-          <TouchableOpacity style={styles.forgotRow}>
+          <TouchableOpacity style={styles.forgotRow} onPress={handleForgotPassword}>
             <Text style={styles.forgotText}>
               Forgot Password? <Text style={styles.forgotBold}>Recover here.</Text>
             </Text>

@@ -27,8 +27,9 @@ async function getToken(): Promise<string | null> {
   return cachedToken;
 }
 
-export async function setToken(token: string | null): Promise<void> {
+export async function setToken(token: string | null, persist: boolean = true): Promise<void> {
   cachedToken = token;
+  if (!persist) return; // "keep me logged in" off — session lives in memory only
   if (token) {
     await AsyncStorage.setItem(TOKEN_KEY, token);
   } else {
