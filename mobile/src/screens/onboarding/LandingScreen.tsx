@@ -5,18 +5,17 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from '../../navigation/types';
 import { FlagrrLogo } from '../../components/common/FlagrrLogo';
 import { PillButton } from '../../components/common/PillButton';
-import { colors, fontFamily, screenPadding, spacing } from '../../theme';
+import { GOLF_COURSE_BACKGROUND_URI, colors, fontFamily, screenPadding, spacing } from '../../theme';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Landing'>;
 
-// Placeholder aerial course photo — swap for the branded shot from Figma once
-// the asset can be provided directly (see conversation re: asset access).
-const BACKGROUND_URI =
-  'https://images.unsplash.com/photo-1587174786738-5699a41ba0c2?w=1200&q=80';
-
 export function LandingScreen({ navigation }: Props) {
   return (
-    <ImageBackground source={{ uri: BACKGROUND_URI }} style={styles.background} resizeMode="cover">
+    <ImageBackground
+      source={{ uri: GOLF_COURSE_BACKGROUND_URI }}
+      style={styles.background}
+      resizeMode="cover"
+    >
       <StatusBar barStyle="light-content" />
       <View style={styles.overlay} />
       <SafeAreaView style={styles.safeArea}>

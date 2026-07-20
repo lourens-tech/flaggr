@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StatusBar, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { ImageBackground, KeyboardAvoidingView, Platform, StatusBar, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -8,7 +8,7 @@ import { FlagrrLogo } from '../../components/common/FlagrrLogo';
 import { PillButton } from '../../components/common/PillButton';
 import { TextField } from '../../components/common/TextField';
 import { useApp } from '../../context/AppContext';
-import { colors, screenPadding, spacing } from '../../theme';
+import { GOLF_COURSE_BACKGROUND_URI, colors, screenPadding, spacing } from '../../theme';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'SignUpStep2'>;
 
@@ -18,8 +18,13 @@ export function SignUpStep2Screen({ navigation, route }: Props) {
   const [password, setPassword] = useState('');
 
   return (
-    <View style={styles.container}>
+    <ImageBackground
+      source={{ uri: GOLF_COURSE_BACKGROUND_URI }}
+      style={styles.background}
+      resizeMode="cover"
+    >
       <StatusBar barStyle="light-content" />
+      <View style={styles.overlay} />
       <SafeAreaView style={styles.safeArea}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
@@ -33,27 +38,30 @@ export function SignUpStep2Screen({ navigation, route }: Props) {
           <FlagrrLogo size={36} />
         </View>
 
-        <View style={styles.form}>
-          <TextField
-            icon="person-outline"
-            placeholder="Username or Email"
-            autoCapitalize="none"
-            value={username}
-            onChangeText={setUsername}
-          />
-          <View style={{ height: spacing.md }} />
-          <TextField icon="lock-closed-outline" placeholder="Password" isPassword value={password} onChangeText={setPassword} />
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <View style={styles.form}>
+            <TextField
+              icon="person-outline"
+              placeholder="Username or Email"
+              autoCapitalize="none"
+              value={username}
+              onChangeText={setUsername}
+            />
+            <View style={{ height: spacing.md }} />
+            <TextField icon="lock-closed-outline" placeholder="Password" isPassword value={password} onChangeText={setPassword} />
 
-          <View style={{ height: spacing.lg }} />
-          <PillButton label="Sign Up" disabled={!password} onPress={login} />
-        </View>
+            <View style={{ height: spacing.lg }} />
+            <PillButton label="Sign Up" disabled={!password} onPress={login} />
+          </View>
+        </KeyboardAvoidingView>
       </SafeAreaView>
-    </View>
+    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.darkGreen },
+  background: { flex: 1, backgroundColor: colors.darkGreen },
+  overlay: { ...StyleSheet.absoluteFill, backgroundColor: colors.overlayDarkGreen },
   safeArea: { flex: 1, paddingHorizontal: screenPadding },
   backButton: { width: 32, height: 32, justifyContent: 'center', marginTop: spacing.sm },
   logoRow: { alignItems: 'center', marginTop: spacing.md },
