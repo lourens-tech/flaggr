@@ -91,7 +91,7 @@ export function SignUpStep1Screen({ navigation }: Props) {
         </TouchableOpacity>
 
         <View style={styles.logoRow}>
-          <FlagrrLogo size={36} />
+          <FlagrrLogo size={72} />
         </View>
 
         <KeyboardAvoidingView
@@ -182,9 +182,9 @@ const styles = StyleSheet.create({
   overlay: { ...StyleSheet.absoluteFill, backgroundColor: colors.overlayDarkGreen },
   safeArea: { flex: 1, paddingHorizontal: screenPadding },
   backButton: { width: 32, height: 32, justifyContent: 'center', marginTop: spacing.sm },
-  logoRow: { alignItems: 'center', marginTop: spacing.md },
+  logoRow: { alignItems: 'center', marginTop: spacing.xs },
   scrollContent: { flexGrow: 1, justifyContent: 'space-between' },
-  form: { marginTop: spacing.xl },
+  form: { marginTop: spacing.lg },
   loginRow: { alignItems: 'center', marginTop: spacing.xl, marginBottom: spacing.xl, gap: 4 },
   loginText: { fontFamily: fontFamily.body, fontSize: 13, color: colors.white },
   loginBold: { fontFamily: fontFamily.bodySemiBold, fontSize: 13, color: colors.lime },

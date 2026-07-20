@@ -86,7 +86,7 @@ export function SignUpStep2Screen({ navigation, route }: Props) {
         </TouchableOpacity>
 
         <View style={styles.logoRow}>
-          <FlagrrLogo size={36} />
+          <FlagrrLogo size={72} />
         </View>
 
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -152,7 +152,7 @@ const styles = StyleSheet.create({
   overlay: { ...StyleSheet.absoluteFill, backgroundColor: colors.overlayDarkGreen },
   safeArea: { flex: 1, paddingHorizontal: screenPadding },
   backButton: { width: 32, height: 32, justifyContent: 'center', marginTop: spacing.sm },
-  logoRow: { alignItems: 'center', marginTop: spacing.md },
-  form: { marginTop: spacing.xl },
+  logoRow: { alignItems: 'center', marginTop: spacing.xs },
+  form: { marginTop: spacing.lg },
   hint: { fontFamily: fontFamily.body, fontSize: 12, color: 'rgba(255,255,255,0.6)', marginTop: 4, marginLeft: 4 },
 });
