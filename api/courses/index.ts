@@ -12,10 +12,6 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     select id, name, slug, logo_url from courses order by name
   `) as Array<{ id: string; name: string; slug: string; logo_url: string | null }>;
 
-  // Temporary debug log to confirm what the DB actually has — remove once
-  // the empty-picker issue is confirmed fixed.
-  console.log(`[courses] returning ${rows.length} row(s): ${rows.map((r) => r.slug).join(', ')}`);
-
   res.status(200).json(
     rows.map((r) => ({
       id: r.id,
