@@ -83,7 +83,9 @@ const styles = StyleSheet.create({
   },
   content: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   label: {
-    fontFamily: fontFamily.heading,
+    // Every screen passes a short, punctuation-free static label, so this is
+    // safe for the Ws Paradose demo build (see typography.ts).
+    fontFamily: fontFamily.headingDisplay,
     fontSize: fontSize.button,
     textTransform: 'capitalize',
   },

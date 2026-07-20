@@ -1,29 +1,43 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import { colors, fontFamily } from '../../theme';
+import { Image, ImageSourcePropType, ImageStyle, StyleProp } from 'react-native';
+
+export type FlagrrLogoColor = 'darkGreen' | 'clubGreen' | 'lime' | 'white';
+
+// Full wordmark (script "Flagrr" + "LOYALTY" tagline baked into the artwork).
+const LOGO_SOURCES: Record<FlagrrLogoColor, ImageSourcePropType> = {
+  darkGreen: require('../../../assets/images/flagrr-logo-dark-green.png'),
+  clubGreen: require('../../../assets/images/flagrr-logo-club-green.png'),
+  lime: require('../../../assets/images/flagrr-logo-lime.png'),
+  white: require('../../../assets/images/flagrr-logo-white.png'),
+};
+
+// "F" monogram + golf ball mark only, no tagline.
+const ICON_SOURCES: Record<FlagrrLogoColor, ImageSourcePropType> = {
+  darkGreen: require('../../../assets/images/flagrr-icon-dark-green.png'),
+  clubGreen: require('../../../assets/images/flagrr-icon-club-green.png'),
+  lime: require('../../../assets/images/flagrr-icon-lime.png'),
+  white: require('../../../assets/images/flagrr-icon-white.png'),
+};
+
+const LOGO_ASPECT_RATIO = 2250 / 1168;
+const ICON_ASPECT_RATIO = 2250 / 1921;
 
 interface Props {
-  color?: string;
-  size?: number;
-  showTagline?: boolean;
+  color?: FlagrrLogoColor;
+  size?: number; // rendered height in px; width follows the artwork's aspect ratio
+  showTagline?: boolean; // true = full wordmark + "LOYALTY" tagline, false = icon mark only
+  style?: StyleProp<ImageStyle>;
 }
 
-// Stand-in recreation of the "Flagrr" wordmark using a script font, since the
-// original logo asset couldn't be pulled out of Figma in this environment
-// (see conversation). Swap for an <Image> once the real logo file is available.
-export function FlagrrLogo({ color = colors.white, size = 44, showTagline = true }: Props) {
+export function FlagrrLogo({ color = 'white', size = 44, showTagline = true, style }: Props) {
+  const source = showTagline ? LOGO_SOURCES[color] : ICON_SOURCES[color];
+  const aspectRatio = showTagline ? LOGO_ASPECT_RATIO : ICON_ASPECT_RATIO;
+
   return (
-    <View style={styles.container}>
-      <Text style={[styles.wordmark, { color, fontSize: size }]}>Flagrr</Text>
-      {showTagline ? (
-        <Text style={[styles.tagline, { color, fontSize: size * 0.24 }]}>LOYALTY</Text>
-      ) : null}
-    </View>
+    <Image
+      source={source}
+      resizeMode="contain"
+      style={[{ height: size, width: size * aspectRatio }, style]}
+    />
   );
 }
-
-const styles = StyleSheet.create({
-  container: { alignItems: 'center' },
-  wordmark: { fontFamily: fontFamily.logo },
-  tagline: { fontFamily: fontFamily.bodyMedium, letterSpacing: 4, marginTop: -6 },
-});

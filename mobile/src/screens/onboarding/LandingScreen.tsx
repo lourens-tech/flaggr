@@ -25,10 +25,18 @@ export function LandingScreen({ navigation }: Props) {
         </View>
 
         <View style={styles.headline}>
-          <Text style={styles.headlineText}>Play.</Text>
-          <Text style={styles.headlineText}>Earn.</Text>
-          <Text style={[styles.headlineText, { color: colors.lime }]}>Redeem.</Text>
-          <Text style={styles.headlineText}>Repeat.</Text>
+          <Text style={styles.headlineText}>
+            <Text style={styles.headlineWord}>Play</Text>.
+          </Text>
+          <Text style={styles.headlineText}>
+            <Text style={styles.headlineWord}>Earn</Text>.
+          </Text>
+          <Text style={[styles.headlineText, { color: colors.lime }]}>
+            <Text style={[styles.headlineWord, { color: colors.lime }]}>Redeem</Text>.
+          </Text>
+          <Text style={styles.headlineText}>
+            <Text style={styles.headlineWord}>Repeat</Text>.
+          </Text>
         </View>
 
         <View style={styles.footer}>
@@ -54,10 +62,15 @@ const styles = StyleSheet.create({
   logoRow: { alignItems: 'center', marginTop: spacing.xl },
   headline: { alignItems: 'center', marginTop: -40 },
   headlineText: {
+    // The period itself stays on Fraunces — the Ws Paradose demo build
+    // substitutes a watermark glyph for "." (see typography.ts).
     fontFamily: fontFamily.heading,
     fontSize: 44,
     lineHeight: 52,
     color: colors.white,
+  },
+  headlineWord: {
+    fontFamily: fontFamily.headingDisplay,
   },
   footer: { alignItems: 'center', paddingBottom: spacing.lg },
   loginLink: { fontFamily: fontFamily.bodySemiBold, fontSize: 12, color: colors.white },

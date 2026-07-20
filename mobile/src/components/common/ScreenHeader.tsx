@@ -39,7 +39,9 @@ const styles = StyleSheet.create({
   },
   iconButton: { width: 32, alignItems: 'center', justifyContent: 'center' },
   title: {
-    fontFamily: fontFamily.heading,
+    // Every screen passes a short, punctuation-free static title, so this is
+    // safe for the Ws Paradose demo build (see typography.ts).
+    fontFamily: fontFamily.headingDisplay,
     fontSize: fontSize.title,
     color: colors.white,
   },
