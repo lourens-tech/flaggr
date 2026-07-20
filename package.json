@@ -1,0 +1,13 @@
+{
+  "name": "flagrr-api",
+  "private": true,
+  "dependencies": {
+    "@neondatabase/serverless": "^1.1.0",
+    "bcryptjs": "^3.0.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@vercel/node": "^5.8.26",
+    "typescript": "~6.0.3"
+  }
+}

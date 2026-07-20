@@ -2,7 +2,7 @@ export type AuthStackParamList = {
   Landing: undefined;
   Login: undefined;
   SignUpStep1: undefined;
-  SignUpStep2: { firstName: string; lastName: string; email: string };
+  SignUpStep2: { firstName: string; lastName: string; email: string; phone: string; courseId: string };
 };
 
 export type MainTabParamList = {

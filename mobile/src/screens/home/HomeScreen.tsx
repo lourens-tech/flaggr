@@ -44,8 +44,8 @@ export function HomeScreen({ navigation }: Props) {
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Redeem',
-        onPress: () => {
-          const voucher = redeemReward(rewardId);
+        onPress: async () => {
+          const voucher = await redeemReward(rewardId);
           if (voucher) navigation.navigate('Voucher', { voucherId: voucher.id });
         },
       },

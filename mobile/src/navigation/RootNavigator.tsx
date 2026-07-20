@@ -1,4 +1,5 @@
 import React from 'react';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { RootStackParamList } from './types';
 import { AuthNavigator } from './AuthNavigator';
@@ -12,11 +13,22 @@ import { NotificationsScreen } from '../screens/profile/NotificationsScreen';
 import { HelpCenterScreen } from '../screens/profile/HelpCenterScreen';
 import { ContactScreen } from '../screens/profile/ContactScreen';
 import { useApp } from '../context/AppContext';
+import { colors } from '../theme';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export function RootNavigator() {
-  const { isAuthenticated } = useApp();
+  const { isAuthenticated, isInitializing } = useApp();
+
+  if (isInitializing) {
+    // Restoring a stored session (checking /me) before deciding which stack to
+    // mount — avoids a flash of the Landing screen on a warm start.
+    return (
+      <View style={styles.loading}>
+        <ActivityIndicator color={colors.clubGreen} size="large" />
+      </View>
+    );
+  }
 
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
@@ -38,3 +50,7 @@ export function RootNavigator() {
     </Stack.Navigator>
   );
 }
+
+const styles = StyleSheet.create({
+  loading: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.white },
+});

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -7,6 +7,7 @@ import type { AuthStackParamList } from '../../navigation/types';
 import { FlagrrLogo } from '../../components/common/FlagrrLogo';
 import { PillButton } from '../../components/common/PillButton';
 import { TextField } from '../../components/common/TextField';
+import { ApiError } from '../../api/client';
 import { useApp } from '../../context/AppContext';
 import { colors, fontFamily, screenPadding, spacing } from '../../theme';
 
@@ -17,6 +18,20 @@ export function LoginScreen({ navigation }: Props) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [keepLoggedIn, setKeepLoggedIn] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleLogin = async () => {
+    if (!username || !password) return;
+    setSubmitting(true);
+    try {
+      await login(username.trim(), password);
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : 'Something went wrong. Please try again.';
+      Alert.alert('Couldn’t log in', message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -65,7 +80,13 @@ export function LoginScreen({ navigation }: Props) {
           </TouchableOpacity>
 
           <View style={{ height: spacing.lg }} />
-          <PillButton label="Login" icon="arrow-forward" onPress={login} />
+          <PillButton
+            label="Login"
+            icon="arrow-forward"
+            onPress={handleLogin}
+            loading={submitting}
+            disabled={!username || !password}
+          />
 
           <TouchableOpacity style={styles.forgotRow}>
             <Text style={styles.forgotText}>

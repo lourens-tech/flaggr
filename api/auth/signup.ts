@@ -1,0 +1,87 @@
+import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { sql } from '../_lib/db';
+import { hashPassword } from '../_lib/auth';
+import { HttpError, withErrorHandling } from '../_lib/http';
+import { computeTierInfo } from '../_lib/tiers';
+
+interface SignupBody {
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  phone?: string;
+  courseId?: string;
+  password?: string;
+}
+
+export default withErrorHandling(async (req: VercelRequest, res: VercelResponse) => {
+  if (req.method !== 'POST') {
+    res.status(405).json({ error: 'Method not allowed' });
+    return;
+  }
+
+  const body = req.body as SignupBody;
+  const firstName = body.firstName?.trim();
+  const lastName = body.lastName?.trim() ?? '';
+  const email = body.email?.trim().toLowerCase();
+  const phone = body.phone?.trim() || null;
+  const courseId = body.courseId?.trim();
+  const password = body.password;
+
+  if (!firstName || !email || !courseId || !password) {
+    throw new HttpError(400, 'firstName, email, courseId, and password are required');
+  }
+  if (password.length < 8) {
+    throw new HttpError(400, 'Password must be at least 8 characters');
+  }
+
+  const courseRows = (await sql`select id, name from courses where id = ${courseId}`) as Array<{
+    id: string;
+    name: string;
+  }>;
+  if (courseRows.length === 0) {
+    throw new HttpError(400, 'Unknown course');
+  }
+  const course = courseRows[0];
+
+  const passwordHash = await hashPassword(password);
+
+  let userRows: Array<{ id: string; course_id: string; first_name: string; last_name: string; email: string; member_since: string }>;
+  try {
+    userRows = (await sql`
+      insert into users (course_id, first_name, last_name, email, phone, password_hash)
+      values (${courseId}, ${firstName}, ${lastName}, ${email}, ${phone}, ${passwordHash})
+      returning id, course_id, first_name, last_name, email, member_since
+    `) as typeof userRows;
+  } catch (err) {
+    if (err instanceof Error && /unique/i.test(err.message)) {
+      throw new HttpError(409, 'An account with this email already exists');
+    }
+    throw err;
+  }
+
+  const user = userRows[0];
+
+  const sessionRows = (await sql.transaction([
+    sql`insert into points_accounts (user_id) values (${user.id})`,
+    sql`insert into streaks (user_id) values (${user.id})`,
+    sql`insert into user_stats (user_id) values (${user.id})`,
+    sql`insert into sessions (user_id) values (${user.id}) returning token`,
+  ])) as [unknown, unknown, unknown, Array<{ token: string }>];
+
+  const token = sessionRows[3][0].token;
+  const tierInfo = computeTierInfo(0);
+
+  res.status(201).json({
+    token,
+    user: {
+      id: user.id,
+      firstName: user.first_name,
+      lastName: user.last_name,
+      email: user.email,
+      phone,
+      homeClub: course.name,
+      tier: tierInfo.tier,
+      memberSince: user.member_since,
+    },
+  });
+});

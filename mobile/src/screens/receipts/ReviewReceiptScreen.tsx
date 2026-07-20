@@ -1,10 +1,11 @@
-import React from 'react';
-import { Image, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
+import React, { useState } from 'react';
+import { Alert, Image, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/types';
 import { ScreenHeader } from '../../components/common/ScreenHeader';
 import { PillButton } from '../../components/common/PillButton';
+import { ApiError } from '../../api/client';
 import { useApp } from '../../context/AppContext';
 import { colors, fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
 
@@ -25,21 +26,30 @@ const PARSED = {
 
 export function ReviewReceiptScreen({ route, navigation }: Props) {
   const { submitReceipt } = useApp();
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = () => {
-    submitReceipt(
-      {
-        imageUri: route.params.imageUri,
-        courseName: PARSED.courseName,
-        items: PARSED.items,
-        subtotal: PARSED.total,
-        tax: 0,
-        total: PARSED.total,
-        submittedAt: new Date().toISOString(),
-      },
-      PARSED.pointsAwarded,
-    );
-    navigation.replace('ReceiptSuccess', { pointsAwarded: PARSED.pointsAwarded });
+  const handleSubmit = async () => {
+    setSubmitting(true);
+    try {
+      await submitReceipt(
+        {
+          imageUri: route.params.imageUri,
+          courseName: PARSED.courseName,
+          items: PARSED.items,
+          subtotal: PARSED.total,
+          tax: 0,
+          total: PARSED.total,
+          submittedAt: new Date().toISOString(),
+        },
+        PARSED.pointsAwarded,
+      );
+      navigation.replace('ReceiptSuccess', { pointsAwarded: PARSED.pointsAwarded });
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : 'Something went wrong. Please try again.';
+      Alert.alert('Couldn’t submit receipt', message);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -81,7 +91,7 @@ export function ReviewReceiptScreen({ route, navigation }: Props) {
         </View>
 
         <View style={{ height: spacing.lg }} />
-        <PillButton label="Submit Receipt" onPress={handleSubmit} />
+        <PillButton label="Submit Receipt" onPress={handleSubmit} loading={submitting} />
         <View style={{ height: spacing.xxl }} />
       </ScrollView>
     </View>

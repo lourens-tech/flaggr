@@ -93,7 +93,8 @@ create table vouchers (
 create table receipts (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references users(id) on delete cascade,
-  course_id uuid not null references courses(id),
+  course_id uuid not null references courses(id), -- member's home club, for tenant scoping/reporting
+  course_name text not null default '', -- free-text: where the receipt is actually from (may not be a signed-up course)
   image_uri text,
   status text not null default 'pending' check (status in ('pending', 'approved', 'rejected')),
   items jsonb not null default '[]',

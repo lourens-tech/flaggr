@@ -1,15 +1,6 @@
-import React, { createContext, useContext, useMemo, useState } from 'react';
-import {
-  mockActivity,
-  mockNotifications,
-  mockPointsAccount,
-  mockReceipts,
-  mockRewards,
-  mockStats,
-  mockStreak,
-  mockUser,
-  mockVouchers,
-} from '../data/mockData';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { api, setToken, type SignupPayload } from '../api/client';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import type {
   ActivityEntry,
   AppNotification,
@@ -22,8 +13,41 @@ import type {
   Voucher,
 } from '../data/types';
 
+const TOKEN_KEY = 'flagrr_auth_token';
+
+const EMPTY_USER: User = {
+  id: '',
+  firstName: '',
+  lastName: '',
+  email: '',
+  homeClub: '',
+  tier: 'Bronze',
+  memberSince: '',
+};
+const EMPTY_POINTS: PointsAccount = {
+  balance: 0,
+  totalEarned: 0,
+  totalRedeemed: 0,
+  pointsToNextTier: 0,
+  nextTier: null,
+  tierProgress: 0,
+};
+const EMPTY_STREAK: Streak = { weeks: 0, activeSince: '', weeksPlayed: [] };
+const EMPTY_STATS: Stats = {
+  roundsPlayed9: 0,
+  roundsPlayed9DeltaPct: 0,
+  roundsPlayed18: 0,
+  roundsPlayed18DeltaPct: 0,
+  bucksEarned: 0,
+  bucksEarnedDeltaPct: 0,
+  bucksRedeemed: 0,
+  bucksRedeemedDeltaPct: 0,
+  monthly: [],
+};
+
 interface AppState {
   isAuthenticated: boolean;
+  isInitializing: boolean;
   user: User;
   points: PointsAccount;
   streak: Streak;
@@ -36,11 +60,15 @@ interface AppState {
 }
 
 interface AppContextValue extends AppState {
-  login: () => void;
-  logout: () => void;
-  redeemReward: (rewardId: string) => Voucher | null;
-  submitReceipt: (receipt: Omit<Receipt, 'id' | 'status' | 'pointsAwarded'>, pointsAwarded: number) => void;
-  markNotificationRead: (id: string) => void;
+  login: (email: string, password: string) => Promise<void>;
+  signup: (payload: SignupPayload) => Promise<void>;
+  logout: () => Promise<void>;
+  redeemReward: (rewardId: string) => Promise<Voucher | null>;
+  submitReceipt: (
+    receipt: Omit<Receipt, 'id' | 'status' | 'pointsAwarded'>,
+    pointsAwarded: number,
+  ) => Promise<void>;
+  markNotificationRead: (id: string) => Promise<void>;
   unreadNotificationCount: number;
 }
 
@@ -48,82 +76,121 @@ const AppContext = createContext<AppContextValue | undefined>(undefined);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [user] = useState<User>(mockUser);
-  const [points, setPoints] = useState<PointsAccount>(mockPointsAccount);
-  const [streak] = useState<Streak>(mockStreak);
-  const [stats] = useState<Stats>(mockStats);
-  const [rewards] = useState<Reward[]>(mockRewards);
-  const [vouchers, setVouchers] = useState<Voucher[]>(mockVouchers);
-  const [activity, setActivity] = useState<ActivityEntry[]>(mockActivity);
-  const [receipts, setReceipts] = useState<Receipt[]>(mockReceipts);
-  const [notifications, setNotifications] = useState<AppNotification[]>(mockNotifications);
+  const [isInitializing, setIsInitializing] = useState(true);
+  const [user, setUser] = useState<User>(EMPTY_USER);
+  const [points, setPoints] = useState<PointsAccount>(EMPTY_POINTS);
+  const [streak, setStreak] = useState<Streak>(EMPTY_STREAK);
+  const [stats, setStats] = useState<Stats>(EMPTY_STATS);
+  const [rewards, setRewards] = useState<Reward[]>([]);
+  const [vouchers, setVouchers] = useState<Voucher[]>([]);
+  const [activity, setActivity] = useState<ActivityEntry[]>([]);
+  const [receipts, setReceipts] = useState<Receipt[]>([]);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
 
-  const login = () => setIsAuthenticated(true);
-  const logout = () => setIsAuthenticated(false);
-
-  const redeemReward = (rewardId: string): Voucher | null => {
-    const reward = rewards.find((r) => r.id === rewardId);
-    if (!reward || points.balance < reward.cost) return null;
-
-    const voucher: Voucher = {
-      id: `v_${Date.now()}`,
-      rewardId: reward.id,
-      code: `FLGR-${reward.id.slice(2, 6).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`,
-      status: 'active',
-      qrValue: `flaggr://voucher/v_${Date.now()}`,
-      issuedAt: new Date().toISOString(),
-      expiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(),
-    };
-
-    setVouchers((prev) => [voucher, ...prev]);
-    setPoints((prev) => ({
-      ...prev,
-      balance: prev.balance - reward.cost,
-      totalRedeemed: prev.totalRedeemed + reward.cost,
-    }));
-    setActivity((prev) => [
-      {
-        id: `a_${Date.now()}`,
-        type: 'redeem',
-        title: `${reward.title} redeemed`,
-        subtitle: 'Reward voucher',
-        amount: -reward.cost,
-        date: new Date().toISOString(),
-      },
-      ...prev,
+  // Fetches everything needed to render the authenticated app in one go.
+  const loadAll = useCallback(async () => {
+    const [me, rewardsRes, vouchersRes, activityRes, receiptsRes, notificationsRes] = await Promise.all([
+      api.me(),
+      api.rewards(),
+      api.vouchers(),
+      api.activity(),
+      api.receipts(),
+      api.notifications(),
     ]);
+    setUser(me.user);
+    setPoints(me.points);
+    setStreak(me.streak);
+    setStats(me.stats);
+    setRewards(rewardsRes);
+    setVouchers(vouchersRes);
+    setActivity(activityRes);
+    setReceipts(receiptsRes);
+    setNotifications(notificationsRes);
+  }, []);
 
-    return voucher;
+  useEffect(() => {
+    (async () => {
+      try {
+        const token = await AsyncStorage.getItem(TOKEN_KEY);
+        if (token) {
+          await loadAll();
+          setIsAuthenticated(true);
+        }
+      } catch {
+        // Stored token is missing/expired — fall back to a logged-out state.
+        await setToken(null);
+      } finally {
+        setIsInitializing(false);
+      }
+    })();
+  }, [loadAll]);
+
+  const login = async (email: string, password: string) => {
+    const res = await api.login(email, password);
+    await setToken(res.token);
+    await loadAll();
+    setIsAuthenticated(true);
   };
 
-  const submitReceipt: AppContextValue['submitReceipt'] = (receiptDraft, pointsAwarded) => {
-    const receipt: Receipt = {
-      ...receiptDraft,
-      id: `rc_${Date.now()}`,
-      status: 'approved',
+  const signup = async (payload: SignupPayload) => {
+    const res = await api.signup(payload);
+    await setToken(res.token);
+    await loadAll();
+    setIsAuthenticated(true);
+  };
+
+  const logout = async () => {
+    await setToken(null);
+    setIsAuthenticated(false);
+    setUser(EMPTY_USER);
+    setPoints(EMPTY_POINTS);
+    setStreak(EMPTY_STREAK);
+    setStats(EMPTY_STATS);
+    setRewards([]);
+    setVouchers([]);
+    setActivity([]);
+    setReceipts([]);
+    setNotifications([]);
+  };
+
+  const redeemReward = async (rewardId: string): Promise<Voucher | null> => {
+    try {
+      const voucher = await api.redeem(rewardId);
+      setVouchers((prev) => [voucher, ...prev]);
+      const [me, activityRes] = await Promise.all([api.me(), api.activity()]);
+      setPoints(me.points);
+      setUser(me.user);
+      setActivity(activityRes);
+      return voucher;
+    } catch {
+      return null;
+    }
+  };
+
+  const submitReceipt: AppContextValue['submitReceipt'] = async (receiptDraft, pointsAwarded) => {
+    const receipt = await api.submitReceipt({
+      imageUri: receiptDraft.imageUri,
+      courseName: receiptDraft.courseName,
+      items: receiptDraft.items,
+      subtotal: receiptDraft.subtotal,
+      tax: receiptDraft.tax,
+      total: receiptDraft.total,
       pointsAwarded,
-    };
+    });
     setReceipts((prev) => [receipt, ...prev]);
-    setPoints((prev) => ({
-      ...prev,
-      balance: prev.balance + pointsAwarded,
-      totalEarned: prev.totalEarned + pointsAwarded,
-    }));
-    setActivity((prev) => [
-      {
-        id: `a_${Date.now()}`,
-        type: 'earn',
-        title: 'Receipt scanned',
-        subtitle: receiptDraft.courseName,
-        amount: pointsAwarded,
-        date: new Date().toISOString(),
-      },
-      ...prev,
-    ]);
+    const [me, activityRes] = await Promise.all([api.me(), api.activity()]);
+    setPoints(me.points);
+    setUser(me.user);
+    setActivity(activityRes);
   };
 
-  const markNotificationRead = (id: string) => {
+  const markNotificationRead = async (id: string) => {
     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
+    try {
+      await api.markNotificationRead(id);
+    } catch {
+      // Best-effort — the optimistic update stands even if the request fails.
+    }
   };
 
   const unreadNotificationCount = useMemo(
@@ -133,6 +200,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const value: AppContextValue = {
     isAuthenticated,
+    isInitializing,
     user,
     points,
     streak,
@@ -143,6 +211,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     receipts,
     notifications,
     login,
+    signup,
     logout,
     redeemReward,
     submitReceipt,

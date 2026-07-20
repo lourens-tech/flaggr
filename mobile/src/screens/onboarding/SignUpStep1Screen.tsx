@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ImageBackground, KeyboardAvoidingView, Platform, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,6 +7,8 @@ import type { AuthStackParamList } from '../../navigation/types';
 import { FlagrrLogo } from '../../components/common/FlagrrLogo';
 import { PillButton } from '../../components/common/PillButton';
 import { TextField } from '../../components/common/TextField';
+import { SelectField } from '../../components/common/SelectField';
+import { api, type Course } from '../../api/client';
 import { GOLF_COURSE_BACKGROUND_URI, colors, fontFamily, screenPadding, spacing } from '../../theme';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'SignUpStep1'>;
@@ -16,9 +18,22 @@ export function SignUpStep1Screen({ navigation }: Props) {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [birthday, setBirthday] = useState('');
-  const [golfClub, setGolfClub] = useState('');
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [courseId, setCourseId] = useState<string | null>(null);
+  const [loadingCourses, setLoadingCourses] = useState(true);
 
-  const canContinue = fullName.trim().length > 0 && email.trim().length > 0;
+  useEffect(() => {
+    api
+      .courses()
+      .then((list) => {
+        setCourses(list);
+        if (list.length === 1) setCourseId(list[0].id);
+      })
+      .catch(() => setCourses([]))
+      .finally(() => setLoadingCourses(false));
+  }, []);
+
+  const canContinue = fullName.trim().length > 0 && email.trim().length > 0 && !!courseId;
   const [firstName, ...rest] = fullName.trim().split(' ');
 
   return (
@@ -56,7 +71,13 @@ export function SignUpStep1Screen({ navigation }: Props) {
               <View style={{ height: spacing.md }} />
               <TextField placeholder="Birthday" value={birthday} onChangeText={setBirthday} />
               <View style={{ height: spacing.md }} />
-              <TextField placeholder="Golf Club" value={golfClub} onChangeText={setGolfClub} />
+              <SelectField
+                placeholder={loadingCourses ? 'Loading golf clubs…' : 'Golf Club'}
+                options={courses.map((c) => ({ label: c.name, value: c.id }))}
+                value={courseId}
+                onChange={setCourseId}
+                disabled={loadingCourses}
+              />
 
               <View style={{ height: spacing.lg }} />
               <PillButton
@@ -67,6 +88,8 @@ export function SignUpStep1Screen({ navigation }: Props) {
                     firstName: firstName ?? '',
                     lastName: rest.join(' '),
                     email,
+                    phone,
+                    courseId: courseId!,
                   })
                 }
               />
