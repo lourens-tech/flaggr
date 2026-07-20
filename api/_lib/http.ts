@@ -10,6 +10,11 @@ export function setCors(res: VercelResponse) {
  * OPTIONS request and has already been responded to. */
 export function handlePreflight(req: VercelRequest, res: VercelResponse): boolean {
   setCors(res);
+  // Every route here returns dynamic, often per-user data — never let the
+  // browser/CDN cache it or turn a repeat GET into a bodyless 304 (res.json()
+  // auto-generates an ETag, which was silently breaking the client's `res.ok`
+  // check on second load).
+  res.setHeader('Cache-Control', 'no-store');
   if (req.method === 'OPTIONS') {
     res.status(204).end();
     return true;

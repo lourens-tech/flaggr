@@ -62,6 +62,9 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     method: options.method ?? 'GET',
     headers,
     body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
+    // Every route returns dynamic data — never let the browser serve a
+    // cached/conditional response (a bodyless 304 fails the res.ok check below).
+    cache: 'no-store',
   });
 
   const data = await res.json().catch(() => null);
