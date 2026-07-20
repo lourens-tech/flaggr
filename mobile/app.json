@@ -1,0 +1,42 @@
+{
+  "expo": {
+    "name": "Flagrr",
+    "slug": "flagrr",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "scheme": "flagrr",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.flagrr.loyalty"
+    },
+    "android": {
+      "package": "com.flagrr.loyalty",
+      "adaptiveIcon": {
+        "backgroundColor": "#1F4234",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Flagrr needs camera access to scan your receipts and award Flagrr Bucks."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Flagrr needs access to your photos so you can upload a receipt to scan."
+        }
+      ]
+    ]
+  }
+}

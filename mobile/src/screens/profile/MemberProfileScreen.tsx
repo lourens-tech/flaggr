@@ -1,0 +1,215 @@
+import React from 'react';
+import { ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import type { CompositeScreenProps } from '@react-navigation/native';
+import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import type { MainTabParamList, RootStackParamList } from '../../navigation/types';
+import { useApp } from '../../context/AppContext';
+import { colors, fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
+
+type Props = CompositeScreenProps<
+  BottomTabScreenProps<MainTabParamList, 'Profile'>,
+  NativeStackScreenProps<RootStackParamList>
+>;
+
+function ProfileField({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.fieldRow}>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.fieldLabel}>{label}</Text>
+        <Text style={styles.fieldValue}>{value}</Text>
+      </View>
+      <Ionicons name="pencil" size={16} color={colors.clubGreen} />
+    </View>
+  );
+}
+
+function LinkRow({
+  icon,
+  label,
+  onPress,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  onPress: () => void;
+}) {
+  return (
+    <TouchableOpacity style={styles.linkRow} onPress={onPress}>
+      <Ionicons name={icon} size={18} color={colors.clubGreen} />
+      <Text style={styles.linkLabel}>{label}</Text>
+      <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
+    </TouchableOpacity>
+  );
+}
+
+export function MemberProfileScreen({ navigation }: Props) {
+  const { user, unreadNotificationCount, logout } = useApp();
+
+  return (
+    <View style={styles.screen}>
+      <StatusBar barStyle="light-content" />
+      <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>My Profile</Text>
+          <View style={styles.headerRight}>
+            <TouchableOpacity onPress={() => navigation.navigate('Notifications')}>
+              <Ionicons name="notifications" size={20} color={colors.white} />
+              {unreadNotificationCount > 0 ? <View style={styles.badge} /> : null}
+            </TouchableOpacity>
+            <View style={styles.avatarSmall}>
+              <Ionicons name="person" size={18} color={colors.darkGreen} />
+            </View>
+          </View>
+        </View>
+        <Text style={styles.welcome}>Hello, {user.firstName} 👋</Text>
+      </SafeAreaView>
+
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.profileCard}>
+          <View style={styles.avatarLarge}>
+            <Ionicons name="person" size={48} color={colors.clubGreen} />
+          </View>
+          <LinearGradient
+            colors={[colors.goldGradientStart, colors.goldGradientEnd]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.tierBadge}
+          >
+            <Text style={styles.tierBadgeText}>{user.tier} Member</Text>
+            <MaterialCommunityIcons name="crown" size={12} color={colors.white} />
+          </LinearGradient>
+          <Text style={styles.name}>
+            {user.firstName} {user.lastName}
+          </Text>
+          <Text style={styles.club}>{user.homeClub}</Text>
+
+          <View style={styles.fieldsWrapper}>
+            <ProfileField label="Name" value={`${user.firstName} ${user.lastName}`} />
+            <ProfileField label="Phone" value={user.phone ?? '—'} />
+            <ProfileField label="Email" value={user.email} />
+            <ProfileField
+              label="Birthday"
+              value={new Date(user.memberSince).toLocaleDateString(undefined, {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+              })}
+            />
+            <ProfileField label="Club" value={user.homeClub} />
+          </View>
+        </View>
+
+        <Text style={styles.sectionLabel}>Support</Text>
+        <View style={styles.linksCard}>
+          <LinkRow icon="help-circle-outline" label="Help Center" onPress={() => navigation.navigate('HelpCenter')} />
+          <LinkRow icon="call-outline" label="Contact Us" onPress={() => navigation.navigate('Contact')} />
+        </View>
+
+        <Text style={styles.sectionLabel}>Legal</Text>
+        <View style={styles.linksCard}>
+          <LinkRow icon="shield-checkmark-outline" label="Terms & Privacy" onPress={() => {}} />
+        </View>
+
+        <TouchableOpacity style={styles.logoutRow} onPress={logout}>
+          <Ionicons name="log-out-outline" size={18} color={colors.negative} />
+          <Text style={styles.logoutText}>Log Out</Text>
+        </TouchableOpacity>
+
+        <View style={{ height: 120 }} />
+      </ScrollView>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.clubGreen },
+  headerSafeArea: { backgroundColor: colors.clubGreen },
+  header: {
+    height: 46,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: screenPadding,
+  },
+  headerTitle: { fontFamily: fontFamily.heading, fontSize: fontSize.title, color: colors.white },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  badge: { position: 'absolute', top: -2, right: -4, width: 8, height: 8, borderRadius: 4, backgroundColor: colors.lime },
+  avatarSmall: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: colors.lime,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  welcome: {
+    fontFamily: fontFamily.heading,
+    fontSize: fontSize.cardTitle,
+    color: colors.white,
+    paddingHorizontal: screenPadding,
+    paddingVertical: spacing.md,
+  },
+  content: { backgroundColor: colors.white, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, paddingTop: spacing.xl },
+  profileCard: { alignItems: 'center', paddingHorizontal: screenPadding },
+  avatarLarge: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: colors.mintBg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 3,
+    borderColor: colors.lime,
+  },
+  tierBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 6,
+    borderRadius: radius.pill,
+    marginTop: -12,
+  },
+  tierBadgeText: { fontFamily: fontFamily.heading, fontSize: 11, color: colors.white, textTransform: 'uppercase' },
+  name: { fontFamily: fontFamily.heading, fontSize: fontSize.title, color: colors.darkGreen, marginTop: spacing.sm },
+  club: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary, marginTop: 2 },
+  fieldsWrapper: { width: '100%', marginTop: spacing.lg, gap: spacing.sm },
+  fieldRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.mintBgAlt,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm + 2,
+  },
+  fieldLabel: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary },
+  fieldValue: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.small, color: colors.textPrimary, marginTop: 2 },
+  sectionLabel: {
+    fontFamily: fontFamily.heading,
+    fontSize: fontSize.cardTitle,
+    color: colors.textPrimary,
+    paddingHorizontal: screenPadding,
+    marginTop: spacing.xl,
+    marginBottom: spacing.sm,
+  },
+  linksCard: { marginHorizontal: screenPadding, backgroundColor: colors.mintBgAlt, borderRadius: radius.md },
+  linkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm + 6,
+  },
+  linkLabel: { flex: 1, fontFamily: fontFamily.bodyMedium, fontSize: fontSize.small, color: colors.textPrimary },
+  logoutRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.xl,
+  },
+  logoutText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.small, color: colors.negative },
+});
