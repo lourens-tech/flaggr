@@ -9,7 +9,7 @@ import { PillButton } from '../../components/common/PillButton';
 import { TextField } from '../../components/common/TextField';
 import { ApiError } from '../../api/client';
 import { useApp } from '../../context/AppContext';
-import { GOLF_COURSE_BACKGROUND_URI, colors, screenPadding, spacing } from '../../theme';
+import { ONBOARDING_BACKGROUNDS, colors, screenPadding, spacing } from '../../theme';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'SignUpStep2'>;
 
@@ -40,7 +40,7 @@ export function SignUpStep2Screen({ navigation, route }: Props) {
 
   return (
     <ImageBackground
-      source={{ uri: GOLF_COURSE_BACKGROUND_URI }}
+      source={ONBOARDING_BACKGROUNDS.signUpStep2}
       style={styles.background}
       resizeMode="cover"
     >

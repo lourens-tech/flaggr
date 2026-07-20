@@ -1,4 +1,7 @@
-// Stock aerial golf course photo used as the onboarding background (Landing,
-// Sign Up). Swap for the branded shot from Figma once that asset is available.
-export const GOLF_COURSE_BACKGROUND_URI =
-  'https://images.unsplash.com/photo-1587174786738-5699a41ba0c2?w=1200&q=80';
+// Real Strand Golf Club photos, bundled locally (not hotlinked) so the
+// onboarding background always renders regardless of network conditions.
+export const ONBOARDING_BACKGROUNDS = {
+  landing: require('../../assets/images/strand-golf-club-sunset-swing.jpg'),
+  signUpStep1: require('../../assets/images/strand-golf-club-fairway.jpg'),
+  signUpStep2: require('../../assets/images/strand-golf-club-tee.jpg'),
+};

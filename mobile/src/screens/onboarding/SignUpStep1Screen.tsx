@@ -9,7 +9,7 @@ import { PillButton } from '../../components/common/PillButton';
 import { TextField } from '../../components/common/TextField';
 import { SelectField } from '../../components/common/SelectField';
 import { api, type Course } from '../../api/client';
-import { GOLF_COURSE_BACKGROUND_URI, colors, fontFamily, screenPadding, spacing } from '../../theme';
+import { ONBOARDING_BACKGROUNDS, colors, fontFamily, screenPadding, spacing } from '../../theme';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'SignUpStep1'>;
 
@@ -38,7 +38,7 @@ export function SignUpStep1Screen({ navigation }: Props) {
 
   return (
     <ImageBackground
-      source={{ uri: GOLF_COURSE_BACKGROUND_URI }}
+      source={ONBOARDING_BACKGROUNDS.signUpStep1}
       style={styles.background}
       resizeMode="cover"
     >

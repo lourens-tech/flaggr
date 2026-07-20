@@ -5,14 +5,14 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from '../../navigation/types';
 import { FlagrrLogo } from '../../components/common/FlagrrLogo';
 import { PillButton } from '../../components/common/PillButton';
-import { GOLF_COURSE_BACKGROUND_URI, colors, fontFamily, screenPadding, spacing } from '../../theme';
+import { ONBOARDING_BACKGROUNDS, colors, fontFamily, screenPadding, spacing } from '../../theme';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Landing'>;
 
 export function LandingScreen({ navigation }: Props) {
   return (
     <ImageBackground
-      source={{ uri: GOLF_COURSE_BACKGROUND_URI }}
+      source={ONBOARDING_BACKGROUNDS.landing}
       style={styles.background}
       resizeMode="cover"
     >
