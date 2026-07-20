@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from '../../navigation/types';
 import { FlagrrLogo } from '../../components/common/FlagrrLogo';
@@ -24,6 +25,14 @@ export function SignUpStep1Screen({ navigation }: Props) {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
       <SafeAreaView style={styles.safeArea}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          hitSlop={12}
+          style={styles.backButton}
+        >
+          <Ionicons name="chevron-back" size={24} color={colors.white} />
+        </TouchableOpacity>
+
         <View style={styles.logoRow}>
           <FlagrrLogo size={36} />
         </View>
@@ -65,7 +74,8 @@ export function SignUpStep1Screen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.darkGreen },
   safeArea: { flex: 1, paddingHorizontal: screenPadding },
-  logoRow: { alignItems: 'center', marginTop: spacing.xl },
+  backButton: { width: 32, height: 32, justifyContent: 'center', marginTop: spacing.sm },
+  logoRow: { alignItems: 'center', marginTop: spacing.md },
   form: { marginTop: spacing.xl },
   loginRow: { alignItems: 'center', marginTop: 'auto', marginBottom: spacing.xl, gap: 4 },
   loginText: { fontFamily: fontFamily.body, fontSize: 13, color: colors.white },

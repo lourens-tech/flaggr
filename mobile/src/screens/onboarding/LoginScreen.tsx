@@ -22,6 +22,14 @@ export function LoginScreen({ navigation }: Props) {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
       <SafeAreaView style={styles.safeArea}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          hitSlop={12}
+          style={styles.backButton}
+        >
+          <Ionicons name="chevron-back" size={24} color={colors.white} />
+        </TouchableOpacity>
+
         <View style={styles.logoRow}>
           <FlagrrLogo size={36} />
         </View>
@@ -81,7 +89,8 @@ export function LoginScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.darkGreen },
   safeArea: { flex: 1, paddingHorizontal: screenPadding },
-  logoRow: { alignItems: 'center', marginTop: spacing.xxl },
+  backButton: { width: 32, height: 32, justifyContent: 'center', marginTop: spacing.sm },
+  logoRow: { alignItems: 'center', marginTop: spacing.lg },
   form: { marginTop: spacing.xxl },
   rememberRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: spacing.md },
   rememberText: { fontFamily: fontFamily.body, fontSize: 12, color: colors.white },

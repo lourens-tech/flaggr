@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { StatusBar, StyleSheet, View } from 'react-native';
+import { StatusBar, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from '../../navigation/types';
 import { FlagrrLogo } from '../../components/common/FlagrrLogo';
@@ -11,7 +12,7 @@ import { colors, screenPadding, spacing } from '../../theme';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'SignUpStep2'>;
 
-export function SignUpStep2Screen({ route }: Props) {
+export function SignUpStep2Screen({ navigation, route }: Props) {
   const { login } = useApp();
   const [username, setUsername] = useState(route.params.email ?? '');
   const [password, setPassword] = useState('');
@@ -20,6 +21,14 @@ export function SignUpStep2Screen({ route }: Props) {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
       <SafeAreaView style={styles.safeArea}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          hitSlop={12}
+          style={styles.backButton}
+        >
+          <Ionicons name="chevron-back" size={24} color={colors.white} />
+        </TouchableOpacity>
+
         <View style={styles.logoRow}>
           <FlagrrLogo size={36} />
         </View>
@@ -46,6 +55,7 @@ export function SignUpStep2Screen({ route }: Props) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.darkGreen },
   safeArea: { flex: 1, paddingHorizontal: screenPadding },
-  logoRow: { alignItems: 'center', marginTop: spacing.xl },
+  backButton: { width: 32, height: 32, justifyContent: 'center', marginTop: spacing.sm },
+  logoRow: { alignItems: 'center', marginTop: spacing.md },
   form: { marginTop: spacing.xl },
 });
