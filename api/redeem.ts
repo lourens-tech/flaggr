@@ -65,9 +65,6 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       values (${authed.id}, 'redeem', ${`${displayName} redeemed`}, 'Reward voucher', ${-cost}, ${voucherId})
     `,
     sql`
-      update user_stats set bucks_redeemed = bucks_redeemed + ${cost} where user_id = ${authed.id}
-    `,
-    sql`
       insert into notifications (user_id, title, body)
       values (${authed.id}, 'Reward redeemed', ${`Your ${displayName} voucher is ready — show its QR code at the club to claim it.`})
     `,
@@ -83,7 +80,6 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       issued_at: string;
       expires_at: string;
     }>,
-    unknown,
     unknown,
     unknown,
   ];

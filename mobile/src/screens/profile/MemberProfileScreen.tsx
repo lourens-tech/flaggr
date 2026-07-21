@@ -18,15 +18,15 @@ type Props = CompositeScreenProps<
   NativeStackScreenProps<RootStackParamList>
 >;
 
-function ProfileField({ label, value }: { label: string; value: string }) {
+function ProfileField({ label, value, onPress }: { label: string; value: string; onPress?: () => void }) {
   return (
-    <View style={styles.fieldRow}>
+    <TouchableOpacity style={styles.fieldRow} onPress={onPress} disabled={!onPress} activeOpacity={onPress ? 0.7 : 1}>
       <View style={{ flex: 1 }}>
         <Text style={styles.fieldLabel}>{label}</Text>
         <Text style={styles.fieldValue}>{value}</Text>
       </View>
-      <Ionicons name="pencil" size={16} color={colors.clubGreen} />
-    </View>
+      {onPress ? <Ionicons name="pencil" size={16} color={colors.clubGreen} /> : null}
+    </TouchableOpacity>
   );
 }
 
@@ -133,18 +133,35 @@ export function MemberProfileScreen({ navigation }: Props) {
           <Text style={styles.club}>{user.homeClub}</Text>
 
           <View style={styles.fieldsWrapper}>
-            <ProfileField label="Name" value={`${user.firstName} ${user.lastName}`} />
-            <ProfileField label="Phone" value={user.phone ?? '—'} />
-            <ProfileField label="Email" value={user.email} />
+            <ProfileField
+              label="Name"
+              value={`${user.firstName} ${user.lastName}`}
+              onPress={() => navigation.navigate('EditProfile')}
+            />
+            <ProfileField label="Phone" value={user.phone ?? '—'} onPress={() => navigation.navigate('EditProfile')} />
+            <ProfileField label="Email" value={user.email} onPress={() => navigation.navigate('EditProfile')} />
             <ProfileField
               label="Birthday"
+              value={
+                user.dateOfBirth
+                  ? new Date(user.dateOfBirth).toLocaleDateString(undefined, {
+                      day: '2-digit',
+                      month: '2-digit',
+                      year: 'numeric',
+                    })
+                  : '—'
+              }
+              onPress={() => navigation.navigate('EditProfile')}
+            />
+            <ProfileField label="Club" value={user.homeClub} />
+            <ProfileField
+              label="Member Since"
               value={new Date(user.memberSince).toLocaleDateString(undefined, {
                 day: '2-digit',
                 month: '2-digit',
                 year: 'numeric',
               })}
             />
-            <ProfileField label="Club" value={user.homeClub} />
           </View>
         </View>
 
@@ -156,7 +173,11 @@ export function MemberProfileScreen({ navigation }: Props) {
 
         <Text style={styles.sectionLabel}>Legal</Text>
         <View style={styles.linksCard}>
-          <LinkRow icon="shield-checkmark-outline" label="Terms & Privacy" onPress={() => {}} />
+          <LinkRow
+            icon="shield-checkmark-outline"
+            label="Terms & Privacy"
+            onPress={() => navigation.navigate('TermsPrivacy')}
+          />
         </View>
 
         <TouchableOpacity style={styles.logoutRow} onPress={logout}>

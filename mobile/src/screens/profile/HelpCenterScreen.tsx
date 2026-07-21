@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -16,6 +16,26 @@ export function HelpCenterScreen({ navigation }: Props) {
   const { user } = useApp();
   const [query, setQuery] = useState('');
 
+  const normalizedQuery = query.trim().toLowerCase();
+  const filteredArticles = useMemo(
+    () =>
+      normalizedQuery
+        ? articles.filter(
+            (a) => a.title.toLowerCase().includes(normalizedQuery) || a.summary.toLowerCase().includes(normalizedQuery),
+          )
+        : articles,
+    [normalizedQuery],
+  );
+  const filteredFaqs = useMemo(
+    () =>
+      normalizedQuery
+        ? faqs.filter(
+            (f) => f.question.toLowerCase().includes(normalizedQuery) || f.answer.toLowerCase().includes(normalizedQuery),
+          )
+        : faqs,
+    [normalizedQuery],
+  );
+
   return (
     <View style={styles.screen}>
       <StatusBar barStyle="light-content" />
@@ -29,19 +49,27 @@ export function HelpCenterScreen({ navigation }: Props) {
       </SafeAreaView>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={styles.sectionLabel}>Latest Articles</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing.sm }}>
-          {articles.map((article) => (
-            <View key={article.title} style={styles.articleCard}>
-              <View style={styles.articleAccent} />
-              <Text style={styles.articleTitle} numberOfLines={2}>{article.title}</Text>
-              <Text style={styles.articleSummary} numberOfLines={2}>{article.summary}</Text>
-            </View>
-          ))}
-        </ScrollView>
+        {filteredArticles.length > 0 ? (
+          <>
+            <Text style={styles.sectionLabel}>Latest Articles</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing.sm }}>
+              {filteredArticles.map((article) => (
+                <View key={article.title} style={styles.articleCard}>
+                  <View style={styles.articleAccent} />
+                  <Text style={styles.articleTitle} numberOfLines={2}>{article.title}</Text>
+                  <Text style={styles.articleSummary} numberOfLines={2}>{article.summary}</Text>
+                </View>
+              ))}
+            </ScrollView>
+          </>
+        ) : null}
 
         <Text style={[styles.sectionLabel, { marginTop: spacing.xl }]}>Frequently Asked Questions</Text>
-        <FaqAccordion items={faqs} />
+        {filteredFaqs.length > 0 ? (
+          <FaqAccordion items={filteredFaqs} />
+        ) : (
+          <Text style={styles.emptyText}>No results for "{query.trim()}" — try a different search.</Text>
+        )}
 
         <View style={{ height: 120 }} />
       </ScrollView>
@@ -57,6 +85,7 @@ const styles = StyleSheet.create({
   heroTitle: { fontFamily: fontFamily.heading, fontSize: 26, color: colors.white, marginVertical: spacing.md, lineHeight: 32 },
   content: { padding: screenPadding },
   sectionLabel: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.small, color: colors.textPrimary, marginBottom: spacing.sm },
+  emptyText: { fontFamily: fontFamily.body, fontSize: fontSize.small, color: colors.textSecondary },
   articleCard: {
     width: 140,
     backgroundColor: colors.white,

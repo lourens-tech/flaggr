@@ -54,6 +54,7 @@ export function SignUpStep2Screen({ navigation, route }: Props) {
         lastName: route.params.lastName,
         email: email.trim(),
         phone: route.params.phone || undefined,
+        dateOfBirth: route.params.dateOfBirth,
         courseId: route.params.courseId,
         password,
       });

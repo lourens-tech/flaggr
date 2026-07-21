@@ -4,7 +4,14 @@ export type AuthStackParamList = {
   Landing: undefined;
   Login: undefined;
   SignUpStep1: undefined;
-  SignUpStep2: { firstName: string; lastName: string; email: string; phone: string; courseId: string };
+  SignUpStep2: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+    dateOfBirth: string;
+    courseId: string;
+  };
 };
 
 export type MainTabParamList = {
@@ -25,6 +32,8 @@ export type RootStackParamList = {
   Notifications: undefined;
   HelpCenter: undefined;
   Contact: undefined;
+  EditProfile: undefined;
+  TermsPrivacy: undefined;
 };
 
 declare global {

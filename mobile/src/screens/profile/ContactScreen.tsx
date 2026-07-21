@@ -9,6 +9,8 @@ import { TextField } from '../../components/common/TextField';
 import { PillButton } from '../../components/common/PillButton';
 import { FaqAccordion } from '../../components/common/FaqAccordion';
 import { faqs } from '../../data/faqData';
+import { useApp } from '../../context/AppContext';
+import { ApiError } from '../../api/client';
 import { showAlert } from '../../utils/alert';
 import { colors, fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
 
@@ -17,17 +19,32 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Contact'>;
 const ENQUIRY_TYPES = ['Rewards & Points', 'Receipts', 'Membership', 'Technical Issue', 'Other'];
 
 export function ContactScreen({ navigation }: Props) {
-  const [name, setName] = useState('');
-  const [surname, setSurname] = useState('');
-  const [phone, setPhone] = useState('');
-  const [email, setEmail] = useState('');
+  const { user, sendContactEnquiry } = useApp();
+  const [name, setName] = useState(user.firstName);
+  const [surname, setSurname] = useState(user.lastName);
+  const [phone, setPhone] = useState(user.phone ?? '');
+  const [email, setEmail] = useState(user.email);
   const [enquiryType, setEnquiryType] = useState('');
   const [message, setMessage] = useState('');
   const [showTypes, setShowTypes] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = () => {
-    showAlert('Enquiry sent', 'Thanks — our team will get back to you shortly.');
-    navigation.goBack();
+  const handleSubmit = async () => {
+    if (!message.trim()) {
+      showAlert('Add a message', 'Let us know what your enquiry is about before sending.');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await sendContactEnquiry({ name, surname, phone, email, enquiryType, message: message.trim() });
+      showAlert('Enquiry sent', 'Thanks — our team will get back to you shortly.');
+      navigation.goBack();
+    } catch (err) {
+      const errMessage = err instanceof ApiError ? err.message : 'Something went wrong. Please try again.';
+      showAlert('Couldn’t send your enquiry', errMessage);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -95,7 +112,7 @@ export function ContactScreen({ navigation }: Props) {
           />
 
           <View style={{ height: spacing.lg }} />
-          <PillButton label="Submit Enquiry" onPress={handleSubmit} />
+          <PillButton label="Submit Enquiry" onPress={handleSubmit} loading={submitting} />
         </View>
 
         <Text style={styles.sectionLabel}>Frequently Asked Questions</Text>

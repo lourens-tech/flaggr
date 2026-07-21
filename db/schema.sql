@@ -24,6 +24,7 @@ create table users (
   password_hash text not null,
   tier text not null default 'Bronze' check (tier in ('Bronze', 'Silver', 'Gold', 'Platinum')),
   avatar_url text,
+  date_of_birth date,
   member_since timestamptz not null default now(),
   created_at timestamptz not null default now()
 );
@@ -49,6 +50,10 @@ create table streaks (
   weeks_played boolean[] not null default '{}'
 );
 
+-- rounds_played_*/bucks_*/*_delta_pct are legacy counters, no longer read —
+-- /api/me computes those (and their period-over-period deltas) live from
+-- activity/receipts instead, so a stale increment can never drift from
+-- what's actually true. total_receipts_scanned/last_scan_date remain live.
 create table user_stats (
   user_id uuid primary key references users(id) on delete cascade,
   rounds_played_9 integer not null default 0,
@@ -65,9 +70,10 @@ create table user_stats (
 
 create table monthly_points (
   user_id uuid not null references users(id) on delete cascade,
+  year integer not null,
   month text not null, -- 'J', 'F', ...
   value integer not null default 0,
-  primary key (user_id, month)
+  primary key (user_id, year, month)
 );
 
 create table rewards (

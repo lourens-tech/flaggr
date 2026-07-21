@@ -13,6 +13,7 @@ interface SignupBody {
   lastName?: string;
   email?: string;
   phone?: string;
+  dateOfBirth?: string;
   courseId?: string;
   password?: string;
 }
@@ -28,6 +29,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
   const lastName = body.lastName?.trim() ?? '';
   const email = body.email?.trim().toLowerCase();
   const phone = body.phone?.trim() || null;
+  const dateOfBirth = body.dateOfBirth?.trim() || null;
   const courseId = body.courseId?.trim();
   const password = body.password;
 
@@ -49,12 +51,20 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
 
   const passwordHash = await hashPassword(password);
 
-  let userRows: Array<{ id: string; course_id: string; first_name: string; last_name: string; email: string; member_since: string }>;
+  let userRows: Array<{
+    id: string;
+    course_id: string;
+    first_name: string;
+    last_name: string;
+    email: string;
+    date_of_birth: string | null;
+    member_since: string;
+  }>;
   try {
     userRows = (await sql`
-      insert into users (course_id, first_name, last_name, email, phone, password_hash)
-      values (${courseId}, ${firstName}, ${lastName}, ${email}, ${phone}, ${passwordHash})
-      returning id, course_id, first_name, last_name, email, member_since
+      insert into users (course_id, first_name, last_name, email, phone, date_of_birth, password_hash)
+      values (${courseId}, ${firstName}, ${lastName}, ${email}, ${phone}, ${dateOfBirth}, ${passwordHash})
+      returning id, course_id, first_name, last_name, email, date_of_birth, member_since
     `) as typeof userRows;
   } catch (err) {
     if (err instanceof Error && /unique/i.test(err.message)) {
@@ -91,6 +101,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       lastName: user.last_name,
       email: user.email,
       phone,
+      dateOfBirth: user.date_of_birth,
       homeClub: course.name,
       tier: tierInfo.tier,
       memberSince: user.member_since,

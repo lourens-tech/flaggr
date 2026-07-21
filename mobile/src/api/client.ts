@@ -7,6 +7,7 @@ import type {
   Reward,
   ScanResult,
   Stats,
+  StatsPeriod,
   Streak,
   User,
   Voucher,
@@ -92,6 +93,7 @@ export interface SignupPayload {
   lastName: string;
   email: string;
   phone?: string;
+  dateOfBirth?: string;
   courseId: string;
   password: string;
 }
@@ -108,6 +110,23 @@ export interface SubmitReceiptPayload {
   imageUri: string | null;
 }
 
+export interface UpdateProfilePayload {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone?: string;
+  dateOfBirth?: string;
+}
+
+export interface ContactEnquiryPayload {
+  name: string;
+  surname: string;
+  phone: string;
+  email: string;
+  enquiryType: string;
+  message: string;
+}
+
 export const api = {
   courses: () => request<Course[]>('/courses', { auth: false }),
 
@@ -117,7 +136,7 @@ export const api = {
   login: (email: string, password: string) =>
     request<AuthResponse>('/auth/login', { method: 'POST', body: { email, password }, auth: false }),
 
-  me: () => request<MeResponse>('/me'),
+  me: (period: StatsPeriod = 'year') => request<MeResponse>(`/me?period=${period}`),
 
   rewards: () => request<Reward[]>('/rewards'),
 
@@ -142,5 +161,11 @@ export const api = {
     request<Receipt>('/receipts', { method: 'POST', body: payload }),
 
   updateAvatar: (imageBase64: string) =>
-    request<{ avatarUrl: string }>('/profile/avatar', { method: 'POST', body: { imageBase64 } }),
+    request<{ avatarUrl: string }>('/profile', { method: 'POST', body: { imageBase64 } }),
+
+  updateProfile: (payload: UpdateProfilePayload) =>
+    request<User>('/profile?action=update', { method: 'POST', body: payload }),
+
+  sendContactEnquiry: (payload: ContactEnquiryPayload) =>
+    request<{ ok: boolean }>('/profile?action=contact', { method: 'POST', body: payload }),
 };

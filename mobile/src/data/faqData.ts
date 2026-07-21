@@ -28,7 +28,7 @@ export const faqs: FaqEntry[] = [
   },
   {
     question: 'Can I change my selected club?',
-    answer: 'Yes — update your home club from the Club field on your Profile screen.',
+    answer: 'Your home club can’t be changed from the app yet — reach out via Contact Us and the club can help.',
   },
 ];
 

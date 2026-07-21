@@ -166,12 +166,6 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       throw err;
     }
 
-    const roundsPlayed18 = scored.items
-      .filter((i) => i.matchedName === '18 Hole Round')
-      .reduce((sum, i) => sum + i.quantity, 0);
-    const roundsPlayed9 = scored.items
-      .filter((i) => i.matchedName === '9 Hole Round')
-      .reduce((sum, i) => sum + i.quantity, 0);
     const monthLetter = MONTH_LETTERS[new Date().getMonth()];
 
     await sql.transaction([
@@ -188,17 +182,14 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       `,
       sql`
         update user_stats
-        set bucks_earned = bucks_earned + ${scored.totalPointsAwarded},
-            rounds_played_9 = rounds_played_9 + ${roundsPlayed9},
-            rounds_played_18 = rounds_played_18 + ${roundsPlayed18},
-            total_receipts_scanned = total_receipts_scanned + 1,
+        set total_receipts_scanned = total_receipts_scanned + 1,
             last_scan_date = now()
         where user_id = ${authed.id}
       `,
       sql`
-        insert into monthly_points (user_id, month, value)
-        values (${authed.id}, ${monthLetter}, ${scored.totalPointsAwarded})
-        on conflict (user_id, month) do update set value = monthly_points.value + excluded.value
+        insert into monthly_points (user_id, year, month, value)
+        values (${authed.id}, extract(year from now())::int, ${monthLetter}, ${scored.totalPointsAwarded})
+        on conflict (user_id, year, month) do update set value = monthly_points.value + excluded.value
       `,
       sql`
         insert into activity (user_id, type, title, subtitle, amount)

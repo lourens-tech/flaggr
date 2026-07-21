@@ -65,6 +65,7 @@ export function SignUpStep1Screen({ navigation }: Props) {
       lastName: rest.join(' '),
       email: email.trim(),
       phone,
+      dateOfBirth: dateOfBirth!,
       courseId: courseId!,
     });
   };

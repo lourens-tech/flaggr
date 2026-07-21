@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   ScrollView,
   StatusBar,
@@ -23,17 +23,18 @@ import { RewardCard } from '../../components/common/RewardCard';
 import { HeaderAvatar } from '../../components/common/HeaderAvatar';
 import { useApp } from '../../context/AppContext';
 import { colors, fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
+import type { StatsPeriod } from '../../data/types';
 
 type Props = CompositeScreenProps<
   BottomTabScreenProps<MainTabParamList, 'Home'>,
   NativeStackScreenProps<RootStackParamList>
 >;
 
-type StatsPeriod = 'Month' | 'Year' | 'All';
+const PERIOD_LABELS: Record<StatsPeriod, string> = { month: 'Month', year: 'Year', all: 'All' };
+const PERIODS: StatsPeriod[] = ['month', 'year', 'all'];
 
 export function HomeScreen({ navigation }: Props) {
-  const { user, points, streak, stats, rewards, unreadNotificationCount } = useApp();
-  const [period, setPeriod] = useState<StatsPeriod>('Year');
+  const { user, points, streak, stats, rewards, unreadNotificationCount, statsPeriod, setStatsPeriod } = useApp();
 
   return (
     <View style={styles.screen}>
@@ -102,7 +103,11 @@ export function HomeScreen({ navigation }: Props) {
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.streakTitle}>{streak.weeks}-Week Streak</Text>
-              <Text style={styles.streakSubtitle}>You've played every week since March 2026</Text>
+              <Text style={styles.streakSubtitle}>
+                {streak.weeks > 0
+                  ? `You've played every week since ${new Date(streak.activeSince).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}`
+                  : 'Play a round this week to start your streak'}
+              </Text>
               <View style={styles.streakDots}>
                 {streak.weeksPlayed.map((played, i) => (
                   <View
@@ -118,13 +123,15 @@ export function HomeScreen({ navigation }: Props) {
         <View style={styles.statsHeaderRow}>
           <Text style={styles.sectionTitle}>My Stats</Text>
           <View style={styles.periodToggle}>
-            {(['Month', 'Year', 'All'] as StatsPeriod[]).map((p) => (
+            {PERIODS.map((p) => (
               <TouchableOpacity
                 key={p}
-                onPress={() => setPeriod(p)}
-                style={[styles.periodPill, period === p && styles.periodPillActive]}
+                onPress={() => setStatsPeriod(p)}
+                style={[styles.periodPill, statsPeriod === p && styles.periodPillActive]}
               >
-                <Text style={[styles.periodText, period === p && styles.periodTextActive]}>{p}</Text>
+                <Text style={[styles.periodText, statsPeriod === p && styles.periodTextActive]}>
+                  {PERIOD_LABELS[p]}
+                </Text>
               </TouchableOpacity>
             ))}
           </View>

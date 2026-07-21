@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { api, setToken, type SignupPayload } from '../api/client';
+import { api, setToken, type ContactEnquiryPayload, type SignupPayload, type UpdateProfilePayload } from '../api/client';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type {
   ActivityEntry,
@@ -8,6 +8,7 @@ import type {
   Receipt,
   Reward,
   Stats,
+  StatsPeriod,
   Streak,
   User,
   Voucher,
@@ -20,6 +21,7 @@ const EMPTY_USER: User = {
   firstName: '',
   lastName: '',
   email: '',
+  dateOfBirth: null,
   homeClub: '',
   tier: 'Bronze',
   memberSince: '',
@@ -67,6 +69,10 @@ interface AppContextValue extends AppState {
   submitReceipt: (imageBase64: string, imageUri: string | null) => Promise<Receipt>;
   markNotificationRead: (id: string) => Promise<void>;
   updateAvatar: (imageBase64: string) => Promise<void>;
+  updateProfile: (payload: UpdateProfilePayload) => Promise<void>;
+  sendContactEnquiry: (payload: ContactEnquiryPayload) => Promise<void>;
+  statsPeriod: StatsPeriod;
+  setStatsPeriod: (period: StatsPeriod) => Promise<void>;
   unreadNotificationCount: number;
 }
 
@@ -84,11 +90,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [activity, setActivity] = useState<ActivityEntry[]>([]);
   const [receipts, setReceipts] = useState<Receipt[]>([]);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [statsPeriod, setStatsPeriodState] = useState<StatsPeriod>('year');
 
   // Fetches everything needed to render the authenticated app in one go.
+  // Always loads the default ('year') period — the period toggle's own
+  // lightweight refetch (setStatsPeriod) handles switching later, so this
+  // doesn't need statsPeriod in its closure/deps.
   const loadAll = useCallback(async () => {
     const [me, rewardsRes, vouchersRes, activityRes, receiptsRes, notificationsRes] = await Promise.all([
-      api.me(),
+      api.me('year'),
       api.rewards(),
       api.vouchers(),
       api.activity(),
@@ -149,13 +159,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setActivity([]);
     setReceipts([]);
     setNotifications([]);
+    setStatsPeriodState('year');
   };
 
   const redeemReward = async (rewardId: string, variantId: string): Promise<Voucher | null> => {
     try {
       const voucher = await api.redeem(rewardId, variantId);
       setVouchers((prev) => [voucher, ...prev]);
-      const [me, activityRes, notificationsRes] = await Promise.all([api.me(), api.activity(), api.notifications()]);
+      const [me, activityRes, notificationsRes] = await Promise.all([
+        api.me(statsPeriod),
+        api.activity(),
+        api.notifications(),
+      ]);
       setPoints(me.points);
       setUser(me.user);
       setStats(me.stats);
@@ -170,9 +185,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const submitReceipt: AppContextValue['submitReceipt'] = async (imageBase64, imageUri) => {
     const receipt = await api.submitReceipt({ imageBase64, imageUri });
     setReceipts((prev) => [receipt, ...prev]);
-    const [me, activityRes, notificationsRes] = await Promise.all([api.me(), api.activity(), api.notifications()]);
+    const [me, activityRes, notificationsRes] = await Promise.all([
+      api.me(statsPeriod),
+      api.activity(),
+      api.notifications(),
+    ]);
     setPoints(me.points);
     setUser(me.user);
+    setStreak(me.streak);
     setStats(me.stats);
     setActivity(activityRes);
     setNotifications(notificationsRes);
@@ -182,6 +202,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const updateAvatar = async (imageBase64: string) => {
     const res = await api.updateAvatar(imageBase64);
     setUser((prev) => ({ ...prev, avatarUrl: res.avatarUrl }));
+  };
+
+  const updateProfile = async (payload: UpdateProfilePayload) => {
+    const updated = await api.updateProfile(payload);
+    setUser((prev) => ({ ...prev, ...updated }));
+  };
+
+  const sendContactEnquiry = async (payload: ContactEnquiryPayload) => {
+    await api.sendContactEnquiry(payload);
+  };
+
+  const setStatsPeriod = async (period: StatsPeriod) => {
+    setStatsPeriodState(period);
+    try {
+      const me = await api.me(period);
+      setStats(me.stats);
+    } catch {
+      // Keep showing the previous period's stats if the refetch fails.
+    }
   };
 
   const markNotificationRead = async (id: string) => {
@@ -217,6 +256,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     submitReceipt,
     markNotificationRead,
     updateAvatar,
+    updateProfile,
+    sendContactEnquiry,
+    statsPeriod,
+    setStatsPeriod,
     unreadNotificationCount,
   };
 

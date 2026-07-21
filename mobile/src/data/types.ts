@@ -12,6 +12,7 @@ export interface User {
   lastName: string;
   email: string;
   phone?: string;
+  dateOfBirth: string | null; // ISO date
   homeClub: string;
   tier: TierName;
   memberSince: string; // ISO date
@@ -38,7 +39,10 @@ export interface MonthlyPoint {
   value: number;
 }
 
+export type StatsPeriod = 'month' | 'year' | 'all';
+
 export interface Stats {
+  period?: StatsPeriod;
   roundsPlayed9: number;
   roundsPlayed9DeltaPct: number;
   roundsPlayed18: number;

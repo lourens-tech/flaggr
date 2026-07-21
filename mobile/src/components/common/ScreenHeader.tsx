@@ -19,6 +19,8 @@ export function ScreenHeader({ title, onBack, right }: Props) {
         onPress={onBack ?? (() => navigation.goBack())}
         hitSlop={12}
         style={styles.iconButton}
+        accessibilityLabel="Back"
+        accessibilityRole="button"
       >
         <Ionicons name="chevron-back" size={24} color={colors.white} />
       </TouchableOpacity>
