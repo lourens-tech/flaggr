@@ -1,4 +1,4 @@
-import { Alert, Platform } from 'react-native';
+import { presentAlert } from './alertStore';
 
 export interface AlertButton {
   text?: string;
@@ -6,28 +6,10 @@ export interface AlertButton {
   onPress?: () => void;
 }
 
-// react-native-web's Alert.alert() is a no-op stub, so it silently does
-// nothing on web — falls back to window.alert/confirm there instead.
+// Routes through the app's own branded modal (AppAlertHost) on every
+// platform, rather than react-native-web's no-op Alert.alert or the
+// browser's native window.alert/confirm (which shows the page's own URL in
+// the dialog chrome and doesn't match the app's look at all).
 export function showAlert(title: string, message?: string, buttons?: AlertButton[]) {
-  if (Platform.OS !== 'web') {
-    Alert.alert(title, message, buttons);
-    return;
-  }
-
-  const body = message ? `${title}\n\n${message}` : title;
-
-  if (!buttons || buttons.length <= 1) {
-    window.alert(body);
-    buttons?.[0]?.onPress?.();
-    return;
-  }
-
-  const confirmButton = buttons.find((b) => b.style !== 'cancel') ?? buttons[buttons.length - 1];
-  const cancelButton = buttons.find((b) => b.style === 'cancel');
-
-  if (window.confirm(body)) {
-    confirmButton?.onPress?.();
-  } else {
-    cancelButton?.onPress?.();
-  }
+  presentAlert(title, message, buttons);
 }

@@ -8,6 +8,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { fontsToLoad } from './src/theme';
 import { AppProvider } from './src/context/AppContext';
 import { RootNavigator } from './src/navigation/RootNavigator';
+import { AppAlertHost } from './src/components/common/AppAlertHost';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -35,6 +36,7 @@ export default function App() {
           <NavigationContainer>
             <RootNavigator />
           </NavigationContainer>
+          <AppAlertHost />
         </AppProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
