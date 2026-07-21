@@ -5,6 +5,7 @@ import { requireAuthedUser } from '../_lib/auth';
 import { HttpError, withErrorHandling } from '../_lib/http';
 import { checkDuplicateReceipt, evaluateFraudSignals } from '../_lib/fraudChecks';
 import { runScanPipeline } from '../_lib/scanPipeline';
+import { hashImageDataUri } from '../_lib/imageHash';
 import type { MatchedItem } from '../_lib/pointsEngine';
 
 const DATA_URI_PATTERN = /^data:image\/(jpeg|jpg|png|webp);base64,/;
@@ -86,6 +87,37 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     }
     if (imageBase64.length > MAX_BASE64_LENGTH) {
       throw new HttpError(400, 'Image is too large');
+    }
+
+    // ?action=scan is a preview: same OCR/match/score pipeline, no DB write.
+    // Folded into this route (rather than its own file) to stay within
+    // Vercel's per-deployment serverless function cap on the Hobby plan.
+    if (req.query.action === 'scan') {
+      const { ocrConfidence, parsed, scored } = await runScanPipeline(imageBase64);
+      const previewHash = hashImageDataUri(imageBase64);
+      const duplicate = await checkDuplicateReceipt(parsed.receiptNumber, previewHash);
+      if (duplicate.isDuplicate) {
+        res.status(200).json({ isDuplicate: true, reason: duplicate.reason });
+        return;
+      }
+      res.status(200).json({
+        isDuplicate: false,
+        ocrConfidence,
+        merchantNameGuess: parsed.merchantNameGuess,
+        merchant: scored.merchant,
+        receiptNumber: parsed.receiptNumber,
+        transactionNumber: parsed.transactionNumber,
+        tillNumber: parsed.tillNumber,
+        date: parsed.date,
+        time: parsed.time,
+        items: scored.items,
+        subtotal: parsed.subtotal,
+        vat: parsed.vat,
+        grandTotal: parsed.grandTotal,
+        subtotalPoints: scored.subtotalPoints,
+        totalPointsAwarded: scored.totalPointsAwarded,
+      });
+      return;
     }
 
     // Re-run the full pipeline server-side from the original image rather

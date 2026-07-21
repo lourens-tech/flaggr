@@ -136,7 +136,7 @@ export const api = {
   receipts: () => request<Receipt[]>('/receipts'),
 
   scanReceipt: (imageBase64: string) =>
-    request<ScanResult>('/receipts/scan', { method: 'POST', body: { imageBase64 } }),
+    request<ScanResult>('/receipts?action=scan', { method: 'POST', body: { imageBase64 } }),
 
   submitReceipt: (payload: SubmitReceiptPayload) =>
     request<Receipt>('/receipts', { method: 'POST', body: payload }),
