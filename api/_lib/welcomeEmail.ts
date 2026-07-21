@@ -1,4 +1,8 @@
-import { FLAGRR_LOGO_WHITE_BASE64 } from './assets/flagrrLogoWhite';
+// Hosted, not inlined as base64 — Gmail and several other major clients
+// strip/block base64 data URIs in received HTML email, so a real HTTPS URL
+// is the only reliably compatible option. Served as a static file copied
+// into the web build output (see vercel.json's buildCommand).
+const LOGO_URL = 'https://flagrr-loyalty.vercel.app/flagrr-logo-white-email.png';
 
 export interface WelcomeEmailParams {
   firstName: string;
@@ -33,7 +37,7 @@ export function renderWelcomeEmailHtml({ firstName, homeClub, appUrl }: WelcomeE
       <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#FFFFFF;border-radius:16px;overflow:hidden;">
         <tr>
           <td style="background:#1F4234;padding:36px 40px 30px;text-align:center;">
-            <img src="data:image/png;base64,${FLAGRR_LOGO_WHITE_BASE64}" width="170" alt="Flagrr Loyalty" style="display:block;margin:0 auto;border:0;" />
+            <img src="${LOGO_URL}" width="170" alt="Flagrr Loyalty" style="display:block;margin:0 auto;border:0;" />
           </td>
         </tr>
         <tr>
