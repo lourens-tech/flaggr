@@ -159,6 +159,7 @@ export interface ActivityEntry {
   title: string;
   subtitle: string;
   amount: number;
+  voucherId: string | null;
   date: string;
 }
 

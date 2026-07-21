@@ -8,6 +8,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MainTabParamList, RootStackParamList } from '../../navigation/types';
 import { useApp } from '../../context/AppContext';
 import { HeaderAvatar } from '../../components/common/HeaderAvatar';
+import { showAlert } from '../../utils/alert';
 import { colors, fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
 import type { ActivityEntry } from '../../data/types';
 
@@ -37,7 +38,27 @@ function formatTime(dateIso: string): string {
 }
 
 export function RewardsActivityScreen({ navigation }: Props) {
-  const { activity, unreadNotificationCount } = useApp();
+  const { activity, vouchers, unreadNotificationCount } = useApp();
+
+  const handleEntryPress = (entry: ActivityEntry) => {
+    if (entry.type !== 'redeem' || !entry.voucherId) return;
+    const voucher = vouchers.find((v) => v.id === entry.voucherId);
+    if (!voucher) {
+      showAlert('Voucher not found', 'We couldn’t find this voucher’s details.');
+      return;
+    }
+    if (voucher.status === 'active') {
+      navigation.navigate('Voucher', { voucherId: voucher.id });
+      return;
+    }
+    const label = voucher.variantLabel && voucher.variantLabel !== 'Standard' ? ` — ${voucher.variantLabel}` : '';
+    showAlert(
+      voucher.status === 'expired' ? 'Voucher expired' : 'Already redeemed',
+      voucher.status === 'expired'
+        ? `${voucher.rewardTitle}${label} has expired.`
+        : `${voucher.rewardTitle}${label} has already been scanned and redeemed at the club.`,
+    );
+  };
 
   const grouped = useMemo(() => {
     const groups: Record<string, ActivityEntry[]> = {};
@@ -77,9 +98,13 @@ export function RewardsActivityScreen({ navigation }: Props) {
             <View style={styles.card}>
               {group.entries.map((entry, i) => {
                 const isEarn = entry.type === 'earn';
+                const isTappable = entry.type === 'redeem' && !!entry.voucherId;
                 return (
-                  <View
+                  <TouchableOpacity
                     key={entry.id}
+                    activeOpacity={isTappable ? 0.7 : 1}
+                    disabled={!isTappable}
+                    onPress={() => handleEntryPress(entry)}
                     style={[styles.row, i !== group.entries.length - 1 && styles.rowDivider]}
                   >
                     <View style={styles.rowIcon}>
@@ -99,7 +124,10 @@ export function RewardsActivityScreen({ navigation }: Props) {
                       {isEarn ? '+' : ''}
                       {entry.amount} FB
                     </Text>
-                  </View>
+                    {isTappable ? (
+                      <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
+                    ) : null}
+                  </TouchableOpacity>
                 );
               })}
             </View>

@@ -12,7 +12,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
   const authed = await requireAuthedUser(req);
 
   const rows = (await sql`
-    select id, type, title, subtitle, amount, date
+    select id, type, title, subtitle, amount, voucher_id, date
     from activity
     where user_id = ${authed.id}
     order by date desc
@@ -23,8 +23,19 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     title: string;
     subtitle: string;
     amount: number;
+    voucher_id: string | null;
     date: string;
   }>;
 
-  res.status(200).json(rows);
+  res.status(200).json(
+    rows.map((r) => ({
+      id: r.id,
+      type: r.type,
+      title: r.title,
+      subtitle: r.subtitle,
+      amount: r.amount,
+      voucherId: r.voucher_id,
+      date: r.date,
+    })),
+  );
 });

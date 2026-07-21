@@ -155,10 +155,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     try {
       const voucher = await api.redeem(rewardId, variantId);
       setVouchers((prev) => [voucher, ...prev]);
-      const [me, activityRes] = await Promise.all([api.me(), api.activity()]);
+      const [me, activityRes, notificationsRes] = await Promise.all([api.me(), api.activity(), api.notifications()]);
       setPoints(me.points);
       setUser(me.user);
+      setStats(me.stats);
       setActivity(activityRes);
+      setNotifications(notificationsRes);
       return voucher;
     } catch {
       return null;
@@ -168,11 +170,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const submitReceipt: AppContextValue['submitReceipt'] = async (imageBase64, imageUri) => {
     const receipt = await api.submitReceipt({ imageBase64, imageUri });
     setReceipts((prev) => [receipt, ...prev]);
-    const [me, activityRes] = await Promise.all([api.me(), api.activity()]);
+    const [me, activityRes, notificationsRes] = await Promise.all([api.me(), api.activity(), api.notifications()]);
     setPoints(me.points);
     setUser(me.user);
     setStats(me.stats);
     setActivity(activityRes);
+    setNotifications(notificationsRes);
     return receipt;
   };
 

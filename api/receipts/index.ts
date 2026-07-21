@@ -204,6 +204,10 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         insert into activity (user_id, type, title, subtitle, amount)
         values (${authed.id}, 'earn', 'Receipt scanned', ${courseName}, ${scored.totalPointsAwarded})
       `,
+      sql`
+        insert into notifications (user_id, title, body)
+        values (${authed.id}, 'Flagrr Bucks earned', ${`You earned ${scored.totalPointsAwarded} Flagrr Bucks from your receipt${courseName ? ` at ${courseName}` : ''}.`})
+      `,
     ]);
 
     res.status(201).json(serializeReceipt(insertedRows[0]));

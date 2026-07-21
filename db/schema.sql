@@ -185,6 +185,7 @@ create table activity (
   title text not null,
   subtitle text not null default '',
   amount integer not null,
+  voucher_id uuid references vouchers(id), -- set for redeem entries, so the timeline can open the voucher's QR code
   date timestamptz not null default now()
 );
 
@@ -203,6 +204,7 @@ create index users_course_id_idx on users(course_id);
 create index vouchers_user_id_idx on vouchers(user_id);
 create index receipts_user_id_idx on receipts(user_id);
 create index activity_user_id_idx on activity(user_id);
+create index activity_voucher_id_idx on activity(voucher_id);
 create index notifications_user_id_idx on notifications(user_id);
 create index sessions_user_id_idx on sessions(user_id);
 create unique index receipts_receipt_number_unique_idx on receipts(receipt_number) where receipt_number is not null;

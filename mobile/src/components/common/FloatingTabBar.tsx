@@ -26,6 +26,8 @@ export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
         onPress={() => navigation.navigate(route.name)}
         style={styles.iconButton}
         hitSlop={8}
+        accessibilityLabel={route.name}
+        accessibilityRole="button"
       >
         <Ionicons
           name={iconName}

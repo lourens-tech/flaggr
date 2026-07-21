@@ -52,16 +52,24 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
   }
 
   const code = generateVoucherCode();
-  const activityTitle = label === 'Standard' ? `${title} redeemed` : `${title} (${label}) redeemed`;
+  const voucherId = crypto.randomUUID();
+  const displayName = label === 'Standard' ? title : `${title} (${label})`;
   const results = (await sql.transaction([
     sql`
-      insert into vouchers (user_id, reward_id, reward_variant_id, variant_label, cost, code, qr_value)
-      values (${authed.id}, ${rewardId}, ${rewardVariantId}, ${label}, ${cost}, ${code}, ${`flagrr://voucher/${code}`})
+      insert into vouchers (id, user_id, reward_id, reward_variant_id, variant_label, cost, code, qr_value)
+      values (${voucherId}, ${authed.id}, ${rewardId}, ${rewardVariantId}, ${label}, ${cost}, ${code}, ${`flagrr://voucher/${code}`})
       returning id, reward_id, variant_label, cost, code, status, qr_value, issued_at, expires_at
     `,
     sql`
-      insert into activity (user_id, type, title, subtitle, amount)
-      values (${authed.id}, 'redeem', ${activityTitle}, 'Reward voucher', ${-cost})
+      insert into activity (user_id, type, title, subtitle, amount, voucher_id)
+      values (${authed.id}, 'redeem', ${`${displayName} redeemed`}, 'Reward voucher', ${-cost}, ${voucherId})
+    `,
+    sql`
+      update user_stats set bucks_redeemed = bucks_redeemed + ${cost} where user_id = ${authed.id}
+    `,
+    sql`
+      insert into notifications (user_id, title, body)
+      values (${authed.id}, 'Reward redeemed', ${`Your ${displayName} voucher is ready — show its QR code at the club to claim it.`})
     `,
   ])) as [
     Array<{
@@ -75,6 +83,8 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       issued_at: string;
       expires_at: string;
     }>,
+    unknown,
+    unknown,
     unknown,
   ];
 
