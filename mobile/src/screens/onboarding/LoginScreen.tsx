@@ -71,7 +71,7 @@ export function LoginScreen({ navigation }: Props) {
         </TouchableOpacity>
 
         <View style={styles.logoRow}>
-          <FlagrrLogo size={36} />
+          <FlagrrLogo size={72} />
         </View>
 
         <View style={styles.form}>
@@ -148,8 +148,8 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.darkGreen },
   safeArea: { flex: 1, paddingHorizontal: screenPadding },
   backButton: { width: 32, height: 32, justifyContent: 'center', marginTop: spacing.sm },
-  logoRow: { alignItems: 'center', marginTop: spacing.lg },
-  form: { marginTop: spacing.xxl },
+  logoRow: { alignItems: 'center', marginTop: spacing.sm },
+  form: { marginTop: spacing.xl },
   rememberRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: spacing.md },
   rememberText: { fontFamily: fontFamily.body, fontSize: 12, color: colors.white },
   forgotRow: { alignItems: 'center', marginTop: spacing.lg },

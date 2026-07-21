@@ -24,7 +24,7 @@ export function LandingScreen({ navigation }: Props) {
       <View style={styles.overlay} />
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.logoRow}>
-          <FlagrrLogo />
+          <FlagrrLogo size={88} />
         </View>
 
         <View style={styles.headline}>
@@ -65,9 +65,9 @@ const styles = StyleSheet.create({
   // properties — explicit 100% here overrides that.
   backgroundImageSize: { width: '100%', height: '100%' },
   overlay: { ...StyleSheet.absoluteFill, backgroundColor: colors.overlayDarkGreen },
-  safeArea: { flex: 1, justifyContent: 'space-between', paddingHorizontal: screenPadding, paddingTop: spacing.xxl },
-  logoRow: { alignItems: 'center', marginTop: spacing.xl },
-  headline: { alignItems: 'center', marginTop: -40 },
+  safeArea: { flex: 1, justifyContent: 'space-between', paddingHorizontal: screenPadding, paddingTop: spacing.xl },
+  logoRow: { alignItems: 'center', marginTop: spacing.md },
+  headline: { alignItems: 'center', marginTop: -20 },
   headlineText: {
     // The period itself stays on Fraunces — the Ws Paradose demo build
     // substitutes a watermark glyph for "." (see typography.ts).
