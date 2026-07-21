@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Image, StyleProp, StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { colors, fontFamily, fontSize, radius, spacing } from '../../theme';
 import type { Reward } from '../../data/types';
 
@@ -12,14 +12,37 @@ interface Props {
   onRedeem?: (variantId: string) => void;
 }
 
+function iconForReward(title: string): keyof typeof MaterialCommunityIcons.glyphMap {
+  const t = title.toLowerCase();
+  if (t.includes('cart')) return 'golf-cart';
+  if (t.includes('driving range')) return 'golf-tee';
+  if (t.includes('round')) return 'golf';
+  if (t.includes('coaching')) return 'school';
+  if (t.includes('pro shop')) return 'shopping';
+  if (t.includes('kitchen')) return 'silverware-fork-knife';
+  if (t.includes('bar')) return 'glass-cocktail';
+  return 'gift';
+}
+
 export function RewardCard({ reward, width, style, onPress, onRedeem }: Props) {
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [imageFailed, setImageFailed] = useState(false);
   const variant = reward.variants[selectedIndex] ?? reward.variants[0];
   const showVariantPicker = onRedeem && reward.variants.length > 1;
 
   const body = (
     <>
-      <Image source={{ uri: reward.imageUrl }} style={styles.image} />
+      {reward.imageUrl && !imageFailed ? (
+        <Image
+          source={{ uri: reward.imageUrl }}
+          style={styles.image}
+          onError={() => setImageFailed(true)}
+        />
+      ) : (
+        <View style={[styles.image, styles.imageFallback]}>
+          <MaterialCommunityIcons name={iconForReward(reward.title)} size={40} color={colors.lime} />
+        </View>
+      )}
       <View style={styles.body}>
         <Text style={styles.title} numberOfLines={1}>
           {reward.title}
@@ -78,6 +101,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   image: { width: '100%', height: 112, backgroundColor: colors.imagePlaceholder },
+  imageFallback: { backgroundColor: colors.darkGreen, alignItems: 'center', justifyContent: 'center' },
   body: { padding: spacing.sm + 4, gap: 4 },
   title: { fontFamily: fontFamily.heading, fontSize: fontSize.cardTitle, color: colors.darkGreen },
   description: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary },
