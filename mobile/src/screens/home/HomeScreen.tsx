@@ -20,6 +20,7 @@ import { PillButton } from '../../components/common/PillButton';
 import { StatCard } from '../../components/common/StatCard';
 import { BarChart } from '../../components/common/BarChart';
 import { RewardCard } from '../../components/common/RewardCard';
+import { HeaderAvatar } from '../../components/common/HeaderAvatar';
 import { useApp } from '../../context/AppContext';
 import { showAlert } from '../../utils/alert';
 import { colors, fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
@@ -67,8 +68,8 @@ export function HomeScreen({ navigation }: Props) {
                 </View>
               ) : null}
             </TouchableOpacity>
-            <TouchableOpacity style={styles.avatar} onPress={() => navigation.navigate('Profile')}>
-              <Ionicons name="person" size={20} color={colors.darkGreen} />
+            <TouchableOpacity onPress={() => navigation.navigate('Profile')}>
+              <HeaderAvatar size={32} />
             </TouchableOpacity>
           </View>
         </View>
@@ -214,14 +215,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 3,
   },
   badgeText: { fontFamily: fontFamily.bodySemiBold, fontSize: 9, color: colors.darkGreen },
-  avatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.lime,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   scrollContent: { backgroundColor: colors.white },
   welcome: {
     fontFamily: fontFamily.heading,

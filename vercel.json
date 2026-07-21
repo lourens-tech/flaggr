@@ -4,6 +4,9 @@
   "buildCommand": "cd mobile && npx expo export --platform web && cp assets/email/flagrr-logo-white-email.png dist/flagrr-logo-white-email.png",
   "outputDirectory": "mobile/dist",
   "functions": {
-    "api/receipts/index.ts": { "maxDuration": 60 }
+    "api/receipts/index.ts": {
+      "maxDuration": 60,
+      "includeFiles": "node_modules/tesseract.js-core/**"
+    }
   }
 }

@@ -7,6 +7,7 @@ import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MainTabParamList, RootStackParamList } from '../../navigation/types';
 import { useApp } from '../../context/AppContext';
+import { HeaderAvatar } from '../../components/common/HeaderAvatar';
 import { showAlert } from '../../utils/alert';
 import { colors, fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
 
@@ -46,9 +47,7 @@ export function RewardsShopScreen({ navigation }: Props) {
               <Ionicons name="notifications" size={20} color={colors.white} />
               {unreadNotificationCount > 0 ? <View style={styles.badge} /> : null}
             </TouchableOpacity>
-            <View style={styles.avatar}>
-              <Ionicons name="person" size={18} color={colors.darkGreen} />
-            </View>
+            <HeaderAvatar size={30} />
           </View>
         </View>
       </SafeAreaView>
@@ -106,14 +105,6 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: 4,
     backgroundColor: colors.lime,
-  },
-  avatar: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: colors.lime,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   content: { paddingHorizontal: screenPadding, paddingTop: spacing.lg },
   grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: spacing.md },

@@ -3,6 +3,7 @@ import { ActivityIndicator, StatusBar, StyleSheet, Text, TouchableOpacity, View 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
+import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/types';
@@ -13,20 +14,40 @@ import { colors, fontFamily, fontSize, radius, screenPadding, spacing } from '..
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ScanReceipt'>;
 
+// Full-resolution phone photos (often 3000-4000px) push server-side OCR well
+// past Vercel's 60s hard limit on the Hobby plan. Downscaling the long edge
+// keeps text plenty legible while cutting OCR time and upload size drastically.
+const MAX_LONG_EDGE = 1800;
+
+async function prepareForScan(uri: string, width: number, height: number): Promise<string> {
+  const longEdge = Math.max(width, height);
+  const isLandscape = width > height;
+  const needsResize = longEdge > MAX_LONG_EDGE;
+
+  const context = ImageManipulator.manipulate(uri);
+  if (needsResize) {
+    context.resize(isLandscape ? { width: MAX_LONG_EDGE } : { height: MAX_LONG_EDGE });
+  }
+  const rendered = await context.renderAsync();
+  const saved = await rendered.saveAsync({ base64: true, compress: 0.6, format: SaveFormat.JPEG });
+  if (!saved.base64) throw new Error('Failed to encode image');
+  return `data:image/jpeg;base64,${saved.base64}`;
+}
+
 export function ScanReceiptScreen({ navigation }: Props) {
   const [permission, requestPermission] = useCameraPermissions();
   const cameraRef = useRef<CameraView>(null);
   const [capturing, setCapturing] = useState(false);
   const [scanning, setScanning] = useState(false);
 
-  const processImage = async (imageUri: string | null, base64: string | null | undefined) => {
-    if (!base64) {
+  const processImage = async (imageUri: string | null, width: number, height: number) => {
+    if (!imageUri) {
       showAlert('Couldn’t read that image', 'Please try again with a different photo.');
       return;
     }
-    const imageBase64 = `data:image/jpeg;base64,${base64}`;
     setScanning(true);
     try {
+      const imageBase64 = await prepareForScan(imageUri, width, height);
       const result = await api.scanReceipt(imageBase64);
       if (result.isDuplicate) {
         showAlert('Already redeemed', result.reason);
@@ -45,8 +66,8 @@ export function ScanReceiptScreen({ navigation }: Props) {
     if (!cameraRef.current) return;
     setCapturing(true);
     try {
-      const photo = await cameraRef.current.takePictureAsync({ quality: 0.7, base64: true });
-      await processImage(photo?.uri ?? null, photo?.base64);
+      const photo = await cameraRef.current.takePictureAsync({ quality: 0.9 });
+      await processImage(photo?.uri ?? null, photo?.width ?? 0, photo?.height ?? 0);
     } finally {
       setCapturing(false);
     }
@@ -55,11 +76,11 @@ export function ScanReceiptScreen({ navigation }: Props) {
   const handleUpload = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
-      quality: 0.7,
-      base64: true,
+      quality: 0.9,
     });
     if (!result.canceled && result.assets[0]) {
-      await processImage(result.assets[0].uri, result.assets[0].base64);
+      const asset = result.assets[0];
+      await processImage(asset.uri, asset.width, asset.height);
     }
   };
 

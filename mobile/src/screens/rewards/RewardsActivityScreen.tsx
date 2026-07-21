@@ -7,6 +7,7 @@ import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MainTabParamList, RootStackParamList } from '../../navigation/types';
 import { useApp } from '../../context/AppContext';
+import { HeaderAvatar } from '../../components/common/HeaderAvatar';
 import { colors, fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
 import type { ActivityEntry } from '../../data/types';
 
@@ -60,9 +61,7 @@ export function RewardsActivityScreen({ navigation }: Props) {
               <Ionicons name="notifications" size={20} color={colors.white} />
               {unreadNotificationCount > 0 ? <View style={styles.badge} /> : null}
             </TouchableOpacity>
-            <View style={styles.avatar}>
-              <Ionicons name="person" size={18} color={colors.darkGreen} />
-            </View>
+            <HeaderAvatar size={30} />
           </View>
         </View>
       </SafeAreaView>
@@ -125,14 +124,6 @@ const styles = StyleSheet.create({
   headerTitle: { fontFamily: fontFamily.heading, fontSize: fontSize.title, color: colors.white },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   badge: { position: 'absolute', top: -2, right: -4, width: 8, height: 8, borderRadius: 4, backgroundColor: colors.lime },
-  avatar: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: colors.lime,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   content: { padding: screenPadding },
   emptyText: { fontFamily: fontFamily.body, fontSize: fontSize.small, color: colors.textSecondary, textAlign: 'center', marginTop: spacing.xl },
   groupLabel: { fontFamily: fontFamily.heading, fontSize: fontSize.title, color: colors.textPrimary, marginBottom: spacing.sm },
