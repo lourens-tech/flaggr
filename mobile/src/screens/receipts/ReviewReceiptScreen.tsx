@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Alert, Image, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
+import { Image, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/types';
@@ -7,6 +7,7 @@ import { ScreenHeader } from '../../components/common/ScreenHeader';
 import { PillButton } from '../../components/common/PillButton';
 import { ApiError } from '../../api/client';
 import { useApp } from '../../context/AppContext';
+import { showAlert } from '../../utils/alert';
 import { colors, fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ReviewReceipt'>;
@@ -46,7 +47,7 @@ export function ReviewReceiptScreen({ route, navigation }: Props) {
       navigation.replace('ReceiptSuccess', { pointsAwarded: PARSED.pointsAwarded });
     } catch (err) {
       const message = err instanceof ApiError ? err.message : 'Something went wrong. Please try again.';
-      Alert.alert('Couldn’t submit receipt', message);
+      showAlert('Couldn’t submit receipt', message);
     } finally {
       setSubmitting(false);
     }

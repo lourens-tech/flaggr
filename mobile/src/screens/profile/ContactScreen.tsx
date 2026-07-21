@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Alert, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -9,6 +9,7 @@ import { TextField } from '../../components/common/TextField';
 import { PillButton } from '../../components/common/PillButton';
 import { FaqAccordion } from '../../components/common/FaqAccordion';
 import { faqs } from '../../data/faqData';
+import { showAlert } from '../../utils/alert';
 import { colors, fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Contact'>;
@@ -25,7 +26,7 @@ export function ContactScreen({ navigation }: Props) {
   const [showTypes, setShowTypes] = useState(false);
 
   const handleSubmit = () => {
-    Alert.alert('Enquiry sent', 'Thanks — our team will get back to you shortly.');
+    showAlert('Enquiry sent', 'Thanks — our team will get back to you shortly.');
     navigation.goBack();
   };
 

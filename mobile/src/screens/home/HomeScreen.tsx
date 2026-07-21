@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import {
-  Alert,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -22,6 +21,7 @@ import { StatCard } from '../../components/common/StatCard';
 import { BarChart } from '../../components/common/BarChart';
 import { RewardCard } from '../../components/common/RewardCard';
 import { useApp } from '../../context/AppContext';
+import { showAlert } from '../../utils/alert';
 import { colors, fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
 
 type Props = CompositeScreenProps<
@@ -37,10 +37,10 @@ export function HomeScreen({ navigation }: Props) {
 
   const handleRedeem = (rewardId: string, title: string, cost: number) => {
     if (points.balance < cost) {
-      Alert.alert('Not enough Flagrr Bucks', `You need ${cost - points.balance} more Flagrr Bucks to redeem ${title}.`);
+      showAlert('Not enough Flagrr Bucks', `You need ${cost - points.balance} more Flagrr Bucks to redeem ${title}.`);
       return;
     }
-    Alert.alert('Redeem reward?', `Use ${cost} Flagrr Bucks to redeem ${title}?`, [
+    showAlert('Redeem reward?', `Use ${cost} Flagrr Bucks to redeem ${title}?`, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Redeem',

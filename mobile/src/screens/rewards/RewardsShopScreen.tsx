@@ -1,5 +1,5 @@
 import React from 'react';
-import { Alert, Image, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import type { CompositeScreenProps } from '@react-navigation/native';
@@ -7,6 +7,7 @@ import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MainTabParamList, RootStackParamList } from '../../navigation/types';
 import { useApp } from '../../context/AppContext';
+import { showAlert } from '../../utils/alert';
 import { colors, fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
 
 type Props = CompositeScreenProps<
@@ -19,10 +20,10 @@ export function RewardsShopScreen({ navigation }: Props) {
 
   const handleRedeem = (rewardId: string, title: string, cost: number) => {
     if (points.balance < cost) {
-      Alert.alert('Not enough Flagrr Bucks', `You need ${cost - points.balance} more Flagrr Bucks to redeem ${title}.`);
+      showAlert('Not enough Flagrr Bucks', `You need ${cost - points.balance} more Flagrr Bucks to redeem ${title}.`);
       return;
     }
-    Alert.alert('Redeem reward?', `Use ${cost} Flagrr Bucks to redeem ${title}?`, [
+    showAlert('Redeem reward?', `Use ${cost} Flagrr Bucks to redeem ${title}?`, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Redeem',

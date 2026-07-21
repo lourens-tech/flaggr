@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Alert, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -9,6 +9,7 @@ import { PillButton } from '../../components/common/PillButton';
 import { TextField } from '../../components/common/TextField';
 import { ApiError } from '../../api/client';
 import { useApp } from '../../context/AppContext';
+import { showAlert } from '../../utils/alert';
 import { colors, fontFamily, screenPadding, spacing } from '../../theme';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Login'>;
@@ -45,14 +46,14 @@ export function LoginScreen({ navigation }: Props) {
       await login(email.trim(), password, keepLoggedIn);
     } catch (err) {
       const message = err instanceof ApiError ? err.message : 'Something went wrong. Please try again.';
-      Alert.alert('Couldn’t log in', message);
+      showAlert('Couldn’t log in', message);
     } finally {
       setSubmitting(false);
     }
   };
 
   const handleForgotPassword = () => {
-    Alert.alert(
+    showAlert(
       'Reset your password',
       'Password reset isn’t available in the app yet — please contact your club for help getting back into your account.',
     );
