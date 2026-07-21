@@ -15,7 +15,8 @@ export const faqs: FaqEntry[] = [
   },
   {
     question: 'How do membership tiers work?',
-    answer: 'Your tier is based on lifetime Flagrr Bucks earned. Higher tiers unlock better earning rates and perks.',
+    answer:
+      'Your tier is based on Flagrr Bucks earned during the current quarter (Jan–Mar, Apr–Jun, Jul–Sep, Oct–Dec), not a lifetime total — it recalculates each quarter. A quiet quarter can only drop you one tier below where you finished the previous one, so you won’t fall all the way back to Bronze in one go.',
   },
   {
     question: 'Where can I use my reward voucher?',
