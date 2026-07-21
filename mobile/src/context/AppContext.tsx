@@ -69,6 +69,7 @@ interface AppContextValue extends AppState {
     pointsAwarded: number,
   ) => Promise<void>;
   markNotificationRead: (id: string) => Promise<void>;
+  updateAvatar: (imageBase64: string) => Promise<void>;
   unreadNotificationCount: number;
 }
 
@@ -184,6 +185,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setActivity(activityRes);
   };
 
+  const updateAvatar = async (imageBase64: string) => {
+    const res = await api.updateAvatar(imageBase64);
+    setUser((prev) => ({ ...prev, avatarUrl: res.avatarUrl }));
+  };
+
   const markNotificationRead = async (id: string) => {
     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
     try {
@@ -216,6 +222,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     redeemReward,
     submitReceipt,
     markNotificationRead,
+    updateAvatar,
     unreadNotificationCount,
   };
 

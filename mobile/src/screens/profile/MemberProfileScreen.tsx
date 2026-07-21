@@ -1,5 +1,5 @@
-import React from 'react';
-import { ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useState } from 'react';
+import { ActivityIndicator, Image, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -8,6 +8,9 @@ import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MainTabParamList, RootStackParamList } from '../../navigation/types';
 import { useApp } from '../../context/AppContext';
+import { ApiError } from '../../api/client';
+import { AvatarPermissionError, pickAndResizeAvatar } from '../../utils/pickAvatar';
+import { showAlert } from '../../utils/alert';
 import { colors, fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
 
 type Props = CompositeScreenProps<
@@ -46,7 +49,25 @@ function LinkRow({
 }
 
 export function MemberProfileScreen({ navigation }: Props) {
-  const { user, unreadNotificationCount, logout } = useApp();
+  const { user, unreadNotificationCount, logout, updateAvatar } = useApp();
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+
+  const handleChangeAvatar = async () => {
+    setUploadingAvatar(true);
+    try {
+      const imageBase64 = await pickAndResizeAvatar();
+      if (imageBase64) await updateAvatar(imageBase64);
+    } catch (err) {
+      if (err instanceof AvatarPermissionError) {
+        showAlert('Permission needed', err.message);
+      } else {
+        const message = err instanceof ApiError ? err.message : 'Something went wrong. Please try again.';
+        showAlert('Couldn’t update profile picture', message);
+      }
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
 
   return (
     <View style={styles.screen}>
@@ -60,7 +81,11 @@ export function MemberProfileScreen({ navigation }: Props) {
               {unreadNotificationCount > 0 ? <View style={styles.badge} /> : null}
             </TouchableOpacity>
             <View style={styles.avatarSmall}>
-              <Ionicons name="person" size={18} color={colors.darkGreen} />
+              {user.avatarUrl ? (
+                <Image source={{ uri: user.avatarUrl }} style={styles.avatarSmallImage} />
+              ) : (
+                <Ionicons name="person" size={18} color={colors.darkGreen} />
+              )}
             </View>
           </View>
         </View>
@@ -69,9 +94,30 @@ export function MemberProfileScreen({ navigation }: Props) {
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.profileCard}>
-          <View style={styles.avatarLarge}>
-            <Ionicons name="person" size={48} color={colors.clubGreen} />
-          </View>
+          <TouchableOpacity
+            style={styles.avatarLarge}
+            onPress={handleChangeAvatar}
+            disabled={uploadingAvatar}
+            activeOpacity={0.8}
+          >
+            <View style={styles.avatarLargeClip}>
+              {user.avatarUrl ? (
+                <Image source={{ uri: user.avatarUrl }} style={styles.avatarLargeImage} />
+              ) : (
+                <Ionicons name="person" size={48} color={colors.clubGreen} />
+              )}
+              {uploadingAvatar ? (
+                <View style={styles.avatarLoadingOverlay}>
+                  <ActivityIndicator color={colors.white} />
+                </View>
+              ) : null}
+            </View>
+            {!uploadingAvatar ? (
+              <View style={styles.avatarEditBadge}>
+                <Ionicons name="camera" size={14} color={colors.white} />
+              </View>
+            ) : null}
+          </TouchableOpacity>
           <LinearGradient
             colors={[colors.goldGradientStart, colors.goldGradientEnd]}
             start={{ x: 0, y: 0 }}
@@ -144,7 +190,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.lime,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
   },
+  avatarSmallImage: { width: '100%', height: '100%' },
   welcome: {
     fontFamily: fontFamily.heading,
     fontSize: fontSize.cardTitle,
@@ -158,11 +206,37 @@ const styles = StyleSheet.create({
     width: 96,
     height: 96,
     borderRadius: 48,
+    borderWidth: 3,
+    borderColor: colors.lime,
+  },
+  avatarLargeClip: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 45,
     backgroundColor: colors.mintBg,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 3,
-    borderColor: colors.lime,
+    overflow: 'hidden',
+  },
+  avatarLargeImage: { width: '100%', height: '100%' },
+  avatarLoadingOverlay: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarEditBadge: {
+    position: 'absolute',
+    right: -2,
+    bottom: -2,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.clubGreen,
+    borderWidth: 2,
+    borderColor: colors.white,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   tierBadge: {
     flexDirection: 'row',

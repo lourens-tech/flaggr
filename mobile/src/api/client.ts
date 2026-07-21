@@ -142,4 +142,7 @@ export const api = {
 
   submitReceipt: (payload: SubmitReceiptPayload) =>
     request<Receipt>('/receipts', { method: 'POST', body: payload }),
+
+  updateAvatar: (imageBase64: string) =>
+    request<{ avatarUrl: string }>('/profile/avatar', { method: 'POST', body: { imageBase64 } }),
 };
