@@ -1,7 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "installCommand": "npm install && cd mobile && npm install",
-  "buildCommand": "cd mobile && npx expo export --platform web && cp assets/email/flagrr-logo-white-email.png dist/flagrr-logo-white-email.png",
+  "buildCommand": "cd mobile && npx expo export --platform web && cp assets/email/flagrr-logo-white-email.png dist/flagrr-logo-white-email.png && mkdir -p dist/rewards && cp assets/images/rewards/*.jpg dist/rewards/",
   "outputDirectory": "mobile/dist",
   "functions": {
     "api/receipts/index.ts": {

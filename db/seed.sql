@@ -10,14 +10,14 @@ with ins as (
   select c.id, r.title, r.description, r.image_url, r.category
   from courses c
   cross join (values
-    ('18 Hole Round', 'Play a full 18 holes at Strand Golf Club.', 'https://images.unsplash.com/photo-1592919505780-303950717480?w=600', 'rounds'),
-    ('9 Hole Round', 'Play 9 holes at Strand Golf Club.', 'https://images.unsplash.com/photo-1587174786738-5699a41ba0c2?w=600', 'rounds'),
-    ('Golf Cart Hire', 'Half-day golf cart hire.', 'https://images.unsplash.com/photo-1622396481328-9c2d1c495a01?w=600', 'experiences'),
-    ('1 Hour Driving Range', 'One hour practice session on the driving range.', 'https://images.unsplash.com/photo-1600275669439-14e40452d20b?w=600', 'practice'),
-    ('Coaching Session', 'One-on-one session with the club pro.', 'https://images.unsplash.com/photo-1591491634026-3b8fd18de4a2?w=600', 'experiences'),
-    ('Pro Shop Voucher', 'Redeemable credit to spend in the pro shop.', 'https://images.unsplash.com/photo-1535131749006-b7f58c99034b?w=600', 'pro-shop'),
-    ('Kitchen Voucher', 'Redeemable credit to spend at the clubhouse kitchen.', 'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=600', 'dining'),
-    ('Bar Voucher', 'Redeemable credit to spend at the clubhouse bar.', 'https://images.unsplash.com/photo-1470337458703-46ad1756a187?w=600', 'dining')
+    ('18 Hole Round', 'Play a full 18 holes at Strand Golf Club.', 'https://flagrr-loyalty.vercel.app/rewards/18-hole-round.jpg', 'rounds'),
+    ('9 Hole Round', 'Play 9 holes at Strand Golf Club.', 'https://flagrr-loyalty.vercel.app/rewards/9-hole-round.jpg', 'rounds'),
+    ('Golf Cart Hire', 'Half-day golf cart hire.', 'https://flagrr-loyalty.vercel.app/rewards/golf-cart-hire.jpg', 'experiences'),
+    ('1 Hour Driving Range', 'One hour practice session on the driving range.', 'https://flagrr-loyalty.vercel.app/rewards/driving-range.jpg', 'practice'),
+    ('Coaching Session', 'One-on-one session with the club pro.', 'https://flagrr-loyalty.vercel.app/rewards/coaching-session.jpg', 'experiences'),
+    ('Pro Shop Voucher', 'Redeemable credit to spend in the pro shop.', 'https://flagrr-loyalty.vercel.app/rewards/pro-shop-voucher.jpg', 'pro-shop'),
+    ('Kitchen Voucher', 'Redeemable credit to spend at the clubhouse kitchen.', 'https://flagrr-loyalty.vercel.app/rewards/kitchen-voucher.jpg', 'dining'),
+    ('Bar Voucher', 'Redeemable credit to spend at the clubhouse bar.', 'https://flagrr-loyalty.vercel.app/rewards/bar-voucher.jpg', 'dining')
   ) as r(title, description, image_url, category)
   where c.slug = 'strand-golf-club'
   and not exists (select 1 from rewards ex where ex.course_id = c.id and ex.title = r.title)
