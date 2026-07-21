@@ -12,13 +12,18 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
   const authed = await requireAuthedUser(req);
 
   const rows = (await sql`
-    select id, reward_id, code, status, qr_value, issued_at, expires_at
-    from vouchers
-    where user_id = ${authed.id}
-    order by issued_at desc
+    select v.id, v.reward_id, r.title as reward_title, v.variant_label, v.cost,
+           v.code, v.status, v.qr_value, v.issued_at, v.expires_at
+    from vouchers v
+    left join rewards r on r.id = v.reward_id
+    where v.user_id = ${authed.id}
+    order by v.issued_at desc
   `) as Array<{
     id: string;
     reward_id: string;
+    reward_title: string | null;
+    variant_label: string;
+    cost: number;
     code: string;
     status: string;
     qr_value: string;
@@ -30,6 +35,9 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     rows.map((r) => ({
       id: r.id,
       rewardId: r.reward_id,
+      rewardTitle: r.reward_title ?? '',
+      variantLabel: r.variant_label,
+      cost: r.cost,
       code: r.code,
       status: r.status,
       qrValue: r.qr_value,

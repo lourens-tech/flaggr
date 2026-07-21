@@ -6,6 +6,7 @@ import { HttpError, withErrorHandling } from './_lib/http';
 
 interface RedeemBody {
   rewardId?: string;
+  variantId?: string;
 }
 
 function generateVoucherCode(): string {
@@ -22,24 +23,27 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
   }
 
   const authed = await requireAuthedUser(req);
-  const rewardId = (req.body as RedeemBody).rewardId;
-  if (!rewardId) {
-    throw new HttpError(400, 'rewardId is required');
+  const { rewardId, variantId } = req.body as RedeemBody;
+  if (!rewardId || !variantId) {
+    throw new HttpError(400, 'rewardId and variantId are required');
   }
 
-  const rewardRows = (await sql`
-    select id, title, cost from rewards
-    where id = ${rewardId} and course_id = ${authed.courseId} and active = true
-  `) as Array<{ id: string; title: string; cost: number }>;
-  if (rewardRows.length === 0) {
+  const variantRows = (await sql`
+    select r.id as reward_id, r.title, v.id as variant_id, v.label, v.cost
+    from reward_variants v
+    join rewards r on r.id = v.reward_id
+    where v.id = ${variantId} and r.id = ${rewardId}
+      and r.course_id = ${authed.courseId} and r.active = true and v.active = true
+  `) as Array<{ reward_id: string; title: string; variant_id: string; label: string; cost: number }>;
+  if (variantRows.length === 0) {
     throw new HttpError(404, 'Reward not found');
   }
-  const reward = rewardRows[0];
+  const { title, variant_id: rewardVariantId, label, cost } = variantRows[0];
 
   const deducted = (await sql`
     update points_accounts
-    set balance = balance - ${reward.cost}, total_redeemed = total_redeemed + ${reward.cost}
-    where user_id = ${authed.id} and balance >= ${reward.cost}
+    set balance = balance - ${cost}, total_redeemed = total_redeemed + ${cost}
+    where user_id = ${authed.id} and balance >= ${cost}
     returning balance
   `) as Array<{ balance: number }>;
 
@@ -48,20 +52,23 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
   }
 
   const code = generateVoucherCode();
+  const activityTitle = label === 'Standard' ? `${title} redeemed` : `${title} (${label}) redeemed`;
   const results = (await sql.transaction([
     sql`
-      insert into vouchers (user_id, reward_id, code, qr_value)
-      values (${authed.id}, ${reward.id}, ${code}, ${`flagrr://voucher/${code}`})
-      returning id, reward_id, code, status, qr_value, issued_at, expires_at
+      insert into vouchers (user_id, reward_id, reward_variant_id, variant_label, cost, code, qr_value)
+      values (${authed.id}, ${rewardId}, ${rewardVariantId}, ${label}, ${cost}, ${code}, ${`flagrr://voucher/${code}`})
+      returning id, reward_id, variant_label, cost, code, status, qr_value, issued_at, expires_at
     `,
     sql`
       insert into activity (user_id, type, title, subtitle, amount)
-      values (${authed.id}, 'redeem', ${`${reward.title} redeemed`}, 'Reward voucher', ${-reward.cost})
+      values (${authed.id}, 'redeem', ${activityTitle}, 'Reward voucher', ${-cost})
     `,
   ])) as [
     Array<{
       id: string;
       reward_id: string;
+      variant_label: string;
+      cost: number;
       code: string;
       status: string;
       qr_value: string;
@@ -75,6 +82,9 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
   res.status(201).json({
     id: voucher.id,
     rewardId: voucher.reward_id,
+    rewardTitle: title,
+    variantLabel: voucher.variant_label,
+    cost: voucher.cost,
     code: voucher.code,
     status: voucher.status,
     qrValue: voucher.qr_value,

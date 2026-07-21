@@ -121,8 +121,8 @@ export const api = {
 
   rewards: () => request<Reward[]>('/rewards'),
 
-  redeem: (rewardId: string) =>
-    request<Voucher & { balance: number }>('/redeem', { method: 'POST', body: { rewardId } }),
+  redeem: (rewardId: string, variantId: string) =>
+    request<Voucher & { balance: number }>('/redeem', { method: 'POST', body: { rewardId, variantId } }),
 
   vouchers: () => request<Voucher[]>('/vouchers'),
 

@@ -63,7 +63,7 @@ interface AppContextValue extends AppState {
   login: (email: string, password: string, keepLoggedIn?: boolean) => Promise<void>;
   signup: (payload: SignupPayload) => Promise<void>;
   logout: () => Promise<void>;
-  redeemReward: (rewardId: string) => Promise<Voucher | null>;
+  redeemReward: (rewardId: string, variantId: string) => Promise<Voucher | null>;
   submitReceipt: (imageBase64: string, imageUri: string | null) => Promise<Receipt>;
   markNotificationRead: (id: string) => Promise<void>;
   updateAvatar: (imageBase64: string) => Promise<void>;
@@ -151,9 +151,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setNotifications([]);
   };
 
-  const redeemReward = async (rewardId: string): Promise<Voucher | null> => {
+  const redeemReward = async (rewardId: string, variantId: string): Promise<Voucher | null> => {
     try {
-      const voucher = await api.redeem(rewardId);
+      const voucher = await api.redeem(rewardId, variantId);
       setVouchers((prev) => [voucher, ...prev]);
       const [me, activityRes] = await Promise.all([api.me(), api.activity()]);
       setPoints(me.points);

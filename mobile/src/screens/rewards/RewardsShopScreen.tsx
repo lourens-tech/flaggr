@@ -1,5 +1,5 @@
 import React from 'react';
-import { Image, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import type { CompositeScreenProps } from '@react-navigation/native';
@@ -8,8 +8,10 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MainTabParamList, RootStackParamList } from '../../navigation/types';
 import { useApp } from '../../context/AppContext';
 import { HeaderAvatar } from '../../components/common/HeaderAvatar';
+import { RewardCard } from '../../components/common/RewardCard';
 import { showAlert } from '../../utils/alert';
 import { colors, fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
+import type { Reward } from '../../data/types';
 
 type Props = CompositeScreenProps<
   BottomTabScreenProps<MainTabParamList, 'Rewards'>,
@@ -19,17 +21,23 @@ type Props = CompositeScreenProps<
 export function RewardsShopScreen({ navigation }: Props) {
   const { rewards, points, redeemReward, unreadNotificationCount } = useApp();
 
-  const handleRedeem = (rewardId: string, title: string, cost: number) => {
-    if (points.balance < cost) {
-      showAlert('Not enough Flagrr Bucks', `You need ${cost - points.balance} more Flagrr Bucks to redeem ${title}.`);
+  const handleRedeem = (reward: Reward, variantId: string) => {
+    const variant = reward.variants.find((v) => v.id === variantId);
+    if (!variant) return;
+    const label = variant.label === 'Standard' ? reward.title : `${reward.title} (${variant.label})`;
+    if (points.balance < variant.cost) {
+      showAlert(
+        'Not enough Flagrr Bucks',
+        `You need ${variant.cost - points.balance} more Flagrr Bucks to redeem ${label}.`,
+      );
       return;
     }
-    showAlert('Redeem reward?', `Use ${cost} Flagrr Bucks to redeem ${title}?`, [
+    showAlert('Redeem reward?', `Use ${variant.cost} Flagrr Bucks to redeem ${label}?`, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Redeem',
         onPress: async () => {
-          const voucher = await redeemReward(rewardId);
+          const voucher = await redeemReward(reward.id, variantId);
           if (voucher) navigation.navigate('Voucher', { voucherId: voucher.id });
         },
       },
@@ -56,21 +64,11 @@ export function RewardsShopScreen({ navigation }: Props) {
         <View style={styles.grid}>
           {rewards.map((reward, i) => (
             <React.Fragment key={reward.id}>
-              <View style={styles.card}>
-                <Image source={{ uri: reward.imageUrl }} style={styles.image} />
-                <View style={styles.cardBody}>
-                  <Text style={styles.cardTitle} numberOfLines={1}>{reward.title}</Text>
-                  <Text style={styles.cardDescription} numberOfLines={2}>{reward.description}</Text>
-                  <Text style={styles.cardCost}>{reward.cost} Flagrr Bucks</Text>
-                  <TouchableOpacity
-                    style={styles.redeemButton}
-                    onPress={() => handleRedeem(reward.id, reward.title, reward.cost)}
-                  >
-                    <Text style={styles.redeemButtonText}>Redeem Now</Text>
-                    <Ionicons name="arrow-forward" size={14} color={colors.darkGreen} />
-                  </TouchableOpacity>
-                </View>
-              </View>
+              <RewardCard
+                reward={reward}
+                style={styles.card}
+                onRedeem={(variantId) => handleRedeem(reward, variantId)}
+              />
               {i === 1 ? (
                 <View style={styles.adSpace}>
                   <Text style={styles.adSpaceText}>Ad Space</Text>
@@ -108,29 +106,7 @@ const styles = StyleSheet.create({
   },
   content: { paddingHorizontal: screenPadding, paddingTop: spacing.lg },
   grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: spacing.md },
-  card: {
-    width: '47%',
-    backgroundColor: colors.white,
-    borderRadius: radius.md,
-    borderWidth: 0.5,
-    borderColor: colors.clubGreen,
-    overflow: 'hidden',
-  },
-  image: { width: '100%', height: 100, backgroundColor: colors.imagePlaceholder },
-  cardBody: { padding: spacing.sm + 4, gap: 4 },
-  cardTitle: { fontFamily: fontFamily.heading, fontSize: fontSize.cardTitle, color: colors.darkGreen },
-  cardDescription: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary, minHeight: 28 },
-  cardCost: { fontFamily: fontFamily.heading, fontSize: fontSize.label, color: colors.darkGreen, marginBottom: 4 },
-  redeemButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    backgroundColor: colors.lime,
-    borderRadius: radius.pill,
-    paddingVertical: 10,
-  },
-  redeemButtonText: { fontFamily: fontFamily.heading, fontSize: 12, color: colors.darkGreen },
+  card: { width: '47%' },
   adSpace: {
     width: '100%',
     height: 90,

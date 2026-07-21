@@ -1,9 +1,39 @@
--- Seeds the first (and currently only) signed-up course, matching the
--- rewards shown in the mock data the app previously shipped with.
+-- Reworks the rewards catalog to support multiple selectable denominations
+-- per reward (e.g. Pro Shop Voucher: R1000/R750/R500/R250), each priced in
+-- Flagrr Bucks at a per-course Rand conversion rate. Run this whole file
+-- once against the already-provisioned database.
+--
+-- This clears existing rewards/vouchers and reseeds the catalog described by
+-- the club (Strand Golf Club) — safe for the current pre-launch test data,
+-- but destructive to any real redemption history, so don't re-run in prod
+-- once live vouchers exist.
 
-insert into courses (name, slug)
-values ('Strand Golf Club', 'strand-golf-club')
-on conflict (slug) do nothing;
+alter table courses add column if not exists fb_per_rand numeric not null default 2.8;
+
+create table if not exists reward_variants (
+  id uuid primary key default gen_random_uuid(),
+  reward_id uuid not null references rewards(id) on delete cascade,
+  label text not null, -- e.g. 'R500', or 'Standard' for non-voucher rewards
+  rand_value integer check (rand_value >= 0), -- null for rewards with no Rand equivalent (e.g. a round of golf)
+  cost integer not null check (cost >= 0), -- Flagrr Bucks; admin enters rand_value, this = rand_value * fb_per_rand
+  sort_order integer not null default 0,
+  active boolean not null default true,
+  created_at timestamptz not null default now()
+);
+create index if not exists reward_variants_reward_id_idx on reward_variants(reward_id);
+
+alter table vouchers add column if not exists reward_variant_id uuid references reward_variants(id);
+alter table vouchers add column if not exists variant_label text not null default '';
+alter table vouchers add column if not exists cost integer not null default 0;
+
+-- Old rewards had a flat cost column; that's now on reward_variants instead.
+delete from vouchers;
+delete from rewards;
+alter table rewards drop column if exists cost;
+
+alter table rewards drop constraint if exists rewards_category_check;
+alter table rewards add constraint rewards_category_check
+  check (category in ('rounds', 'experiences', 'pro-shop', 'practice', 'dining'));
 
 with ins as (
   insert into rewards (course_id, title, description, image_url, category)
@@ -20,7 +50,6 @@ with ins as (
     ('Bar Voucher', 'Redeemable credit to spend at the clubhouse bar.', 'https://images.unsplash.com/photo-1470337458703-46ad1756a187?w=600', 'dining')
   ) as r(title, description, image_url, category)
   where c.slug = 'strand-golf-club'
-  and not exists (select 1 from rewards ex where ex.course_id = c.id and ex.title = r.title)
   returning id, title
 )
 insert into reward_variants (reward_id, label, rand_value, cost, sort_order)
@@ -50,35 +79,3 @@ join (values
   ('Bar Voucher', 'R100', 100, 280, 6),
   ('Bar Voucher', 'R50', 50, 140, 7)
 ) as v(title, label, rand_value, cost, sort_order) on v.title = ins.title;
-
--- Strand Golf Club as a recognized merchant, so receipts scanned there match
--- to the tenant course automatically.
-insert into merchants (name, aliases, merchant_type, course_id)
-select 'Strand Golf Club', array['strand golf club', 'strand gc'], 'golf_course', c.id
-from courses c
-where c.slug = 'strand-golf-club'
-on conflict do nothing;
-
--- Starter golf product/activity catalog for the receipt scanner's points engine.
-insert into golf_products (name, brand, category, aliases, points_value, points_per_unit)
-values
-  ('Titleist Pro V1 Golf Balls', 'Titleist', 'balls', array['pro v1', 'pro v1 dz', 'titleist pro v1 dozen'], 50, true),
-  ('Callaway Chrome Tour Golf Balls', 'Callaway', 'balls', array['chrome tour', 'chrome tour dz'], 45, true),
-  ('TaylorMade TP5 Golf Balls', 'TaylorMade', 'balls', array['tp5', 'tp5 dz', 'tp5 dozen'], 50, true),
-  ('FootJoy Glove', 'FootJoy', 'apparel', array['fj glove', 'footjoy golf glove'], 20, true),
-  ('Golf Towel', '', 'accessories', array['golf towel', 'caddy towel'], 15, true),
-  ('Golf Cap', '', 'apparel', array['golf hat', 'golf visor'], 15, true)
-on conflict do nothing;
-
-insert into golf_activities (name, category, aliases, points_value)
-values
-  ('18 Hole Round', 'rounds', array['18 hole green fee', '18 holes', '18 hole round'], 100),
-  ('9 Hole Round', 'rounds', array['9 hole green fee', '9 holes', '9 hole round'], 50),
-  ('Twilight Round', 'rounds', array['twilight golf', 'twilight round'], 60),
-  ('Driving Range Session', 'practice', array['range session', 'bucket of balls', 'driving range'], 30),
-  ('Golf Cart Hire', 'services', array['cart hire', 'golf cart', 'cart rental'], 20),
-  ('Club Rental', 'services', array['club hire', 'club rental'], 20),
-  ('Caddie Fee', 'services', array['caddie fee', 'caddy fee'], 25),
-  ('Golf Lesson', 'coaching', array['golf lesson', 'lesson', 'coaching session'], 80),
-  ('Competition Entry', 'events', array['competition entry', 'tournament registration', 'tournament entry'], 70)
-on conflict do nothing;

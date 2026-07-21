@@ -13,11 +13,10 @@ import { colors, fontFamily, fontSize, radius, screenPadding, spacing } from '..
 type Props = NativeStackScreenProps<RootStackParamList, 'Voucher'>;
 
 export function VoucherScreen({ route, navigation }: Props) {
-  const { vouchers, rewards } = useApp();
+  const { vouchers } = useApp();
   const voucher = vouchers.find((v) => v.id === route.params.voucherId);
-  const reward = rewards.find((r) => r.id === voucher?.rewardId);
 
-  if (!voucher || !reward) {
+  if (!voucher) {
     return (
       <View style={styles.screen}>
         <ScreenHeader title="Voucher" />
@@ -50,7 +49,10 @@ export function VoucherScreen({ route, navigation }: Props) {
             Your reward has been successfully redeemed. Present your QR code or voucher code at the club to claim.
           </Text>
           <View style={styles.rewardPill}>
-            <Text style={styles.rewardPillText}>{reward.title}</Text>
+            <Text style={styles.rewardPillText}>
+              {voucher.rewardTitle}
+              {voucher.variantLabel && voucher.variantLabel !== 'Standard' ? ` — ${voucher.variantLabel}` : ''}
+            </Text>
           </View>
           <Text style={styles.codeLabel}>Voucher Code</Text>
           <Text style={styles.codeValue}>{voucher.code}</Text>

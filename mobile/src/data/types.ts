@@ -50,15 +50,22 @@ export interface Stats {
   monthly: MonthlyPoint[];
 }
 
-export type RewardCategory = 'rounds' | 'experiences' | 'pro-shop' | 'practice';
+export type RewardCategory = 'rounds' | 'experiences' | 'pro-shop' | 'practice' | 'dining';
+
+export interface RewardVariant {
+  id: string;
+  label: string;
+  randValue: number | null;
+  cost: number;
+}
 
 export interface Reward {
   id: string;
   title: string;
   description: string;
   imageUrl: string;
-  cost: number;
   category: RewardCategory;
+  variants: RewardVariant[];
 }
 
 export type VoucherStatus = 'active' | 'redeemed' | 'expired';
@@ -66,6 +73,9 @@ export type VoucherStatus = 'active' | 'redeemed' | 'expired';
 export interface Voucher {
   id: string;
   rewardId: string;
+  rewardTitle: string;
+  variantLabel: string;
+  cost: number;
   code: string;
   status: VoucherStatus;
   qrValue: string;

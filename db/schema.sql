@@ -10,6 +10,7 @@ create table courses (
   name text not null,
   slug text not null unique,
   logo_url text,
+  fb_per_rand numeric not null default 2.8, -- Flagrr Bucks per R1, used to auto-price reward variants from a Rand value
   created_at timestamptz not null default now()
 );
 
@@ -75,8 +76,21 @@ create table rewards (
   title text not null,
   description text not null default '',
   image_url text,
-  cost integer not null check (cost >= 0), -- Flagrr Bucks
-  category text not null check (category in ('rounds', 'experiences', 'pro-shop', 'practice')),
+  category text not null check (category in ('rounds', 'experiences', 'pro-shop', 'practice', 'dining')),
+  active boolean not null default true,
+  created_at timestamptz not null default now()
+);
+
+-- A reward's redeemable options (e.g. Pro Shop Voucher: R1000/R750/R500/R250).
+-- Rewards with only one option (a round of golf, a coaching session) still
+-- get exactly one variant here rather than a flat cost on rewards itself.
+create table reward_variants (
+  id uuid primary key default gen_random_uuid(),
+  reward_id uuid not null references rewards(id) on delete cascade,
+  label text not null, -- e.g. 'R500', or 'Standard' for non-voucher rewards
+  rand_value integer check (rand_value >= 0), -- null for rewards with no Rand equivalent
+  cost integer not null check (cost >= 0), -- Flagrr Bucks; = rand_value * courses.fb_per_rand
+  sort_order integer not null default 0,
   active boolean not null default true,
   created_at timestamptz not null default now()
 );
@@ -85,6 +99,9 @@ create table vouchers (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references users(id) on delete cascade,
   reward_id uuid not null references rewards(id),
+  reward_variant_id uuid references reward_variants(id),
+  variant_label text not null default '',
+  cost integer not null default 0, -- Flagrr Bucks charged, snapshotted at redemption
   code text not null unique,
   status text not null default 'active' check (status in ('active', 'redeemed', 'expired')),
   qr_value text not null,
@@ -181,6 +198,7 @@ create table notifications (
 );
 
 create index rewards_course_id_idx on rewards(course_id);
+create index reward_variants_reward_id_idx on reward_variants(reward_id);
 create index users_course_id_idx on users(course_id);
 create index vouchers_user_id_idx on vouchers(user_id);
 create index receipts_user_id_idx on receipts(user_id);

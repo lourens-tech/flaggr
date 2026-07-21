@@ -1,17 +1,24 @@
-import React from 'react';
-import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useState } from 'react';
+import { Image, StyleProp, StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { colors, fontFamily, fontSize, radius, spacing } from '../../theme';
 import type { Reward } from '../../data/types';
 
 interface Props {
   reward: Reward;
-  onPress?: () => void;
   width?: number;
+  style?: StyleProp<ViewStyle>;
+  onPress?: () => void;
+  onRedeem?: (variantId: string) => void;
 }
 
-export function RewardCard({ reward, onPress, width = 180 }: Props) {
-  return (
-    <TouchableOpacity activeOpacity={0.85} onPress={onPress} style={[styles.card, { width }]}>
+export function RewardCard({ reward, width, style, onPress, onRedeem }: Props) {
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const variant = reward.variants[selectedIndex] ?? reward.variants[0];
+  const showVariantPicker = onRedeem && reward.variants.length > 1;
+
+  const body = (
+    <>
       <Image source={{ uri: reward.imageUrl }} style={styles.image} />
       <View style={styles.body}>
         <Text style={styles.title} numberOfLines={1}>
@@ -20,10 +27,46 @@ export function RewardCard({ reward, onPress, width = 180 }: Props) {
         <Text style={styles.description} numberOfLines={2}>
           {reward.description}
         </Text>
-        <Text style={styles.cost}>{reward.cost} Flagrr Bucks</Text>
+
+        {showVariantPicker ? (
+          <View style={styles.variantRow}>
+            {reward.variants.map((v, i) => (
+              <TouchableOpacity
+                key={v.id}
+                style={[styles.variantChip, i === selectedIndex && styles.variantChipActive]}
+                onPress={() => setSelectedIndex(i)}
+                hitSlop={4}
+              >
+                <Text style={[styles.variantChipText, i === selectedIndex && styles.variantChipTextActive]}>
+                  {v.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        ) : null}
+
+        <Text style={styles.cost}>{variant.cost} Flagrr Bucks</Text>
+
+        {onRedeem ? (
+          <TouchableOpacity style={styles.redeemButton} onPress={() => onRedeem(variant.id)}>
+            <Text style={styles.redeemButtonText}>Redeem Now</Text>
+            <Ionicons name="arrow-forward" size={14} color={colors.darkGreen} />
+          </TouchableOpacity>
+        ) : null}
       </View>
-    </TouchableOpacity>
+    </>
   );
+
+  const cardStyle = [styles.card, width ? { width } : null, style];
+
+  if (onPress) {
+    return (
+      <TouchableOpacity activeOpacity={0.85} onPress={onPress} style={cardStyle}>
+        {body}
+      </TouchableOpacity>
+    );
+  }
+  return <View style={cardStyle}>{body}</View>;
 }
 
 const styles = StyleSheet.create({
@@ -39,4 +82,26 @@ const styles = StyleSheet.create({
   title: { fontFamily: fontFamily.heading, fontSize: fontSize.cardTitle, color: colors.darkGreen },
   description: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary },
   cost: { fontFamily: fontFamily.heading, fontSize: fontSize.label, color: colors.darkGreen, marginTop: 2 },
+  variantRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 2 },
+  variantChip: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.clubGreen,
+  },
+  variantChipActive: { backgroundColor: colors.clubGreen },
+  variantChipText: { fontFamily: fontFamily.bodyMedium, fontSize: 11, color: colors.clubGreen },
+  variantChipTextActive: { color: colors.white },
+  redeemButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: colors.lime,
+    borderRadius: radius.pill,
+    paddingVertical: 10,
+    marginTop: 4,
+  },
+  redeemButtonText: { fontFamily: fontFamily.heading, fontSize: 12, color: colors.darkGreen },
 });

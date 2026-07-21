@@ -22,7 +22,6 @@ import { BarChart } from '../../components/common/BarChart';
 import { RewardCard } from '../../components/common/RewardCard';
 import { HeaderAvatar } from '../../components/common/HeaderAvatar';
 import { useApp } from '../../context/AppContext';
-import { showAlert } from '../../utils/alert';
 import { colors, fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
 
 type Props = CompositeScreenProps<
@@ -33,25 +32,8 @@ type Props = CompositeScreenProps<
 type StatsPeriod = 'Month' | 'Year' | 'All';
 
 export function HomeScreen({ navigation }: Props) {
-  const { user, points, streak, stats, rewards, unreadNotificationCount, redeemReward } = useApp();
+  const { user, points, streak, stats, rewards, unreadNotificationCount } = useApp();
   const [period, setPeriod] = useState<StatsPeriod>('Year');
-
-  const handleRedeem = (rewardId: string, title: string, cost: number) => {
-    if (points.balance < cost) {
-      showAlert('Not enough Flagrr Bucks', `You need ${cost - points.balance} more Flagrr Bucks to redeem ${title}.`);
-      return;
-    }
-    showAlert('Redeem reward?', `Use ${cost} Flagrr Bucks to redeem ${title}?`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Redeem',
-        onPress: async () => {
-          const voucher = await redeemReward(rewardId);
-          if (voucher) navigation.navigate('Voucher', { voucherId: voucher.id });
-        },
-      },
-    ]);
-  };
 
   return (
     <View style={styles.screen}>
@@ -177,7 +159,7 @@ export function HomeScreen({ navigation }: Props) {
             <RewardCard
               key={reward.id}
               reward={reward}
-              onPress={() => handleRedeem(reward.id, reward.title, reward.cost)}
+              onPress={() => navigation.navigate('Rewards')}
             />
           ))}
         </ScrollView>
