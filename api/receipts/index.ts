@@ -1,21 +1,19 @@
+import { randomUUID } from 'node:crypto';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { sql } from '../_lib/db';
 import { requireAuthedUser } from '../_lib/auth';
 import { HttpError, withErrorHandling } from '../_lib/http';
+import { checkDuplicateReceipt, evaluateFraudSignals } from '../_lib/fraudChecks';
+import { runScanPipeline } from '../_lib/scanPipeline';
+import type { MatchedItem } from '../_lib/pointsEngine';
 
-interface ReceiptLineItem {
-  label: string;
-  amount: number;
-}
+const DATA_URI_PATTERN = /^data:image\/(jpeg|jpg|png|webp);base64,/;
+const MAX_BASE64_LENGTH = 7_000_000; // ~5MB decoded
+const MONTH_LETTERS = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'];
 
 interface SubmitReceiptBody {
-  imageUri?: string | null;
-  courseName?: string;
-  items?: ReceiptLineItem[];
-  subtotal?: number;
-  tax?: number;
-  total?: number;
-  pointsAwarded?: number;
+  imageBase64?: string;
+  imageUri?: string | null; // local device uri, kept only for on-device display
 }
 
 interface ReceiptRow {
@@ -23,12 +21,19 @@ interface ReceiptRow {
   image_uri: string | null;
   status: string;
   course_name: string;
-  items: ReceiptLineItem[];
+  items: MatchedItem[];
   subtotal: string;
   tax: string;
   total: string;
   submitted_at: string;
   points_awarded: number | null;
+  receipt_number: string | null;
+  transaction_number: string | null;
+  till_number: string | null;
+  receipt_time: string | null;
+  ocr_confidence: string | null;
+  flagged: boolean;
+  flag_reason: string | null;
 }
 
 function serializeReceipt(r: ReceiptRow) {
@@ -43,7 +48,18 @@ function serializeReceipt(r: ReceiptRow) {
     total: Number(r.total),
     submittedAt: r.submitted_at,
     pointsAwarded: r.points_awarded,
+    receiptNumber: r.receipt_number,
+    transactionNumber: r.transaction_number,
+    tillNumber: r.till_number,
+    receiptTime: r.receipt_time,
+    ocrConfidence: r.ocr_confidence !== null ? Number(r.ocr_confidence) : null,
+    flagged: r.flagged,
+    flagReason: r.flag_reason,
   };
+}
+
+function isUniqueViolation(err: unknown): boolean {
+  return err instanceof Error && /duplicate key value/i.test(err.message);
 }
 
 export default withErrorHandling(async (req: VercelRequest, res: VercelResponse) => {
@@ -51,7 +67,8 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
 
   if (req.method === 'GET') {
     const rows = (await sql`
-      select id, image_uri, status, course_name, items, subtotal, tax, total, submitted_at, points_awarded
+      select id, image_uri, status, course_name, items, subtotal, tax, total, submitted_at, points_awarded,
+             receipt_number, transaction_number, till_number, receipt_time, ocr_confidence, flagged, flag_reason
       from receipts
       where user_id = ${authed.id}
       order by submitted_at desc
@@ -63,34 +80,101 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
 
   if (req.method === 'POST') {
     const body = req.body as SubmitReceiptBody;
-    const pointsAwarded = body.pointsAwarded ?? 0;
-    if (!Number.isFinite(pointsAwarded) || pointsAwarded < 0) {
-      throw new HttpError(400, 'pointsAwarded must be a non-negative number');
+    const imageBase64 = body.imageBase64;
+    if (!imageBase64 || !DATA_URI_PATTERN.test(imageBase64)) {
+      throw new HttpError(400, 'imageBase64 must be a jpeg/png/webp data URI');
     }
-    const courseName = body.courseName ?? '';
+    if (imageBase64.length > MAX_BASE64_LENGTH) {
+      throw new HttpError(400, 'Image is too large');
+    }
 
-    const results = (await sql.transaction([
-      sql`
-        insert into receipts (user_id, course_id, course_name, image_uri, status, items, subtotal, tax, total, points_awarded)
-        values (
-          ${authed.id}, ${authed.courseId}, ${courseName}, ${body.imageUri ?? null}, 'approved',
-          ${JSON.stringify(body.items ?? [])}::jsonb,
-          ${body.subtotal ?? 0}, ${body.tax ?? 0}, ${body.total ?? 0}, ${pointsAwarded}
+    // Re-run the full pipeline server-side from the original image rather
+    // than trusting any client-supplied extracted data or point totals —
+    // the scan preview is a UI convenience, not the source of truth.
+    const { imageHash, ocrConfidence, parsed, scored } = await runScanPipeline(imageBase64);
+
+    const duplicate = await checkDuplicateReceipt(parsed.receiptNumber, imageHash);
+    if (duplicate.isDuplicate) {
+      throw new HttpError(409, duplicate.reason ?? 'This receipt has already been redeemed.');
+    }
+
+    const fraud = await evaluateFraudSignals({
+      userId: authed.id,
+      ocrConfidence,
+      totalPointsAwarded: scored.totalPointsAwarded,
+    });
+
+    const courseName = scored.merchant?.name ?? parsed.merchantNameGuess ?? '';
+    const itemsSnapshot = scored.items.map((i) => ({ label: i.description, amount: i.price }));
+    const receiptId = randomUUID();
+
+    let insertedRows: ReceiptRow[];
+    try {
+      insertedRows = (await sql`
+        insert into receipts (
+          id, user_id, course_id, course_name, image_uri, status, items, subtotal, tax, total, points_awarded,
+          receipt_number, merchant_id, transaction_number, till_number, receipt_time, image_hash, ocr_confidence,
+          flagged, flag_reason
         )
-        returning id, image_uri, status, course_name, items, subtotal, tax, total, submitted_at, points_awarded
-      `,
+        values (
+          ${receiptId}, ${authed.id}, ${authed.courseId}, ${courseName}, ${body.imageUri ?? null}, 'approved',
+          ${JSON.stringify(itemsSnapshot)}::jsonb,
+          ${parsed.subtotal ?? 0}, ${parsed.vat ?? 0}, ${parsed.grandTotal ?? 0}, ${scored.totalPointsAwarded},
+          ${parsed.receiptNumber}, ${scored.merchant?.id ?? null}, ${parsed.transactionNumber}, ${parsed.tillNumber},
+          ${parsed.time}, ${imageHash}, ${ocrConfidence},
+          ${fraud.flagged}, ${fraud.flagged ? fraud.reasons.join(', ') : null}
+        )
+        returning id, image_uri, status, course_name, items, subtotal, tax, total, submitted_at, points_awarded,
+                  receipt_number, transaction_number, till_number, receipt_time, ocr_confidence, flagged, flag_reason
+      `) as ReceiptRow[];
+    } catch (err) {
+      if (isUniqueViolation(err)) {
+        throw new HttpError(409, 'This receipt has already been redeemed.');
+      }
+      throw err;
+    }
+
+    const roundsPlayed18 = scored.items
+      .filter((i) => i.matchedName === '18 Hole Round')
+      .reduce((sum, i) => sum + i.quantity, 0);
+    const roundsPlayed9 = scored.items
+      .filter((i) => i.matchedName === '9 Hole Round')
+      .reduce((sum, i) => sum + i.quantity, 0);
+    const monthLetter = MONTH_LETTERS[new Date().getMonth()];
+
+    await sql.transaction([
+      ...scored.items.map(
+        (i) => sql`
+          insert into receipt_items (receipt_id, description, quantity, price, matched_product_id, matched_activity_id, points_awarded)
+          values (${receiptId}, ${i.description}, ${i.quantity}, ${i.price}, ${i.matchedProductId}, ${i.matchedActivityId}, ${i.pointsAwarded})
+        `,
+      ),
       sql`
         update points_accounts
-        set balance = balance + ${pointsAwarded}, total_earned = total_earned + ${pointsAwarded}
+        set balance = balance + ${scored.totalPointsAwarded}, total_earned = total_earned + ${scored.totalPointsAwarded}
         where user_id = ${authed.id}
       `,
       sql`
-        insert into activity (user_id, type, title, subtitle, amount)
-        values (${authed.id}, 'earn', 'Receipt scanned', ${courseName}, ${pointsAwarded})
+        update user_stats
+        set bucks_earned = bucks_earned + ${scored.totalPointsAwarded},
+            rounds_played_9 = rounds_played_9 + ${roundsPlayed9},
+            rounds_played_18 = rounds_played_18 + ${roundsPlayed18},
+            total_receipts_scanned = total_receipts_scanned + 1,
+            last_scan_date = now()
+        where user_id = ${authed.id}
       `,
-    ])) as [ReceiptRow[], unknown, unknown];
+      sql`
+        insert into monthly_points (user_id, month, value)
+        values (${authed.id}, ${monthLetter}, ${scored.totalPointsAwarded})
+        on conflict (user_id, month) do update set value = monthly_points.value + excluded.value
+      `,
+      sql`
+        insert into activity (user_id, type, title, subtitle, amount)
+        values (${authed.id}, 'earn', 'Receipt scanned', ${courseName}, ${scored.totalPointsAwarded})
+      `,
+    ]);
 
-    res.status(201).json(serializeReceipt(results[0][0]));
+    res.status(201).json(serializeReceipt(insertedRows[0]));
     return;
   }
 

@@ -1,3 +1,5 @@
+import type { ScanResult } from '../data/types';
+
 export type AuthStackParamList = {
   Landing: undefined;
   Login: undefined;
@@ -17,7 +19,7 @@ export type RootStackParamList = {
   Main: undefined;
   Voucher: { voucherId: string };
   ScanReceipt: undefined;
-  ReviewReceipt: { imageUri: string | null };
+  ReviewReceipt: { imageUri: string | null; imageBase64: string; scanResult: ScanResult & { isDuplicate: false } };
   ReceiptSuccess: { pointsAwarded: number };
   MemberTiers: undefined;
   Notifications: undefined;

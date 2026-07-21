@@ -4,8 +4,8 @@ import type {
   AppNotification,
   PointsAccount,
   Receipt,
-  ReceiptLineItem,
   Reward,
+  ScanResult,
   Stats,
   Streak,
   User,
@@ -104,13 +104,8 @@ export interface MeResponse {
 }
 
 export interface SubmitReceiptPayload {
+  imageBase64: string;
   imageUri: string | null;
-  courseName: string;
-  items: ReceiptLineItem[];
-  subtotal: number;
-  tax: number;
-  total: number;
-  pointsAwarded: number;
 }
 
 export const api = {
@@ -139,6 +134,9 @@ export const api = {
     request<{ ok: boolean }>('/notifications/read', { method: 'POST', body: { id } }),
 
   receipts: () => request<Receipt[]>('/receipts'),
+
+  scanReceipt: (imageBase64: string) =>
+    request<ScanResult>('/receipts/scan', { method: 'POST', body: { imageBase64 } }),
 
   submitReceipt: (payload: SubmitReceiptPayload) =>
     request<Receipt>('/receipts', { method: 'POST', body: payload }),

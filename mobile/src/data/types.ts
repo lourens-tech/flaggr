@@ -91,7 +91,55 @@ export interface Receipt {
   total: number;
   submittedAt: string;
   pointsAwarded: number | null;
+  receiptNumber: string | null;
+  transactionNumber: string | null;
+  tillNumber: string | null;
+  receiptTime: string | null;
+  ocrConfidence: number | null;
+  flagged: boolean;
+  flagReason: string | null;
 }
+
+// A matched receipt line item, as returned by the scan/submit pipeline —
+// "matchedName" is the recognized product or golf activity name, if any.
+export interface ScannedLineItem {
+  description: string;
+  quantity: number;
+  price: number;
+  matchedProductId: string | null;
+  matchedActivityId: string | null;
+  matchedName: string | null;
+  pointsAwarded: number;
+}
+
+export interface ScannedMerchant {
+  id: string;
+  name: string;
+  merchantType: string;
+  courseId: string | null;
+}
+
+// Result of POST /api/receipts/scan — either a duplicate rejection or a
+// full structured preview of what will be awarded if confirmed.
+export type ScanResult =
+  | { isDuplicate: true; reason: string }
+  | {
+      isDuplicate: false;
+      ocrConfidence: number;
+      merchantNameGuess: string | null;
+      merchant: ScannedMerchant | null;
+      receiptNumber: string | null;
+      transactionNumber: string | null;
+      tillNumber: string | null;
+      date: string | null;
+      time: string | null;
+      items: ScannedLineItem[];
+      subtotal: number | null;
+      vat: number | null;
+      grandTotal: number | null;
+      subtotalPoints: number;
+      totalPointsAwarded: number;
+    };
 
 export type ActivityType = 'earn' | 'redeem';
 

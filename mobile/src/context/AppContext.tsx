@@ -64,10 +64,7 @@ interface AppContextValue extends AppState {
   signup: (payload: SignupPayload) => Promise<void>;
   logout: () => Promise<void>;
   redeemReward: (rewardId: string) => Promise<Voucher | null>;
-  submitReceipt: (
-    receipt: Omit<Receipt, 'id' | 'status' | 'pointsAwarded'>,
-    pointsAwarded: number,
-  ) => Promise<void>;
+  submitReceipt: (imageBase64: string, imageUri: string | null) => Promise<Receipt>;
   markNotificationRead: (id: string) => Promise<void>;
   updateAvatar: (imageBase64: string) => Promise<void>;
   unreadNotificationCount: number;
@@ -168,21 +165,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const submitReceipt: AppContextValue['submitReceipt'] = async (receiptDraft, pointsAwarded) => {
-    const receipt = await api.submitReceipt({
-      imageUri: receiptDraft.imageUri,
-      courseName: receiptDraft.courseName,
-      items: receiptDraft.items,
-      subtotal: receiptDraft.subtotal,
-      tax: receiptDraft.tax,
-      total: receiptDraft.total,
-      pointsAwarded,
-    });
+  const submitReceipt: AppContextValue['submitReceipt'] = async (imageBase64, imageUri) => {
+    const receipt = await api.submitReceipt({ imageBase64, imageUri });
     setReceipts((prev) => [receipt, ...prev]);
     const [me, activityRes] = await Promise.all([api.me(), api.activity()]);
     setPoints(me.points);
     setUser(me.user);
+    setStats(me.stats);
     setActivity(activityRes);
+    return receipt;
   };
 
   const updateAvatar = async (imageBase64: string) => {

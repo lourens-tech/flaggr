@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Image, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/types';
 import { ScreenHeader } from '../../components/common/ScreenHeader';
@@ -12,39 +13,20 @@ import { colors, fontFamily, fontSize, radius, screenPadding, spacing } from '..
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ReviewReceipt'>;
 
-// In production this would come from an OCR/receipt-parsing service; the parsed
-// line items below are illustrative placeholders standing in for that result.
-const PARSED = {
-  courseName: 'Vancouver Fairways Golf Club',
-  date: 'Jul 19, 2026 · 2:35 PM',
-  items: [
-    { label: '3x 9 Holes', amount: 300 },
-    { label: '2x Guest Entry', amount: 150 },
-  ],
-  total: 450,
-  pointsAwarded: 250,
-};
-
 export function ReviewReceiptScreen({ route, navigation }: Props) {
   const { submitReceipt } = useApp();
   const [submitting, setSubmitting] = useState(false);
+  const { scanResult, imageBase64, imageUri } = route.params;
+
+  const merchantName = scanResult.merchant?.name ?? scanResult.merchantNameGuess ?? 'Unrecognized merchant';
+  const isLowConfidence = scanResult.ocrConfidence < 55;
+  const hasUnmatchedItems = scanResult.items.some((i) => !i.matchedProductId && !i.matchedActivityId);
 
   const handleSubmit = async () => {
     setSubmitting(true);
     try {
-      await submitReceipt(
-        {
-          imageUri: route.params.imageUri,
-          courseName: PARSED.courseName,
-          items: PARSED.items,
-          subtotal: PARSED.total,
-          tax: 0,
-          total: PARSED.total,
-          submittedAt: new Date().toISOString(),
-        },
-        PARSED.pointsAwarded,
-      );
-      navigation.replace('ReceiptSuccess', { pointsAwarded: PARSED.pointsAwarded });
+      await submitReceipt(imageBase64, imageUri);
+      navigation.replace('ReceiptSuccess', { pointsAwarded: scanResult.totalPointsAwarded });
     } catch (err) {
       const message = err instanceof ApiError ? err.message : 'Something went wrong. Please try again.';
       showAlert('Couldn’t submit receipt', message);
@@ -61,35 +43,89 @@ export function ReviewReceiptScreen({ route, navigation }: Props) {
       </SafeAreaView>
 
       <ScrollView contentContainerStyle={styles.content}>
-        {route.params.imageUri ? (
-          <Image source={{ uri: route.params.imageUri }} style={styles.receiptImage} resizeMode="cover" />
+        {imageUri ? (
+          <Image source={{ uri: imageUri }} style={styles.receiptImage} resizeMode="cover" />
         ) : (
           <View style={[styles.receiptImage, styles.receiptImagePlaceholder]}>
             <Text style={styles.placeholderText}>No image captured</Text>
           </View>
         )}
 
-        <View style={styles.summaryCard}>
-          <Text style={styles.summaryLabel}>Club</Text>
-          <Text style={styles.summaryValue}>{PARSED.courseName}</Text>
+        {isLowConfidence ? (
+          <View style={styles.warningBanner}>
+            <Ionicons name="alert-circle-outline" size={18} color={colors.negative} />
+            <Text style={styles.warningText}>
+              This scan wasn’t fully clear — some details below may be inaccurate. It’s still been submitted for
+              review.
+            </Text>
+          </View>
+        ) : null}
 
-          <Text style={[styles.summaryLabel, { marginTop: spacing.md }]}>Date</Text>
-          <Text style={styles.summaryValue}>{PARSED.date}</Text>
+        <View style={styles.summaryCard}>
+          <Text style={styles.summaryLabel}>Merchant</Text>
+          <Text style={styles.summaryValue}>{merchantName}</Text>
+
+          {scanResult.receiptNumber ? (
+            <>
+              <Text style={[styles.summaryLabel, { marginTop: spacing.md }]}>Receipt Number</Text>
+              <Text style={styles.summaryValueSmall}>{scanResult.receiptNumber}</Text>
+            </>
+          ) : null}
+
+          {scanResult.date || scanResult.time ? (
+            <>
+              <Text style={[styles.summaryLabel, { marginTop: spacing.md }]}>Date</Text>
+              <Text style={styles.summaryValueSmall}>
+                {[scanResult.date, scanResult.time].filter(Boolean).join(' · ')}
+              </Text>
+            </>
+          ) : null}
 
           <Text style={[styles.summaryLabel, { marginTop: spacing.md }]}>Items</Text>
-          {PARSED.items.map((item) => (
-            <View key={item.label} style={styles.itemRow}>
-              <Text style={styles.itemLabel}>{item.label}</Text>
-              <Text style={styles.itemAmount}>R{item.amount}</Text>
-            </View>
-          ))}
+          {scanResult.items.length === 0 ? (
+            <Text style={styles.noItemsText}>No line items were recognized on this receipt.</Text>
+          ) : (
+            scanResult.items.map((item, index) => (
+              <View key={`${item.description}-${index}`} style={styles.itemRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.itemLabel}>
+                    {item.quantity > 1 ? `${item.quantity}x ` : ''}
+                    {item.description}
+                  </Text>
+                  {item.matchedName ? (
+                    <Text style={styles.itemMatched}>Matched: {item.matchedName}</Text>
+                  ) : (
+                    <Text style={styles.itemUnmatched}>Not eligible for points</Text>
+                  )}
+                </View>
+                <Text style={styles.itemAmount}>{item.pointsAwarded > 0 ? `+${item.pointsAwarded} FB` : '—'}</Text>
+              </View>
+            ))
+          )}
+
+          {hasUnmatchedItems ? (
+            <Text style={styles.unmatchedHint}>
+              Some items weren’t recognized as eligible golf products or activities, so no points were awarded for
+              them.
+            </Text>
+          ) : null}
 
           <View style={styles.divider} />
+          {scanResult.grandTotal !== null ? (
+            <View style={styles.itemRow}>
+              <Text style={styles.totalLabel}>Receipt Total</Text>
+              <Text style={styles.totalValueSmall}>R{scanResult.grandTotal.toFixed(2)}</Text>
+            </View>
+          ) : null}
           <View style={styles.itemRow}>
-            <Text style={styles.totalLabel}>Estimated Flagrr Bucks</Text>
-            <Text style={styles.totalValue}>+{PARSED.pointsAwarded} FB</Text>
+            <Text style={styles.totalLabel}>Flagrr Bucks Earned</Text>
+            <Text style={styles.totalValue}>+{scanResult.totalPointsAwarded} FB</Text>
           </View>
         </View>
+
+        <Text style={styles.disclaimer}>
+          Extracted details can’t be edited — if something looks wrong, rescan with a clearer photo.
+        </Text>
 
         <View style={{ height: spacing.lg }} />
         <PillButton label="Submit Receipt" onPress={handleSubmit} loading={submitting} />
@@ -106,6 +142,16 @@ const styles = StyleSheet.create({
   receiptImage: { width: '100%', height: 220, borderRadius: radius.md },
   receiptImagePlaceholder: { backgroundColor: colors.imagePlaceholder, alignItems: 'center', justifyContent: 'center' },
   placeholderText: { fontFamily: fontFamily.body, color: colors.textSecondary },
+  warningBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    backgroundColor: '#FDECEC',
+    borderRadius: radius.md,
+    padding: spacing.sm + 2,
+    marginTop: spacing.md,
+  },
+  warningText: { flex: 1, fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.negative, lineHeight: 16 },
   summaryCard: {
     backgroundColor: colors.mintBgAlt,
     borderRadius: radius.lg,
@@ -114,12 +160,24 @@ const styles = StyleSheet.create({
   },
   summaryLabel: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary },
   summaryValue: { fontFamily: fontFamily.heading, fontSize: fontSize.cardTitle, color: colors.darkGreen, marginTop: 2 },
-  itemRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.sm },
+  summaryValueSmall: { fontFamily: fontFamily.bodyMedium, fontSize: fontSize.small, color: colors.textPrimary, marginTop: 2 },
+  noItemsText: { fontFamily: fontFamily.body, fontSize: fontSize.small, color: colors.textSecondary, marginTop: spacing.sm },
+  itemRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing.sm },
   itemLabel: { fontFamily: fontFamily.body, fontSize: fontSize.small, color: colors.textPrimary },
+  itemMatched: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.clubGreen, marginTop: 1 },
+  itemUnmatched: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary, marginTop: 1 },
   itemAmount: { fontFamily: fontFamily.bodyMedium, fontSize: fontSize.small, color: colors.textPrimary },
+  unmatchedHint: {
+    fontFamily: fontFamily.body,
+    fontSize: fontSize.tiny,
+    color: colors.textSecondary,
+    marginTop: spacing.sm,
+    lineHeight: 16,
+  },
   divider: { height: 1, backgroundColor: 'rgba(31,66,52,0.15)', marginVertical: spacing.md },
   totalLabel: { fontFamily: fontFamily.heading, fontSize: fontSize.label, color: colors.darkGreen },
   totalValue: { fontFamily: fontFamily.heading, fontSize: fontSize.label, color: colors.clubGreen },
+  totalValueSmall: { fontFamily: fontFamily.bodyMedium, fontSize: fontSize.small, color: colors.textPrimary },
   disclaimer: {
     fontFamily: fontFamily.body,
     fontSize: fontSize.tiny,

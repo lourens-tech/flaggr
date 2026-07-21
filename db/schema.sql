@@ -57,7 +57,9 @@ create table user_stats (
   bucks_earned integer not null default 0,
   bucks_earned_delta_pct numeric not null default 0,
   bucks_redeemed integer not null default 0,
-  bucks_redeemed_delta_pct numeric not null default 0
+  bucks_redeemed_delta_pct numeric not null default 0,
+  total_receipts_scanned integer not null default 0,
+  last_scan_date timestamptz
 );
 
 create table monthly_points (
@@ -90,6 +92,40 @@ create table vouchers (
   expires_at timestamptz not null default now() + interval '90 days'
 );
 
+create table merchants (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  aliases text[] not null default '{}',
+  merchant_type text not null default 'retailer'
+    check (merchant_type in ('golf_course', 'pro_shop', 'driving_range', 'retailer', 'academy', 'clubhouse', 'online_retailer')),
+  course_id uuid references courses(id), -- set when this merchant is also one of our signed-up tenant clubs
+  bonus_multiplier numeric not null default 1, -- merchant-specific promo, e.g. 2 = double points
+  active boolean not null default true,
+  created_at timestamptz not null default now()
+);
+
+create table golf_products (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  brand text not null default '',
+  category text not null default '',
+  sku text,
+  barcode text,
+  aliases text[] not null default '{}',
+  points_value integer not null default 0,
+  points_per_unit boolean not null default true, -- true: points_value * quantity, false: flat regardless of quantity
+  active boolean not null default true
+);
+
+create table golf_activities (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  category text not null default '',
+  aliases text[] not null default '{}',
+  points_value integer not null default 0,
+  active boolean not null default true
+);
+
 create table receipts (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references users(id) on delete cascade,
@@ -102,7 +138,27 @@ create table receipts (
   tax numeric not null default 0,
   total numeric not null default 0,
   submitted_at timestamptz not null default now(),
-  points_awarded integer
+  points_awarded integer,
+  receipt_number text,
+  merchant_id uuid references merchants(id),
+  transaction_number text,
+  till_number text,
+  receipt_time text,
+  image_hash text,
+  ocr_confidence numeric,
+  flagged boolean not null default false,
+  flag_reason text
+);
+
+create table receipt_items (
+  id uuid primary key default gen_random_uuid(),
+  receipt_id uuid not null references receipts(id) on delete cascade,
+  description text not null,
+  quantity numeric not null default 1,
+  price numeric not null default 0,
+  matched_product_id uuid references golf_products(id),
+  matched_activity_id uuid references golf_activities(id),
+  points_awarded integer not null default 0
 );
 
 create table activity (
@@ -131,3 +187,7 @@ create index receipts_user_id_idx on receipts(user_id);
 create index activity_user_id_idx on activity(user_id);
 create index notifications_user_id_idx on notifications(user_id);
 create index sessions_user_id_idx on sessions(user_id);
+create unique index receipts_receipt_number_unique_idx on receipts(receipt_number) where receipt_number is not null;
+create unique index receipts_image_hash_unique_idx on receipts(image_hash) where image_hash is not null;
+create index receipts_merchant_id_idx on receipts(merchant_id);
+create index receipt_items_receipt_id_idx on receipt_items(receipt_id);

@@ -2,5 +2,9 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "installCommand": "npm install && cd mobile && npm install",
   "buildCommand": "cd mobile && npx expo export --platform web",
-  "outputDirectory": "mobile/dist"
+  "outputDirectory": "mobile/dist",
+  "functions": {
+    "api/receipts/scan.ts": { "maxDuration": 60 },
+    "api/receipts/index.ts": { "maxDuration": 60 }
+  }
 }

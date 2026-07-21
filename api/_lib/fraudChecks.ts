@@ -1,0 +1,71 @@
+import { sql } from './db';
+
+export const LOW_CONFIDENCE_THRESHOLD = 55; // tesseract.js confidence is 0-100
+export const HIGH_POINTS_REVIEW_THRESHOLD = 500;
+export const RAPID_SUBMISSION_WINDOW_MINUTES = 10;
+export const RAPID_SUBMISSION_MAX_COUNT = 5;
+
+export interface DuplicateCheckResult {
+  isDuplicate: boolean;
+  reason?: string;
+}
+
+// A receipt number, once redeemed, can never be redeemed again — by anyone.
+// The image hash catches an identical image resubmitted even without (or
+// with a different) receipt number.
+export async function checkDuplicateReceipt(
+  receiptNumber: string | null,
+  imageHash: string,
+): Promise<DuplicateCheckResult> {
+  if (receiptNumber) {
+    const byNumber = (await sql`
+      select id from receipts where receipt_number = ${receiptNumber} limit 1
+    `) as Array<{ id: string }>;
+    if (byNumber.length > 0) {
+      return { isDuplicate: true, reason: 'This receipt has already been redeemed.' };
+    }
+  }
+
+  const byHash = (await sql`select id from receipts where image_hash = ${imageHash} limit 1`) as Array<{ id: string }>;
+  if (byHash.length > 0) {
+    return { isDuplicate: true, reason: 'This receipt has already been redeemed.' };
+  }
+
+  return { isDuplicate: false };
+}
+
+export interface FraudFlags {
+  flagged: boolean;
+  reasons: string[];
+}
+
+// Heuristic checks run at submit time; a flagged receipt still gets its
+// points (blocking a legitimate golfer over a false positive is worse UX
+// than a rare fraudulent claim slipping through for manual review), but is
+// marked for a human to look at later.
+export async function evaluateFraudSignals(params: {
+  userId: string;
+  ocrConfidence: number;
+  totalPointsAwarded: number;
+}): Promise<FraudFlags> {
+  const reasons: string[] = [];
+
+  if (params.ocrConfidence < LOW_CONFIDENCE_THRESHOLD) {
+    reasons.push('low_ocr_confidence');
+  }
+  if (params.totalPointsAwarded > HIGH_POINTS_REVIEW_THRESHOLD) {
+    reasons.push('unusually_high_points');
+  }
+
+  const recentRows = (await sql`
+    select count(*)::int as count
+    from receipts
+    where user_id = ${params.userId}
+      and submitted_at > now() - make_interval(mins => ${RAPID_SUBMISSION_WINDOW_MINUTES})
+  `) as Array<{ count: number }>;
+  if ((recentRows[0]?.count ?? 0) >= RAPID_SUBMISSION_MAX_COUNT) {
+    reasons.push('rapid_repeat_submissions');
+  }
+
+  return { flagged: reasons.length > 0, reasons };
+}
