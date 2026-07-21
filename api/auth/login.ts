@@ -2,7 +2,8 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { sql } from '../_lib/db';
 import { verifyPassword } from '../_lib/auth';
 import { HttpError, withErrorHandling } from '../_lib/http';
-import { computeTierInfo } from '../_lib/tiers';
+import { computeQuarterlyTierInfo } from '../_lib/tiers';
+import { quarterWindow } from '../_lib/quarter';
 
 interface LoginBody {
   email?: string;
@@ -24,10 +25,9 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
 
   const rows = (await sql`
     select u.id, u.first_name, u.last_name, u.email, u.phone, u.password_hash,
-           u.member_since, c.name as course_name, p.balance
+           u.member_since, c.name as course_name
     from users u
     join courses c on c.id = u.course_id
-    join points_accounts p on p.user_id = u.id
     where u.email = ${email}
   `) as Array<{
     id: string;
@@ -38,7 +38,6 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     password_hash: string;
     member_since: string;
     course_name: string;
-    balance: number;
   }>;
 
   if (rows.length === 0) {
@@ -54,7 +53,16 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     insert into sessions (user_id) values (${user.id}) returning token
   `) as Array<{ token: string }>;
 
-  const tierInfo = computeTierInfo(user.balance);
+  const qw = quarterWindow();
+  const quarterRows = (await sql`
+    select
+      coalesce(sum(amount) filter (where type = 'earn' and date >= ${qw.currentStart} and date < ${qw.currentEnd}), 0)::int as current_quarter_earned,
+      coalesce(sum(amount) filter (where type = 'earn' and date >= ${qw.previousStart} and date < ${qw.previousEnd}), 0)::int as previous_quarter_earned
+    from activity
+    where user_id = ${user.id}
+  `) as Array<{ current_quarter_earned: number; previous_quarter_earned: number }>;
+  const q = quarterRows[0];
+  const tierInfo = computeQuarterlyTierInfo(q.current_quarter_earned, q.previous_quarter_earned);
 
   res.status(200).json({
     token: sessionRows[0].token,

@@ -14,7 +14,7 @@ export const memberTiers: MemberTier[] = [
   },
   {
     name: 'Gold',
-    minPoints: 10480,
+    minPoints: 10000,
     perks: [
       'Enhanced Earning — Earn 25% more Flagrr Bucks on qualifying rounds, promotions, and in-app activities.',
       'Premium Rewards Access — Get early access to limited rewards and seasonal promotions before they become available to other players.',
@@ -23,7 +23,7 @@ export const memberTiers: MemberTier[] = [
   },
   {
     name: 'Platinum',
-    minPoints: 20000,
+    minPoints: 15000,
     perks: ['1.5x Flagrr Bucks on every round', 'Complimentary cart hire', 'Unlimited guest rounds', 'Dedicated concierge line'],
   },
 ];

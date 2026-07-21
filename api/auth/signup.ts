@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { sql } from '../_lib/db';
 import { hashPassword } from '../_lib/auth';
 import { HttpError, withErrorHandling } from '../_lib/http';
-import { computeTierInfo } from '../_lib/tiers';
+import { computeQuarterlyTierInfo } from '../_lib/tiers';
 import { sendEmail } from '../_lib/email';
 import { renderWelcomeEmailHtml, renderWelcomeEmailSubject } from '../_lib/welcomeEmail';
 
@@ -83,7 +83,9 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
   ])) as [unknown, unknown, unknown, Array<{ token: string }>];
 
   const token = sessionRows[3][0].token;
-  const tierInfo = computeTierInfo(0);
+  // Brand new account: no activity yet this quarter or last, so this is
+  // always Bronze — no need to query.
+  const tierInfo = computeQuarterlyTierInfo(0, 0);
 
   // Never let a slow/failed email provider block or fail account creation —
   // sendEmail already logs and swallows its own errors.

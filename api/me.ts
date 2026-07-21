@@ -2,9 +2,10 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { sql } from './_lib/db';
 import { requireAuthedUser } from './_lib/auth';
 import { withErrorHandling } from './_lib/http';
-import { computeTierInfo } from './_lib/tiers';
+import { computeQuarterlyTierInfo } from './_lib/tiers';
 import { deltaPct, isStatsPeriod, periodWindow, type StatsPeriod } from './_lib/periods';
 import { computeStreak } from './_lib/streak';
+import { quarterWindow } from './_lib/quarter';
 
 export default withErrorHandling(async (req: VercelRequest, res: VercelResponse) => {
   if (req.method !== 'GET') {
@@ -15,6 +16,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
   const authed = await requireAuthedUser(req);
   const period: StatsPeriod = isStatsPeriod(req.query.period) ? req.query.period : 'year';
   const { currentStart, previousStart, previousEnd, hasComparison } = periodWindow(period);
+  const qw = quarterWindow();
 
   const rows = (await sql`
     select
@@ -46,7 +48,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
   }
   const r = rows[0];
 
-  const [bucksResult, roundsResult, monthlyResult, streak] = await Promise.all([
+  const [bucksResult, roundsResult, monthlyResult, quarterTierResult, streak] = await Promise.all([
     sql`
       select
         coalesce(sum(amount) filter (where type = 'earn' and date >= ${currentStart}), 0)::int as earned_current,
@@ -71,6 +73,13 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       select month, value from monthly_points
       where user_id = ${authed.id} and year = extract(year from now())::int
     `,
+    sql`
+      select
+        coalesce(sum(amount) filter (where type = 'earn' and date >= ${qw.currentStart} and date < ${qw.currentEnd}), 0)::int as current_quarter_earned,
+        coalesce(sum(amount) filter (where type = 'earn' and date >= ${qw.previousStart} and date < ${qw.previousEnd}), 0)::int as previous_quarter_earned
+      from activity
+      where user_id = ${authed.id}
+    `,
     computeStreak(authed.id),
   ]);
 
@@ -87,7 +96,11 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     r18_previous: number;
   }>)[0];
   const monthlyRows = monthlyResult as Array<{ month: string; value: number }>;
-  const tierInfo = computeTierInfo(r.balance);
+  const quarterEarned = (quarterTierResult as Array<{
+    current_quarter_earned: number;
+    previous_quarter_earned: number;
+  }>)[0];
+  const tierInfo = computeQuarterlyTierInfo(quarterEarned.current_quarter_earned, quarterEarned.previous_quarter_earned);
 
   res.status(200).json({
     user: {
