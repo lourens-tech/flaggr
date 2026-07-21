@@ -3,6 +3,10 @@ import { sql } from '../_lib/db';
 import { hashPassword } from '../_lib/auth';
 import { HttpError, withErrorHandling } from '../_lib/http';
 import { computeTierInfo } from '../_lib/tiers';
+import { sendEmail } from '../_lib/email';
+import { renderWelcomeEmailHtml, renderWelcomeEmailSubject } from '../_lib/welcomeEmail';
+
+const APP_URL = process.env.APP_URL || 'https://flagrr-loyalty.vercel.app';
 
 interface SignupBody {
   firstName?: string;
@@ -70,6 +74,14 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
 
   const token = sessionRows[3][0].token;
   const tierInfo = computeTierInfo(0);
+
+  // Never let a slow/failed email provider block or fail account creation —
+  // sendEmail already logs and swallows its own errors.
+  await sendEmail({
+    to: user.email,
+    subject: renderWelcomeEmailSubject(user.first_name),
+    html: renderWelcomeEmailHtml({ firstName: user.first_name, homeClub: course.name, appUrl: APP_URL }),
+  });
 
   res.status(201).json({
     token,
