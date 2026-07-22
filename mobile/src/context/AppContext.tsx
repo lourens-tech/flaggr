@@ -36,7 +36,7 @@ const EMPTY_POINTS: PointsAccount = {
   nextTier: null,
   tierProgress: 0,
 };
-const EMPTY_STREAK: Streak = { weeks: 0, activeSince: '', weeksPlayed: [] };
+const EMPTY_STREAK: Streak = { weeks: 0, activeSince: '', weeksPlayed: [], nextMilestoneWeeks: 4, nextMilestoneAmount: 100 };
 const EMPTY_STATS: Stats = {
   roundsPlayed9: 0,
   roundsPlayed9DeltaPct: 0,

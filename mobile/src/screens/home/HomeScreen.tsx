@@ -109,6 +109,11 @@ export function HomeScreen({ navigation }: Props) {
                   ? `You've played every week since ${new Date(streak.activeSince).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}`
                   : 'Play a round this week to start your streak'}
               </Text>
+              <Text style={styles.streakMilestone}>
+                {streak.nextMilestoneWeeks - streak.weeks} more week
+                {streak.nextMilestoneWeeks - streak.weeks === 1 ? '' : 's'} to a {streak.nextMilestoneAmount} Flagrr
+                Cash bonus
+              </Text>
               <View style={styles.streakDots}>
                 {streak.weeksPlayed.map((played, i) => (
                   <View
@@ -259,6 +264,7 @@ const styles = StyleSheet.create({
   },
   streakTitle: { fontFamily: fontFamily.heading, fontSize: fontSize.title, color: colors.white },
   streakSubtitle: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.white, marginTop: 2 },
+  streakMilestone: { fontFamily: fontFamily.bodyMedium, fontSize: fontSize.tiny, color: colors.lime, marginTop: 2 },
   streakDots: { flexDirection: 'row', gap: 4, marginTop: spacing.sm },
   streakDot: { width: 9, height: 9, borderRadius: 4.5 },
   statsHeaderRow: {

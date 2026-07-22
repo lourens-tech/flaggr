@@ -24,6 +24,11 @@ export const faqs: FaqEntry[] = [
       'Your tier sets how much Flagrr Cash you earn per R1 spent: Bronze 1x, Silver 1.2x, Gold 1.5x, Platinum 1.7x. Every member also gets an automatic birthday bonus (50/100/150/200 Flagrr Cash by tier), and Gold and Platinum members get a free bar voucher (R100/R200) each quarter they qualify — no need to redeem it, it appears in your Rewards Activity automatically.',
   },
   {
+    question: 'What’s the benefit of keeping a streak going?',
+    answer:
+      'Every 4 weeks of an unbroken weekly streak earns you a Flagrr Cash bonus — 100 for 4 weeks, 200 for 8 weeks, and 300 for 12 weeks and every 4 weeks after that. It’s paid automatically and shows up in your Rewards Activity — no need to redeem it. If a streak breaks, a new one can earn those same milestones again from scratch.',
+  },
+  {
     question: 'Where can I use my reward voucher?',
     answer: 'Present the QR code or voucher code shown after redemption at your home club to claim your reward.',
   },
@@ -34,7 +39,7 @@ export const faqs: FaqEntry[] = [
   },
   {
     question: 'Can I change my selected club?',
-    answer: 'Your home club can’t be changed from the app yet — reach out via Contact Us and the club can help.',
+    answer: 'Yes — open My Profile and tap Club to switch your home club at any time.',
   },
 ];
 

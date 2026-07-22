@@ -33,6 +33,8 @@ export interface Streak {
   weeks: number;
   activeSince: string; // ISO date
   weeksPlayed: boolean[]; // last N weeks, most recent last
+  nextMilestoneWeeks: number;
+  nextMilestoneAmount: number;
 }
 
 export interface MonthlyPoint {

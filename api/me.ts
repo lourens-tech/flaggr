@@ -5,6 +5,7 @@ import { withErrorHandling } from './_lib/http';
 import { deltaPct, isStatsPeriod, periodWindow, type StatsPeriod } from './_lib/periods';
 import { computeStreak } from './_lib/streak';
 import { getCurrentTierStatus, grantDueTierRewards } from './_lib/tierRewards';
+import { grantDueStreakReward, nextStreakMilestone } from './_lib/streakRewards';
 import { getActiveAdsForCourse } from './_lib/ads';
 
 export default withErrorHandling(async (req: VercelRequest, res: VercelResponse) => {
@@ -53,6 +54,13 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
   // rather than only on the next load.
   const preGrantTier = await getCurrentTierStatus(authed.id);
   await grantDueTierRewards(authed.id, authed.courseId, preGrantTier.tier, r.date_of_birth);
+
+  // Same idea for streak milestones — grant using the streak as of before
+  // this call, then the streak recomputed below (still the same value,
+  // since scanning a receipt doesn't happen mid-/api/me-call) reflects the
+  // refreshed balance already applied above.
+  const preGrantStreak = await computeStreak(authed.id);
+  await grantDueStreakReward(authed.id, preGrantStreak);
 
   const [bucksResult, roundsResult, monthlyResult, refreshedBalanceResult, tierStatus, streak, ads] = await Promise.all([
     sql`
@@ -105,6 +113,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
   }>)[0];
   r = { ...r, balance: refreshedBalance.balance, total_earned: refreshedBalance.total_earned, total_redeemed: refreshedBalance.total_redeemed };
   const tierInfo = tierStatus;
+  const nextMilestone = nextStreakMilestone(streak.weeks);
 
   res.status(200).json({
     user: {
@@ -132,6 +141,8 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       weeks: streak.weeks,
       activeSince: streak.activeSince,
       weeksPlayed: streak.weeksPlayed,
+      nextMilestoneWeeks: nextMilestone.weeks,
+      nextMilestoneAmount: nextMilestone.amount,
     },
     stats: {
       period,
