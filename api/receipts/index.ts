@@ -6,7 +6,7 @@ import { HttpError, withErrorHandling } from '../_lib/http';
 import { checkDuplicateReceipt, evaluateFraudSignals } from '../_lib/fraudChecks';
 import { runScanPipeline } from '../_lib/scanPipeline';
 import { hashImageDataUri } from '../_lib/imageHash';
-import type { MatchedItem } from '../_lib/pointsEngine';
+import { finalizePoints, type MatchedItem } from '../_lib/pointsEngine';
 import { getCurrentTierStatus } from '../_lib/tierRewards';
 
 const DATA_URI_PATTERN = /^data:image\/(jpeg|jpg|png|webp);base64,/;
@@ -102,7 +102,12 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         return;
       }
       const tierStatus = await getCurrentTierStatus(authed.id);
-      const totalPointsAwarded = Math.round(scored.totalPointsAwarded * tierStatus.multiplier);
+      const { finalPointsAwarded, awayClub } = finalizePoints(
+        scored,
+        { subtotal: parsed.subtotal, grandTotal: parsed.grandTotal },
+        authed.courseId,
+        tierStatus.multiplier,
+      );
       res.status(200).json({
         isDuplicate: false,
         ocrConfidence,
@@ -118,9 +123,10 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         vat: parsed.vat,
         grandTotal: parsed.grandTotal,
         subtotalPoints: scored.subtotalPoints,
-        totalPointsAwarded,
+        totalPointsAwarded: finalPointsAwarded,
         tier: tierStatus.tier,
         tierMultiplier: tierStatus.multiplier,
+        awayClub,
       });
       return;
     }
@@ -135,17 +141,22 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       throw new HttpError(409, duplicate.reason ?? 'This receipt has already been redeemed.');
     }
 
-    const fraud = await evaluateFraudSignals({
-      userId: authed.id,
-      ocrConfidence,
-      totalPointsAwarded: scored.totalPointsAwarded,
-    });
-
     // Tier multiplier uses the tier as of before this receipt (points earned
     // so far this quarter, not including it), so a receipt's own points
     // can't retroactively change the multiplier applied to itself.
     const tierStatus = await getCurrentTierStatus(authed.id);
-    const finalPointsAwarded = Math.round(scored.totalPointsAwarded * tierStatus.multiplier);
+    const { finalPointsAwarded, awayClub } = finalizePoints(
+      scored,
+      { subtotal: parsed.subtotal, grandTotal: parsed.grandTotal },
+      authed.courseId,
+      tierStatus.multiplier,
+    );
+
+    const fraud = await evaluateFraudSignals({
+      userId: authed.id,
+      ocrConfidence,
+      totalPointsAwarded: finalPointsAwarded,
+    });
 
     const courseName = scored.merchant?.name ?? parsed.merchantNameGuess ?? '';
     const itemsSnapshot = scored.items.map((i) => ({ label: i.description, amount: i.price }));
@@ -208,7 +219,10 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       `,
       sql`
         insert into notifications (user_id, title, body)
-        values (${authed.id}, 'Flagrr Cash earned', ${`You earned ${finalPointsAwarded} Flagrr Cash from your receipt${courseName ? ` at ${courseName}` : ''}.`})
+        values (${authed.id}, 'Flagrr Cash earned', ${
+          `You earned ${finalPointsAwarded} Flagrr Cash from your receipt${courseName ? ` at ${courseName}` : ''}.` +
+          (awayClub ? ' Earned at the standard away-club rate of R1 = 1 Flagrr Cash.' : '')
+        })
       `,
     ]);
 

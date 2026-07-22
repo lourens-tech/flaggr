@@ -115,6 +115,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       phone: r.phone,
       dateOfBirth: r.date_of_birth,
       homeClub: r.course_name,
+      courseId: authed.courseId,
       tier: tierInfo.tier,
       memberSince: r.member_since,
       avatarUrl: r.avatar_url,

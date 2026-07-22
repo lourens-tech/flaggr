@@ -168,6 +168,12 @@ export const api = {
   updateProfile: (payload: UpdateProfilePayload) =>
     request<User>('/profile?action=update', { method: 'POST', body: payload }),
 
+  changeHomeClub: (courseId: string) =>
+    request<{ courseId: string; homeClub: string }>('/profile?action=changeClub', {
+      method: 'POST',
+      body: { courseId },
+    }),
+
   sendContactEnquiry: (payload: ContactEnquiryPayload) =>
     request<{ ok: boolean }>('/profile?action=contact', { method: 'POST', body: payload }),
 

@@ -20,7 +20,8 @@ export function ReviewReceiptScreen({ route, navigation }: Props) {
 
   const merchantName = scanResult.merchant?.name ?? scanResult.merchantNameGuess ?? 'Unrecognized merchant';
   const isLowConfidence = scanResult.ocrConfidence < 55;
-  const hasUnmatchedItems = scanResult.items.some((i) => !i.matchedProductId && !i.matchedActivityId);
+  const isAwayClub = scanResult.awayClub;
+  const hasUnmatchedItems = !isAwayClub && scanResult.items.some((i) => !i.matchedProductId && !i.matchedActivityId);
 
   const handleSubmit = async () => {
     setSubmitting(true);
@@ -61,6 +62,15 @@ export function ReviewReceiptScreen({ route, navigation }: Props) {
           </View>
         ) : null}
 
+        {isAwayClub ? (
+          <View style={styles.awayClubBanner}>
+            <Ionicons name="information-circle-outline" size={18} color={colors.clubGreen} />
+            <Text style={styles.awayClubText}>
+              Not your home club — Flagrr Cash earned at the standard away-club rate of R1 = 1 FC.
+            </Text>
+          </View>
+        ) : null}
+
         <View style={styles.summaryCard}>
           <Text style={styles.summaryLabel}>Merchant</Text>
           <Text style={styles.summaryValue}>{merchantName}</Text>
@@ -92,13 +102,15 @@ export function ReviewReceiptScreen({ route, navigation }: Props) {
                     {item.quantity > 1 ? `${item.quantity}x ` : ''}
                     {item.description}
                   </Text>
-                  {item.matchedName ? (
+                  {isAwayClub ? null : item.matchedName ? (
                     <Text style={styles.itemMatched}>Matched: {item.matchedName}</Text>
                   ) : (
                     <Text style={styles.itemUnmatched}>Not eligible for points</Text>
                   )}
                 </View>
-                <Text style={styles.itemAmount}>{item.pointsAwarded > 0 ? `+${item.pointsAwarded} FC` : '—'}</Text>
+                <Text style={styles.itemAmount}>
+                  {isAwayClub ? `R${item.price.toFixed(2)}` : item.pointsAwarded > 0 ? `+${item.pointsAwarded} FC` : '—'}
+                </Text>
               </View>
             ))
           )}
@@ -152,6 +164,16 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
   },
   warningText: { flex: 1, fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.negative, lineHeight: 16 },
+  awayClubBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    backgroundColor: colors.mintBg,
+    borderRadius: radius.md,
+    padding: spacing.sm + 2,
+    marginTop: spacing.md,
+  },
+  awayClubText: { flex: 1, fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.darkGreen, lineHeight: 16 },
   summaryCard: {
     backgroundColor: colors.mintBgAlt,
     borderRadius: radius.lg,

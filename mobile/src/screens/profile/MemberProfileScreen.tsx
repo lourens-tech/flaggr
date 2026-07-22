@@ -1,5 +1,17 @@
 import React, { useState } from 'react';
-import { ActivityIndicator, Image, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+  ActivityIndicator,
+  FlatList,
+  Image,
+  Modal,
+  Pressable,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -8,7 +20,7 @@ import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MainTabParamList, RootStackParamList } from '../../navigation/types';
 import { useApp } from '../../context/AppContext';
-import { ApiError } from '../../api/client';
+import { api, ApiError, type Course } from '../../api/client';
 import { AvatarPermissionError, pickAndResizeAvatar } from '../../utils/pickAvatar';
 import { showAlert } from '../../utils/alert';
 import { colors, fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
@@ -49,8 +61,50 @@ function LinkRow({
 }
 
 export function MemberProfileScreen({ navigation }: Props) {
-  const { user, unreadNotificationCount, logout, updateAvatar } = useApp();
+  const { user, unreadNotificationCount, logout, updateAvatar, changeHomeClub } = useApp();
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [clubPickerOpen, setClubPickerOpen] = useState(false);
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [loadingCourses, setLoadingCourses] = useState(false);
+  const [changingClub, setChangingClub] = useState(false);
+
+  const openClubPicker = async () => {
+    setClubPickerOpen(true);
+    setLoadingCourses(true);
+    try {
+      setCourses(await api.courses());
+    } catch {
+      setCourses([]);
+    } finally {
+      setLoadingCourses(false);
+    }
+  };
+
+  const handleSelectClub = (course: Course) => {
+    setClubPickerOpen(false);
+    if (course.id === user.courseId) return;
+    showAlert(
+      'Change home club?',
+      `Switch your home club to ${course.name}? Your rewards and any ads shown in the app will update to match.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Switch',
+          onPress: async () => {
+            setChangingClub(true);
+            try {
+              await changeHomeClub(course.id);
+            } catch (err) {
+              const message = err instanceof ApiError ? err.message : 'Something went wrong. Please try again.';
+              showAlert('Couldn’t change club', message);
+            } finally {
+              setChangingClub(false);
+            }
+          },
+        },
+      ],
+    );
+  };
 
   const handleChangeAvatar = async () => {
     setUploadingAvatar(true);
@@ -153,7 +207,11 @@ export function MemberProfileScreen({ navigation }: Props) {
               }
               onPress={() => navigation.navigate('EditProfile')}
             />
-            <ProfileField label="Club" value={user.homeClub} />
+            <ProfileField
+              label="Club"
+              value={changingClub ? 'Updating…' : user.homeClub}
+              onPress={changingClub ? undefined : openClubPicker}
+            />
             <ProfileField
               label="Member Since"
               value={new Date(user.memberSince).toLocaleDateString(undefined, {
@@ -187,6 +245,30 @@ export function MemberProfileScreen({ navigation }: Props) {
 
         <View style={{ height: 120 }} />
       </ScrollView>
+
+      <Modal visible={clubPickerOpen} transparent animationType="fade" onRequestClose={() => setClubPickerOpen(false)}>
+        <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={() => setClubPickerOpen(false)}>
+          <Pressable style={styles.sheet} onPress={() => {}}>
+            <Text style={styles.sheetTitle}>Choose Golf Club</Text>
+            {loadingCourses ? (
+              <ActivityIndicator color={colors.clubGreen} style={{ marginVertical: spacing.lg }} />
+            ) : (
+              <FlatList
+                data={courses}
+                keyExtractor={(c) => c.id}
+                renderItem={({ item }) => (
+                  <TouchableOpacity style={styles.clubOptionRow} onPress={() => handleSelectClub(item)}>
+                    <Text style={styles.clubOptionText}>{item.name}</Text>
+                    {item.id === user.courseId ? (
+                      <Ionicons name="checkmark" size={18} color={colors.clubGreen} />
+                    ) : null}
+                  </TouchableOpacity>
+                )}
+              />
+            )}
+          </Pressable>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
@@ -307,4 +389,27 @@ const styles = StyleSheet.create({
     marginTop: spacing.xl,
   },
   logoutText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.small, color: colors.negative },
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+  sheet: {
+    backgroundColor: colors.white,
+    borderTopLeftRadius: radius.lg,
+    borderTopRightRadius: radius.lg,
+    padding: spacing.lg,
+    maxHeight: '60%',
+  },
+  sheetTitle: {
+    fontFamily: fontFamily.heading,
+    fontSize: fontSize.cardTitle,
+    color: colors.darkGreen,
+    marginBottom: spacing.md,
+  },
+  clubOptionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: '#EEE',
+  },
+  clubOptionText: { fontFamily: fontFamily.body, fontSize: fontSize.body, color: colors.textPrimary },
 });

@@ -42,6 +42,10 @@ interface AdClickBody {
   adId?: string;
 }
 
+interface ChangeClubBody {
+  courseId?: string;
+}
+
 function escapeHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
@@ -87,6 +91,25 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     }
     await logAdClick(adId, authed.id);
     res.status(200).json({ ok: true });
+    return;
+  }
+
+  if (action === 'changeClub') {
+    const courseId = (req.body as ChangeClubBody).courseId;
+    if (!courseId) {
+      throw new HttpError(400, 'courseId is required');
+    }
+
+    const courseRows = (await sql`select id, name from courses where id = ${courseId}`) as Array<{
+      id: string;
+      name: string;
+    }>;
+    if (courseRows.length === 0) {
+      throw new HttpError(400, 'Unknown course');
+    }
+
+    await sql`update users set course_id = ${courseId} where id = ${authed.id}`;
+    res.status(200).json({ courseId: courseRows[0].id, homeClub: courseRows[0].name });
     return;
   }
 

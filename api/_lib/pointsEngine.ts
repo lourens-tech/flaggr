@@ -114,3 +114,29 @@ export async function matchAndScoreReceipt(
     totalPointsAwarded,
   };
 }
+
+export interface FinalizedPoints {
+  finalPointsAwarded: number;
+  awayClub: boolean;
+}
+
+// Members play away from their home club all the time. A receipt matched to
+// another Flagrr-partnered club's merchant (course_id set, but not the
+// member's own) doesn't use that club's product/activity catalog match or
+// the member's tier multiplier — both are meant for their own club — and
+// instead earns the flat standard rate of 1 Flagrr Cash per R1 spent.
+// Anything else (home club, or an unaffiliated/generic retailer) keeps the
+// existing catalog + tier-multiplier scoring.
+export function finalizePoints(
+  scored: PointsResult,
+  spend: { subtotal: number | null; grandTotal: number | null },
+  homeCourseId: string,
+  tierMultiplier: number,
+): FinalizedPoints {
+  const awayClub = scored.merchant?.courseId != null && scored.merchant.courseId !== homeCourseId;
+  if (awayClub) {
+    const amountSpent = spend.grandTotal ?? spend.subtotal ?? 0;
+    return { finalPointsAwarded: Math.round(amountSpent), awayClub: true };
+  }
+  return { finalPointsAwarded: Math.round(scored.totalPointsAwarded * tierMultiplier), awayClub: false };
+}

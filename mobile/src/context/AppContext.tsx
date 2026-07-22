@@ -24,6 +24,7 @@ const EMPTY_USER: User = {
   email: '',
   dateOfBirth: null,
   homeClub: '',
+  courseId: '',
   tier: 'Bronze',
   memberSince: '',
 };
@@ -72,6 +73,7 @@ interface AppContextValue extends AppState {
   markNotificationRead: (id: string) => Promise<void>;
   updateAvatar: (imageBase64: string) => Promise<void>;
   updateProfile: (payload: UpdateProfilePayload) => Promise<void>;
+  changeHomeClub: (courseId: string) => Promise<void>;
   sendContactEnquiry: (payload: ContactEnquiryPayload) => Promise<void>;
   logAdClick: (adId: string) => void;
   statsPeriod: StatsPeriod;
@@ -219,6 +221,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     await api.sendContactEnquiry(payload);
   };
 
+  // Rewards, ads, and vouchers are all scoped to the member's home club, so
+  // switching clubs re-fetches everything rather than patching just the
+  // user's homeClub/courseId fields.
+  const changeHomeClub = async (courseId: string) => {
+    await api.changeHomeClub(courseId);
+    await loadAll();
+  };
+
   const logAdClick = (adId: string) => {
     api.logAdClick(adId).catch(() => {
       // Best-effort — a failed click log should never block the ad from opening.
@@ -270,6 +280,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     markNotificationRead,
     updateAvatar,
     updateProfile,
+    changeHomeClub,
     sendContactEnquiry,
     logAdClick,
     statsPeriod,

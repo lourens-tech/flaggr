@@ -14,6 +14,7 @@ export interface User {
   phone?: string;
   dateOfBirth: string | null; // ISO date
   homeClub: string;
+  courseId: string;
   tier: TierName;
   memberSince: string; // ISO date
   avatarUrl?: string;
@@ -153,6 +154,10 @@ export type ScanResult =
       grandTotal: number | null;
       subtotalPoints: number;
       totalPointsAwarded: number;
+      // true when the receipt matched a merchant tied to another Flagrr club
+      // (not the member's home club) — points were earned at the flat
+      // standard rate (R1 = 1 FC), not this club's catalog/tier multiplier.
+      awayClub: boolean;
     };
 
 export type AdPlacement = 'home' | 'rewardsShop';
