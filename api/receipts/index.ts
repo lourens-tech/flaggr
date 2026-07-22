@@ -7,6 +7,7 @@ import { checkDuplicateReceipt, evaluateFraudSignals } from '../_lib/fraudChecks
 import { runScanPipeline } from '../_lib/scanPipeline';
 import { hashImageDataUri } from '../_lib/imageHash';
 import type { MatchedItem } from '../_lib/pointsEngine';
+import { getCurrentTierStatus } from '../_lib/tierRewards';
 
 const DATA_URI_PATTERN = /^data:image\/(jpeg|jpg|png|webp);base64,/;
 const MAX_BASE64_LENGTH = 7_000_000; // ~5MB decoded
@@ -100,6 +101,8 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         res.status(200).json({ isDuplicate: true, reason: duplicate.reason });
         return;
       }
+      const tierStatus = await getCurrentTierStatus(authed.id);
+      const totalPointsAwarded = Math.round(scored.totalPointsAwarded * tierStatus.multiplier);
       res.status(200).json({
         isDuplicate: false,
         ocrConfidence,
@@ -115,7 +118,9 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         vat: parsed.vat,
         grandTotal: parsed.grandTotal,
         subtotalPoints: scored.subtotalPoints,
-        totalPointsAwarded: scored.totalPointsAwarded,
+        totalPointsAwarded,
+        tier: tierStatus.tier,
+        tierMultiplier: tierStatus.multiplier,
       });
       return;
     }
@@ -136,6 +141,12 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       totalPointsAwarded: scored.totalPointsAwarded,
     });
 
+    // Tier multiplier uses the tier as of before this receipt (points earned
+    // so far this quarter, not including it), so a receipt's own points
+    // can't retroactively change the multiplier applied to itself.
+    const tierStatus = await getCurrentTierStatus(authed.id);
+    const finalPointsAwarded = Math.round(scored.totalPointsAwarded * tierStatus.multiplier);
+
     const courseName = scored.merchant?.name ?? parsed.merchantNameGuess ?? '';
     const itemsSnapshot = scored.items.map((i) => ({ label: i.description, amount: i.price }));
     const receiptId = randomUUID();
@@ -151,7 +162,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         values (
           ${receiptId}, ${authed.id}, ${authed.courseId}, ${courseName}, ${body.imageUri ?? null}, 'approved',
           ${JSON.stringify(itemsSnapshot)}::jsonb,
-          ${parsed.subtotal ?? 0}, ${parsed.vat ?? 0}, ${parsed.grandTotal ?? 0}, ${scored.totalPointsAwarded},
+          ${parsed.subtotal ?? 0}, ${parsed.vat ?? 0}, ${parsed.grandTotal ?? 0}, ${finalPointsAwarded},
           ${parsed.receiptNumber}, ${scored.merchant?.id ?? null}, ${parsed.transactionNumber}, ${parsed.tillNumber},
           ${parsed.time}, ${imageHash}, ${ocrConfidence},
           ${fraud.flagged}, ${fraud.flagged ? fraud.reasons.join(', ') : null}
@@ -177,7 +188,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       ),
       sql`
         update points_accounts
-        set balance = balance + ${scored.totalPointsAwarded}, total_earned = total_earned + ${scored.totalPointsAwarded}
+        set balance = balance + ${finalPointsAwarded}, total_earned = total_earned + ${finalPointsAwarded}
         where user_id = ${authed.id}
       `,
       sql`
@@ -188,16 +199,16 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       `,
       sql`
         insert into monthly_points (user_id, year, month, value)
-        values (${authed.id}, extract(year from now())::int, ${monthLetter}, ${scored.totalPointsAwarded})
+        values (${authed.id}, extract(year from now())::int, ${monthLetter}, ${finalPointsAwarded})
         on conflict (user_id, year, month) do update set value = monthly_points.value + excluded.value
       `,
       sql`
         insert into activity (user_id, type, title, subtitle, amount)
-        values (${authed.id}, 'earn', 'Receipt scanned', ${courseName}, ${scored.totalPointsAwarded})
+        values (${authed.id}, 'earn', 'Receipt scanned', ${courseName}, ${finalPointsAwarded})
       `,
       sql`
         insert into notifications (user_id, title, body)
-        values (${authed.id}, 'Flagrr Bucks earned', ${`You earned ${scored.totalPointsAwarded} Flagrr Bucks from your receipt${courseName ? ` at ${courseName}` : ''}.`})
+        values (${authed.id}, 'Flagrr Cash earned', ${`You earned ${finalPointsAwarded} Flagrr Cash from your receipt${courseName ? ` at ${courseName}` : ''}.`})
       `,
     ]);
 

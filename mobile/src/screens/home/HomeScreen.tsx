@@ -67,7 +67,7 @@ export function HomeScreen({ navigation }: Props) {
               <MaterialCommunityIcons name="cards" size={20} color={colors.clubGreen} />
               <View>
                 <Text style={styles.pointsValue}>{points.balance.toLocaleString()}</Text>
-                <Text style={styles.pointsLabel}>Flagrr Bucks</Text>
+                <Text style={styles.pointsLabel}>Flagrr Cash</Text>
               </View>
             </View>
             <LinearGradient
@@ -92,7 +92,7 @@ export function HomeScreen({ navigation }: Props) {
           </View>
 
           <PillButton
-            label="Redeem Flagrr Bucks"
+            label="Redeem Flagrr Cash"
             onPress={() => navigation.navigate('Rewards')}
             variant="primary"
           />
@@ -140,8 +140,8 @@ export function HomeScreen({ navigation }: Props) {
         <View style={styles.statsGrid}>
           <StatCard label="Rounds Played (9 Holes)" value={stats.roundsPlayed9} deltaPct={stats.roundsPlayed9DeltaPct} />
           <StatCard label="Rounds Played (18 Holes)" value={stats.roundsPlayed18} deltaPct={stats.roundsPlayed18DeltaPct} />
-          <StatCard label="Flagrr Bucks Earned" value={stats.bucksEarned.toLocaleString()} deltaPct={stats.bucksEarnedDeltaPct} />
-          <StatCard label="Flagrr Bucks Redeemed" value={stats.bucksRedeemed.toLocaleString()} deltaPct={stats.bucksRedeemedDeltaPct} />
+          <StatCard label="Flagrr Cash Earned" value={stats.bucksEarned.toLocaleString()} deltaPct={stats.bucksEarnedDeltaPct} />
+          <StatCard label="Flagrr Cash Redeemed" value={stats.bucksRedeemed.toLocaleString()} deltaPct={stats.bucksRedeemedDeltaPct} />
         </View>
 
         <View style={styles.chartCard}>

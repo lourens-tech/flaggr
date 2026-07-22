@@ -10,7 +10,7 @@ create table courses (
   name text not null,
   slug text not null unique,
   logo_url text,
-  fb_per_rand numeric not null default 2.8, -- Flagrr Bucks per R1, used to auto-price reward variants from a Rand value
+  fb_per_rand numeric not null default 2.8, -- Flagrr Cash per R1, used to auto-price reward variants from a Rand value
   created_at timestamptz not null default now()
 );
 
@@ -95,7 +95,7 @@ create table reward_variants (
   reward_id uuid not null references rewards(id) on delete cascade,
   label text not null, -- e.g. 'R500', or 'Standard' for non-voucher rewards
   rand_value integer check (rand_value >= 0), -- null for rewards with no Rand equivalent
-  cost integer not null check (cost >= 0), -- Flagrr Bucks; = rand_value * courses.fb_per_rand
+  cost integer not null check (cost >= 0), -- Flagrr Cash; = rand_value * courses.fb_per_rand
   sort_order integer not null default 0,
   active boolean not null default true,
   created_at timestamptz not null default now()
@@ -107,7 +107,7 @@ create table vouchers (
   reward_id uuid not null references rewards(id),
   reward_variant_id uuid references reward_variants(id),
   variant_label text not null default '',
-  cost integer not null default 0, -- Flagrr Bucks charged, snapshotted at redemption
+  cost integer not null default 0, -- Flagrr Cash charged, snapshotted at redemption
   code text not null unique,
   status text not null default 'active' check (status in ('active', 'redeemed', 'expired')),
   qr_value text not null,
@@ -202,6 +202,25 @@ create table notifications (
   body text not null,
   date timestamptz not null default now(),
   read boolean not null default false
+);
+
+-- Idempotency ledgers for the automatic tier perks (birthday bonus, once-a-
+-- quarter Gold/Platinum bar voucher) — see api/_lib/tierRewards.ts.
+create table birthday_rewards_granted (
+  user_id uuid not null references users(id) on delete cascade,
+  year integer not null,
+  amount integer not null,
+  granted_at timestamptz not null default now(),
+  primary key (user_id, year)
+);
+
+create table quarterly_tier_vouchers_granted (
+  user_id uuid not null references users(id) on delete cascade,
+  year integer not null,
+  quarter integer not null check (quarter between 1 and 4),
+  tier text not null,
+  granted_at timestamptz not null default now(),
+  primary key (user_id, year, quarter)
 );
 
 create index rewards_course_id_idx on rewards(course_id);

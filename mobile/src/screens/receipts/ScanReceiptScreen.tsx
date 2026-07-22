@@ -92,7 +92,7 @@ export function ScanReceiptScreen({ navigation }: Props) {
           <ActivityIndicator size="large" color={colors.lime} />
           <Text style={styles.processingTitle}>Reading your receipt…</Text>
           <Text style={styles.processingBody}>
-            Extracting items, matching golf products and activities, and calculating your Flagrr Bucks.
+            Extracting items, matching golf products and activities, and calculating your Flagrr Cash.
           </Text>
         </SafeAreaView>
       </View>
@@ -109,7 +109,7 @@ export function ScanReceiptScreen({ navigation }: Props) {
           <Ionicons name="camera-outline" size={48} color={colors.white} />
           <Text style={styles.permissionTitle}>Camera access needed</Text>
           <Text style={styles.permissionBody}>
-            Flaggr needs camera access to scan your receipts and award Flagrr Bucks.
+            Flaggr needs camera access to scan your receipts and award Flagrr Cash.
           </Text>
           <View style={{ height: spacing.lg }} />
           <PillButton label="Allow Camera Access" onPress={requestPermission} />

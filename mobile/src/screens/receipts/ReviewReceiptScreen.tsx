@@ -98,7 +98,7 @@ export function ReviewReceiptScreen({ route, navigation }: Props) {
                     <Text style={styles.itemUnmatched}>Not eligible for points</Text>
                   )}
                 </View>
-                <Text style={styles.itemAmount}>{item.pointsAwarded > 0 ? `+${item.pointsAwarded} FB` : '—'}</Text>
+                <Text style={styles.itemAmount}>{item.pointsAwarded > 0 ? `+${item.pointsAwarded} FC` : '—'}</Text>
               </View>
             ))
           )}
@@ -118,8 +118,8 @@ export function ReviewReceiptScreen({ route, navigation }: Props) {
             </View>
           ) : null}
           <View style={styles.itemRow}>
-            <Text style={styles.totalLabel}>Flagrr Bucks Earned</Text>
-            <Text style={styles.totalValue}>+{scanResult.totalPointsAwarded} FB</Text>
+            <Text style={styles.totalLabel}>Flagrr Cash Earned</Text>
+            <Text style={styles.totalValue}>+{scanResult.totalPointsAwarded} FC</Text>
           </View>
         </View>
 

@@ -28,7 +28,7 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Flagrr needs camera access to scan your receipts and award Flagrr Bucks."
+          "cameraPermission": "Flagrr needs camera access to scan your receipts and award Flagrr Cash."
         }
       ],
       [

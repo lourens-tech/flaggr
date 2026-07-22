@@ -122,7 +122,7 @@ export function RewardsActivityScreen({ navigation }: Props) {
                     </View>
                     <Text style={[styles.rowAmount, { color: isEarn ? colors.clubGreen : colors.textPrimary }]}>
                       {isEarn ? '+' : ''}
-                      {entry.amount} FB
+                      {entry.amount} FC
                     </Text>
                     {isTappable ? (
                       <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />

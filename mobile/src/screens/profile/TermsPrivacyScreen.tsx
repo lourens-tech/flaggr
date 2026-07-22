@@ -28,7 +28,7 @@ export function TermsPrivacyScreen({ navigation }: Props) {
         <Text style={styles.sectionTitle}>In the meantime</Text>
         <Text style={styles.paragraph}>
           Flaggr collects the account details you provide (name, contact details, birthday) and your in-app activity
-          (receipts scanned, Flagrr Bucks earned and redeemed) to run your loyalty account for {'“'}Strand Golf
+          (receipts scanned, Flagrr Cash earned and redeemed) to run your loyalty account for {'“'}Strand Golf
           Club{'”'}. Contact the club directly using the Contact Us page if you have questions about how your
           information is used.
         </Text>

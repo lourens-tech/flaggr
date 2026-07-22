@@ -2,8 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { sql } from '../_lib/db';
 import { verifyPassword } from '../_lib/auth';
 import { HttpError, withErrorHandling } from '../_lib/http';
-import { computeQuarterlyTierInfo } from '../_lib/tiers';
-import { quarterWindow } from '../_lib/quarter';
+import { getCurrentTierStatus } from '../_lib/tierRewards';
 
 interface LoginBody {
   email?: string;
@@ -53,16 +52,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     insert into sessions (user_id) values (${user.id}) returning token
   `) as Array<{ token: string }>;
 
-  const qw = quarterWindow();
-  const quarterRows = (await sql`
-    select
-      coalesce(sum(amount) filter (where type = 'earn' and date >= ${qw.currentStart} and date < ${qw.currentEnd}), 0)::int as current_quarter_earned,
-      coalesce(sum(amount) filter (where type = 'earn' and date >= ${qw.previousStart} and date < ${qw.previousEnd}), 0)::int as previous_quarter_earned
-    from activity
-    where user_id = ${user.id}
-  `) as Array<{ current_quarter_earned: number; previous_quarter_earned: number }>;
-  const q = quarterRows[0];
-  const tierInfo = computeQuarterlyTierInfo(q.current_quarter_earned, q.previous_quarter_earned);
+  const tierInfo = await getCurrentTierStatus(user.id);
 
   res.status(200).json({
     token: sessionRows[0].token,

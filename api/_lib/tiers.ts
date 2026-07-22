@@ -10,6 +10,28 @@ export const TIERS = [
 
 export type TierName = (typeof TIERS)[number]['name'];
 
+// Real, enforced tier perks — not display copy. Applied in api/_lib/tierRewards.ts.
+export const TIER_MULTIPLIERS: Record<TierName, number> = {
+  Bronze: 1,
+  Silver: 1.2,
+  Gold: 1.5,
+  Platinum: 1.7,
+};
+
+export const TIER_BIRTHDAY_REWARD: Record<TierName, number> = {
+  Bronze: 50,
+  Silver: 100,
+  Gold: 150,
+  Platinum: 200,
+};
+
+// Rand value of the once-per-quarter Bar Voucher gifted to Gold/Platinum
+// members; tiers without an entry here don't get this perk.
+export const TIER_BAR_VOUCHER_RAND: Partial<Record<TierName, number>> = {
+  Gold: 100,
+  Platinum: 200,
+};
+
 export interface TierInfo {
   tier: TierName;
   nextTier: TierName | null;
@@ -25,7 +47,7 @@ function tierIndexForPoints(points: number): number {
   return index;
 }
 
-// Tier is qualified per calendar quarter off Flagrr Bucks EARNED that
+// Tier is qualified per calendar quarter off Flagrr Cash EARNED that
 // quarter (redemptions don't count, so spending vouchers never demotes
 // anyone) — not a lifetime or current-balance figure. To stop a single
 // quiet quarter from wiping out a member's status, this quarter's tier can

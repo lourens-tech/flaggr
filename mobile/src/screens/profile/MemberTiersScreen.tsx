@@ -16,7 +16,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'MemberTiers'>;
 
 const STEPS = [
   { number: '01', title: 'Play', body: 'Play rounds at your club and stay active on Flagrr.' },
-  { number: '02', title: 'Earn', body: 'Earn Flagrr Bucks through qualifying activities.' },
+  { number: '02', title: 'Earn', body: 'Earn Flagrr Cash through qualifying activities.' },
   { number: '03', title: 'Upgrade', body: 'As your activity grows, unlock the next tier and enjoy enhanced benefits.' },
 ];
 
@@ -38,7 +38,7 @@ export function MemberTiersScreen({ navigation }: Props) {
             <View style={styles.pointsSummary}>
               <MaterialCommunityIcons name="cards" size={20} color={colors.clubGreen} />
               <Text style={styles.pointsValue}>{points.balance.toLocaleString()}</Text>
-              <Text style={styles.pointsLabel}>Flagrr Bucks</Text>
+              <Text style={styles.pointsLabel}>Flagrr Cash</Text>
             </View>
             <LinearGradient
               colors={[colors.goldGradientStart, colors.goldGradientEnd]}

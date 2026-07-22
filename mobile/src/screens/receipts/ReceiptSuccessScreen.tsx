@@ -25,10 +25,10 @@ export function ReceiptSuccessScreen({ route, navigation }: Props) {
 
         <Text style={styles.title}>Receipt Scanned{'\n'}Successfully!</Text>
         <Text style={styles.subtitle}>
-          +{route.params.pointsAwarded} Flagrr Bucks have been added to your wallet!
+          +{route.params.pointsAwarded} Flagrr Cash have been added to your wallet!
         </Text>
         <Text style={styles.body}>
-          Your new Flagrr Bucks balance is now available in your wallet and ready to redeem on rewards.{'\n\n'}
+          Your new Flagrr Cash balance is now available in your wallet and ready to redeem on rewards.{'\n\n'}
           Play more rounds, scan your receipts, and redeem rewards to unlock higher membership tiers and exclusive
           benefits.
         </Text>

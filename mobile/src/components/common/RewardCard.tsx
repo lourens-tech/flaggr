@@ -68,7 +68,7 @@ export function RewardCard({ reward, width, style, onPress, onRedeem }: Props) {
           </View>
         ) : null}
 
-        <Text style={styles.cost}>{variant.cost} Flagrr Bucks</Text>
+        <Text style={styles.cost}>{variant.cost} Flagrr Cash</Text>
 
         {onRedeem ? (
           <TouchableOpacity style={styles.redeemButton} onPress={() => onRedeem(variant.id)}>

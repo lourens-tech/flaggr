@@ -27,12 +27,12 @@ export function RewardsShopScreen({ navigation }: Props) {
     const label = variant.label === 'Standard' ? reward.title : `${reward.title} (${variant.label})`;
     if (points.balance < variant.cost) {
       showAlert(
-        'Not enough Flagrr Bucks',
-        `You need ${variant.cost - points.balance} more Flagrr Bucks to redeem ${label}.`,
+        'Not enough Flagrr Cash',
+        `You need ${variant.cost - points.balance} more Flagrr Cash to redeem ${label}.`,
       );
       return;
     }
-    showAlert('Redeem reward?', `Use ${variant.cost} Flagrr Bucks to redeem ${label}?`, [
+    showAlert('Redeem reward?', `Use ${variant.cost} Flagrr Cash to redeem ${label}?`, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Redeem',

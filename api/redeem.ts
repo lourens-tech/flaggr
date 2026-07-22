@@ -48,7 +48,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
   `) as Array<{ balance: number }>;
 
   if (deducted.length === 0) {
-    throw new HttpError(400, 'Not enough Flagrr Bucks');
+    throw new HttpError(400, 'Not enough Flagrr Cash');
   }
 
   const code = generateVoucherCode();

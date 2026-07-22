@@ -49,7 +49,7 @@ export function renderWelcomeEmailHtml({ firstName, homeClub, appUrl }: WelcomeE
         <tr>
           <td style="padding:16px 48px 0;text-align:center;">
             <p style="margin:0;font-family:Helvetica,Arial,sans-serif;font-size:15px;line-height:1.6;color:#4B5563;">
-              Your Flagrr Loyalty account at <strong style="color:#1F1F1F;">${safeHomeClub}</strong> is ready. Every round, receipt, and reward starts earning you Flagrr Bucks from here.
+              Your Flagrr Loyalty account at <strong style="color:#1F1F1F;">${safeHomeClub}</strong> is ready. Every round, receipt, and reward starts earning you Flagrr Cash from here.
             </p>
           </td>
         </tr>
@@ -68,7 +68,7 @@ export function renderWelcomeEmailHtml({ firstName, homeClub, appUrl }: WelcomeE
                   <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto;">
                     <tr><td width="40" height="40" align="center" valign="middle" style="background:#CCF2E6;border-radius:20px;font-family:Georgia,serif;font-size:16px;color:#00805A;">2</td></tr>
                   </table>
-                  <p style="margin:12px 0 0;font-family:Helvetica,Arial,sans-serif;font-size:13px;font-weight:700;color:#1F1F1F;">Earn Flagrr Bucks</p>
+                  <p style="margin:12px 0 0;font-family:Helvetica,Arial,sans-serif;font-size:13px;font-weight:700;color:#1F1F1F;">Earn Flagrr Cash</p>
                   <p style="margin:5px 0 0;font-family:Helvetica,Arial,sans-serif;font-size:12px;color:#4B5563;line-height:1.5;">We match it against eligible products and rounds, automatically.</p>
                 </td>
                 <td width="33.33%" valign="top" align="center" style="padding:0 10px;">
@@ -76,7 +76,7 @@ export function renderWelcomeEmailHtml({ firstName, homeClub, appUrl }: WelcomeE
                     <tr><td width="40" height="40" align="center" valign="middle" style="background:#CCF2E6;border-radius:20px;font-family:Georgia,serif;font-size:16px;color:#00805A;">3</td></tr>
                   </table>
                   <p style="margin:12px 0 0;font-family:Helvetica,Arial,sans-serif;font-size:13px;font-weight:700;color:#1F1F1F;">Redeem Rewards</p>
-                  <p style="margin:5px 0 0;font-family:Helvetica,Arial,sans-serif;font-size:12px;color:#4B5563;line-height:1.5;">Trade Flagrr Bucks for tee times, gear, and more.</p>
+                  <p style="margin:5px 0 0;font-family:Helvetica,Arial,sans-serif;font-size:12px;color:#4B5563;line-height:1.5;">Trade Flagrr Cash for tee times, gear, and more.</p>
                 </td>
               </tr>
             </table>
