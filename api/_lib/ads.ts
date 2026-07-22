@@ -34,3 +34,8 @@ export async function getActiveAdsForCourse(courseId: string): Promise<AdDto[]> 
     targetUrl: r.target_url,
   }));
 }
+
+/** Logs a member tapping an ad, for future admin ad-performance reporting. */
+export async function logAdClick(adId: string, userId: string): Promise<void> {
+  await sql`insert into ad_clicks (ad_id, user_id) values (${adId}, ${userId})`;
+}

@@ -13,7 +13,7 @@ interface Props {
 const AD_SPACE_HEIGHT = 180;
 
 export function AdSpace({ placement, style }: Props) {
-  const { ads } = useApp();
+  const { ads, logAdClick } = useApp();
   const ad = ads.find((a) => a.placement === placement);
 
   if (!ad) {
@@ -40,7 +40,10 @@ export function AdSpace({ placement, style }: Props) {
     <TouchableOpacity
       style={[styles.box, style]}
       activeOpacity={0.85}
-      onPress={() => Linking.openURL(ad.targetUrl!)}
+      onPress={() => {
+        logAdClick(ad.id);
+        Linking.openURL(ad.targetUrl!);
+      }}
       accessibilityRole="link"
       accessibilityLabel={ad.title || 'Advertisement'}
     >

@@ -73,6 +73,7 @@ interface AppContextValue extends AppState {
   updateAvatar: (imageBase64: string) => Promise<void>;
   updateProfile: (payload: UpdateProfilePayload) => Promise<void>;
   sendContactEnquiry: (payload: ContactEnquiryPayload) => Promise<void>;
+  logAdClick: (adId: string) => void;
   statsPeriod: StatsPeriod;
   setStatsPeriod: (period: StatsPeriod) => Promise<void>;
   unreadNotificationCount: number;
@@ -218,6 +219,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     await api.sendContactEnquiry(payload);
   };
 
+  const logAdClick = (adId: string) => {
+    api.logAdClick(adId).catch(() => {
+      // Best-effort — a failed click log should never block the ad from opening.
+    });
+  };
+
   const setStatsPeriod = async (period: StatsPeriod) => {
     setStatsPeriodState(period);
     try {
@@ -264,6 +271,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     updateAvatar,
     updateProfile,
     sendContactEnquiry,
+    logAdClick,
     statsPeriod,
     setStatsPeriod,
     unreadNotificationCount,

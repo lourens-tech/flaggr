@@ -3,10 +3,12 @@ import { sql } from '../_lib/db';
 import { requireAuthedUser } from '../_lib/auth';
 import { HttpError, withErrorHandling } from '../_lib/http';
 import { sendEmail } from '../_lib/email';
+import { logAdClick } from '../_lib/ads';
 
-// Folded avatar update, profile field editing, and the contact form's send
-// into one file (dispatched by ?action=) to stay within Vercel Hobby's
-// 12-serverless-function cap — same pattern as POST /api/receipts?action=scan.
+// Folded avatar update, profile field editing, the contact form's send, and
+// ad-click logging into one file (dispatched by ?action=) to stay within
+// Vercel Hobby's 12-serverless-function cap — same pattern as
+// POST /api/receipts?action=scan.
 
 const DATA_URI_PATTERN = /^data:image\/(jpeg|jpg|png|webp);base64,/;
 const MAX_AVATAR_BASE64_LENGTH = 2_000_000; // ~1.5MB decoded, comfortably above a 480px-wide JPEG
@@ -34,6 +36,10 @@ interface ContactBody {
   email?: string;
   enquiryType?: string;
   message?: string;
+}
+
+interface AdClickBody {
+  adId?: string;
 }
 
 function escapeHtml(s: string): string {
@@ -70,6 +76,16 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       `,
     });
 
+    res.status(200).json({ ok: true });
+    return;
+  }
+
+  if (action === 'adClick') {
+    const adId = (req.body as AdClickBody).adId;
+    if (!adId) {
+      throw new HttpError(400, 'adId is required');
+    }
+    await logAdClick(adId, authed.id);
     res.status(200).json({ ok: true });
     return;
   }

@@ -241,12 +241,23 @@ create table ads (
   updated_at timestamptz not null default now()
 );
 
+-- Click ledger for ad performance reporting (impressions aren't tracked —
+-- only taps, which is what "did this ad work" reporting needs).
+create table ad_clicks (
+  id uuid primary key default gen_random_uuid(),
+  ad_id uuid not null references ads(id) on delete cascade,
+  user_id uuid references users(id) on delete set null,
+  clicked_at timestamptz not null default now()
+);
+
 create index rewards_course_id_idx on rewards(course_id);
 create index ads_course_id_placement_idx on ads(course_id, placement);
+create index ad_clicks_ad_id_idx on ad_clicks(ad_id);
 create index reward_variants_reward_id_idx on reward_variants(reward_id);
 create index users_course_id_idx on users(course_id);
 create index vouchers_user_id_idx on vouchers(user_id);
 create index receipts_user_id_idx on receipts(user_id);
+create index receipts_course_id_idx on receipts(course_id);
 create index activity_user_id_idx on activity(user_id);
 create index activity_voucher_id_idx on activity(voucher_id);
 create index notifications_user_id_idx on notifications(user_id);

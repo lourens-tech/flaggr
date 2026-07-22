@@ -170,4 +170,7 @@ export const api = {
 
   sendContactEnquiry: (payload: ContactEnquiryPayload) =>
     request<{ ok: boolean }>('/profile?action=contact', { method: 'POST', body: payload }),
+
+  logAdClick: (adId: string) =>
+    request<{ ok: boolean }>('/profile?action=adClick', { method: 'POST', body: { adId } }),
 };

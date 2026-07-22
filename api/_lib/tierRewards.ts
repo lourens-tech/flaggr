@@ -29,6 +29,12 @@ export async function getCurrentTierStatus(userId: string): Promise<TierStatus> 
   `) as Array<{ current_quarter_earned: number; previous_quarter_earned: number }>;
   const { current_quarter_earned, previous_quarter_earned } = rows[0];
   const info = computeQuarterlyTierInfo(current_quarter_earned, previous_quarter_earned);
+
+  // Persist the live tier onto users.tier so admin reporting can read tier
+  // distribution with a plain query instead of re-running this quarterly
+  // calculation per user. No-op once already in sync.
+  await sql`update users set tier = ${info.tier} where id = ${userId} and tier <> ${info.tier}`;
+
   return { ...info, multiplier: TIER_MULTIPLIERS[info.tier] };
 }
 
