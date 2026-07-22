@@ -21,6 +21,7 @@ import { StatCard } from '../../components/common/StatCard';
 import { BarChart } from '../../components/common/BarChart';
 import { RewardCard } from '../../components/common/RewardCard';
 import { HeaderAvatar } from '../../components/common/HeaderAvatar';
+import { AdSpace } from '../../components/common/AdSpace';
 import { useApp } from '../../context/AppContext';
 import { colors, fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
 import type { StatsPeriod } from '../../data/types';
@@ -149,9 +150,7 @@ export function HomeScreen({ navigation }: Props) {
           <BarChart data={stats.monthly} />
         </View>
 
-        <View style={styles.adSpace}>
-          <Text style={styles.adSpaceText}>Ad Space</Text>
-        </View>
+        <AdSpace placement="home" style={styles.adSpace} />
 
         <View style={styles.rewardsHeaderRow}>
           <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Rewards</Text>
@@ -298,16 +297,7 @@ const styles = StyleSheet.create({
     padding: spacing.md,
   },
   chartTitle: { fontFamily: fontFamily.heading, fontSize: fontSize.small, color: colors.darkGreen, marginBottom: spacing.md },
-  adSpace: {
-    marginHorizontal: screenPadding,
-    marginTop: spacing.md,
-    height: 90,
-    backgroundColor: colors.darkGreen,
-    borderRadius: radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  adSpaceText: { fontFamily: fontFamily.heading, fontSize: fontSize.title, color: colors.lime },
+  adSpace: { marginHorizontal: screenPadding, marginTop: spacing.md },
   rewardsHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',

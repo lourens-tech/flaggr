@@ -5,6 +5,7 @@ import { withErrorHandling } from './_lib/http';
 import { deltaPct, isStatsPeriod, periodWindow, type StatsPeriod } from './_lib/periods';
 import { computeStreak } from './_lib/streak';
 import { getCurrentTierStatus, grantDueTierRewards } from './_lib/tierRewards';
+import { getActiveAdsForCourse } from './_lib/ads';
 
 export default withErrorHandling(async (req: VercelRequest, res: VercelResponse) => {
   if (req.method !== 'GET') {
@@ -53,7 +54,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
   const preGrantTier = await getCurrentTierStatus(authed.id);
   await grantDueTierRewards(authed.id, authed.courseId, preGrantTier.tier, r.date_of_birth);
 
-  const [bucksResult, roundsResult, monthlyResult, refreshedBalanceResult, tierStatus, streak] = await Promise.all([
+  const [bucksResult, roundsResult, monthlyResult, refreshedBalanceResult, tierStatus, streak, ads] = await Promise.all([
     sql`
       select
         coalesce(sum(amount) filter (where type = 'earn' and date >= ${currentStart}), 0)::int as earned_current,
@@ -81,6 +82,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     sql`select balance, total_earned, total_redeemed from points_accounts where user_id = ${authed.id}`,
     getCurrentTierStatus(authed.id),
     computeStreak(authed.id),
+    getActiveAdsForCourse(authed.courseId),
   ]);
 
   const bucks = (bucksResult as Array<{
@@ -142,5 +144,6 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       bucksRedeemedDeltaPct: deltaPct(bucks.redeemed_current, bucks.redeemed_previous, hasComparison),
       monthly: monthlyRows,
     },
+    ads,
   });
 });

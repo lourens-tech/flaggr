@@ -155,6 +155,18 @@ export type ScanResult =
       totalPointsAwarded: number;
     };
 
+export type AdPlacement = 'home' | 'rewardsShop';
+
+// Ad space creative — currently seeded/edited directly in the ads table;
+// a future super-admin panel will manage these via the same shape.
+export interface Ad {
+  id: string;
+  placement: AdPlacement;
+  title: string;
+  imageUrl: string | null;
+  targetUrl: string | null;
+}
+
 export type ActivityType = 'earn' | 'redeem';
 
 export interface ActivityEntry {

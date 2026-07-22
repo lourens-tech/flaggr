@@ -3,6 +3,7 @@ import { api, setToken, type ContactEnquiryPayload, type SignupPayload, type Upd
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type {
   ActivityEntry,
+  Ad,
   AppNotification,
   PointsAccount,
   Receipt,
@@ -59,6 +60,7 @@ interface AppState {
   activity: ActivityEntry[];
   receipts: Receipt[];
   notifications: AppNotification[];
+  ads: Ad[];
 }
 
 interface AppContextValue extends AppState {
@@ -90,6 +92,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [activity, setActivity] = useState<ActivityEntry[]>([]);
   const [receipts, setReceipts] = useState<Receipt[]>([]);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [ads, setAds] = useState<Ad[]>([]);
   const [statsPeriod, setStatsPeriodState] = useState<StatsPeriod>('year');
 
   // Fetches everything needed to render the authenticated app in one go.
@@ -114,6 +117,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setActivity(activityRes);
     setReceipts(receiptsRes);
     setNotifications(notificationsRes);
+    setAds(me.ads);
   }, []);
 
   useEffect(() => {
@@ -159,6 +163,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setActivity([]);
     setReceipts([]);
     setNotifications([]);
+    setAds([]);
     setStatsPeriodState('year');
   };
 
@@ -249,6 +254,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     activity,
     receipts,
     notifications,
+    ads,
     login,
     signup,
     logout,

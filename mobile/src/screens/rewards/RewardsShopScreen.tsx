@@ -9,8 +9,9 @@ import type { MainTabParamList, RootStackParamList } from '../../navigation/type
 import { useApp } from '../../context/AppContext';
 import { HeaderAvatar } from '../../components/common/HeaderAvatar';
 import { RewardCard } from '../../components/common/RewardCard';
+import { AdSpace } from '../../components/common/AdSpace';
 import { showAlert } from '../../utils/alert';
-import { colors, fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
+import { colors, fontFamily, fontSize, screenPadding, spacing } from '../../theme';
 import type { Reward } from '../../data/types';
 
 type Props = CompositeScreenProps<
@@ -69,11 +70,7 @@ export function RewardsShopScreen({ navigation }: Props) {
                 style={styles.card}
                 onRedeem={(variantId) => handleRedeem(reward, variantId)}
               />
-              {i === 1 ? (
-                <View style={styles.adSpace}>
-                  <Text style={styles.adSpaceText}>Ad Space</Text>
-                </View>
-              ) : null}
+              {i === 1 ? <AdSpace placement="rewardsShop" style={styles.adSpace} /> : null}
             </React.Fragment>
           ))}
         </View>
@@ -107,13 +104,5 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: screenPadding, paddingTop: spacing.lg },
   grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: spacing.md },
   card: { width: '47%' },
-  adSpace: {
-    width: '100%',
-    height: 90,
-    backgroundColor: colors.darkGreen,
-    borderRadius: radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  adSpaceText: { fontFamily: fontFamily.heading, fontSize: fontSize.title, color: colors.lime },
+  adSpace: { width: '100%' },
 });

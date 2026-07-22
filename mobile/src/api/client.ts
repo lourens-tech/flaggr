@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type {
   ActivityEntry,
+  Ad,
   AppNotification,
   PointsAccount,
   Receipt,
@@ -103,6 +104,7 @@ export interface MeResponse {
   points: PointsAccount;
   streak: Streak;
   stats: Stats;
+  ads: Ad[];
 }
 
 export interface SubmitReceiptPayload {

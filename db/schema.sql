@@ -223,7 +223,26 @@ create table quarterly_tier_vouchers_granted (
   primary key (user_id, year, quarter)
 );
 
+-- Ad space content — lets a future super-admin panel manage the ad
+-- creative shown in the "Ad Space" slots on Home and the Rewards Shop
+-- without an app release. Scoped per course, like rewards.
+create table ads (
+  id uuid primary key default gen_random_uuid(),
+  course_id uuid not null references courses(id) on delete cascade,
+  placement text not null check (placement in ('home', 'rewards_shop')),
+  title text not null default '',
+  image_url text,
+  target_url text,
+  sort_order integer not null default 0,
+  active boolean not null default true,
+  starts_at timestamptz,
+  ends_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create index rewards_course_id_idx on rewards(course_id);
+create index ads_course_id_placement_idx on ads(course_id, placement);
 create index reward_variants_reward_id_idx on reward_variants(reward_id);
 create index users_course_id_idx on users(course_id);
 create index vouchers_user_id_idx on vouchers(user_id);
