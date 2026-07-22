@@ -8,6 +8,7 @@ import { runScanPipeline } from '../_lib/scanPipeline';
 import { hashImageDataUri } from '../_lib/imageHash';
 import { finalizePoints, type MatchedItem } from '../_lib/pointsEngine';
 import { getCurrentTierStatus } from '../_lib/tierRewards';
+import { sendPushToUser } from '../_lib/pushNotifications';
 
 const DATA_URI_PATTERN = /^data:image\/(jpeg|jpg|png|webp);base64,/;
 const MAX_BASE64_LENGTH = 7_000_000; // ~5MB decoded
@@ -161,6 +162,9 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     const courseName = scored.merchant?.name ?? parsed.merchantNameGuess ?? '';
     const itemsSnapshot = scored.items.map((i) => ({ label: i.description, amount: i.price }));
     const receiptId = randomUUID();
+    const notificationBody =
+      `You earned ${finalPointsAwarded} Flagrr Cash from your receipt${courseName ? ` at ${courseName}` : ''}.` +
+      (awayClub ? ' Earned at the standard away-club rate of R1 = 1 Flagrr Cash.' : '');
 
     let insertedRows: ReceiptRow[];
     try {
@@ -219,12 +223,10 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       `,
       sql`
         insert into notifications (user_id, title, body)
-        values (${authed.id}, 'Flagrr Cash earned', ${
-          `You earned ${finalPointsAwarded} Flagrr Cash from your receipt${courseName ? ` at ${courseName}` : ''}.` +
-          (awayClub ? ' Earned at the standard away-club rate of R1 = 1 Flagrr Cash.' : '')
-        })
+        values (${authed.id}, 'Flagrr Cash earned', ${notificationBody})
       `,
     ]);
+    await sendPushToUser(authed.id, { title: 'Flagrr Cash earned', body: notificationBody });
 
     res.status(201).json(serializeReceipt(insertedRows[0]));
     return;

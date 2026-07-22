@@ -9,6 +9,7 @@ import {
   type TierName,
 } from './tiers';
 import { quarterWindow } from './quarter';
+import { sendPushToUser } from './pushNotifications';
 
 export interface TierStatus extends TierInfo {
   multiplier: number;
@@ -86,6 +87,10 @@ export async function grantDueTierRewards(
             values (${userId}, 'Happy Birthday!', ${`We've added ${amount} Flagrr Cash to your wallet as your birthday reward.`})
           `,
         ]);
+        await sendPushToUser(userId, {
+          title: 'Happy Birthday!',
+          body: `We've added ${amount} Flagrr Cash to your wallet as your birthday reward.`,
+        });
       }
     }
   }
@@ -133,4 +138,8 @@ export async function grantDueTierRewards(
       values (${userId}, ${`${tier} tier bonus`}, ${`Your ${variantLabel} bar voucher is ready — show its QR code at the club to claim it.`})
     `,
   ]);
+  await sendPushToUser(userId, {
+    title: `${tier} tier bonus`,
+    body: `Your ${variantLabel} bar voucher is ready — show its QR code at the club to claim it.`,
+  });
 }

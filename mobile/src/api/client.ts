@@ -179,4 +179,7 @@ export const api = {
 
   logAdClick: (adId: string) =>
     request<{ ok: boolean }>('/profile?action=adClick', { method: 'POST', body: { adId } }),
+
+  registerPushToken: (token: string, platform: 'ios' | 'android') =>
+    request<{ ok: boolean }>('/profile?action=registerPushToken', { method: 'POST', body: { token, platform } }),
 };

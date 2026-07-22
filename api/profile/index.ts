@@ -4,11 +4,12 @@ import { requireAuthedUser } from '../_lib/auth';
 import { HttpError, withErrorHandling } from '../_lib/http';
 import { sendEmail } from '../_lib/email';
 import { logAdClick } from '../_lib/ads';
+import { registerPushToken, type PushPlatform } from '../_lib/pushNotifications';
 
-// Folded avatar update, profile field editing, the contact form's send, and
-// ad-click logging into one file (dispatched by ?action=) to stay within
-// Vercel Hobby's 12-serverless-function cap — same pattern as
-// POST /api/receipts?action=scan.
+// Folded avatar update, profile field editing, the contact form's send,
+// ad-click logging, and push-token registration into one file (dispatched
+// by ?action=) to stay within Vercel Hobby's 12-serverless-function cap —
+// same pattern as POST /api/receipts?action=scan.
 
 const DATA_URI_PATTERN = /^data:image\/(jpeg|jpg|png|webp);base64,/;
 const MAX_AVATAR_BASE64_LENGTH = 2_000_000; // ~1.5MB decoded, comfortably above a 480px-wide JPEG
@@ -44,6 +45,11 @@ interface AdClickBody {
 
 interface ChangeClubBody {
   courseId?: string;
+}
+
+interface RegisterPushTokenBody {
+  token?: string;
+  platform?: PushPlatform;
 }
 
 function escapeHtml(s: string): string {
@@ -90,6 +96,16 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       throw new HttpError(400, 'adId is required');
     }
     await logAdClick(adId, authed.id);
+    res.status(200).json({ ok: true });
+    return;
+  }
+
+  if (action === 'registerPushToken') {
+    const { token, platform } = req.body as RegisterPushTokenBody;
+    if (!token || (platform !== 'ios' && platform !== 'android')) {
+      throw new HttpError(400, 'token and a valid platform are required');
+    }
+    await registerPushToken(authed.id, token, platform);
     res.status(200).json({ ok: true });
     return;
   }

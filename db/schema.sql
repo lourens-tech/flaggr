@@ -276,6 +276,18 @@ create table streak_rewards_granted (
   primary key (user_id, active_since, weeks)
 );
 
+-- Expo push tokens, one row per device a member has logged in on (a token
+-- is unique, so a device that later logs into a different account just
+-- moves to that account). See api/_lib/pushNotifications.ts.
+create table push_tokens (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references users(id) on delete cascade,
+  token text not null unique,
+  platform text not null check (platform in ('ios', 'android')),
+  created_at timestamptz not null default now(),
+  last_used_at timestamptz not null default now()
+);
+
 -- Ad space content — lets a future super-admin panel manage the ad
 -- creative shown in the "Ad Space" slots on Home and the Rewards Shop
 -- without an app release. Scoped per course, like rewards.
@@ -322,3 +334,4 @@ create unique index receipts_receipt_number_unique_idx on receipts(receipt_numbe
 create unique index receipts_image_hash_unique_idx on receipts(image_hash) where image_hash is not null;
 create index receipts_merchant_id_idx on receipts(merchant_id);
 create index receipt_items_receipt_id_idx on receipt_items(receipt_id);
+create index push_tokens_user_id_idx on push_tokens(user_id);

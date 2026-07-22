@@ -36,6 +36,13 @@
         {
           "photosPermission": "Flagrr needs access to your photos so you can upload a receipt to scan."
         }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/android-icon-monochrome.png",
+          "color": "#1F4234"
+        }
       ]
     ]
   }

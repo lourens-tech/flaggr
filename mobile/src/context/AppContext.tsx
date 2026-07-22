@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { api, setToken, type ContactEnquiryPayload, type SignupPayload, type UpdateProfilePayload } from '../api/client';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { registerForPushNotificationsAsync } from '../utils/pushNotifications';
 import type {
   ActivityEntry,
   Ad,
@@ -121,6 +122,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setReceipts(receiptsRes);
     setNotifications(notificationsRes);
     setAds(me.ads);
+
+    // Fire-and-forget — no EAS project exists yet, so this is a silent
+    // no-op until one is set up; never block the app load on it.
+    registerForPushNotificationsAsync().then((result) => {
+      if (result) api.registerPushToken(result.token, result.platform).catch(() => {});
+    });
   }, []);
 
   useEffect(() => {

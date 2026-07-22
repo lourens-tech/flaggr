@@ -1,5 +1,6 @@
 import { sql } from './db';
 import type { StreakInfo } from './streak';
+import { sendPushToUser } from './pushNotifications';
 
 // Milestone schedule: every 4 weeks of an unbroken streak earns a Flagrr
 // Cash bonus. Escalates for the first three milestones, then repeats at the
@@ -58,4 +59,8 @@ export async function grantDueStreakReward(userId: string, streak: Pick<StreakIn
       values (${userId}, 'Streak bonus!', ${`You've kept a ${streak.weeks}-week streak going — enjoy ${amount} Flagrr Cash.`})
     `,
   ]);
+  await sendPushToUser(userId, {
+    title: 'Streak bonus!',
+    body: `You've kept a ${streak.weeks}-week streak going — enjoy ${amount} Flagrr Cash.`,
+  });
 }

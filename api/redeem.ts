@@ -3,6 +3,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { sql } from './_lib/db';
 import { requireAuthedUser } from './_lib/auth';
 import { HttpError, withErrorHandling } from './_lib/http';
+import { sendPushToUser } from './_lib/pushNotifications';
 
 interface RedeemBody {
   rewardId?: string;
@@ -54,6 +55,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
   const code = generateVoucherCode();
   const voucherId = crypto.randomUUID();
   const displayName = label === 'Standard' ? title : `${title} (${label})`;
+  const notificationBody = `Your ${displayName} voucher is ready — show its QR code at the club to claim it.`;
   const results = (await sql.transaction([
     sql`
       insert into vouchers (id, user_id, reward_id, reward_variant_id, variant_label, cost, code, qr_value)
@@ -66,7 +68,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     `,
     sql`
       insert into notifications (user_id, title, body)
-      values (${authed.id}, 'Reward redeemed', ${`Your ${displayName} voucher is ready — show its QR code at the club to claim it.`})
+      values (${authed.id}, 'Reward redeemed', ${notificationBody})
     `,
   ])) as [
     Array<{
@@ -85,6 +87,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
   ];
 
   const voucher = results[0][0];
+  await sendPushToUser(authed.id, { title: 'Reward redeemed', body: notificationBody });
   res.status(201).json({
     id: voucher.id,
     rewardId: voucher.reward_id,
