@@ -4,6 +4,7 @@ import type {
   AdminAd,
   AdminCourse,
   AdminMember,
+  AdminNotification,
   AdminReward,
   AdminUser,
   AdminVoucherLookup,
@@ -152,6 +153,11 @@ export const adminApi = {
 
   members: (search: string) =>
     request<AdminMember[]>(`?action=members&search=${encodeURIComponent(search)}`),
+
+  notifications: () => request<AdminNotification[]>('?action=notifications'),
+
+  markNotificationRead: (id: string) =>
+    request<{ ok: boolean }>('?action=notificationRead', { method: 'POST', body: { id } }),
 
   lookupVoucher: (code: string) =>
     request<AdminVoucherLookup>(`?action=voucherLookup&code=${encodeURIComponent(code)}`),

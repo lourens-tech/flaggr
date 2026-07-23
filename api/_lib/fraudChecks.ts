@@ -39,6 +39,18 @@ export interface FraudFlags {
   reasons: string[];
 }
 
+const REASON_LABELS: Record<string, string> = {
+  low_ocr_confidence: 'low OCR confidence',
+  unusually_high_points: 'unusually high Flagrr Cash awarded',
+  rapid_repeat_submissions: 'rapid repeat submissions',
+};
+
+/** Human-readable summary of flag reason codes, for the admin notification
+ * feed — e.g. "low OCR confidence, unusually high Flagrr Cash awarded". */
+export function describeFraudReasons(reasons: string[]): string {
+  return reasons.map((r) => REASON_LABELS[r] ?? r).join(', ');
+}
+
 // Heuristic checks run at submit time; a flagged receipt still gets its
 // points (blocking a legitimate golfer over a false positive is worse UX
 // than a rare fraudulent claim slipping through for manual review), but is

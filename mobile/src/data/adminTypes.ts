@@ -105,6 +105,15 @@ export interface AdminMember {
   balance: number;
 }
 
+export interface AdminNotification {
+  id: string;
+  title: string;
+  body: string;
+  receiptId: string | null;
+  date: string;
+  read: boolean;
+}
+
 export interface AdminVoucherLookup {
   id: string;
   code: string;

@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useState } from 'react';
+import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   adminApi,
@@ -11,6 +11,7 @@ import type {
   AdminAd,
   AdminCourse,
   AdminMember,
+  AdminNotification,
   AdminReward,
   AdminUser,
   AdminVoucherLookup,
@@ -42,6 +43,10 @@ interface AdminContextValue {
   dashboardLoading: boolean;
   rewards: AdminReward[];
   ads: AdminAd[];
+  notifications: AdminNotification[];
+  unreadNotificationCount: number;
+  loadNotifications: () => Promise<void>;
+  markNotificationRead: (id: string) => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   setDashboardPeriod: (period: DashboardPeriod) => Promise<void>;
@@ -72,6 +77,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
   const [dashboardLoading, setDashboardLoading] = useState(false);
   const [rewards, setRewards] = useState<AdminReward[]>([]);
   const [ads, setAds] = useState<AdminAd[]>([]);
+  const [notifications, setNotifications] = useState<AdminNotification[]>([]);
 
   const refreshDashboard = useCallback(async () => {
     setDashboardLoading(true);
@@ -83,6 +89,10 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     }
   }, [dashboardPeriod]);
 
+  const loadNotifications = useCallback(async () => {
+    setNotifications(await adminApi.notifications());
+  }, []);
+
   React.useEffect(() => {
     (async () => {
       try {
@@ -93,6 +103,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
           setAdmin(me.admin);
           setCourse(me.course);
           setIsAdminAuthenticated(true);
+          loadNotifications().catch(() => {});
         }
       } catch {
         await setAdminToken(null);
@@ -100,7 +111,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
         setIsInitializing(false);
       }
     })();
-  }, []);
+  }, [loadNotifications]);
 
   const login = async (email: string, password: string) => {
     const res = await adminApi.login(email, password);
@@ -108,6 +119,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     setAdmin(res.admin);
     setCourse(res.course);
     setIsAdminAuthenticated(true);
+    loadNotifications().catch(() => {});
   };
 
   const logout = async () => {
@@ -123,7 +135,19 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     setDashboard(null);
     setRewards([]);
     setAds([]);
+    setNotifications([]);
   };
+
+  const markNotificationRead = async (id: string) => {
+    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
+    try {
+      await adminApi.markNotificationRead(id);
+    } catch {
+      // Best-effort — the optimistic update stands even if the request fails.
+    }
+  };
+
+  const unreadNotificationCount = useMemo(() => notifications.filter((n) => !n.read).length, [notifications]);
 
   const setDashboardPeriod = async (period: DashboardPeriod) => {
     setDashboardPeriodState(period);
@@ -193,6 +217,10 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     dashboardLoading,
     rewards,
     ads,
+    notifications,
+    unreadNotificationCount,
+    loadNotifications,
+    markNotificationRead,
     login,
     logout,
     setDashboardPeriod,

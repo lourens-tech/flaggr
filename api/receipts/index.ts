@@ -3,12 +3,13 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { sql } from '../_lib/db';
 import { requireAuthedUser } from '../_lib/auth';
 import { HttpError, withErrorHandling } from '../_lib/http';
-import { checkDuplicateReceipt, evaluateFraudSignals } from '../_lib/fraudChecks';
+import { checkDuplicateReceipt, describeFraudReasons, evaluateFraudSignals } from '../_lib/fraudChecks';
 import { runScanPipeline } from '../_lib/scanPipeline';
 import { hashImageDataUri } from '../_lib/imageHash';
 import { finalizePoints, type MatchedItem } from '../_lib/pointsEngine';
 import { getCurrentTierStatus } from '../_lib/tierRewards';
 import { sendPushToUser } from '../_lib/pushNotifications';
+import { notifyCourseAdmins } from '../_lib/adminNotifications';
 
 const DATA_URI_PATTERN = /^data:image\/(jpeg|jpg|png|webp);base64,/;
 const MAX_BASE64_LENGTH = 7_000_000; // ~5MB decoded
@@ -227,6 +228,16 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       `,
     ]);
     await sendPushToUser(authed.id, { title: 'Flagrr Cash earned', body: notificationBody });
+
+    if (fraud.flagged) {
+      await notifyCourseAdmins(
+        authed.courseId,
+        'Receipt flagged for review',
+        `${authed.firstName} ${authed.lastName}'s receipt${courseName ? ` at ${courseName}` : ''} was flagged: ` +
+          `${describeFraudReasons(fraud.reasons)}. ${finalPointsAwarded} Flagrr Cash awarded.`,
+        receiptId,
+      );
+    }
 
     res.status(201).json(serializeReceipt(insertedRows[0]));
     return;

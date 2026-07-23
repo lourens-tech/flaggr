@@ -323,6 +323,19 @@ create table ad_clicks (
   clicked_at timestamptz not null default now()
 );
 
+-- Admin-facing notification feed, scoped to a course (not an individual
+-- admin) since any course_admin for that club sees the same feed. First
+-- trigger: a receipt flagged by the fraud heuristics at submit time.
+create table admin_notifications (
+  id uuid primary key default gen_random_uuid(),
+  course_id uuid not null references courses(id) on delete cascade,
+  title text not null,
+  body text not null,
+  receipt_id uuid references receipts(id) on delete set null,
+  date timestamptz not null default now(),
+  read boolean not null default false
+);
+
 create index rewards_course_id_idx on rewards(course_id);
 create index ads_course_id_placement_idx on ads(course_id, placement);
 create index ad_clicks_ad_id_idx on ad_clicks(ad_id);
@@ -338,7 +351,7 @@ create index sessions_user_id_idx on sessions(user_id);
 create index admins_course_id_idx on admins(course_id);
 create index admin_sessions_admin_id_idx on admin_sessions(admin_id);
 create unique index admins_invite_token_idx on admins(invite_token) where invite_token is not null;
-create index admin_sessions_admin_id_idx on admin_sessions(admin_id);
+create index admin_notifications_course_id_idx on admin_notifications(course_id);
 create unique index receipts_receipt_number_unique_idx on receipts(receipt_number) where receipt_number is not null;
 create unique index receipts_image_hash_unique_idx on receipts(image_hash) where image_hash is not null;
 create index receipts_merchant_id_idx on receipts(merchant_id);

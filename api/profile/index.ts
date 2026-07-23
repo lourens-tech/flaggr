@@ -5,6 +5,7 @@ import { HttpError, withErrorHandling } from '../_lib/http';
 import { sendEmail } from '../_lib/email';
 import { logAdClick } from '../_lib/ads';
 import { registerPushToken, type PushPlatform } from '../_lib/pushNotifications';
+import { notifyCourseAdmins } from '../_lib/adminNotifications';
 
 // Folded avatar update, profile field editing, the contact form's send,
 // ad-click logging, and push-token registration into one file (dispatched
@@ -85,6 +86,15 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         <p>${escapeHtml(message).replace(/\n/g, '<br/>')}</p>
       `,
     });
+
+    // Also notify that member's own club's admin — a course admin should
+    // know when one of their members has an enquiry, not just the central
+    // Flagrr inbox.
+    await notifyCourseAdmins(
+      authed.courseId,
+      `New enquiry from ${fullName}`,
+      `(${body.enquiryType || 'General'}) ${message}`,
+    );
 
     res.status(200).json({ ok: true });
     return;

@@ -27,6 +27,7 @@ export type AdminStackParamList = {
   AdminTabs: undefined;
   AdminRewardEdit: { rewardId?: string };
   AdminAdEdit: { adId?: string };
+  AdminNotifications: undefined;
 };
 
 export type MainTabParamList = {

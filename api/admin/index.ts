@@ -214,6 +214,28 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     return;
   }
 
+  if (action === 'notifications' && req.method === 'GET') {
+    const rows = (await sql`
+      select id, title, body, receipt_id, date, read
+      from admin_notifications
+      where course_id = ${courseId}
+      order by date desc
+      limit 50
+    `) as Array<{ id: string; title: string; body: string; receipt_id: string | null; date: string; read: boolean }>;
+    res.status(200).json(
+      rows.map((r) => ({ id: r.id, title: r.title, body: r.body, receiptId: r.receipt_id, date: r.date, read: r.read })),
+    );
+    return;
+  }
+
+  if (action === 'notificationRead') {
+    const id = (req.body as { id?: string }).id;
+    if (!id) throw new HttpError(400, 'id is required');
+    await sql`update admin_notifications set read = true where id = ${id} and course_id = ${courseId}`;
+    res.status(200).json({ ok: true });
+    return;
+  }
+
   if (action === 'changePassword') {
     const { currentPassword, newPassword } = req.body as ChangePasswordBody;
     if (!currentPassword || !newPassword || newPassword.length < 8) {
