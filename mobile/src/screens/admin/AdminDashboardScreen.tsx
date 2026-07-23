@@ -18,6 +18,19 @@ type Period = 'month' | 'year' | 'all';
 const PERIOD_LABELS: Record<Period, string> = { month: 'Month', year: 'Year', all: 'All' };
 const PERIODS: Period[] = ['month', 'year', 'all'];
 
+type ReportKind = 'redemptions' | 'receipts' | 'members';
+const REPORT_KINDS: ReportKind[] = ['redemptions', 'receipts', 'members'];
+const REPORT_LABELS: Record<ReportKind, string> = {
+  redemptions: 'Redemptions',
+  receipts: 'Receipts',
+  members: 'Members',
+};
+const REPORT_ICONS: Record<ReportKind, keyof typeof Ionicons.glyphMap> = {
+  redemptions: 'pricetag-outline',
+  receipts: 'receipt-outline',
+  members: 'people-outline',
+};
+
 type Props = CompositeScreenProps<
   BottomTabScreenProps<AdminTabParamList, 'AdminDashboard'>,
   NativeStackScreenProps<AdminStackParamList>
@@ -33,7 +46,7 @@ export function AdminDashboardScreen({ navigation }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleExport = async (report: 'redemptions' | 'receipts' | 'members') => {
+  const handleExport = async (report: ReportKind) => {
     setExporting(report);
     try {
       const downloaded = await downloadCsvReport(report, dashboardPeriod);
@@ -167,20 +180,24 @@ export function AdminDashboardScreen({ navigation }: Props) {
 
             <Text style={styles.sectionTitle}>Pull a Report</Text>
             <View style={styles.card}>
-              {(['redemptions', 'receipts', 'members'] as const).map((report) => (
-                <TouchableOpacity
-                  key={report}
-                  style={styles.exportRow}
-                  onPress={() => handleExport(report)}
-                  disabled={exporting === report}
-                >
-                  <Ionicons name="download-outline" size={18} color={colors.clubGreen} />
-                  <Text style={styles.exportLabel}>
-                    {report === 'redemptions' ? 'Redemptions CSV' : report === 'receipts' ? 'Receipts CSV' : 'Members CSV'}
-                  </Text>
-                  {exporting === report ? <ActivityIndicator color={colors.clubGreen} size="small" /> : null}
-                </TouchableOpacity>
-              ))}
+              <View style={styles.reportGrid}>
+                {REPORT_KINDS.map((report) => (
+                  <TouchableOpacity
+                    key={report}
+                    style={styles.reportTile}
+                    onPress={() => handleExport(report)}
+                    disabled={exporting === report}
+                  >
+                    <Ionicons name={REPORT_ICONS[report]} size={26} color={colors.clubGreen} />
+                    <Text style={styles.reportTileLabel}>{REPORT_LABELS[report]}</Text>
+                    {exporting === report ? (
+                      <View style={styles.reportTileOverlay}>
+                        <ActivityIndicator color={colors.clubGreen} size="small" />
+                      </View>
+                    ) : null}
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
           </>
         ) : null}
@@ -264,6 +281,25 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: spacing.sm },
   rowLabel: { flex: 1, fontFamily: fontFamily.body, fontSize: fontSize.body, color: colors.textPrimary },
   rowValue: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.darkGreen },
-  exportRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.xs },
-  exportLabel: { flex: 1, fontFamily: fontFamily.body, fontSize: fontSize.body, color: colors.textPrimary },
+  reportGrid: { flexDirection: 'row', gap: spacing.sm },
+  reportTile: {
+    flex: 1,
+    aspectRatio: 1,
+    backgroundColor: colors.white,
+    borderWidth: 0.5,
+    borderColor: colors.clubGreen,
+    borderRadius: radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    padding: spacing.sm,
+  },
+  reportTileLabel: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.tiny, color: colors.darkGreen, textAlign: 'center' },
+  reportTileOverlay: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: 'rgba(255,255,255,0.7)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.md,
+  },
 });
