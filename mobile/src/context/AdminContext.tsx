@@ -53,6 +53,7 @@ const EMPTY_COURSE: AdminCourse = {
   contactPhone: null,
   address: null,
   fbPerRand: 2.8,
+  onboardingCompletedAt: null,
 };
 
 interface AdminContextValue {
@@ -98,6 +99,14 @@ interface AdminContextValue {
   contactSupport: () => Promise<void>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   updateThemePreference: (preference: ThemePreference) => Promise<void>;
+  // First-login setup wizard for a course_admin (course details, logo, cover
+  // photo). Gated by course.onboardingCompletedAt (server-side, survives
+  // reinstalls) — showOnboardingWizard also respects a session-only
+  // "skip for now" dismissal so it doesn't reappear on every screen nav.
+  showOnboardingWizard: boolean;
+  dismissOnboardingWizard: () => void;
+  reopenOnboardingWizard: () => void;
+  completeOnboarding: () => Promise<void>;
   staff: AdminStaff[];
   loadStaff: () => Promise<void>;
   createStaff: (payload: StaffCreatePayload) => Promise<AdminStaff>;
@@ -123,6 +132,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
   const [notifications, setNotifications] = useState<AdminNotification[]>([]);
   const [broadcasts, setBroadcasts] = useState<AdminBroadcast[]>([]);
   const [staff, setStaff] = useState<AdminStaff[]>([]);
+  const [onboardingDismissed, setOnboardingDismissed] = useState(false);
 
   const refreshDashboard = useCallback(async () => {
     setDashboardLoading(true);
@@ -185,6 +195,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     setNotifications([]);
     setBroadcasts([]);
     setStaff([]);
+    setOnboardingDismissed(false);
   };
 
   const markNotificationRead = async (id: string) => {
@@ -284,6 +295,17 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     await adminApi.contactSupport();
   };
 
+  const showOnboardingWizard =
+    isAdminAuthenticated && admin.role === 'course_admin' && !admin.mustChangePassword && !onboardingDismissed && course.onboardingCompletedAt === null;
+
+  const dismissOnboardingWizard = () => setOnboardingDismissed(true);
+  const reopenOnboardingWizard = () => setOnboardingDismissed(false);
+
+  const completeOnboarding = async () => {
+    const updated = await adminApi.completeOnboarding();
+    setCourse(updated);
+  };
+
   const changePassword = async (currentPassword: string, newPassword: string) => {
     await adminApi.changePassword(currentPassword, newPassword);
     setAdmin((prev) => ({ ...prev, mustChangePassword: false }));
@@ -368,6 +390,10 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     updateCourseCover,
     contactSupport,
     updateThemePreference,
+    showOnboardingWizard,
+    dismissOnboardingWizard,
+    reopenOnboardingWizard,
+    completeOnboarding,
     staff,
     loadStaff,
     createStaff,

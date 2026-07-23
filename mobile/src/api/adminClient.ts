@@ -172,6 +172,8 @@ export const adminApi = {
   updateCourseCover: (imageBase64: string) =>
     request<{ coverImageUrl: string }>('?action=courseCover', { method: 'POST', body: { imageBase64 } }),
 
+  completeOnboarding: () => request<AdminCourse>('?action=completeOnboarding', { method: 'POST' }),
+
   contactSupport: () => request<{ ok: boolean }>('?action=contactSupport', { method: 'POST' }),
 
   staffList: () => request<AdminStaff[]>('?action=staffList'),

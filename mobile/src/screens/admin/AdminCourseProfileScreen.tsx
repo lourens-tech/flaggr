@@ -35,6 +35,7 @@ export function AdminCourseProfileScreen({ navigation }: Props) {
     updateCourseCover,
     contactSupport,
     updateThemePreference,
+    reopenOnboardingWizard,
     changePassword,
     logout,
   } = useAdmin();
@@ -165,6 +166,14 @@ export function AdminCourseProfileScreen({ navigation }: Props) {
       </SafeAreaView>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        {course.onboardingCompletedAt === null ? (
+          <TouchableOpacity style={styles.onboardingBanner} onPress={reopenOnboardingWizard} activeOpacity={0.85}>
+            <Ionicons name="rocket-outline" size={18} color={colors.darkGreen} />
+            <Text style={styles.onboardingBannerText}>Finish setting up your course</Text>
+            <Ionicons name="chevron-forward" size={16} color={colors.darkGreen} />
+          </TouchableOpacity>
+        ) : null}
+
         <TouchableOpacity style={styles.logoPicker} onPress={handlePickLogo} disabled={uploadingLogo}>
           {course.logoUrl ? (
             <Image source={{ uri: course.logoUrl }} style={styles.logoImage} />
@@ -267,6 +276,16 @@ function createStyles(colors: ThemeColors) {
   headerTitle: { fontFamily: fontFamily.headingDisplay, fontSize: fontSize.title, color: colors.white },
   headerSubtitle: { fontFamily: fontFamily.body, fontSize: 12, color: 'rgba(255,255,255,0.75)' },
   content: { padding: screenPadding, paddingBottom: spacing.xl * 2 },
+  onboardingBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.mintBg,
+    borderRadius: radius.md,
+    padding: spacing.sm + 4,
+    marginBottom: spacing.lg,
+  },
+  onboardingBannerText: { flex: 1, fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.darkGreen },
   logoPicker: { alignSelf: 'center', alignItems: 'center', gap: spacing.xs, marginBottom: spacing.lg },
   logoImage: { width: 88, height: 88, borderRadius: radius.md },
   logoPlaceholder: {
