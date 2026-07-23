@@ -197,7 +197,7 @@ const styles = StyleSheet.create({
   content: { padding: screenPadding, paddingBottom: spacing.xl * 2 },
   coverImage: {
     width: '100%',
-    height: 140,
+    height: 280,
     borderRadius: radius.md,
     marginBottom: spacing.md,
   },
