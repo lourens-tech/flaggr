@@ -1,0 +1,140 @@
+import React, { useState } from 'react';
+import { ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import { TextField } from '../../components/common/TextField';
+import { PillButton } from '../../components/common/PillButton';
+import { useAdmin } from '../../context/AdminContext';
+import { AdminApiError } from '../../api/adminClient';
+import { showAlert } from '../../utils/alert';
+import { colors, fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
+
+// The basic profile tab for a `staff` account — just their name/email, a
+// change-password form, and logout. Everything a course_admin gets on
+// AdminCourseProfileScreen (course settings, logo, cover photo) is
+// deliberately out of reach here.
+export function AdminStaffProfileScreen() {
+  const { admin, course, changePassword, logout } = useAdmin();
+
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [changingPassword, setChangingPassword] = useState(false);
+
+  const handleChangePassword = async () => {
+    if (!currentPassword || newPassword.length < 8) {
+      showAlert('Missing info', 'Enter your current password and a new password (min. 8 characters).');
+      return;
+    }
+    setChangingPassword(true);
+    try {
+      await changePassword(currentPassword, newPassword);
+      setCurrentPassword('');
+      setNewPassword('');
+      showAlert('Password changed', 'Use your new password next time you log in.');
+    } catch (err) {
+      const message = err instanceof AdminApiError ? err.message : 'Something went wrong. Please try again.';
+      showAlert('Couldn’t change password', message);
+    } finally {
+      setChangingPassword(false);
+    }
+  };
+
+  const handleLogout = () => {
+    showAlert('Log out?', undefined, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Log Out', style: 'destructive', onPress: () => logout() },
+    ]);
+  };
+
+  return (
+    <View style={styles.screen}>
+      <StatusBar barStyle="light-content" />
+      <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>My Profile</Text>
+          <Text style={styles.headerSubtitle}>{course.name}</Text>
+        </View>
+      </SafeAreaView>
+
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.avatarWrap}>
+          <View style={styles.avatar}>
+            <Ionicons name="person-outline" size={28} color={colors.clubGreen} />
+          </View>
+          <Text style={styles.name}>{admin.firstName} {admin.lastName}</Text>
+          <Text style={styles.email}>{admin.email}</Text>
+          <View style={styles.roleBadge}>
+            <Text style={styles.roleBadgeText}>Staff</Text>
+          </View>
+        </View>
+
+        <Text style={styles.helpText}>
+          Your name and email are managed by your course admin. Contact them if these need to change.
+        </Text>
+
+        <Text style={styles.sectionTitle}>Change Password</Text>
+        <TextField placeholder="Current Password" variant="onLight" isPassword value={currentPassword} onChangeText={setCurrentPassword} />
+        <View style={{ height: spacing.md }} />
+        <TextField placeholder="New Password" variant="onLight" isPassword value={newPassword} onChangeText={setNewPassword} />
+        <View style={{ height: spacing.md }} />
+        <PillButton label="Update Password" variant="outline" onPress={handleChangePassword} loading={changingPassword} />
+
+        <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
+          <Ionicons name="log-out-outline" size={18} color={colors.negative} />
+          <Text style={styles.logoutText}>Log Out</Text>
+        </TouchableOpacity>
+      </ScrollView>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.white },
+  headerSafeArea: { backgroundColor: colors.clubGreen },
+  header: { paddingHorizontal: screenPadding, paddingVertical: spacing.md },
+  headerTitle: { fontFamily: fontFamily.headingDisplay, fontSize: fontSize.title, color: colors.white },
+  headerSubtitle: { fontFamily: fontFamily.body, fontSize: 12, color: 'rgba(255,255,255,0.75)' },
+  content: { padding: screenPadding, paddingBottom: spacing.xl * 2 },
+  avatarWrap: { alignItems: 'center', gap: 4, marginBottom: spacing.lg },
+  avatar: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: colors.mintBg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.xs,
+  },
+  name: { fontFamily: fontFamily.heading, fontSize: fontSize.cardTitle, color: colors.darkGreen },
+  email: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary },
+  roleBadge: {
+    backgroundColor: colors.mintBg,
+    borderRadius: radius.pill,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    marginTop: 4,
+  },
+  roleBadgeText: { fontFamily: fontFamily.bodySemiBold, fontSize: 10, color: colors.darkGreen },
+  helpText: {
+    fontFamily: fontFamily.body,
+    fontSize: fontSize.tiny,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: spacing.lg,
+  },
+  sectionTitle: {
+    fontFamily: fontFamily.heading,
+    fontSize: fontSize.cardTitle,
+    color: colors.darkGreen,
+    marginBottom: spacing.md,
+  },
+  logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: spacing.xl,
+    paddingVertical: spacing.sm,
+  },
+  logoutText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.negative },
+});

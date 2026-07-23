@@ -6,6 +6,8 @@ import {
   type CourseProfilePayload,
   type AdSavePayload,
   type RewardSavePayload,
+  type StaffCreatePayload,
+  type StaffUpdatePayload,
 } from '../api/adminClient';
 import type {
   AdminAd,
@@ -16,6 +18,7 @@ import type {
   AdminMember,
   AdminNotification,
   AdminReward,
+  AdminStaff,
   AdminUser,
   AdminVoucherLookup,
   BroadcastTarget,
@@ -29,7 +32,7 @@ import type {
 const ADMIN_TOKEN_KEY = 'flagrr_admin_auth_token';
 type DashboardPeriod = 'month' | 'year' | 'all';
 
-const EMPTY_ADMIN: AdminUser = { id: '', firstName: '', lastName: '', email: '', role: 'course_admin' };
+const EMPTY_ADMIN: AdminUser = { id: '', firstName: '', lastName: '', email: '', role: 'course_admin', mustChangePassword: false };
 const EMPTY_COURSE: AdminCourse = {
   id: '',
   name: '',
@@ -84,6 +87,13 @@ interface AdminContextValue {
   updateCourseCover: (imageBase64: string) => Promise<void>;
   contactSupport: () => Promise<void>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
+  staff: AdminStaff[];
+  loadStaff: () => Promise<void>;
+  createStaff: (payload: StaffCreatePayload) => Promise<AdminStaff>;
+  updateStaff: (payload: StaffUpdatePayload) => Promise<AdminStaff>;
+  revokeStaff: (id: string) => Promise<void>;
+  reactivateStaff: (id: string) => Promise<void>;
+  deleteStaff: (id: string) => Promise<void>;
 }
 
 const AdminContext = createContext<AdminContextValue | undefined>(undefined);
@@ -100,6 +110,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
   const [ads, setAds] = useState<AdminAd[]>([]);
   const [notifications, setNotifications] = useState<AdminNotification[]>([]);
   const [broadcasts, setBroadcasts] = useState<AdminBroadcast[]>([]);
+  const [staff, setStaff] = useState<AdminStaff[]>([]);
 
   const refreshDashboard = useCallback(async () => {
     setDashboardLoading(true);
@@ -159,6 +170,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     setAds([]);
     setNotifications([]);
     setBroadcasts([]);
+    setStaff([]);
   };
 
   const markNotificationRead = async (id: string) => {
@@ -260,6 +272,38 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
 
   const changePassword = async (currentPassword: string, newPassword: string) => {
     await adminApi.changePassword(currentPassword, newPassword);
+    setAdmin((prev) => ({ ...prev, mustChangePassword: false }));
+  };
+
+  const loadStaff = useCallback(async () => {
+    setStaff(await adminApi.staffList());
+  }, []);
+
+  const createStaff = async (payload: StaffCreatePayload) => {
+    const created = await adminApi.createStaff(payload);
+    await loadStaff();
+    return created;
+  };
+
+  const updateStaff = async (payload: StaffUpdatePayload) => {
+    const updated = await adminApi.updateStaff(payload);
+    await loadStaff();
+    return updated;
+  };
+
+  const revokeStaff = async (id: string) => {
+    await adminApi.revokeStaff(id);
+    await loadStaff();
+  };
+
+  const reactivateStaff = async (id: string) => {
+    await adminApi.reactivateStaff(id);
+    await loadStaff();
+  };
+
+  const deleteStaff = async (id: string) => {
+    await adminApi.deleteStaff(id);
+    setStaff((prev) => prev.filter((s) => s.id !== id));
   };
 
   const value: AdminContextValue = {
@@ -303,6 +347,13 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     updateCourseLogo,
     updateCourseCover,
     contactSupport,
+    staff,
+    loadStaff,
+    createStaff,
+    updateStaff,
+    revokeStaff,
+    reactivateStaff,
+    deleteStaff,
     changePassword,
   };
 

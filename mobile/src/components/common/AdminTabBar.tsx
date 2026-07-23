@@ -11,6 +11,7 @@ const ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   AdminPush: 'megaphone-outline',
   AdminVouchers: 'qr-code-outline',
   AdminCourseProfile: 'business-outline',
+  AdminStaffProfile: 'person-circle-outline',
 };
 
 const LABELS: Record<string, string> = {
@@ -20,6 +21,7 @@ const LABELS: Record<string, string> = {
   AdminPush: 'Push',
   AdminVouchers: 'Vouchers',
   AdminCourseProfile: 'Course',
+  AdminStaffProfile: 'Profile',
 };
 
 // A plain (non-floating) bottom tab bar for the course-admin side — the

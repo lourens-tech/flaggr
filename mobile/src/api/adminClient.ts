@@ -9,6 +9,7 @@ import type {
   AdminMember,
   AdminNotification,
   AdminReward,
+  AdminStaff,
   AdminUser,
   AdminVoucherLookup,
   BroadcastTarget,
@@ -125,6 +126,20 @@ export interface CourseProfilePayload {
   address: string;
 }
 
+export interface StaffCreatePayload {
+  firstName: string;
+  lastName: string;
+  email: string;
+}
+
+export interface StaffUpdatePayload {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  password?: string;
+}
+
 export const adminApi = {
   login: (email: string, password: string) =>
     request<AdminLoginResponse>('?action=login', { method: 'POST', body: { email, password }, auth: false }),
@@ -149,6 +164,20 @@ export const adminApi = {
     request<{ coverImageUrl: string }>('?action=courseCover', { method: 'POST', body: { imageBase64 } }),
 
   contactSupport: () => request<{ ok: boolean }>('?action=contactSupport', { method: 'POST' }),
+
+  staffList: () => request<AdminStaff[]>('?action=staffList'),
+
+  createStaff: (payload: StaffCreatePayload) =>
+    request<AdminStaff>('?action=staffCreate', { method: 'POST', body: payload }),
+
+  updateStaff: (payload: StaffUpdatePayload) =>
+    request<AdminStaff>('?action=staffUpdate', { method: 'POST', body: payload }),
+
+  revokeStaff: (id: string) => request<{ ok: boolean }>('?action=staffRevoke', { method: 'POST', body: { id } }),
+
+  reactivateStaff: (id: string) => request<{ ok: boolean }>('?action=staffReactivate', { method: 'POST', body: { id } }),
+
+  deleteStaff: (id: string) => request<{ ok: boolean }>('?action=staffDelete', { method: 'POST', body: { id } }),
 
   rewards: () => request<AdminReward[]>('?action=rewards'),
 

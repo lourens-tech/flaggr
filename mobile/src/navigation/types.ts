@@ -23,6 +23,7 @@ export type AdminTabParamList = {
   AdminPush: undefined;
   AdminVouchers: undefined;
   AdminCourseProfile: undefined;
+  AdminStaffProfile: undefined;
 };
 
 export type AdminStackParamList = {
@@ -33,6 +34,8 @@ export type AdminStackParamList = {
   AdminEnquiryChat: { enquiryId: string };
   AdminMemberStats: { memberId: string };
   AdminBroadcastCompose: { title?: string; body?: string; target?: string } | undefined;
+  AdminStaffList: undefined;
+  AdminStaffEdit: { staffId?: string } | undefined;
 };
 
 export type MainTabParamList = {
@@ -46,6 +49,7 @@ export type RootStackParamList = {
   Auth: undefined;
   Main: undefined;
   AdminMain: undefined;
+  AdminForceChangePassword: undefined;
   Voucher: { voucherId: string };
   ScanReceipt: undefined;
   ReviewReceipt: { imageUri: string | null; imageBase64: string; scanResult: ScanResult & { isDuplicate: false } };

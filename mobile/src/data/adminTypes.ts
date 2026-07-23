@@ -1,4 +1,4 @@
-export type AdminRole = 'super_admin' | 'course_admin';
+export type AdminRole = 'super_admin' | 'course_admin' | 'staff';
 
 export interface AdminUser {
   id: string;
@@ -6,6 +6,17 @@ export interface AdminUser {
   lastName: string;
   email: string;
   role: AdminRole;
+  mustChangePassword: boolean;
+}
+
+export interface AdminStaff {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  mustChangePassword: boolean;
+  revoked: boolean;
+  createdAt: string;
 }
 
 export interface AdminCourse {

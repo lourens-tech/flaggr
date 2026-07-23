@@ -1,7 +1,7 @@
 import crypto from 'node:crypto';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { sql } from '../_lib/db';
-import { requireAuthedCourseAdmin, hashPassword, verifyPassword } from '../_lib/auth';
+import { requireAuthedCourseStaffOrAdmin, hashPassword, verifyPassword } from '../_lib/auth';
 import { HttpError, withErrorHandling } from '../_lib/http';
 import { deltaPct, isStatsPeriod, periodWindow, type StatsPeriod } from '../_lib/periods';
 import { fillMonthlyByNumber } from '../_lib/monthly';
@@ -107,9 +107,60 @@ interface BroadcastDeleteBody {
   id?: string;
 }
 
+interface StaffCreateBody {
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+}
+
+interface StaffUpdateBody {
+  id?: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  password?: string;
+}
+
+interface StaffIdBody {
+  id?: string;
+}
+
 const REWARD_CATEGORIES = ['rounds', 'experiences', 'pro-shop', 'practice', 'dining'];
 const AD_PLACEMENTS = ['home', 'rewards_shop'];
 const BROADCAST_TARGETS = ['all', 'Bronze', 'Silver', 'Gold', 'Platinum'];
+
+// Staff accounts only get a course-admin-created login for the Vouchers tab
+// and their own basic profile — every other action stays course_admin-only,
+// enforced right after auth below rather than scattered per-action.
+const STAFF_ALLOWED_ACTIONS = new Set(['logout', 'me', 'changePassword', 'voucherLookup', 'voucherRedeem']);
+
+function isDuplicateEmailError(err: unknown): boolean {
+  return err instanceof Error && /duplicate key value/i.test(err.message);
+}
+
+function generateTempPassword(): string {
+  return crypto.randomBytes(9).toString('base64').replace(/[+/=]/g, '').slice(0, 10);
+}
+
+function staffDto(row: {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  must_change_password: boolean;
+  revoked_at: string | null;
+  created_at: string;
+}) {
+  return {
+    id: row.id,
+    firstName: row.first_name,
+    lastName: row.last_name,
+    email: row.email,
+    mustChangePassword: row.must_change_password,
+    revoked: row.revoked_at !== null,
+    createdAt: row.created_at,
+  };
+}
 
 function courseDto(row: {
   id: string;
@@ -169,17 +220,19 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     }
 
     const rows = (await sql`
-      select id, course_id, role, first_name, last_name, email, password_hash, activated_at
+      select id, course_id, role, first_name, last_name, email, password_hash, activated_at, must_change_password, revoked_at
       from admins where email = ${email.trim().toLowerCase()}
     `) as Array<{
       id: string;
       course_id: string | null;
-      role: 'super_admin' | 'course_admin';
+      role: 'super_admin' | 'course_admin' | 'staff';
       first_name: string;
       last_name: string;
       email: string;
       password_hash: string | null;
       activated_at: string | null;
+      must_change_password: boolean;
+      revoked_at: string | null;
     }>;
 
     const admin = rows[0];
@@ -189,7 +242,10 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     if (!(await verifyPassword(password, admin.password_hash))) {
       throw new HttpError(401, 'Invalid email or password');
     }
-    if (admin.role !== 'course_admin' || !admin.course_id) {
+    if (admin.revoked_at) {
+      throw new HttpError(403, 'Your access has been revoked. Contact your course administrator.');
+    }
+    if ((admin.role !== 'course_admin' && admin.role !== 'staff') || !admin.course_id) {
       throw new HttpError(403, 'This account type is not supported yet');
     }
 
@@ -206,15 +262,20 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         lastName: admin.last_name,
         email: admin.email,
         role: admin.role,
+        mustChangePassword: admin.must_change_password,
       },
       course,
     });
     return;
   }
 
-  // --- Everything below requires a logged-in course_admin ---
-  const authed = await requireAuthedCourseAdmin(req);
+  // --- Everything below requires a logged-in course_admin or staff account ---
+  const authed = await requireAuthedCourseStaffOrAdmin(req);
   const courseId = authed.courseId;
+
+  if (authed.role === 'staff' && !STAFF_ALLOWED_ACTIONS.has(String(action))) {
+    throw new HttpError(403, 'Not authorized for this action');
+  }
 
   if (action === 'logout') {
     const header = req.headers.authorization;
@@ -229,7 +290,14 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
   if (action === 'me' && req.method === 'GET') {
     const course = await fetchCourse(courseId);
     res.status(200).json({
-      admin: { id: authed.id, firstName: authed.firstName, lastName: authed.lastName, email: authed.email, role: authed.role },
+      admin: {
+        id: authed.id,
+        firstName: authed.firstName,
+        lastName: authed.lastName,
+        email: authed.email,
+        role: authed.role,
+        mustChangePassword: authed.mustChangePassword,
+      },
       course,
     });
     return;
@@ -388,7 +456,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       throw new HttpError(401, 'Current password is incorrect');
     }
     const newHash = await hashPassword(newPassword);
-    await sql`update admins set password_hash = ${newHash} where id = ${authed.id}`;
+    await sql`update admins set password_hash = ${newHash}, must_change_password = false where id = ${authed.id}`;
     res.status(200).json({ ok: true });
     return;
   }
@@ -456,6 +524,152 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     }
     await sql`update courses set cover_image_url = ${imageBase64} where id = ${courseId}`;
     res.status(200).json({ coverImageUrl: imageBase64 });
+    return;
+  }
+
+  if (action === 'staffList' && req.method === 'GET') {
+    const rows = (await sql`
+      select id, first_name, last_name, email, must_change_password, revoked_at, created_at
+      from admins
+      where course_id = ${courseId} and role = 'staff'
+      order by created_at desc
+    `) as Array<{
+      id: string;
+      first_name: string;
+      last_name: string;
+      email: string;
+      must_change_password: boolean;
+      revoked_at: string | null;
+      created_at: string;
+    }>;
+    res.status(200).json(rows.map(staffDto));
+    return;
+  }
+
+  if (action === 'staffCreate') {
+    const body = req.body as StaffCreateBody;
+    const firstName = body.firstName?.trim();
+    const lastName = body.lastName?.trim() || '';
+    const email = body.email?.trim().toLowerCase();
+    if (!firstName || !email) throw new HttpError(400, 'First name and email are required');
+    if (!EMAIL_PATTERN.test(email)) throw new HttpError(400, 'Enter a valid email address');
+
+    const tempPassword = generateTempPassword();
+    const passwordHash = await hashPassword(tempPassword);
+
+    let created: Array<{
+      id: string;
+      first_name: string;
+      last_name: string;
+      email: string;
+      must_change_password: boolean;
+      revoked_at: string | null;
+      created_at: string;
+    }>;
+    try {
+      created = (await sql`
+        insert into admins (course_id, role, first_name, last_name, email, password_hash, must_change_password, activated_at)
+        values (${courseId}, 'staff', ${firstName}, ${lastName}, ${email}, ${passwordHash}, true, now())
+        returning id, first_name, last_name, email, must_change_password, revoked_at, created_at
+      `) as typeof created;
+    } catch (err) {
+      if (isDuplicateEmailError(err)) throw new HttpError(409, 'An account with this email already exists');
+      throw err;
+    }
+
+    const course = await fetchCourse(courseId);
+    await sendEmail({
+      to: email,
+      subject: `You've been added as staff at ${course.name} on Flagrr`,
+      html: `
+        <p>Hi ${escapeHtml(firstName)},</p>
+        <p>${escapeHtml(authed.firstName)} ${escapeHtml(authed.lastName)} has set you up with staff access to the Flagrr app for ${escapeHtml(course.name)}, so you can validate members' reward vouchers.</p>
+        <p><strong>Login link:</strong> <a href="https://flagrr-loyalty.vercel.app">https://flagrr-loyalty.vercel.app</a></p>
+        <p><strong>Email:</strong> ${escapeHtml(email)}<br/>
+        <strong>Temporary password:</strong> ${escapeHtml(tempPassword)}</p>
+        <p>You'll be asked to choose your own password the first time you log in.</p>
+      `,
+    });
+
+    res.status(200).json(staffDto(created[0]));
+    return;
+  }
+
+  if (action === 'staffUpdate') {
+    const body = req.body as StaffUpdateBody;
+    const id = body.id;
+    if (!id) throw new HttpError(400, 'id is required');
+    const firstName = body.firstName?.trim();
+    const lastName = body.lastName?.trim() || '';
+    const email = body.email?.trim().toLowerCase();
+    if (!firstName || !email) throw new HttpError(400, 'First name and email are required');
+    if (!EMAIL_PATTERN.test(email)) throw new HttpError(400, 'Enter a valid email address');
+
+    const owned = await sql`select id from admins where id = ${id} and course_id = ${courseId} and role = 'staff'`;
+    if ((owned as Array<{ id: string }>).length === 0) throw new HttpError(404, 'Staff member not found');
+
+    const newPassword = body.password?.trim();
+    if (newPassword && newPassword.length < 8) {
+      throw new HttpError(400, 'New password must be at least 8 characters');
+    }
+
+    let updated: Array<{
+      id: string;
+      first_name: string;
+      last_name: string;
+      email: string;
+      must_change_password: boolean;
+      revoked_at: string | null;
+      created_at: string;
+    }>;
+    try {
+      if (newPassword) {
+        const passwordHash = await hashPassword(newPassword);
+        updated = (await sql`
+          update admins
+          set first_name = ${firstName}, last_name = ${lastName}, email = ${email},
+              password_hash = ${passwordHash}, must_change_password = false
+          where id = ${id}
+          returning id, first_name, last_name, email, must_change_password, revoked_at, created_at
+        `) as typeof updated;
+      } else {
+        updated = (await sql`
+          update admins
+          set first_name = ${firstName}, last_name = ${lastName}, email = ${email}
+          where id = ${id}
+          returning id, first_name, last_name, email, must_change_password, revoked_at, created_at
+        `) as typeof updated;
+      }
+    } catch (err) {
+      if (isDuplicateEmailError(err)) throw new HttpError(409, 'An account with this email already exists');
+      throw err;
+    }
+
+    res.status(200).json(staffDto(updated[0]));
+    return;
+  }
+
+  if (action === 'staffRevoke') {
+    const id = (req.body as StaffIdBody).id;
+    if (!id) throw new HttpError(400, 'id is required');
+    await sql`update admins set revoked_at = now() where id = ${id} and course_id = ${courseId} and role = 'staff'`;
+    res.status(200).json({ ok: true });
+    return;
+  }
+
+  if (action === 'staffReactivate') {
+    const id = (req.body as StaffIdBody).id;
+    if (!id) throw new HttpError(400, 'id is required');
+    await sql`update admins set revoked_at = null where id = ${id} and course_id = ${courseId} and role = 'staff'`;
+    res.status(200).json({ ok: true });
+    return;
+  }
+
+  if (action === 'staffDelete') {
+    const id = (req.body as StaffIdBody).id;
+    if (!id) throw new HttpError(400, 'id is required');
+    await sql`delete from admins where id = ${id} and course_id = ${courseId} and role = 'staff'`;
+    res.status(200).json({ ok: true });
     return;
   }
 

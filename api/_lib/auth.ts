@@ -59,15 +59,18 @@ export async function requireAuthedUser(req: VercelRequest): Promise<AuthedUser>
 export interface AuthedAdmin {
   id: string;
   courseId: string | null; // null only for a super_admin, which isn't built yet
-  role: 'super_admin' | 'course_admin';
+  role: 'super_admin' | 'course_admin' | 'staff';
   firstName: string;
   lastName: string;
   email: string;
+  mustChangePassword: boolean;
 }
 
 /** Same shape as getAuthedUser, but against the separate admins/admin_sessions
- * tables — course-admin/super-admin identities are deliberately never mixed
- * with member `users`. */
+ * tables — course-admin/super-admin/staff identities are deliberately never
+ * mixed with member `users`. A revoked staff member's session stops working
+ * immediately, even mid-session, since that check lives here rather than
+ * only at login. */
 export async function getAuthedAdmin(req: VercelRequest): Promise<AuthedAdmin | null> {
   const header = req.headers.authorization;
   if (!header?.startsWith('Bearer ')) return null;
@@ -76,17 +79,18 @@ export async function getAuthedAdmin(req: VercelRequest): Promise<AuthedAdmin | 
   let rows: Array<{
     id: string;
     course_id: string | null;
-    role: 'super_admin' | 'course_admin';
+    role: 'super_admin' | 'course_admin' | 'staff';
     first_name: string;
     last_name: string;
     email: string;
+    must_change_password: boolean;
   }>;
   try {
     rows = (await sql`
-      select a.id, a.course_id, a.role, a.first_name, a.last_name, a.email
+      select a.id, a.course_id, a.role, a.first_name, a.last_name, a.email, a.must_change_password
       from admin_sessions s
       join admins a on a.id = s.admin_id
-      where s.token = ${token} and s.expires_at > now() and a.activated_at is not null
+      where s.token = ${token} and s.expires_at > now() and a.activated_at is not null and a.revoked_at is null
     `) as typeof rows;
   } catch {
     return null;
@@ -94,18 +98,44 @@ export async function getAuthedAdmin(req: VercelRequest): Promise<AuthedAdmin | 
 
   if (rows.length === 0) return null;
   const r = rows[0];
-  return { id: r.id, courseId: r.course_id, role: r.role, firstName: r.first_name, lastName: r.last_name, email: r.email };
+  return {
+    id: r.id,
+    courseId: r.course_id,
+    role: r.role,
+    firstName: r.first_name,
+    lastName: r.last_name,
+    email: r.email,
+    mustChangePassword: r.must_change_password,
+  };
 }
 
 /** Requires a logged-in admin who is a course_admin (i.e. has a course_id) —
  * the only admin role this build supports UI for. A super_admin token is
- * valid but gets a 403 here until that side is built. */
+ * valid but gets a 403 here until that side is built. Staff accounts (see
+ * requireAuthedCourseStaffOrAdmin) are also rejected — staff management
+ * itself is a course_admin-only action. */
 export async function requireAuthedCourseAdmin(
   req: VercelRequest,
 ): Promise<AuthedAdmin & { courseId: string }> {
   const admin = await getAuthedAdmin(req);
   if (!admin) throw new HttpError(401, 'Not authenticated');
   if (admin.role !== 'course_admin' || !admin.courseId) {
+    throw new HttpError(403, 'This account type is not supported yet');
+  }
+  return admin as AuthedAdmin & { courseId: string };
+}
+
+/** Like requireAuthedCourseAdmin, but also accepts a course-scoped `staff`
+ * account — used for the small set of actions staff can perform themselves
+ * (logout, me, changePassword, voucher lookup/redeem). Callers must still
+ * gate anything staff shouldn't reach (see STAFF_ALLOWED_ACTIONS in
+ * api/admin/index.ts). */
+export async function requireAuthedCourseStaffOrAdmin(
+  req: VercelRequest,
+): Promise<AuthedAdmin & { courseId: string }> {
+  const admin = await getAuthedAdmin(req);
+  if (!admin) throw new HttpError(401, 'Not authenticated');
+  if ((admin.role !== 'course_admin' && admin.role !== 'staff') || !admin.courseId) {
     throw new HttpError(403, 'This account type is not supported yet');
   }
   return admin as AuthedAdmin & { courseId: string };

@@ -8,6 +8,8 @@ import { AdminNotificationsScreen } from '../screens/admin/AdminNotificationsScr
 import { AdminEnquiryChatScreen } from '../screens/admin/AdminEnquiryChatScreen';
 import { AdminMemberStatsScreen } from '../screens/admin/AdminMemberStatsScreen';
 import { AdminBroadcastComposeScreen } from '../screens/admin/AdminBroadcastComposeScreen';
+import { AdminStaffListScreen } from '../screens/admin/AdminStaffListScreen';
+import { AdminStaffEditScreen } from '../screens/admin/AdminStaffEditScreen';
 
 const Stack = createNativeStackNavigator<AdminStackParamList>();
 
@@ -21,6 +23,8 @@ export function AdminNavigator() {
       <Stack.Screen name="AdminEnquiryChat" component={AdminEnquiryChatScreen} />
       <Stack.Screen name="AdminMemberStats" component={AdminMemberStatsScreen} />
       <Stack.Screen name="AdminBroadcastCompose" component={AdminBroadcastComposeScreen} />
+      <Stack.Screen name="AdminStaffList" component={AdminStaffListScreen} />
+      <Stack.Screen name="AdminStaffEdit" component={AdminStaffEditScreen} />
     </Stack.Navigator>
   );
 }

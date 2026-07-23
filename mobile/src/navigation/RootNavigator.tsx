@@ -17,6 +17,7 @@ import { TermsPrivacyScreen } from '../screens/profile/TermsPrivacyScreen';
 import { MyEnquiriesScreen } from '../screens/profile/MyEnquiriesScreen';
 import { EnquiryChatScreen } from '../screens/profile/EnquiryChatScreen';
 import { AdminNavigator } from './AdminNavigator';
+import { AdminForceChangePasswordScreen } from '../screens/admin/AdminForceChangePasswordScreen';
 import { useApp } from '../context/AppContext';
 import { useAdmin } from '../context/AdminContext';
 import { colors } from '../theme';
@@ -25,7 +26,7 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export function RootNavigator() {
   const { isAuthenticated, isInitializing } = useApp();
-  const { isAdminAuthenticated, isInitializing: isAdminInitializing } = useAdmin();
+  const { isAdminAuthenticated, isInitializing: isAdminInitializing, admin } = useAdmin();
 
   if (isInitializing || isAdminInitializing) {
     // Restoring a stored session (member and/or admin) before deciding which
@@ -40,10 +41,16 @@ export function RootNavigator() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       {isAdminAuthenticated ? (
-        // A course-admin session takes priority — these are separate
+        // A course-admin/staff session takes priority — these are separate
         // identities (see api/_lib/auth.ts), but a device is realistically
-        // either a staff device or a member's, not both at once.
-        <Stack.Screen name="AdminMain" component={AdminNavigator} />
+        // either a staff device or a member's, not both at once. A staff
+        // member with a system-generated temp password must set their own
+        // before they can reach any other screen.
+        admin.mustChangePassword ? (
+          <Stack.Screen name="AdminForceChangePassword" component={AdminForceChangePasswordScreen} />
+        ) : (
+          <Stack.Screen name="AdminMain" component={AdminNavigator} />
+        )
       ) : isAuthenticated ? (
         <>
           <Stack.Screen name="Main" component={MainTabNavigator} />

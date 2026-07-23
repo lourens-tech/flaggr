@@ -2,6 +2,10 @@ import React, { useState } from 'react';
 import { ActivityIndicator, Image, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import type { CompositeScreenProps } from '@react-navigation/native';
+import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import type { AdminStackParamList, AdminTabParamList } from '../../navigation/types';
 import { TextField } from '../../components/common/TextField';
 import { PillButton } from '../../components/common/PillButton';
 import { useAdmin } from '../../context/AdminContext';
@@ -12,7 +16,12 @@ import { colors, fontFamily, fontSize, radius, screenPadding, spacing } from '..
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-export function AdminCourseProfileScreen() {
+type Props = CompositeScreenProps<
+  BottomTabScreenProps<AdminTabParamList, 'AdminCourseProfile'>,
+  NativeStackScreenProps<AdminStackParamList>
+>;
+
+export function AdminCourseProfileScreen({ navigation }: Props) {
   const { admin, course, updateCourseProfile, updateCourseLogo, updateCourseCover, contactSupport, changePassword, logout } =
     useAdmin();
 
@@ -196,6 +205,13 @@ export function AdminCourseProfileScreen() {
 
         <View style={{ height: spacing.md }} />
         <PillButton label="Save Course Profile" onPress={handleSaveProfile} loading={savingProfile} />
+
+        <Text style={styles.sectionTitle}>Staff</Text>
+        <Text style={styles.helpText}>
+          Add staff accounts for your team — they can log in to validate members' reward vouchers.
+        </Text>
+        <View style={{ height: spacing.sm }} />
+        <PillButton label="Manage Staff" icon="people-outline" variant="outline" onPress={() => navigation.navigate('AdminStaffList')} />
 
         <Text style={styles.sectionTitle}>Change Password</Text>
         <TextField placeholder="Current Password" variant="onLight" isPassword value={currentPassword} onChangeText={setCurrentPassword} />
