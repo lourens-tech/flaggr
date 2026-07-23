@@ -8,7 +8,6 @@ const ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   AdminDashboard: 'bar-chart-outline',
   AdminEnquiries: 'chatbubbles-outline',
   AdminRewards: 'gift-outline',
-  AdminAds: 'megaphone-outline',
   AdminVouchers: 'qr-code-outline',
   AdminCourseProfile: 'business-outline',
 };
@@ -17,7 +16,6 @@ const LABELS: Record<string, string> = {
   AdminDashboard: 'Reports',
   AdminEnquiries: 'Enquiries',
   AdminRewards: 'Rewards',
-  AdminAds: 'Ads',
   AdminVouchers: 'Vouchers',
   AdminCourseProfile: 'Course',
 };

@@ -4,7 +4,6 @@ import type { AdminTabParamList } from './types';
 import { AdminDashboardScreen } from '../screens/admin/AdminDashboardScreen';
 import { AdminEnquiriesListScreen } from '../screens/admin/AdminEnquiriesListScreen';
 import { AdminRewardsListScreen } from '../screens/admin/AdminRewardsListScreen';
-import { AdminAdsListScreen } from '../screens/admin/AdminAdsListScreen';
 import { AdminVoucherRedeemScreen } from '../screens/admin/AdminVoucherRedeemScreen';
 import { AdminCourseProfileScreen } from '../screens/admin/AdminCourseProfileScreen';
 import { AdminTabBar } from '../components/common/AdminTabBar';
@@ -17,7 +16,6 @@ export function AdminTabNavigator() {
       <Tab.Screen name="AdminDashboard" component={AdminDashboardScreen} />
       <Tab.Screen name="AdminEnquiries" component={AdminEnquiriesListScreen} />
       <Tab.Screen name="AdminRewards" component={AdminRewardsListScreen} />
-      <Tab.Screen name="AdminAds" component={AdminAdsListScreen} />
       <Tab.Screen name="AdminVouchers" component={AdminVoucherRedeemScreen} />
       <Tab.Screen name="AdminCourseProfile" component={AdminCourseProfileScreen} />
     </Tab.Navigator>
