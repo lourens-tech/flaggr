@@ -103,11 +103,33 @@ export function AdminDashboardScreen({ navigation }: Props) {
         ) : dashboard ? (
           <>
             <View style={styles.statsGrid}>
-              <StatCard label="Members" value={dashboard.totals.members} deltaPct={0} width="47%" />
-              <StatCard label="New Members" value={dashboard.totals.newMembers} deltaPct={0} width="47%" />
-              <StatCard label="Flagrr Cash Earned" value={dashboard.totals.fcEarned.toLocaleString()} deltaPct={dashboard.totals.fcEarnedDeltaPct} />
-              <StatCard label="Flagrr Cash Redeemed" value={dashboard.totals.fcRedeemed.toLocaleString()} deltaPct={dashboard.totals.fcRedeemedDeltaPct} />
-              <StatCard label="Receipts Scanned" value={dashboard.totals.receiptsScanned} deltaPct={dashboard.totals.receiptsScannedDeltaPct} width="100%" />
+              <View style={styles.statsRow}>
+                <StatCard label="Members" value={dashboard.totals.members} deltaPct={0} fill backgroundColor={colors.mintBg} />
+                <StatCard label="New Members" value={dashboard.totals.newMembers} deltaPct={0} fill backgroundColor={colors.mintBg} />
+              </View>
+              <View style={styles.statsRow}>
+                <StatCard
+                  label="Flagrr Cash Earned"
+                  value={dashboard.totals.fcEarned.toLocaleString()}
+                  deltaPct={dashboard.totals.fcEarnedDeltaPct}
+                  fill
+                  backgroundColor={colors.mintBg}
+                />
+                <StatCard
+                  label="Flagrr Cash Redeemed"
+                  value={dashboard.totals.fcRedeemed.toLocaleString()}
+                  deltaPct={dashboard.totals.fcRedeemedDeltaPct}
+                  fill
+                  backgroundColor={colors.mintBg}
+                />
+              </View>
+              <StatCard
+                label="Receipts Scanned"
+                value={dashboard.totals.receiptsScanned}
+                deltaPct={dashboard.totals.receiptsScannedDeltaPct}
+                width="100%"
+                backgroundColor={colors.mintBg}
+              />
             </View>
 
             <View style={styles.chartCard}>
@@ -217,10 +239,11 @@ const styles = StyleSheet.create({
   periodPillActive: { backgroundColor: colors.darkGreen },
   periodText: { fontFamily: fontFamily.heading, fontSize: 12, color: colors.darkGreen },
   periodTextActive: { color: colors.white },
-  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: spacing.lg },
+  statsGrid: { gap: spacing.sm, marginBottom: spacing.lg },
+  statsRow: { flexDirection: 'row', gap: 10 },
   sectionTitle: { fontFamily: fontFamily.heading, fontSize: fontSize.title, color: colors.darkGreen, marginBottom: spacing.sm },
   chartCard: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.mintBg,
     borderWidth: 0.5,
     borderColor: colors.clubGreen,
     borderRadius: radius.md,
@@ -229,7 +252,7 @@ const styles = StyleSheet.create({
   },
   chartTitle: { fontFamily: fontFamily.heading, fontSize: fontSize.small, color: colors.darkGreen, marginBottom: spacing.md },
   card: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.mintBg,
     borderWidth: 0.5,
     borderColor: colors.clubGreen,
     borderRadius: radius.md,
