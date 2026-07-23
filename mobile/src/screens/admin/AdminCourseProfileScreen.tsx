@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ActivityIndicator, FlatList, Image, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Image, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { TextField } from '../../components/common/TextField';
@@ -9,13 +9,11 @@ import { AdminApiError } from '../../api/adminClient';
 import { pickAndResizeAvatar, pickAndResizeCoverImage, AvatarPermissionError } from '../../utils/pickAvatar';
 import { showAlert } from '../../utils/alert';
 import { colors, fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
-import type { AdminMember } from '../../data/adminTypes';
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function AdminCourseProfileScreen() {
-  const { admin, course, updateCourseProfile, updateCourseLogo, updateCourseCover, changePassword, searchMembers, logout } =
-    useAdmin();
+  const { admin, course, updateCourseProfile, updateCourseLogo, updateCourseCover, changePassword, logout } = useAdmin();
 
   const [name, setName] = useState(course.name);
   const [contactEmail, setContactEmail] = useState(course.contactEmail ?? '');
@@ -29,10 +27,6 @@ export function AdminCourseProfileScreen() {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [changingPassword, setChangingPassword] = useState(false);
-
-  const [memberSearch, setMemberSearch] = useState('');
-  const [memberResults, setMemberResults] = useState<AdminMember[]>([]);
-  const [searchingMembers, setSearchingMembers] = useState(false);
 
   const handlePickLogo = async () => {
     setUploadingLogo(true);
@@ -106,17 +100,6 @@ export function AdminCourseProfileScreen() {
       showAlert('Couldn’t change password', message);
     } finally {
       setChangingPassword(false);
-    }
-  };
-
-  const handleSearchMembers = async () => {
-    setSearchingMembers(true);
-    try {
-      setMemberResults(await searchMembers(memberSearch.trim()));
-    } catch {
-      setMemberResults([]);
-    } finally {
-      setSearchingMembers(false);
     }
   };
 
@@ -204,43 +187,6 @@ export function AdminCourseProfileScreen() {
         <View style={{ height: spacing.md }} />
         <PillButton label="Update Password" variant="outline" onPress={handleChangePassword} loading={changingPassword} />
 
-        <Text style={styles.sectionTitle}>Look Up a Member</Text>
-        <View style={styles.searchRow}>
-          <View style={{ flex: 1 }}>
-            <TextField
-              placeholder="Search by name or email"
-              variant="onLight"
-              value={memberSearch}
-              onChangeText={setMemberSearch}
-              onSubmitEditing={handleSearchMembers}
-              returnKeyType="search"
-            />
-          </View>
-        </View>
-        <View style={{ height: spacing.sm }} />
-        <PillButton label="Search" icon="search" variant="outline" onPress={handleSearchMembers} loading={searchingMembers} />
-
-        {memberResults.length > 0 ? (
-          <FlatList
-            data={memberResults}
-            keyExtractor={(m) => m.id}
-            scrollEnabled={false}
-            contentContainerStyle={{ marginTop: spacing.md, gap: spacing.sm }}
-            renderItem={({ item }) => (
-              <View style={styles.memberRow}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.memberName}>{item.firstName} {item.lastName}</Text>
-                  <Text style={styles.memberEmail}>{item.email}</Text>
-                </View>
-                <View style={{ alignItems: 'flex-end' }}>
-                  <Text style={styles.memberTier}>{item.tier}</Text>
-                  <Text style={styles.memberBalance}>{item.balance.toLocaleString()} FC</Text>
-                </View>
-              </View>
-            )}
-          />
-        ) : null}
-
         <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
           <Ionicons name="log-out-outline" size={18} color={colors.negative} />
           <Text style={styles.logoutText}>Log Out</Text>
@@ -298,19 +244,6 @@ const styles = StyleSheet.create({
     marginTop: spacing.xl,
     marginBottom: spacing.md,
   },
-  searchRow: { flexDirection: 'row' },
-  memberRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#F5F6F8',
-    borderRadius: radius.md,
-    padding: spacing.sm,
-  },
-  memberName: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.textPrimary },
-  memberEmail: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary },
-  memberTier: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.tiny, color: colors.darkGreen },
-  memberBalance: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary },
   logoutButton: {
     flexDirection: 'row',
     alignItems: 'center',

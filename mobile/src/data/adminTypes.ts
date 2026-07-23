@@ -98,6 +98,34 @@ export interface AdminMember {
   balance: number;
 }
 
+export interface MemberStats {
+  member: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    tier: string;
+    memberSince: string;
+    balance: number;
+    totalEarned: number;
+    totalRedeemed: number;
+  };
+  stats: {
+    period: 'month' | 'year' | 'all';
+    roundsPlayed9: number;
+    roundsPlayed9DeltaPct: number;
+    roundsPlayed18: number;
+    roundsPlayed18DeltaPct: number;
+    bucksEarned: number;
+    bucksEarnedDeltaPct: number;
+    bucksRedeemed: number;
+    bucksRedeemedDeltaPct: number;
+    receiptsScanned: number;
+    receiptsScannedDeltaPct: number;
+    monthly: MonthlyCount[];
+  };
+}
+
 export interface AdminNotification {
   id: string;
   title: string;

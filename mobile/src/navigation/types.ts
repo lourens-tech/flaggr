@@ -30,6 +30,7 @@ export type AdminStackParamList = {
   AdminAdEdit: { adId?: string };
   AdminNotifications: undefined;
   AdminEnquiryChat: { enquiryId: string };
+  AdminMemberStats: { memberId: string };
 };
 
 export type MainTabParamList = {

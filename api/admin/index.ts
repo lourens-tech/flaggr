@@ -3,7 +3,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { sql } from '../_lib/db';
 import { requireAuthedCourseAdmin, hashPassword, verifyPassword } from '../_lib/auth';
 import { HttpError, withErrorHandling } from '../_lib/http';
-import { isStatsPeriod, periodWindow, type StatsPeriod } from '../_lib/periods';
+import { deltaPct, isStatsPeriod, periodWindow, type StatsPeriod } from '../_lib/periods';
 import { getDashboardReport } from '../_lib/adminReports';
 import { toCsv } from '../_lib/csv';
 import {
@@ -697,6 +697,104 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     return;
   }
 
+  if (action === 'memberStats' && req.method === 'GET') {
+    const memberId = typeof req.query.id === 'string' ? req.query.id : '';
+    if (!memberId) throw new HttpError(400, 'id is required');
+    const period: StatsPeriod = isStatsPeriod(req.query.period) ? req.query.period : 'month';
+    const { currentStart, previousStart, previousEnd, hasComparison } = periodWindow(period);
+
+    const memberRows = (await sql`
+      select u.id, u.first_name, u.last_name, u.email, u.tier, u.member_since, p.balance, p.total_earned, p.total_redeemed
+      from users u
+      join points_accounts p on p.user_id = u.id
+      where u.id = ${memberId} and u.course_id = ${courseId}
+    `) as Array<{
+      id: string;
+      first_name: string;
+      last_name: string;
+      email: string;
+      tier: string;
+      member_since: string;
+      balance: number;
+      total_earned: number;
+      total_redeemed: number;
+    }>;
+    if (memberRows.length === 0) throw new HttpError(404, 'Member not found');
+    const m = memberRows[0];
+
+    const [bucksRows, roundsRows, receiptRows, monthlyRows] = await Promise.all([
+      sql`
+        select
+          coalesce(sum(amount) filter (where type = 'earn' and date >= ${currentStart}), 0)::int as earned_current,
+          coalesce(sum(amount) filter (where type = 'earn' and date >= ${previousStart} and date < ${previousEnd}), 0)::int as earned_previous,
+          coalesce(sum(-amount) filter (where type = 'redeem' and date >= ${currentStart}), 0)::int as redeemed_current,
+          coalesce(sum(-amount) filter (where type = 'redeem' and date >= ${previousStart} and date < ${previousEnd}), 0)::int as redeemed_previous
+        from activity where user_id = ${memberId}
+      `,
+      sql`
+        select
+          coalesce(sum(ri.quantity) filter (where ga.name = '9 Hole Round' and r.submitted_at >= ${currentStart}), 0)::int as r9_current,
+          coalesce(sum(ri.quantity) filter (where ga.name = '9 Hole Round' and r.submitted_at >= ${previousStart} and r.submitted_at < ${previousEnd}), 0)::int as r9_previous,
+          coalesce(sum(ri.quantity) filter (where ga.name = '18 Hole Round' and r.submitted_at >= ${currentStart}), 0)::int as r18_current,
+          coalesce(sum(ri.quantity) filter (where ga.name = '18 Hole Round' and r.submitted_at >= ${previousStart} and r.submitted_at < ${previousEnd}), 0)::int as r18_previous
+        from receipts r
+        join receipt_items ri on ri.receipt_id = r.id
+        join golf_activities ga on ga.id = ri.matched_activity_id
+        where r.user_id = ${memberId}
+      `,
+      sql`
+        select
+          count(*) filter (where submitted_at >= ${currentStart})::int as current,
+          count(*) filter (where submitted_at >= ${previousStart} and submitted_at < ${previousEnd})::int as previous
+        from receipts where user_id = ${memberId}
+      `,
+      sql`select month, value from monthly_points where user_id = ${memberId} and year = extract(year from now())::int`,
+    ]);
+
+    const bucks = (bucksRows as Array<{
+      earned_current: number;
+      earned_previous: number;
+      redeemed_current: number;
+      redeemed_previous: number;
+    }>)[0];
+    const rounds = (roundsRows as Array<{
+      r9_current: number;
+      r9_previous: number;
+      r18_current: number;
+      r18_previous: number;
+    }>)[0];
+    const receipts = (receiptRows as Array<{ current: number; previous: number }>)[0];
+
+    res.status(200).json({
+      member: {
+        id: m.id,
+        firstName: m.first_name,
+        lastName: m.last_name,
+        email: m.email,
+        tier: m.tier,
+        memberSince: m.member_since,
+        balance: m.balance,
+        totalEarned: m.total_earned,
+        totalRedeemed: m.total_redeemed,
+      },
+      stats: {
+        period,
+        roundsPlayed9: rounds.r9_current,
+        roundsPlayed9DeltaPct: deltaPct(rounds.r9_current, rounds.r9_previous, hasComparison),
+        roundsPlayed18: rounds.r18_current,
+        roundsPlayed18DeltaPct: deltaPct(rounds.r18_current, rounds.r18_previous, hasComparison),
+        bucksEarned: bucks.earned_current,
+        bucksEarnedDeltaPct: deltaPct(bucks.earned_current, bucks.earned_previous, hasComparison),
+        bucksRedeemed: bucks.redeemed_current,
+        bucksRedeemedDeltaPct: deltaPct(bucks.redeemed_current, bucks.redeemed_previous, hasComparison),
+        receiptsScanned: receipts.current,
+        receiptsScannedDeltaPct: deltaPct(receipts.current, receipts.previous, hasComparison),
+        monthly: monthlyRows as Array<{ month: string; value: number }>,
+      },
+    });
+    return;
+  }
+
   if (action === 'voucherLookup' && req.method === 'GET') {
     const code = typeof req.query.code === 'string' ? req.query.code.trim().toUpperCase() : '';
     if (!code) throw new HttpError(400, 'code is required');
@@ -800,6 +898,21 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         rows.map((r) => [r.first_name, r.last_name, r.email, r.tier, r.member_since, r.balance, r.total_earned, r.total_redeemed]),
       );
       filename = 'members.csv';
+    } else if (report === 'memberActivity') {
+      const memberId = typeof req.query.userId === 'string' ? req.query.userId : '';
+      if (!memberId) throw new HttpError(400, 'userId is required');
+      const owned = await sql`select id from users where id = ${memberId} and course_id = ${courseId}`;
+      if ((owned as Array<{ id: string }>).length === 0) throw new HttpError(404, 'Member not found');
+      const rows = (await sql`
+        select date, type, title, subtitle, amount
+        from activity where user_id = ${memberId}
+        order by date desc
+      `) as Array<{ date: string; type: string; title: string; subtitle: string; amount: number }>;
+      csv = toCsv(
+        ['Date', 'Type', 'Title', 'Details', 'Flagrr Cash'],
+        rows.map((r) => [r.date, r.type, r.title, r.subtitle, r.amount]),
+      );
+      filename = `member-activity-${memberId}.csv`;
     } else {
       throw new HttpError(400, 'Unknown report');
     }

@@ -6,6 +6,7 @@ import { AdminRewardEditScreen } from '../screens/admin/AdminRewardEditScreen';
 import { AdminAdEditScreen } from '../screens/admin/AdminAdEditScreen';
 import { AdminNotificationsScreen } from '../screens/admin/AdminNotificationsScreen';
 import { AdminEnquiryChatScreen } from '../screens/admin/AdminEnquiryChatScreen';
+import { AdminMemberStatsScreen } from '../screens/admin/AdminMemberStatsScreen';
 
 const Stack = createNativeStackNavigator<AdminStackParamList>();
 
@@ -17,6 +18,7 @@ export function AdminNavigator() {
       <Stack.Screen name="AdminAdEdit" component={AdminAdEditScreen} />
       <Stack.Screen name="AdminNotifications" component={AdminNotificationsScreen} />
       <Stack.Screen name="AdminEnquiryChat" component={AdminEnquiryChatScreen} />
+      <Stack.Screen name="AdminMemberStats" component={AdminMemberStatsScreen} />
     </Stack.Navigator>
   );
 }

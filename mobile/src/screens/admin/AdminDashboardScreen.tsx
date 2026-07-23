@@ -9,10 +9,13 @@ import type { AdminStackParamList, AdminTabParamList } from '../../navigation/ty
 import { StatCard } from '../../components/common/StatCard';
 import { BarChart } from '../../components/common/BarChart';
 import { AdminHeaderAvatar } from '../../components/common/AdminHeaderAvatar';
+import { TextField } from '../../components/common/TextField';
+import { PillButton } from '../../components/common/PillButton';
 import { useAdmin } from '../../context/AdminContext';
 import { downloadCsvReport, AdminApiError } from '../../api/adminClient';
 import { showAlert } from '../../utils/alert';
 import { colors, fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
+import type { AdminMember } from '../../data/adminTypes';
 
 type Period = 'month' | 'year' | 'all';
 const PERIOD_LABELS: Record<Period, string> = { month: 'Month', year: 'Year', all: 'All' };
@@ -37,14 +40,36 @@ type Props = CompositeScreenProps<
 >;
 
 export function AdminDashboardScreen({ navigation }: Props) {
-  const { course, dashboard, dashboardPeriod, dashboardLoading, setDashboardPeriod, refreshDashboard, unreadNotificationCount } =
-    useAdmin();
+  const {
+    course,
+    dashboard,
+    dashboardPeriod,
+    dashboardLoading,
+    setDashboardPeriod,
+    refreshDashboard,
+    unreadNotificationCount,
+    searchMembers,
+  } = useAdmin();
   const [exporting, setExporting] = useState<string | null>(null);
+  const [memberSearch, setMemberSearch] = useState('');
+  const [memberResults, setMemberResults] = useState<AdminMember[]>([]);
+  const [searchingMembers, setSearchingMembers] = useState(false);
 
   useEffect(() => {
     refreshDashboard();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const handleSearchMembers = async () => {
+    setSearchingMembers(true);
+    try {
+      setMemberResults(await searchMembers(memberSearch.trim()));
+    } catch {
+      setMemberResults([]);
+    } finally {
+      setSearchingMembers(false);
+    }
+  };
 
   const handleExport = async (report: ReportKind) => {
     setExporting(report);
@@ -199,6 +224,36 @@ export function AdminDashboardScreen({ navigation }: Props) {
                 ))}
               </View>
             </View>
+
+            <Text style={styles.sectionTitle}>Look Up a Member</Text>
+            <View style={styles.card}>
+              <TextField
+                placeholder="Search by name or email"
+                variant="onLight"
+                value={memberSearch}
+                onChangeText={setMemberSearch}
+                onSubmitEditing={handleSearchMembers}
+                returnKeyType="search"
+              />
+              <PillButton label="Search" icon="search" variant="outline" onPress={handleSearchMembers} loading={searchingMembers} />
+              {memberResults.map((m) => (
+                <TouchableOpacity
+                  key={m.id}
+                  style={styles.memberRow}
+                  onPress={() => navigation.navigate('AdminMemberStats', { memberId: m.id })}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.memberName}>{m.firstName} {m.lastName}</Text>
+                    <Text style={styles.memberEmail}>{m.email}</Text>
+                  </View>
+                  <View style={{ alignItems: 'flex-end' }}>
+                    <Text style={styles.memberTier}>{m.tier}</Text>
+                    <Text style={styles.memberBalance}>{m.balance.toLocaleString()} FC</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color={colors.clubGreen} />
+                </TouchableOpacity>
+              ))}
+            </View>
           </>
         ) : null}
       </ScrollView>
@@ -302,4 +357,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: radius.md,
   },
+  memberRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.white,
+    borderRadius: radius.md,
+    padding: spacing.sm,
+  },
+  memberName: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.textPrimary },
+  memberEmail: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary },
+  memberTier: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.tiny, color: colors.darkGreen },
+  memberBalance: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary },
 });

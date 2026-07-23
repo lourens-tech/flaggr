@@ -13,6 +13,7 @@ import type {
   DashboardReport,
   EnquiryMessage,
   EnquiryStatus,
+  MemberStats,
 } from '../data/adminTypes';
 
 // Deliberately separate from api/client.ts's token/base logic — a
@@ -161,6 +162,9 @@ export const adminApi = {
   members: (search: string) =>
     request<AdminMember[]>(`?action=members&search=${encodeURIComponent(search)}`),
 
+  memberStats: (id: string, period: 'month' | 'year' | 'all') =>
+    request<MemberStats>(`?action=memberStats&id=${id}&period=${period}`),
+
   notifications: () => request<AdminNotification[]>('?action=notifications'),
 
   markNotificationRead: (id: string) =>
@@ -188,8 +192,9 @@ export const adminApi = {
  * exists today) — triggers a browser file download via a Blob + temporary
  * anchor, since a plain <a href> can't carry the Authorization header. */
 export async function downloadCsvReport(
-  report: 'redemptions' | 'receipts' | 'members',
+  report: 'redemptions' | 'receipts' | 'members' | 'memberActivity',
   period: 'month' | 'year' | 'all',
+  options?: { userId?: string; filename?: string },
 ): Promise<boolean> {
   if (Platform.OS !== 'web') return false;
 
@@ -197,7 +202,10 @@ export async function downloadCsvReport(
   const headers: Record<string, string> = {};
   if (token) headers.Authorization = `Bearer ${token}`;
 
-  const res = await fetch(`${API_BASE_URL}/api/admin?action=exportCsv&report=${report}&period=${period}`, {
+  const params = new URLSearchParams({ action: 'exportCsv', report, period });
+  if (options?.userId) params.set('userId', options.userId);
+
+  const res = await fetch(`${API_BASE_URL}/api/admin?${params.toString()}`, {
     headers,
     cache: 'no-store',
   });
@@ -208,7 +216,7 @@ export async function downloadCsvReport(
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = `${report}-${period}.csv`;
+  link.download = options?.filename ?? `${report}-${period}.csv`;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
