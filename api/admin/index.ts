@@ -99,6 +99,7 @@ function courseDto(row: {
   name: string;
   slug: string;
   logo_url: string | null;
+  cover_image_url: string | null;
   contact_email: string | null;
   contact_phone: string | null;
   address: string | null;
@@ -109,6 +110,7 @@ function courseDto(row: {
     name: row.name,
     slug: row.slug,
     logoUrl: row.logo_url,
+    coverImageUrl: row.cover_image_url,
     contactEmail: row.contact_email,
     contactPhone: row.contact_phone,
     address: row.address,
@@ -118,13 +120,14 @@ function courseDto(row: {
 
 async function fetchCourse(courseId: string) {
   const rows = (await sql`
-    select id, name, slug, logo_url, contact_email, contact_phone, address, fb_per_rand
+    select id, name, slug, logo_url, cover_image_url, contact_email, contact_phone, address, fb_per_rand
     from courses where id = ${courseId}
   `) as Array<{
     id: string;
     name: string;
     slug: string;
     logo_url: string | null;
+    cover_image_url: string | null;
     contact_email: string | null;
     contact_phone: string | null;
     address: string | null;
@@ -423,6 +426,19 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     }
     await sql`update courses set logo_url = ${imageBase64} where id = ${courseId}`;
     res.status(200).json({ logoUrl: imageBase64 });
+    return;
+  }
+
+  if (action === 'courseCover') {
+    const imageBase64 = (req.body as LogoBody).imageBase64;
+    if (!imageBase64 || !DATA_URI_PATTERN.test(imageBase64)) {
+      throw new HttpError(400, 'imageBase64 must be a jpeg/png/webp data URI');
+    }
+    if (imageBase64.length > MAX_IMAGE_BASE64_LENGTH) {
+      throw new HttpError(400, 'Image is too large');
+    }
+    await sql`update courses set cover_image_url = ${imageBase64} where id = ${courseId}`;
+    res.status(200).json({ coverImageUrl: imageBase64 });
     return;
   }
 

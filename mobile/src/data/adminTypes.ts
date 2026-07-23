@@ -13,6 +13,7 @@ export interface AdminCourse {
   name: string;
   slug: string;
   logoUrl: string | null;
+  coverImageUrl: string | null;
   contactEmail: string | null;
   contactPhone: string | null;
   address: string | null;

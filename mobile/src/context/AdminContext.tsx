@@ -31,6 +31,7 @@ const EMPTY_COURSE: AdminCourse = {
   name: '',
   slug: '',
   logoUrl: null,
+  coverImageUrl: null,
   contactEmail: null,
   contactPhone: null,
   address: null,
@@ -70,6 +71,7 @@ interface AdminContextValue {
   setEnquiryStatus: (enquiryId: string, status: EnquiryStatus) => Promise<void>;
   updateCourseProfile: (payload: CourseProfilePayload) => Promise<void>;
   updateCourseLogo: (imageBase64: string) => Promise<void>;
+  updateCourseCover: (imageBase64: string) => Promise<void>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
 }
 
@@ -218,6 +220,11 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     setCourse((prev) => ({ ...prev, logoUrl: res.logoUrl }));
   };
 
+  const updateCourseCover = async (imageBase64: string) => {
+    const res = await adminApi.updateCourseCover(imageBase64);
+    setCourse((prev) => ({ ...prev, coverImageUrl: res.coverImageUrl }));
+  };
+
   const changePassword = async (currentPassword: string, newPassword: string) => {
     await adminApi.changePassword(currentPassword, newPassword);
   };
@@ -255,6 +262,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     setEnquiryStatus,
     updateCourseProfile,
     updateCourseLogo,
+    updateCourseCover,
     changePassword,
   };
 

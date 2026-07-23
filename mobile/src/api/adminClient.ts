@@ -142,6 +142,9 @@ export const adminApi = {
   updateCourseLogo: (imageBase64: string) =>
     request<{ logoUrl: string }>('?action=courseLogo', { method: 'POST', body: { imageBase64 } }),
 
+  updateCourseCover: (imageBase64: string) =>
+    request<{ coverImageUrl: string }>('?action=courseCover', { method: 'POST', body: { imageBase64 } }),
+
   rewards: () => request<AdminReward[]>('?action=rewards'),
 
   saveReward: (payload: RewardSavePayload) =>

@@ -10,6 +10,7 @@ create table courses (
   name text not null,
   slug text not null unique,
   logo_url text,
+  cover_image_url text,
   fb_per_rand numeric not null default 2.8, -- Flagrr Cash per R1, used to auto-price reward variants from a Rand value
   -- Billing fields for the future marketing-site "subscribe your golf
   -- course" flow (Stripe Checkout + webhook). Null for courses onboarded

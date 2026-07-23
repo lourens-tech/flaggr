@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Image, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import type { CompositeScreenProps } from '@react-navigation/native';
@@ -79,6 +79,10 @@ export function AdminDashboardScreen({ navigation }: Props) {
       </SafeAreaView>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        {course.coverImageUrl ? (
+          <Image source={{ uri: course.coverImageUrl }} style={styles.coverImage} />
+        ) : null}
+
         <View style={styles.statsHeaderRow}>
           <Text style={styles.sectionTitle}>Overview</Text>
           <View style={styles.periodToggle}>
@@ -191,6 +195,12 @@ const styles = StyleSheet.create({
   },
   badgeText: { fontFamily: fontFamily.bodySemiBold, fontSize: 9, color: colors.darkGreen },
   content: { padding: screenPadding, paddingBottom: spacing.xl * 2 },
+  coverImage: {
+    width: '100%',
+    height: 140,
+    borderRadius: radius.md,
+    marginBottom: spacing.md,
+  },
   statsHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',

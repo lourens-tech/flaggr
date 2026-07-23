@@ -6,7 +6,7 @@ import { TextField } from '../../components/common/TextField';
 import { PillButton } from '../../components/common/PillButton';
 import { useAdmin } from '../../context/AdminContext';
 import { AdminApiError } from '../../api/adminClient';
-import { pickAndResizeAvatar, AvatarPermissionError } from '../../utils/pickAvatar';
+import { pickAndResizeAvatar, pickAndResizeCoverImage, AvatarPermissionError } from '../../utils/pickAvatar';
 import { showAlert } from '../../utils/alert';
 import { colors, fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
 import type { AdminMember } from '../../data/adminTypes';
@@ -14,7 +14,8 @@ import type { AdminMember } from '../../data/adminTypes';
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function AdminCourseProfileScreen() {
-  const { admin, course, updateCourseProfile, updateCourseLogo, changePassword, searchMembers, logout } = useAdmin();
+  const { admin, course, updateCourseProfile, updateCourseLogo, updateCourseCover, changePassword, searchMembers, logout } =
+    useAdmin();
 
   const [name, setName] = useState(course.name);
   const [contactEmail, setContactEmail] = useState(course.contactEmail ?? '');
@@ -23,6 +24,7 @@ export function AdminCourseProfileScreen() {
   const [fbPerRand, setFbPerRand] = useState(String(course.fbPerRand));
   const [savingProfile, setSavingProfile] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [uploadingCover, setUploadingCover] = useState(false);
 
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -41,6 +43,18 @@ export function AdminCourseProfileScreen() {
       if (err instanceof AvatarPermissionError) showAlert('Permission needed', err.message);
     } finally {
       setUploadingLogo(false);
+    }
+  };
+
+  const handlePickCover = async () => {
+    setUploadingCover(true);
+    try {
+      const result = await pickAndResizeCoverImage();
+      if (result) await updateCourseCover(result);
+    } catch (err) {
+      if (err instanceof AvatarPermissionError) showAlert('Permission needed', err.message);
+    } finally {
+      setUploadingCover(false);
     }
   };
 
@@ -135,6 +149,25 @@ export function AdminCourseProfileScreen() {
           <Text style={styles.logoHint}>Tap to change logo</Text>
         </TouchableOpacity>
 
+        <Text style={styles.sectionTitle}>Reports Cover Photo</Text>
+        <TouchableOpacity style={styles.coverPicker} onPress={handlePickCover} disabled={uploadingCover}>
+          {course.coverImageUrl ? (
+            <Image source={{ uri: course.coverImageUrl }} style={styles.coverImage} />
+          ) : (
+            <View style={styles.coverPlaceholder}>
+              <Ionicons name="image-outline" size={22} color={colors.clubGreen} />
+              <Text style={styles.coverHint}>Tap to add a cover photo</Text>
+            </View>
+          )}
+          {uploadingCover ? (
+            <View style={styles.coverOverlay}>
+              <ActivityIndicator color={colors.white} />
+            </View>
+          ) : null}
+        </TouchableOpacity>
+        <Text style={styles.helpText}>Shown at the top of your Reports dashboard.</Text>
+
+        <View style={{ height: spacing.lg }} />
         <TextField placeholder="Course Name" variant="onLight" value={name} onChangeText={setName} />
         <View style={{ height: spacing.md }} />
         <TextField
@@ -235,6 +268,28 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   logoHint: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.clubGreen },
+  coverPicker: {
+    width: '100%',
+    height: 120,
+    borderRadius: radius.md,
+    overflow: 'hidden',
+  },
+  coverImage: { width: '100%', height: '100%' },
+  coverPlaceholder: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: colors.imagePlaceholder,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  coverHint: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.clubGreen },
+  coverOverlay: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   helpText: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary, marginTop: 6, marginLeft: 4 },
   sectionTitle: {
     fontFamily: fontFamily.heading,
