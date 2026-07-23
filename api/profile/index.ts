@@ -95,7 +95,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     if (!adId) {
       throw new HttpError(400, 'adId is required');
     }
-    await logAdClick(adId, authed.id);
+    await logAdClick(adId, authed.id, authed.courseId);
     res.status(200).json({ ok: true });
     return;
   }

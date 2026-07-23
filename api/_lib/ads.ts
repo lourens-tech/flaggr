@@ -35,7 +35,12 @@ export async function getActiveAdsForCourse(courseId: string): Promise<AdDto[]> 
   }));
 }
 
-/** Logs a member tapping an ad, for future admin ad-performance reporting. */
-export async function logAdClick(adId: string, userId: string): Promise<void> {
-  await sql`insert into ad_clicks (ad_id, user_id) values (${adId}, ${userId})`;
+/** Logs a member tapping an ad, for admin ad-performance reporting. Requires
+ * the ad to belong to the member's own course — otherwise a member could
+ * inflate another club's click counts by posting an arbitrary adId. */
+export async function logAdClick(adId: string, userId: string, courseId: string): Promise<void> {
+  await sql`
+    insert into ad_clicks (ad_id, user_id)
+    select id, ${userId} from ads where id = ${adId} and course_id = ${courseId}
+  `;
 }

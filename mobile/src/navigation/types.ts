@@ -3,6 +3,7 @@ import type { ScanResult } from '../data/types';
 export type AuthStackParamList = {
   Landing: undefined;
   Login: undefined;
+  AdminLogin: undefined;
   SignUpStep1: undefined;
   SignUpStep2: {
     firstName: string;
@@ -12,6 +13,20 @@ export type AuthStackParamList = {
     dateOfBirth: string;
     courseId: string;
   };
+};
+
+export type AdminTabParamList = {
+  AdminDashboard: undefined;
+  AdminRewards: undefined;
+  AdminAds: undefined;
+  AdminVouchers: undefined;
+  AdminCourseProfile: undefined;
+};
+
+export type AdminStackParamList = {
+  AdminTabs: undefined;
+  AdminRewardEdit: { rewardId?: string };
+  AdminAdEdit: { adId?: string };
 };
 
 export type MainTabParamList = {
@@ -24,6 +39,7 @@ export type MainTabParamList = {
 export type RootStackParamList = {
   Auth: undefined;
   Main: undefined;
+  AdminMain: undefined;
   Voucher: { voucherId: string };
   ScanReceipt: undefined;
   ReviewReceipt: { imageUri: string | null; imageBase64: string; scanResult: ScanResult & { isDuplicate: false } };

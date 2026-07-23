@@ -152,7 +152,7 @@ export const api = {
   notifications: () => request<AppNotification[]>('/notifications'),
 
   markNotificationRead: (id: string) =>
-    request<{ ok: boolean }>('/notifications/read', { method: 'POST', body: { id } }),
+    request<{ ok: boolean }>('/notifications?action=read', { method: 'POST', body: { id } }),
 
   receipts: () => request<Receipt[]>('/receipts'),
 

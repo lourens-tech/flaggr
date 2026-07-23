@@ -1,0 +1,221 @@
+import React, { createContext, useCallback, useContext, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import {
+  adminApi,
+  setAdminToken,
+  type CourseProfilePayload,
+  type AdSavePayload,
+  type RewardSavePayload,
+} from '../api/adminClient';
+import type {
+  AdminAd,
+  AdminCourse,
+  AdminMember,
+  AdminReward,
+  AdminUser,
+  AdminVoucherLookup,
+  DashboardReport,
+} from '../data/adminTypes';
+
+const ADMIN_TOKEN_KEY = 'flagrr_admin_auth_token';
+type DashboardPeriod = 'month' | 'year' | 'all';
+
+const EMPTY_ADMIN: AdminUser = { id: '', firstName: '', lastName: '', email: '', role: 'course_admin' };
+const EMPTY_COURSE: AdminCourse = {
+  id: '',
+  name: '',
+  slug: '',
+  logoUrl: null,
+  contactEmail: null,
+  contactPhone: null,
+  address: null,
+  fbPerRand: 2.8,
+};
+
+interface AdminContextValue {
+  isAdminAuthenticated: boolean;
+  isInitializing: boolean;
+  admin: AdminUser;
+  course: AdminCourse;
+  dashboard: DashboardReport | null;
+  dashboardPeriod: DashboardPeriod;
+  dashboardLoading: boolean;
+  rewards: AdminReward[];
+  ads: AdminAd[];
+  login: (email: string, password: string) => Promise<void>;
+  logout: () => Promise<void>;
+  setDashboardPeriod: (period: DashboardPeriod) => Promise<void>;
+  refreshDashboard: () => Promise<void>;
+  loadRewards: () => Promise<void>;
+  saveReward: (payload: RewardSavePayload) => Promise<void>;
+  deleteReward: (id: string) => Promise<void>;
+  loadAds: () => Promise<void>;
+  saveAd: (payload: AdSavePayload) => Promise<void>;
+  deleteAd: (id: string) => Promise<void>;
+  searchMembers: (query: string) => Promise<AdminMember[]>;
+  lookupVoucher: (code: string) => Promise<AdminVoucherLookup>;
+  redeemVoucher: (code: string) => Promise<AdminVoucherLookup>;
+  updateCourseProfile: (payload: CourseProfilePayload) => Promise<void>;
+  updateCourseLogo: (imageBase64: string) => Promise<void>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
+}
+
+const AdminContext = createContext<AdminContextValue | undefined>(undefined);
+
+export function AdminProvider({ children }: { children: React.ReactNode }) {
+  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(true);
+  const [admin, setAdmin] = useState<AdminUser>(EMPTY_ADMIN);
+  const [course, setCourse] = useState<AdminCourse>(EMPTY_COURSE);
+  const [dashboard, setDashboard] = useState<DashboardReport | null>(null);
+  const [dashboardPeriod, setDashboardPeriodState] = useState<DashboardPeriod>('month');
+  const [dashboardLoading, setDashboardLoading] = useState(false);
+  const [rewards, setRewards] = useState<AdminReward[]>([]);
+  const [ads, setAds] = useState<AdminAd[]>([]);
+
+  const refreshDashboard = useCallback(async () => {
+    setDashboardLoading(true);
+    try {
+      const report = await adminApi.dashboard(dashboardPeriod);
+      setDashboard(report);
+    } finally {
+      setDashboardLoading(false);
+    }
+  }, [dashboardPeriod]);
+
+  React.useEffect(() => {
+    (async () => {
+      try {
+        const token = await AsyncStorage.getItem(ADMIN_TOKEN_KEY);
+        if (token) {
+          await setAdminToken(token);
+          const me = await adminApi.me();
+          setAdmin(me.admin);
+          setCourse(me.course);
+          setIsAdminAuthenticated(true);
+        }
+      } catch {
+        await setAdminToken(null);
+      } finally {
+        setIsInitializing(false);
+      }
+    })();
+  }, []);
+
+  const login = async (email: string, password: string) => {
+    const res = await adminApi.login(email, password);
+    await setAdminToken(res.token);
+    setAdmin(res.admin);
+    setCourse(res.course);
+    setIsAdminAuthenticated(true);
+  };
+
+  const logout = async () => {
+    try {
+      await adminApi.logout();
+    } catch {
+      // Best-effort — clear local state regardless of whether the server call succeeds.
+    }
+    await setAdminToken(null);
+    setIsAdminAuthenticated(false);
+    setAdmin(EMPTY_ADMIN);
+    setCourse(EMPTY_COURSE);
+    setDashboard(null);
+    setRewards([]);
+    setAds([]);
+  };
+
+  const setDashboardPeriod = async (period: DashboardPeriod) => {
+    setDashboardPeriodState(period);
+    setDashboardLoading(true);
+    try {
+      const report = await adminApi.dashboard(period);
+      setDashboard(report);
+    } finally {
+      setDashboardLoading(false);
+    }
+  };
+
+  const loadRewards = useCallback(async () => {
+    setRewards(await adminApi.rewards());
+  }, []);
+
+  const saveReward = async (payload: RewardSavePayload) => {
+    await adminApi.saveReward(payload);
+    await loadRewards();
+  };
+
+  const deleteReward = async (id: string) => {
+    await adminApi.deleteReward(id);
+    await loadRewards();
+  };
+
+  const loadAds = useCallback(async () => {
+    setAds(await adminApi.ads());
+  }, []);
+
+  const saveAd = async (payload: AdSavePayload) => {
+    await adminApi.saveAd(payload);
+    await loadAds();
+  };
+
+  const deleteAd = async (id: string) => {
+    await adminApi.deleteAd(id);
+    await loadAds();
+  };
+
+  const searchMembers = async (query: string) => adminApi.members(query);
+
+  const lookupVoucher = async (code: string) => adminApi.lookupVoucher(code);
+  const redeemVoucher = async (code: string) => adminApi.redeemVoucher(code);
+
+  const updateCourseProfile = async (payload: CourseProfilePayload) => {
+    const updated = await adminApi.updateCourseProfile(payload);
+    setCourse(updated);
+  };
+
+  const updateCourseLogo = async (imageBase64: string) => {
+    const res = await adminApi.updateCourseLogo(imageBase64);
+    setCourse((prev) => ({ ...prev, logoUrl: res.logoUrl }));
+  };
+
+  const changePassword = async (currentPassword: string, newPassword: string) => {
+    await adminApi.changePassword(currentPassword, newPassword);
+  };
+
+  const value: AdminContextValue = {
+    isAdminAuthenticated,
+    isInitializing,
+    admin,
+    course,
+    dashboard,
+    dashboardPeriod,
+    dashboardLoading,
+    rewards,
+    ads,
+    login,
+    logout,
+    setDashboardPeriod,
+    refreshDashboard,
+    loadRewards,
+    saveReward,
+    deleteReward,
+    loadAds,
+    saveAd,
+    deleteAd,
+    searchMembers,
+    lookupVoucher,
+    redeemVoucher,
+    updateCourseProfile,
+    updateCourseLogo,
+    changePassword,
+  };
+
+  return <AdminContext.Provider value={value}>{children}</AdminContext.Provider>;
+}
+
+export function useAdmin(): AdminContextValue {
+  const ctx = useContext(AdminContext);
+  if (!ctx) throw new Error('useAdmin must be used within AdminProvider');
+  return ctx;
+}

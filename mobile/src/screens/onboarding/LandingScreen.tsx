@@ -52,6 +52,9 @@ export function LandingScreen({ navigation }: Props) {
             <Text style={styles.termsBold}>Terms of Use</Text> and{' '}
             <Text style={styles.termsBold}>Privacy Notice</Text>
           </Text>
+          <TouchableOpacity onPress={() => navigation.navigate('AdminLogin')} style={{ marginTop: spacing.md }}>
+            <Text style={styles.adminLink}>Golf Course Admin? Log in here</Text>
+          </TouchableOpacity>
         </View>
       </SafeAreaView>
     </View>
@@ -81,6 +84,7 @@ const styles = StyleSheet.create({
   },
   footer: { alignItems: 'center', paddingBottom: spacing.lg },
   loginLink: { fontFamily: fontFamily.bodySemiBold, fontSize: 12, color: colors.white },
+  adminLink: { fontFamily: fontFamily.body, fontSize: 11, color: 'rgba(255,255,255,0.6)' },
   terms: {
     fontFamily: fontFamily.bodyLight,
     fontSize: 12,

@@ -1,0 +1,689 @@
+import crypto from 'node:crypto';
+import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { sql } from '../_lib/db';
+import { requireAuthedCourseAdmin, hashPassword, verifyPassword } from '../_lib/auth';
+import { HttpError, withErrorHandling } from '../_lib/http';
+import { isStatsPeriod, periodWindow, type StatsPeriod } from '../_lib/periods';
+import { getDashboardReport } from '../_lib/adminReports';
+import { toCsv } from '../_lib/csv';
+
+// Every action for the course-admin side of the app lives in this one file,
+// dispatched by ?action= (same pattern as api/profile/index.ts and
+// api/receipts/index.ts), to stay within Vercel Hobby's 12-serverless-
+// function cap. Every query below is scoped to the calling admin's own
+// course_id — a course_admin can never read or write another club's data,
+// even by guessing another club's reward/ad/voucher id.
+
+const DATA_URI_PATTERN = /^data:image\/(jpeg|jpg|png|webp);base64,/;
+const MAX_IMAGE_BASE64_LENGTH = 2_000_000;
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+interface LoginBody {
+  email?: string;
+  password?: string;
+}
+
+interface ChangePasswordBody {
+  currentPassword?: string;
+  newPassword?: string;
+}
+
+interface CourseProfileBody {
+  name?: string;
+  contactEmail?: string;
+  contactPhone?: string;
+  address?: string;
+  fbPerRand?: number;
+}
+
+interface LogoBody {
+  imageBase64?: string;
+}
+
+interface RewardVariantInput {
+  id?: string;
+  label?: string;
+  randValue?: number | null;
+  cost?: number;
+  sortOrder?: number;
+  active?: boolean;
+}
+
+interface RewardSaveBody {
+  id?: string;
+  title?: string;
+  description?: string;
+  category?: string;
+  imageBase64?: string;
+  active?: boolean;
+  variants?: RewardVariantInput[];
+}
+
+interface RewardDeleteBody {
+  id?: string;
+}
+
+interface AdSaveBody {
+  id?: string;
+  placement?: string;
+  title?: string;
+  imageBase64?: string;
+  targetUrl?: string | null;
+  sortOrder?: number;
+  active?: boolean;
+  startsAt?: string | null;
+  endsAt?: string | null;
+}
+
+interface AdDeleteBody {
+  id?: string;
+}
+
+interface VoucherRedeemBody {
+  code?: string;
+}
+
+const REWARD_CATEGORIES = ['rounds', 'experiences', 'pro-shop', 'practice', 'dining'];
+const AD_PLACEMENTS = ['home', 'rewards_shop'];
+
+function courseDto(row: {
+  id: string;
+  name: string;
+  slug: string;
+  logo_url: string | null;
+  contact_email: string | null;
+  contact_phone: string | null;
+  address: string | null;
+  fb_per_rand: number;
+}) {
+  return {
+    id: row.id,
+    name: row.name,
+    slug: row.slug,
+    logoUrl: row.logo_url,
+    contactEmail: row.contact_email,
+    contactPhone: row.contact_phone,
+    address: row.address,
+    fbPerRand: Number(row.fb_per_rand),
+  };
+}
+
+async function fetchCourse(courseId: string) {
+  const rows = (await sql`
+    select id, name, slug, logo_url, contact_email, contact_phone, address, fb_per_rand
+    from courses where id = ${courseId}
+  `) as Array<{
+    id: string;
+    name: string;
+    slug: string;
+    logo_url: string | null;
+    contact_email: string | null;
+    contact_phone: string | null;
+    address: string | null;
+    fb_per_rand: number;
+  }>;
+  if (rows.length === 0) throw new HttpError(404, 'Course not found');
+  return courseDto(rows[0]);
+}
+
+export default withErrorHandling(async (req: VercelRequest, res: VercelResponse) => {
+  const action = req.query.action;
+
+  // --- Unauthenticated actions ---
+  if (action === 'login') {
+    if (req.method !== 'POST') {
+      res.status(405).json({ error: 'Method not allowed' });
+      return;
+    }
+    const { email, password } = req.body as LoginBody;
+    if (!email || !password) {
+      throw new HttpError(400, 'Email and password are required');
+    }
+
+    const rows = (await sql`
+      select id, course_id, role, first_name, last_name, email, password_hash, activated_at
+      from admins where email = ${email.trim().toLowerCase()}
+    `) as Array<{
+      id: string;
+      course_id: string | null;
+      role: 'super_admin' | 'course_admin';
+      first_name: string;
+      last_name: string;
+      email: string;
+      password_hash: string | null;
+      activated_at: string | null;
+    }>;
+
+    const admin = rows[0];
+    if (!admin || !admin.password_hash || !admin.activated_at) {
+      throw new HttpError(401, 'Invalid email or password');
+    }
+    if (!(await verifyPassword(password, admin.password_hash))) {
+      throw new HttpError(401, 'Invalid email or password');
+    }
+    if (admin.role !== 'course_admin' || !admin.course_id) {
+      throw new HttpError(403, 'This account type is not supported yet');
+    }
+
+    const sessionRows = (await sql`
+      insert into admin_sessions (admin_id) values (${admin.id}) returning token
+    `) as Array<{ token: string }>;
+
+    const course = await fetchCourse(admin.course_id);
+    res.status(200).json({
+      token: sessionRows[0].token,
+      admin: {
+        id: admin.id,
+        firstName: admin.first_name,
+        lastName: admin.last_name,
+        email: admin.email,
+        role: admin.role,
+      },
+      course,
+    });
+    return;
+  }
+
+  // --- Everything below requires a logged-in course_admin ---
+  const authed = await requireAuthedCourseAdmin(req);
+  const courseId = authed.courseId;
+
+  if (action === 'logout') {
+    const header = req.headers.authorization;
+    const token = header?.slice('Bearer '.length).trim();
+    if (token) {
+      await sql`delete from admin_sessions where token = ${token}`;
+    }
+    res.status(200).json({ ok: true });
+    return;
+  }
+
+  if (action === 'me' && req.method === 'GET') {
+    const course = await fetchCourse(courseId);
+    res.status(200).json({
+      admin: { id: authed.id, firstName: authed.firstName, lastName: authed.lastName, email: authed.email, role: authed.role },
+      course,
+    });
+    return;
+  }
+
+  if (action === 'dashboard' && req.method === 'GET') {
+    const period: StatsPeriod = isStatsPeriod(req.query.period) ? req.query.period : 'month';
+    const report = await getDashboardReport(courseId, period);
+    res.status(200).json(report);
+    return;
+  }
+
+  if (action === 'changePassword') {
+    const { currentPassword, newPassword } = req.body as ChangePasswordBody;
+    if (!currentPassword || !newPassword || newPassword.length < 8) {
+      throw new HttpError(400, 'Current password and a new password (min. 8 characters) are required');
+    }
+    const rows = (await sql`select password_hash from admins where id = ${authed.id}`) as Array<{ password_hash: string | null }>;
+    if (!rows[0]?.password_hash || !(await verifyPassword(currentPassword, rows[0].password_hash))) {
+      throw new HttpError(401, 'Current password is incorrect');
+    }
+    const newHash = await hashPassword(newPassword);
+    await sql`update admins set password_hash = ${newHash} where id = ${authed.id}`;
+    res.status(200).json({ ok: true });
+    return;
+  }
+
+  if (action === 'courseProfile') {
+    const body = req.body as CourseProfileBody;
+    const name = body.name?.trim();
+    if (!name) throw new HttpError(400, 'name is required');
+    const contactEmail = body.contactEmail?.trim() || null;
+    if (contactEmail && !EMAIL_PATTERN.test(contactEmail)) {
+      throw new HttpError(400, 'Enter a valid contact email address');
+    }
+    const contactPhone = body.contactPhone?.trim() || null;
+    const address = body.address?.trim() || null;
+    const fbPerRand = typeof body.fbPerRand === 'number' && body.fbPerRand > 0 ? body.fbPerRand : null;
+    if (body.fbPerRand !== undefined && fbPerRand === null) {
+      throw new HttpError(400, 'fbPerRand must be a positive number');
+    }
+
+    const current = await fetchCourse(courseId);
+    const nextFbPerRand = fbPerRand ?? current.fbPerRand;
+
+    await sql`
+      update courses
+      set name = ${name}, contact_email = ${contactEmail}, contact_phone = ${contactPhone},
+          address = ${address}, fb_per_rand = ${nextFbPerRand}
+      where id = ${courseId}
+    `;
+
+    // Reprice existing Rand-denominated variants so displayed FC costs stay
+    // consistent with the new rate, rather than only affecting new rewards.
+    if (fbPerRand !== null && fbPerRand !== current.fbPerRand) {
+      await sql`
+        update reward_variants
+        set cost = round(rand_value * ${fbPerRand})
+        where rand_value is not null
+          and reward_id in (select id from rewards where course_id = ${courseId})
+      `;
+    }
+
+    res.status(200).json(await fetchCourse(courseId));
+    return;
+  }
+
+  if (action === 'courseLogo') {
+    const imageBase64 = (req.body as LogoBody).imageBase64;
+    if (!imageBase64 || !DATA_URI_PATTERN.test(imageBase64)) {
+      throw new HttpError(400, 'imageBase64 must be a jpeg/png/webp data URI');
+    }
+    if (imageBase64.length > MAX_IMAGE_BASE64_LENGTH) {
+      throw new HttpError(400, 'Image is too large');
+    }
+    await sql`update courses set logo_url = ${imageBase64} where id = ${courseId}`;
+    res.status(200).json({ logoUrl: imageBase64 });
+    return;
+  }
+
+  if (action === 'rewards' && req.method === 'GET') {
+    const rows = (await sql`
+      select r.id, r.title, r.description, r.image_url, r.category, r.active,
+             v.id as variant_id, v.label, v.rand_value, v.cost, v.sort_order, v.active as variant_active
+      from rewards r
+      left join reward_variants v on v.reward_id = r.id
+      where r.course_id = ${courseId}
+      order by r.title, v.sort_order
+    `) as Array<{
+      id: string;
+      title: string;
+      description: string;
+      image_url: string | null;
+      category: string;
+      active: boolean;
+      variant_id: string | null;
+      label: string | null;
+      rand_value: number | null;
+      cost: number | null;
+      sort_order: number | null;
+      variant_active: boolean | null;
+    }>;
+
+    const byId = new Map<string, any>();
+    for (const row of rows) {
+      let reward = byId.get(row.id);
+      if (!reward) {
+        reward = {
+          id: row.id,
+          title: row.title,
+          description: row.description,
+          imageUrl: row.image_url,
+          category: row.category,
+          active: row.active,
+          variants: [],
+        };
+        byId.set(row.id, reward);
+      }
+      if (row.variant_id) {
+        reward.variants.push({
+          id: row.variant_id,
+          label: row.label,
+          randValue: row.rand_value,
+          cost: row.cost,
+          sortOrder: row.sort_order,
+          active: row.variant_active,
+        });
+      }
+    }
+    res.status(200).json(Array.from(byId.values()));
+    return;
+  }
+
+  if (action === 'rewardSave') {
+    const body = req.body as RewardSaveBody;
+    const title = body.title?.trim();
+    const category = body.category;
+    if (!title || !category || !REWARD_CATEGORIES.includes(category)) {
+      throw new HttpError(400, 'title and a valid category are required');
+    }
+    if (body.imageBase64 && (!DATA_URI_PATTERN.test(body.imageBase64) || body.imageBase64.length > MAX_IMAGE_BASE64_LENGTH)) {
+      throw new HttpError(400, 'imageBase64 must be a jpeg/png/webp data URI under the size limit');
+    }
+    if (!body.variants || body.variants.length === 0) {
+      throw new HttpError(400, 'At least one variant is required');
+    }
+
+    const course = await fetchCourse(courseId);
+
+    let rewardId = body.id;
+    if (rewardId) {
+      const owned = (await sql`select id from rewards where id = ${rewardId} and course_id = ${courseId}`) as Array<{ id: string }>;
+      if (owned.length === 0) throw new HttpError(404, 'Reward not found');
+      await sql`
+        update rewards
+        set title = ${title}, description = ${body.description ?? ''}, category = ${category},
+            active = ${body.active ?? true}
+            ${body.imageBase64 ? sql`, image_url = ${body.imageBase64}` : sql``}
+        where id = ${rewardId}
+      `;
+    } else {
+      const inserted = (await sql`
+        insert into rewards (course_id, title, description, image_url, category, active)
+        values (${courseId}, ${title}, ${body.description ?? ''}, ${body.imageBase64 ?? null}, ${category}, ${body.active ?? true})
+        returning id
+      `) as Array<{ id: string }>;
+      rewardId = inserted[0].id;
+    }
+
+    for (const [i, variant] of body.variants.entries()) {
+      const label = variant.label?.trim();
+      if (!label) throw new HttpError(400, 'Every variant needs a label');
+      const randValue = typeof variant.randValue === 'number' ? variant.randValue : null;
+      const cost = randValue !== null ? Math.round(randValue * course.fbPerRand) : variant.cost;
+      if (typeof cost !== 'number' || cost < 0) {
+        throw new HttpError(400, `Variant "${label}" needs a Rand value or an explicit Flagrr Cash cost`);
+      }
+      const sortOrder = variant.sortOrder ?? i;
+      const active = variant.active ?? true;
+
+      if (variant.id) {
+        const owned = (await sql`
+          select v.id from reward_variants v join rewards r on r.id = v.reward_id
+          where v.id = ${variant.id} and r.course_id = ${courseId}
+        `) as Array<{ id: string }>;
+        if (owned.length === 0) throw new HttpError(404, 'Variant not found');
+        await sql`
+          update reward_variants
+          set label = ${label}, rand_value = ${randValue}, cost = ${cost}, sort_order = ${sortOrder}, active = ${active}
+          where id = ${variant.id}
+        `;
+      } else {
+        await sql`
+          insert into reward_variants (reward_id, label, rand_value, cost, sort_order, active)
+          values (${rewardId}, ${label}, ${randValue}, ${cost}, ${sortOrder}, ${active})
+        `;
+      }
+    }
+
+    res.status(200).json({ id: rewardId });
+    return;
+  }
+
+  if (action === 'rewardDelete') {
+    const id = (req.body as RewardDeleteBody).id;
+    if (!id) throw new HttpError(400, 'id is required');
+    // Soft-delete: rewards/variants are referenced by past vouchers with no
+    // cascade, so hard-deleting would either fail or orphan redemption
+    // history. Deactivating hides it from the Rewards Shop instead.
+    await sql`update rewards set active = false where id = ${id} and course_id = ${courseId}`;
+    await sql`
+      update reward_variants set active = false
+      where reward_id in (select id from rewards where id = ${id} and course_id = ${courseId})
+    `;
+    res.status(200).json({ ok: true });
+    return;
+  }
+
+  if (action === 'ads' && req.method === 'GET') {
+    const rows = (await sql`
+      select a.id, a.placement, a.title, a.image_url, a.target_url, a.sort_order, a.active,
+             a.starts_at, a.ends_at, count(c.id)::int as clicks
+      from ads a
+      left join ad_clicks c on c.ad_id = a.id
+      where a.course_id = ${courseId}
+      group by a.id
+      order by a.placement, a.sort_order
+    `) as Array<{
+      id: string;
+      placement: string;
+      title: string;
+      image_url: string | null;
+      target_url: string | null;
+      sort_order: number;
+      active: boolean;
+      starts_at: string | null;
+      ends_at: string | null;
+      clicks: number;
+    }>;
+    res.status(200).json(
+      rows.map((r) => ({
+        id: r.id,
+        placement: r.placement,
+        title: r.title,
+        imageUrl: r.image_url,
+        targetUrl: r.target_url,
+        sortOrder: r.sort_order,
+        active: r.active,
+        startsAt: r.starts_at,
+        endsAt: r.ends_at,
+        clicks: r.clicks,
+      })),
+    );
+    return;
+  }
+
+  if (action === 'adSave') {
+    const body = req.body as AdSaveBody;
+    const title = body.title?.trim();
+    const placement = body.placement;
+    if (!title || !placement || !AD_PLACEMENTS.includes(placement)) {
+      throw new HttpError(400, 'title and a valid placement are required');
+    }
+    if (body.imageBase64 && (!DATA_URI_PATTERN.test(body.imageBase64) || body.imageBase64.length > MAX_IMAGE_BASE64_LENGTH)) {
+      throw new HttpError(400, 'imageBase64 must be a jpeg/png/webp data URI under the size limit');
+    }
+    const targetUrl = body.targetUrl?.trim() || null;
+    const startsAt = body.startsAt || null;
+    const endsAt = body.endsAt || null;
+    const sortOrder = body.sortOrder ?? 0;
+    const active = body.active ?? true;
+
+    if (body.id) {
+      const owned = (await sql`select id from ads where id = ${body.id} and course_id = ${courseId}`) as Array<{ id: string }>;
+      if (owned.length === 0) throw new HttpError(404, 'Ad not found');
+      await sql`
+        update ads
+        set title = ${title}, placement = ${placement}, target_url = ${targetUrl}, sort_order = ${sortOrder},
+            active = ${active}, starts_at = ${startsAt}, ends_at = ${endsAt}, updated_at = now()
+            ${body.imageBase64 ? sql`, image_url = ${body.imageBase64}` : sql``}
+        where id = ${body.id}
+      `;
+      res.status(200).json({ id: body.id });
+    } else {
+      const inserted = (await sql`
+        insert into ads (course_id, placement, title, image_url, target_url, sort_order, active, starts_at, ends_at)
+        values (${courseId}, ${placement}, ${title}, ${body.imageBase64 ?? null}, ${targetUrl}, ${sortOrder}, ${active}, ${startsAt}, ${endsAt})
+        returning id
+      `) as Array<{ id: string }>;
+      res.status(200).json({ id: inserted[0].id });
+    }
+    return;
+  }
+
+  if (action === 'adDelete') {
+    const id = (req.body as AdDeleteBody).id;
+    if (!id) throw new HttpError(400, 'id is required');
+    await sql`delete from ads where id = ${id} and course_id = ${courseId}`;
+    res.status(200).json({ ok: true });
+    return;
+  }
+
+  if (action === 'members' && req.method === 'GET') {
+    const search = typeof req.query.search === 'string' ? `%${req.query.search.trim()}%` : '%';
+    const rows = (await sql`
+      select u.id, u.first_name, u.last_name, u.email, u.tier, u.member_since, p.balance
+      from users u
+      join points_accounts p on p.user_id = u.id
+      where u.course_id = ${courseId}
+        and (u.first_name || ' ' || u.last_name ilike ${search} or u.email ilike ${search})
+      order by u.first_name, u.last_name
+      limit 100
+    `) as Array<{
+      id: string;
+      first_name: string;
+      last_name: string;
+      email: string;
+      tier: string;
+      member_since: string;
+      balance: number;
+    }>;
+    res.status(200).json(
+      rows.map((r) => ({
+        id: r.id,
+        firstName: r.first_name,
+        lastName: r.last_name,
+        email: r.email,
+        tier: r.tier,
+        memberSince: r.member_since,
+        balance: r.balance,
+      })),
+    );
+    return;
+  }
+
+  if (action === 'voucherLookup' && req.method === 'GET') {
+    const code = typeof req.query.code === 'string' ? req.query.code.trim().toUpperCase() : '';
+    if (!code) throw new HttpError(400, 'code is required');
+    const rows = await lookupVoucher(code, courseId);
+    if (rows.length === 0) throw new HttpError(404, 'No voucher found with that code for your club');
+    res.status(200).json(rows[0]);
+    return;
+  }
+
+  if (action === 'voucherRedeem') {
+    const code = (req.body as VoucherRedeemBody).code?.trim().toUpperCase();
+    if (!code) throw new HttpError(400, 'code is required');
+    const rows = await lookupVoucher(code, courseId);
+    if (rows.length === 0) throw new HttpError(404, 'No voucher found with that code for your club');
+    const voucher = rows[0];
+    if (voucher.status === 'redeemed') throw new HttpError(409, 'This voucher has already been redeemed');
+    if (voucher.status === 'expired' || new Date(voucher.expiresAt) < new Date()) {
+      throw new HttpError(409, 'This voucher has expired');
+    }
+    await sql`
+      update vouchers set status = 'redeemed', redeemed_at = now(), redeemed_by_admin_id = ${authed.id}
+      where id = ${voucher.id}
+    `;
+    res.status(200).json({ ...voucher, status: 'redeemed' });
+    return;
+  }
+
+  if (action === 'exportCsv' && req.method === 'GET') {
+    const report = typeof req.query.report === 'string' ? req.query.report : '';
+    const period: StatsPeriod = isStatsPeriod(req.query.period) ? req.query.period : 'month';
+    const { currentStart } = periodWindow(period);
+    let csv: string;
+    let filename: string;
+
+    if (report === 'redemptions') {
+      const rows = (await sql`
+        select v.code, u.first_name, u.last_name, u.email, r.title, v.variant_label, v.cost, v.status, v.issued_at, v.redeemed_at
+        from vouchers v
+        join rewards r on r.id = v.reward_id
+        join users u on u.id = v.user_id
+        where r.course_id = ${courseId} and v.issued_at >= ${currentStart}
+        order by v.issued_at desc
+      `) as Array<{
+        code: string;
+        first_name: string;
+        last_name: string;
+        email: string;
+        title: string;
+        variant_label: string;
+        cost: number;
+        status: string;
+        issued_at: string;
+        redeemed_at: string | null;
+      }>;
+      csv = toCsv(
+        ['Code', 'Member', 'Email', 'Reward', 'Variant', 'Flagrr Cash', 'Status', 'Issued At', 'Redeemed At'],
+        rows.map((r) => [r.code, `${r.first_name} ${r.last_name}`, r.email, r.title, r.variant_label, r.cost, r.status, r.issued_at, r.redeemed_at]),
+      );
+      filename = `redemptions-${period}.csv`;
+    } else if (report === 'receipts') {
+      const rows = (await sql`
+        select r.receipt_number, u.first_name, u.last_name, u.email, r.course_name, r.total, r.points_awarded, r.status, r.submitted_at
+        from receipts r
+        join users u on u.id = r.user_id
+        where r.course_id = ${courseId} and r.submitted_at >= ${currentStart}
+        order by r.submitted_at desc
+      `) as Array<{
+        receipt_number: string | null;
+        first_name: string;
+        last_name: string;
+        email: string;
+        course_name: string;
+        total: number;
+        points_awarded: number | null;
+        status: string;
+        submitted_at: string;
+      }>;
+      csv = toCsv(
+        ['Receipt #', 'Member', 'Email', 'Where Scanned', 'Total (R)', 'Flagrr Cash Awarded', 'Status', 'Submitted At'],
+        rows.map((r) => [r.receipt_number, `${r.first_name} ${r.last_name}`, r.email, r.course_name, r.total, r.points_awarded, r.status, r.submitted_at]),
+      );
+      filename = `receipts-${period}.csv`;
+    } else if (report === 'members') {
+      const rows = (await sql`
+        select u.first_name, u.last_name, u.email, u.tier, u.member_since, p.balance, p.total_earned, p.total_redeemed
+        from users u join points_accounts p on p.user_id = u.id
+        where u.course_id = ${courseId}
+        order by u.member_since desc
+      `) as Array<{
+        first_name: string;
+        last_name: string;
+        email: string;
+        tier: string;
+        member_since: string;
+        balance: number;
+        total_earned: number;
+        total_redeemed: number;
+      }>;
+      csv = toCsv(
+        ['First Name', 'Last Name', 'Email', 'Tier', 'Member Since', 'FC Balance', 'FC Total Earned', 'FC Total Redeemed'],
+        rows.map((r) => [r.first_name, r.last_name, r.email, r.tier, r.member_since, r.balance, r.total_earned, r.total_redeemed]),
+      );
+      filename = 'members.csv';
+    } else {
+      throw new HttpError(400, 'Unknown report');
+    }
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.status(200).send(csv);
+    return;
+  }
+
+  res.status(404).json({ error: 'Unknown admin action' });
+});
+
+async function lookupVoucher(code: string, courseId: string) {
+  const rows = (await sql`
+    select v.id, v.code, v.variant_label, v.cost, v.status, v.issued_at, v.expires_at,
+           r.title as reward_title, u.first_name, u.last_name, u.email
+    from vouchers v
+    join rewards r on r.id = v.reward_id
+    join users u on u.id = v.user_id
+    where v.code = ${code} and r.course_id = ${courseId}
+  `) as Array<{
+    id: string;
+    code: string;
+    variant_label: string;
+    cost: number;
+    status: string;
+    issued_at: string;
+    expires_at: string;
+    reward_title: string;
+    first_name: string;
+    last_name: string;
+    email: string;
+  }>;
+  return rows.map((r) => ({
+    id: r.id,
+    code: r.code,
+    variantLabel: r.variant_label,
+    cost: r.cost,
+    status: r.status,
+    issuedAt: r.issued_at,
+    expiresAt: r.expires_at,
+    rewardTitle: r.reward_title,
+    memberName: `${r.first_name} ${r.last_name}`,
+    memberEmail: r.email,
+  }));
+}

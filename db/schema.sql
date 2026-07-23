@@ -17,6 +17,10 @@ create table courses (
   stripe_customer_id text,
   stripe_subscription_id text,
   subscription_status text check (subscription_status in ('trialing', 'active', 'past_due', 'canceled')),
+  -- Editable from the course-admin "Course Profile" screen.
+  contact_email citext,
+  contact_phone text,
+  address text,
   created_at timestamptz not null default now()
 );
 
@@ -151,7 +155,11 @@ create table vouchers (
   status text not null default 'active' check (status in ('active', 'redeemed', 'expired')),
   qr_value text not null,
   issued_at timestamptz not null default now(),
-  expires_at timestamptz not null default now() + interval '90 days'
+  expires_at timestamptz not null default now() + interval '90 days',
+  -- Set when course staff redeem the voucher at the till — see
+  -- api/admin/index.ts (action=voucherRedeem).
+  redeemed_at timestamptz,
+  redeemed_by_admin_id uuid references admins(id) on delete set null
 );
 
 create table merchants (
@@ -328,6 +336,7 @@ create index activity_voucher_id_idx on activity(voucher_id);
 create index notifications_user_id_idx on notifications(user_id);
 create index sessions_user_id_idx on sessions(user_id);
 create index admins_course_id_idx on admins(course_id);
+create index admin_sessions_admin_id_idx on admin_sessions(admin_id);
 create unique index admins_invite_token_idx on admins(invite_token) where invite_token is not null;
 create index admin_sessions_admin_id_idx on admin_sessions(admin_id);
 create unique index receipts_receipt_number_unique_idx on receipts(receipt_number) where receipt_number is not null;

@@ -14,17 +14,20 @@ import { HelpCenterScreen } from '../screens/profile/HelpCenterScreen';
 import { ContactScreen } from '../screens/profile/ContactScreen';
 import { EditProfileScreen } from '../screens/profile/EditProfileScreen';
 import { TermsPrivacyScreen } from '../screens/profile/TermsPrivacyScreen';
+import { AdminNavigator } from './AdminNavigator';
 import { useApp } from '../context/AppContext';
+import { useAdmin } from '../context/AdminContext';
 import { colors } from '../theme';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export function RootNavigator() {
   const { isAuthenticated, isInitializing } = useApp();
+  const { isAdminAuthenticated, isInitializing: isAdminInitializing } = useAdmin();
 
-  if (isInitializing) {
-    // Restoring a stored session (checking /me) before deciding which stack to
-    // mount — avoids a flash of the Landing screen on a warm start.
+  if (isInitializing || isAdminInitializing) {
+    // Restoring a stored session (member and/or admin) before deciding which
+    // stack to mount — avoids a flash of the Landing screen on a warm start.
     return (
       <View style={styles.loading}>
         <ActivityIndicator color={colors.clubGreen} size="large" />
@@ -34,7 +37,12 @@ export function RootNavigator() {
 
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
-      {isAuthenticated ? (
+      {isAdminAuthenticated ? (
+        // A course-admin session takes priority — these are separate
+        // identities (see api/_lib/auth.ts), but a device is realistically
+        // either a staff device or a member's, not both at once.
+        <Stack.Screen name="AdminMain" component={AdminNavigator} />
+      ) : isAuthenticated ? (
         <>
           <Stack.Screen name="Main" component={MainTabNavigator} />
           <Stack.Screen name="Voucher" component={VoucherScreen} />

@@ -9,6 +9,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import * as Notifications from 'expo-notifications';
 import { fontsToLoad } from './src/theme';
 import { AppProvider } from './src/context/AppContext';
+import { AdminProvider } from './src/context/AdminContext';
 import { RootNavigator } from './src/navigation/RootNavigator';
 import { AppAlertHost } from './src/components/common/AppAlertHost';
 import { navigationRef } from './src/navigation/navigationRef';
@@ -49,10 +50,12 @@ export default function App() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <AppProvider>
-          <NavigationContainer ref={navigationRef}>
-            <RootNavigator />
-          </NavigationContainer>
-          <AppAlertHost />
+          <AdminProvider>
+            <NavigationContainer ref={navigationRef}>
+              <RootNavigator />
+            </NavigationContainer>
+            <AppAlertHost />
+          </AdminProvider>
         </AppProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
