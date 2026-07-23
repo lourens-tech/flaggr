@@ -231,6 +231,7 @@ export function MemberProfileScreen({ navigation }: Props) {
         <View style={styles.linksCard}>
           <LinkRow icon="help-circle-outline" label="Help Center" onPress={() => navigation.navigate('HelpCenter')} />
           <LinkRow icon="call-outline" label="Contact Us" onPress={() => navigation.navigate('Contact')} />
+          <LinkRow icon="chatbubbles-outline" label="My Enquiries" onPress={() => navigation.navigate('MyEnquiries')} />
         </View>
 
         <Text style={styles.sectionLabel}>Legal</Text>
