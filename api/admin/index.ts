@@ -4,6 +4,7 @@ import { sql } from '../_lib/db';
 import { requireAuthedCourseAdmin, hashPassword, verifyPassword } from '../_lib/auth';
 import { HttpError, withErrorHandling } from '../_lib/http';
 import { deltaPct, isStatsPeriod, periodWindow, type StatsPeriod } from '../_lib/periods';
+import { fillMonthlyByNumber } from '../_lib/monthly';
 import { getDashboardReport } from '../_lib/adminReports';
 import { toCsv } from '../_lib/csv';
 import {
@@ -789,7 +790,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         bucksRedeemedDeltaPct: deltaPct(bucks.redeemed_current, bucks.redeemed_previous, hasComparison),
         receiptsScanned: receipts.current,
         receiptsScannedDeltaPct: deltaPct(receipts.current, receipts.previous, hasComparison),
-        monthly: monthlyRows as Array<{ month: string; value: number }>,
+        monthly: fillMonthlyByNumber(monthlyRows as Array<{ month: number; value: number }>),
       },
     });
     return;

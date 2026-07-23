@@ -13,7 +13,6 @@ import { notifyCourseAdmins } from '../_lib/adminNotifications';
 
 const DATA_URI_PATTERN = /^data:image\/(jpeg|jpg|png|webp);base64,/;
 const MAX_BASE64_LENGTH = 7_000_000; // ~5MB decoded
-const MONTH_LETTERS = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'];
 
 interface SubmitReceiptBody {
   imageBase64?: string;
@@ -193,7 +192,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       throw err;
     }
 
-    const monthLetter = MONTH_LETTERS[new Date().getMonth()];
+    const monthNumber = new Date().getMonth() + 1;
 
     await sql.transaction([
       ...scored.items.map(
@@ -215,7 +214,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       `,
       sql`
         insert into monthly_points (user_id, year, month, value)
-        values (${authed.id}, extract(year from now())::int, ${monthLetter}, ${finalPointsAwarded})
+        values (${authed.id}, extract(year from now())::int, ${monthNumber}, ${finalPointsAwarded})
         on conflict (user_id, year, month) do update set value = monthly_points.value + excluded.value
       `,
       sql`

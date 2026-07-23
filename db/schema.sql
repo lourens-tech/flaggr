@@ -115,7 +115,7 @@ create table user_stats (
 create table monthly_points (
   user_id uuid not null references users(id) on delete cascade,
   year integer not null,
-  month text not null, -- 'J', 'F', ...
+  month smallint not null check (month between 1 and 12),
   value integer not null default 0,
   primary key (user_id, year, month)
 );

@@ -3,6 +3,7 @@ import { sql } from './_lib/db';
 import { requireAuthedUser } from './_lib/auth';
 import { withErrorHandling } from './_lib/http';
 import { deltaPct, isStatsPeriod, periodWindow, type StatsPeriod } from './_lib/periods';
+import { fillMonthlyByNumber } from './_lib/monthly';
 import { computeStreak } from './_lib/streak';
 import { getCurrentTierStatus, grantDueTierRewards } from './_lib/tierRewards';
 import { grantDueStreakReward, nextStreakMilestone } from './_lib/streakRewards';
@@ -105,7 +106,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     r18_current: number;
     r18_previous: number;
   }>)[0];
-  const monthlyRows = monthlyResult as Array<{ month: string; value: number }>;
+  const monthlyRows = fillMonthlyByNumber(monthlyResult as Array<{ month: number; value: number }>);
   const refreshedBalance = (refreshedBalanceResult as Array<{
     balance: number;
     total_earned: number;

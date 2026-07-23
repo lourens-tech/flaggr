@@ -1,5 +1,6 @@
 import { sql } from './db';
 import { deltaPct, periodWindow, type StatsPeriod } from './periods';
+import { MONTH_LETTERS } from './monthly';
 
 export interface DashboardReport {
   period: StatsPeriod;
@@ -17,8 +18,6 @@ export interface DashboardReport {
   topRewards: Array<{ rewardId: string; title: string; redemptions: number; fcSpent: number }>;
   signupsByMonth: Array<{ month: string; value: number }>;
 }
-
-const MONTH_LETTERS = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'];
 
 // Ad performance (ads/ad_clicks) is deliberately excluded from the
 // course-admin dashboard — only a super_admin should see how an ad they
