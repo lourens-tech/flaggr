@@ -49,7 +49,7 @@ export function LandingScreen({ navigation }: Props) {
           <PillButton label="Get Started" onPress={() => navigation.navigate('SignUpStep1')} />
           <View style={{ height: spacing.md }} />
           <PillButton
-            label="Golf Course Admin? Log in here"
+            label="Golf Course Admin Login"
             icon="business-outline"
             variant="outlineLight"
             onPress={() => navigation.navigate('AdminLogin')}
