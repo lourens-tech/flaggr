@@ -18,6 +18,7 @@ import { MyEnquiriesScreen } from '../screens/profile/MyEnquiriesScreen';
 import { EnquiryChatScreen } from '../screens/profile/EnquiryChatScreen';
 import { AdminNavigator } from './AdminNavigator';
 import { AdminForceChangePasswordScreen } from '../screens/admin/AdminForceChangePasswordScreen';
+import { AdminStaffWelcomeScreen } from '../screens/admin/AdminStaffWelcomeScreen';
 import { useApp } from '../context/AppContext';
 import { useAdmin } from '../context/AdminContext';
 import { useThemeColors, type ThemeColors } from '../context/ThemeContext';
@@ -28,7 +29,7 @@ export function RootNavigator() {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { isAuthenticated, isInitializing } = useApp();
-  const { isAdminAuthenticated, isInitializing: isAdminInitializing, admin } = useAdmin();
+  const { isAdminAuthenticated, isInitializing: isAdminInitializing, admin, staffWelcomePending } = useAdmin();
 
   if (isInitializing || isAdminInitializing) {
     // Restoring a stored session (member and/or admin) before deciding which
@@ -50,6 +51,8 @@ export function RootNavigator() {
         // before they can reach any other screen.
         admin.mustChangePassword ? (
           <Stack.Screen name="AdminForceChangePassword" component={AdminForceChangePasswordScreen} />
+        ) : staffWelcomePending ? (
+          <Stack.Screen name="AdminStaffWelcome" component={AdminStaffWelcomeScreen} />
         ) : (
           <Stack.Screen name="AdminMain" component={AdminNavigator} />
         )

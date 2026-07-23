@@ -107,6 +107,11 @@ interface AdminContextValue {
   dismissOnboardingWizard: () => void;
   reopenOnboardingWizard: () => void;
   completeOnboarding: () => Promise<void>;
+  // A one-time welcome screen shown to a staff account right after they
+  // complete their forced first-login password change (RootNavigator swaps
+  // AdminForceChangePasswordScreen for this before the normal admin tabs).
+  staffWelcomePending: boolean;
+  dismissStaffWelcome: () => void;
   staff: AdminStaff[];
   loadStaff: () => Promise<void>;
   createStaff: (payload: StaffCreatePayload) => Promise<AdminStaff>;
@@ -133,6 +138,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
   const [broadcasts, setBroadcasts] = useState<AdminBroadcast[]>([]);
   const [staff, setStaff] = useState<AdminStaff[]>([]);
   const [onboardingDismissed, setOnboardingDismissed] = useState(false);
+  const [staffWelcomePending, setStaffWelcomePending] = useState(false);
 
   const refreshDashboard = useCallback(async () => {
     setDashboardLoading(true);
@@ -196,6 +202,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     setBroadcasts([]);
     setStaff([]);
     setOnboardingDismissed(false);
+    setStaffWelcomePending(false);
   };
 
   const markNotificationRead = async (id: string) => {
@@ -307,9 +314,19 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
   };
 
   const changePassword = async (currentPassword: string, newPassword: string) => {
+    const wasFirstLogin = admin.mustChangePassword;
     await adminApi.changePassword(currentPassword, newPassword);
     setAdmin((prev) => ({ ...prev, mustChangePassword: false }));
+    // Staff only ever have mustChangePassword true right after their
+    // system-generated temp password is issued — this transition happens
+    // exactly once per account, so it doubles as the "show the welcome
+    // screen" trigger without needing a separate server-side flag.
+    if (wasFirstLogin && admin.role === 'staff') {
+      setStaffWelcomePending(true);
+    }
   };
+
+  const dismissStaffWelcome = () => setStaffWelcomePending(false);
 
   const updateThemePreference = async (preference: ThemePreference) => {
     const res = await adminApi.updateThemePreference(preference);
@@ -394,6 +411,8 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     dismissOnboardingWizard,
     reopenOnboardingWizard,
     completeOnboarding,
+    staffWelcomePending,
+    dismissStaffWelcome,
     staff,
     loadStaff,
     createStaff,

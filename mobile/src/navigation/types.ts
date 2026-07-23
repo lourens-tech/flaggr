@@ -50,6 +50,7 @@ export type RootStackParamList = {
   Main: undefined;
   AdminMain: undefined;
   AdminForceChangePassword: undefined;
+  AdminStaffWelcome: undefined;
   Voucher: { voucherId: string };
   ScanReceipt: undefined;
   ReviewReceipt: { imageUri: string | null; imageBase64: string; scanResult: ScanResult & { isDuplicate: false } };
