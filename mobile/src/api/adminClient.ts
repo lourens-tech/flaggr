@@ -14,6 +14,7 @@ import type {
   EnquiryMessage,
   EnquiryStatus,
   MemberStats,
+  MembersPage,
 } from '../data/adminTypes';
 
 // Deliberately separate from api/client.ts's token/base logic — a
@@ -161,6 +162,9 @@ export const adminApi = {
 
   members: (search: string) =>
     request<AdminMember[]>(`?action=members&search=${encodeURIComponent(search)}`),
+
+  membersList: (page: number, pageSize: number) =>
+    request<MembersPage>(`?action=membersList&page=${page}&pageSize=${pageSize}`),
 
   memberStats: (id: string, period: 'month' | 'year' | 'all') =>
     request<MemberStats>(`?action=memberStats&id=${id}&period=${period}`),

@@ -21,6 +21,7 @@ import type {
   EnquiryMessage,
   EnquiryStatus,
   MemberStats,
+  MembersPage,
 } from '../data/adminTypes';
 
 const ADMIN_TOKEN_KEY = 'flagrr_admin_auth_token';
@@ -64,6 +65,7 @@ interface AdminContextValue {
   saveAd: (payload: AdSavePayload) => Promise<void>;
   deleteAd: (id: string) => Promise<void>;
   searchMembers: (query: string) => Promise<AdminMember[]>;
+  listAllMembers: (page: number, pageSize: number) => Promise<MembersPage>;
   getMemberStats: (id: string, period: DashboardPeriod) => Promise<MemberStats>;
   lookupVoucher: (code: string) => Promise<AdminVoucherLookup>;
   redeemVoucher: (code: string) => Promise<AdminVoucherLookup>;
@@ -201,6 +203,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
   };
 
   const searchMembers = async (query: string) => adminApi.members(query);
+  const listAllMembers = async (page: number, pageSize: number) => adminApi.membersList(page, pageSize);
   const getMemberStats = async (id: string, period: DashboardPeriod) => adminApi.memberStats(id, period);
 
   const lookupVoucher = async (code: string) => adminApi.lookupVoucher(code);
@@ -257,6 +260,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     saveAd,
     deleteAd,
     searchMembers,
+    listAllMembers,
     getMemberStats,
     lookupVoucher,
     redeemVoucher,

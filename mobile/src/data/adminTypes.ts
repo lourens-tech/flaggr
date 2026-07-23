@@ -98,6 +98,13 @@ export interface AdminMember {
   balance: number;
 }
 
+export interface MembersPage {
+  members: AdminMember[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
 export interface MemberStats {
   member: {
     id: string;

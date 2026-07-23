@@ -17,6 +17,8 @@ import { showAlert } from '../../utils/alert';
 import { colors, fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
 import type { AdminMember } from '../../data/adminTypes';
 
+const MEMBERS_PAGE_SIZE = 10;
+
 type Period = 'month' | 'year' | 'all';
 const PERIOD_LABELS: Record<Period, string> = { month: 'Month', year: 'Year', all: 'All' };
 const PERIODS: Period[] = ['month', 'year', 'all'];
@@ -49,11 +51,17 @@ export function AdminDashboardScreen({ navigation }: Props) {
     refreshDashboard,
     unreadNotificationCount,
     searchMembers,
+    listAllMembers,
   } = useAdmin();
   const [exporting, setExporting] = useState<string | null>(null);
   const [memberSearch, setMemberSearch] = useState('');
   const [memberResults, setMemberResults] = useState<AdminMember[]>([]);
   const [searchingMembers, setSearchingMembers] = useState(false);
+  const [showAllMembers, setShowAllMembers] = useState(false);
+  const [allMembers, setAllMembers] = useState<AdminMember[]>([]);
+  const [allMembersTotal, setAllMembersTotal] = useState(0);
+  const [allMembersPage, setAllMembersPage] = useState(1);
+  const [loadingAllMembers, setLoadingAllMembers] = useState(false);
 
   useEffect(() => {
     refreshDashboard();
@@ -68,6 +76,28 @@ export function AdminDashboardScreen({ navigation }: Props) {
       setMemberResults([]);
     } finally {
       setSearchingMembers(false);
+    }
+  };
+
+  const loadAllMembersPage = async (page: number) => {
+    setLoadingAllMembers(true);
+    try {
+      const result = await listAllMembers(page, MEMBERS_PAGE_SIZE);
+      setAllMembers(result.members);
+      setAllMembersTotal(result.total);
+      setAllMembersPage(result.page);
+    } catch {
+      setAllMembers([]);
+    } finally {
+      setLoadingAllMembers(false);
+    }
+  };
+
+  const handleToggleAllMembers = () => {
+    const next = !showAllMembers;
+    setShowAllMembers(next);
+    if (next && allMembers.length === 0) {
+      loadAllMembersPage(1);
     }
   };
 
@@ -254,6 +284,70 @@ export function AdminDashboardScreen({ navigation }: Props) {
                 </TouchableOpacity>
               ))}
             </View>
+
+            <PillButton
+              label="View All Members"
+              variant="primary"
+              icon={showAllMembers ? 'chevron-up' : 'chevron-down'}
+              onPress={handleToggleAllMembers}
+            />
+
+            {showAllMembers ? (
+              <View style={[styles.card, { marginTop: spacing.sm }]}>
+                {loadingAllMembers && allMembers.length === 0 ? (
+                  <ActivityIndicator color={colors.clubGreen} />
+                ) : (
+                  <>
+                    {allMembers.length === 0 ? (
+                      <Text style={styles.emptyText}>No members yet.</Text>
+                    ) : (
+                      allMembers.map((m) => (
+                        <TouchableOpacity
+                          key={m.id}
+                          style={styles.memberRow}
+                          onPress={() => navigation.navigate('AdminMemberStats', { memberId: m.id })}
+                        >
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.memberName}>{m.firstName} {m.lastName}</Text>
+                            <Text style={styles.memberEmail}>{m.email}</Text>
+                          </View>
+                          <View style={{ alignItems: 'flex-end' }}>
+                            <Text style={styles.memberTier}>{m.tier}</Text>
+                            <Text style={styles.memberBalance}>{m.balance.toLocaleString()} FC</Text>
+                          </View>
+                          <Ionicons name="chevron-forward" size={18} color={colors.clubGreen} />
+                        </TouchableOpacity>
+                      ))
+                    )}
+
+                    <View style={styles.paginationRow}>
+                      <TouchableOpacity
+                        onPress={() => loadAllMembersPage(allMembersPage - 1)}
+                        disabled={allMembersPage <= 1 || loadingAllMembers}
+                        style={[styles.pageButton, (allMembersPage <= 1 || loadingAllMembers) && styles.pageButtonDisabled]}
+                        accessibilityLabel="Previous page"
+                      >
+                        <Ionicons name="chevron-back" size={16} color={colors.darkGreen} />
+                      </TouchableOpacity>
+                      <Text style={styles.pageIndicator}>
+                        Page {allMembersPage} of {Math.max(1, Math.ceil(allMembersTotal / MEMBERS_PAGE_SIZE))}
+                      </Text>
+                      <TouchableOpacity
+                        onPress={() => loadAllMembersPage(allMembersPage + 1)}
+                        disabled={allMembersPage >= Math.ceil(allMembersTotal / MEMBERS_PAGE_SIZE) || loadingAllMembers}
+                        style={[
+                          styles.pageButton,
+                          (allMembersPage >= Math.ceil(allMembersTotal / MEMBERS_PAGE_SIZE) || loadingAllMembers) && styles.pageButtonDisabled,
+                        ]}
+                        accessibilityLabel="Next page"
+                      >
+                        <Ionicons name="chevron-forward" size={16} color={colors.darkGreen} />
+                      </TouchableOpacity>
+                    </View>
+                  </>
+                )}
+              </View>
+            ) : null}
           </>
         ) : null}
       </ScrollView>
@@ -369,4 +463,23 @@ const styles = StyleSheet.create({
   memberEmail: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary },
   memberTier: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.tiny, color: colors.darkGreen },
   memberBalance: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary },
+  paginationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.md,
+    marginTop: spacing.xs,
+  },
+  pageButton: {
+    width: 32,
+    height: 32,
+    borderRadius: radius.pill,
+    backgroundColor: colors.white,
+    borderWidth: 0.5,
+    borderColor: colors.clubGreen,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pageButtonDisabled: { opacity: 0.4 },
+  pageIndicator: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.tiny, color: colors.darkGreen },
 });

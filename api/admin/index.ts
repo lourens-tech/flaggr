@@ -698,6 +698,48 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     return;
   }
 
+  if (action === 'membersList' && req.method === 'GET') {
+    const page = Math.max(1, parseInt(String(req.query.page ?? '1'), 10) || 1);
+    const pageSize = Math.min(50, Math.max(1, parseInt(String(req.query.pageSize ?? '10'), 10) || 10));
+    const offset = (page - 1) * pageSize;
+
+    const [rows, countRows] = await Promise.all([
+      sql`
+        select u.id, u.first_name, u.last_name, u.email, u.tier, u.member_since, p.balance
+        from users u
+        join points_accounts p on p.user_id = u.id
+        where u.course_id = ${courseId}
+        order by u.first_name, u.last_name
+        limit ${pageSize} offset ${offset}
+      `,
+      sql`select count(*)::int as total from users where course_id = ${courseId}`,
+    ]);
+
+    res.status(200).json({
+      members: (rows as Array<{
+        id: string;
+        first_name: string;
+        last_name: string;
+        email: string;
+        tier: string;
+        member_since: string;
+        balance: number;
+      }>).map((r) => ({
+        id: r.id,
+        firstName: r.first_name,
+        lastName: r.last_name,
+        email: r.email,
+        tier: r.tier,
+        memberSince: r.member_since,
+        balance: r.balance,
+      })),
+      total: (countRows as Array<{ total: number }>)[0].total,
+      page,
+      pageSize,
+    });
+    return;
+  }
+
   if (action === 'memberStats' && req.method === 'GET') {
     const memberId = typeof req.query.id === 'string' ? req.query.id : '';
     if (!memberId) throw new HttpError(400, 'id is required');
