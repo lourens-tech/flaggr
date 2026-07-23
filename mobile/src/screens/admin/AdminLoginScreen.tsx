@@ -14,34 +14,31 @@ import { colors, fontFamily, screenPadding, spacing } from '../../theme';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'AdminLogin'>;
 
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
 export function AdminLoginScreen({ navigation }: Props) {
   const { login } = useAdmin();
-  const [email, setEmail] = useState('');
+  // A course admin logs in with their email; a staff account logs in with
+  // a username instead (see api/admin/index.ts's login action) — one field
+  // accepts either.
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
-  const [emailError, setEmailError] = useState<string | undefined>();
+  const [identifierError, setIdentifierError] = useState<string | undefined>();
   const [passwordError, setPasswordError] = useState<string | undefined>();
   const [submitting, setSubmitting] = useState(false);
 
   const validate = () => {
-    const trimmedEmail = email.trim();
-    const nextEmailError = !trimmedEmail
-      ? 'Email is required'
-      : !EMAIL_PATTERN.test(trimmedEmail)
-        ? 'Enter a valid email address'
-        : undefined;
+    const trimmedIdentifier = identifier.trim();
+    const nextIdentifierError = !trimmedIdentifier ? 'Email or username is required' : undefined;
     const nextPasswordError = !password ? 'Password is required' : undefined;
-    setEmailError(nextEmailError);
+    setIdentifierError(nextIdentifierError);
     setPasswordError(nextPasswordError);
-    return !nextEmailError && !nextPasswordError;
+    return !nextIdentifierError && !nextPasswordError;
   };
 
   const handleLogin = async () => {
     if (!validate()) return;
     setSubmitting(true);
     try {
-      await login(email.trim(), password);
+      await login(identifier.trim(), password);
     } catch (err) {
       const message = err instanceof AdminApiError ? err.message : 'Something went wrong. Please try again.';
       showAlert('Couldn’t log in', message);
@@ -65,17 +62,16 @@ export function AdminLoginScreen({ navigation }: Props) {
 
         <View style={styles.form}>
           <TextField
-            icon="mail-outline"
-            placeholder="Admin Email"
+            icon="person-outline"
+            placeholder="Admin Email or Staff Username"
             autoCapitalize="none"
-            keyboardType="email-address"
             returnKeyType="next"
-            value={email}
+            value={identifier}
             onChangeText={(text) => {
-              setEmail(text);
-              if (emailError) setEmailError(undefined);
+              setIdentifier(text);
+              if (identifierError) setIdentifierError(undefined);
             }}
-            error={emailError}
+            error={identifierError}
           />
           <View style={{ height: spacing.md }} />
           <TextField
@@ -93,7 +89,7 @@ export function AdminLoginScreen({ navigation }: Props) {
           />
 
           <View style={{ height: spacing.lg }} />
-          <PillButton label="Login" icon="arrow-forward" onPress={handleLogin} loading={submitting} disabled={!email || !password} />
+          <PillButton label="Login" icon="arrow-forward" onPress={handleLogin} loading={submitting} disabled={!identifier || !password} />
         </View>
 
         <Text style={styles.footerText}>

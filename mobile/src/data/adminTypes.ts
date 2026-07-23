@@ -5,6 +5,7 @@ export interface AdminUser {
   firstName: string;
   lastName: string;
   email: string;
+  username: string | null;
   role: AdminRole;
   mustChangePassword: boolean;
 }
@@ -14,6 +15,7 @@ export interface AdminStaff {
   firstName: string;
   lastName: string;
   email: string;
+  username: string;
   mustChangePassword: boolean;
   revoked: boolean;
   createdAt: string;

@@ -37,7 +37,9 @@ export function AdminStaffListScreen({ navigation }: Props) {
       if (filter === 'revoked' && !s.revoked) return false;
       if (!query) return true;
       return (
-        `${s.firstName} ${s.lastName}`.toLowerCase().includes(query) || s.email.toLowerCase().includes(query)
+        `${s.firstName} ${s.lastName}`.toLowerCase().includes(query) ||
+        s.email.toLowerCase().includes(query) ||
+        s.username.toLowerCase().includes(query)
       );
     });
   }, [staff, filter, search]);
@@ -124,6 +126,7 @@ export function AdminStaffListScreen({ navigation }: Props) {
           </Text>
         </View>
       </View>
+      <Text style={styles.cardEmail} numberOfLines={1}>Username: {item.username}</Text>
       <Text style={styles.cardEmail} numberOfLines={1}>{item.email}</Text>
       {item.mustChangePassword ? <Text style={styles.pendingText}>Hasn't logged in yet</Text> : null}
 

@@ -141,8 +141,11 @@ export interface StaffUpdatePayload {
 }
 
 export const adminApi = {
-  login: (email: string, password: string) =>
-    request<AdminLoginResponse>('?action=login', { method: 'POST', body: { email, password }, auth: false }),
+  // `identifier` is a course_admin/super_admin's email, or a staff
+  // account's generated username — one login screen serves both, and the
+  // server checks whichever applies to the matched account's role.
+  login: (identifier: string, password: string) =>
+    request<AdminLoginResponse>('?action=login', { method: 'POST', body: { identifier, password }, auth: false }),
 
   logout: () => request<{ ok: boolean }>('?action=logout', { method: 'POST' }),
 

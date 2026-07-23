@@ -9,7 +9,7 @@ import { PillButton } from '../../components/common/PillButton';
 import { useAdmin } from '../../context/AdminContext';
 import { AdminApiError } from '../../api/adminClient';
 import { showAlert } from '../../utils/alert';
-import { colors, fontFamily, fontSize, screenPadding, spacing } from '../../theme';
+import { colors, fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
 
 type Props = NativeStackScreenProps<AdminStackParamList, 'AdminStaffEdit'>;
 
@@ -110,9 +110,17 @@ export function AdminStaffEditScreen({ navigation, route }: Props) {
           value={email}
           onChangeText={setEmail}
         />
+        <Text style={styles.helpText}>
+          Just used to send login details — staff log in with a username instead, so this can be shared by more than
+          one staff member (e.g. a shared shop inbox).
+        </Text>
 
         {existing ? (
           <>
+            <Text style={styles.sectionTitle}>Login Username</Text>
+            <View style={styles.usernameBox}>
+              <Text style={styles.usernameText}>{existing.username}</Text>
+            </View>
             <Text style={styles.sectionTitle}>Reset Password</Text>
             <TextField
               placeholder="New Password (leave blank to keep current)"
@@ -124,8 +132,8 @@ export function AdminStaffEditScreen({ navigation, route }: Props) {
           </>
         ) : (
           <Text style={styles.helpText}>
-            A temporary password will be generated and emailed to them along with a login link. They'll be asked to
-            set their own password the first time they log in.
+            A username will be generated and emailed to them, along with a temporary password and a login link.
+            They'll be asked to set their own password the first time they log in.
           </Text>
         )}
 
@@ -159,6 +167,14 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: spacing.md,
   },
+  usernameBox: {
+    backgroundColor: '#F5F6F8',
+    borderRadius: radius.md,
+    height: 53,
+    justifyContent: 'center',
+    paddingHorizontal: spacing.md,
+  },
+  usernameText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.textPrimary },
   deleteButton: { alignItems: 'center', marginTop: spacing.lg },
   deleteText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.negative },
 });

@@ -34,7 +34,11 @@ function escapeHtml(s: string): string {
 }
 
 interface LoginBody {
-  email?: string;
+  // A course_admin/super_admin logs in with their (unique) email; a staff
+  // account logs in with its system-generated username instead, since
+  // staff at the same course may share one real email address. Same field
+  // on the wire either way — the server checks both.
+  identifier?: string;
   password?: string;
 }
 
@@ -134,7 +138,7 @@ const BROADCAST_TARGETS = ['all', 'Bronze', 'Silver', 'Gold', 'Platinum'];
 // enforced right after auth below rather than scattered per-action.
 const STAFF_ALLOWED_ACTIONS = new Set(['logout', 'me', 'changePassword', 'voucherLookup', 'voucherRedeem']);
 
-function isDuplicateEmailError(err: unknown): boolean {
+function isDuplicateKeyError(err: unknown): boolean {
   return err instanceof Error && /duplicate key value/i.test(err.message);
 }
 
@@ -142,11 +146,56 @@ function generateTempPassword(): string {
   return crypto.randomBytes(9).toString('base64').replace(/[+/=]/g, '').slice(0, 10);
 }
 
+function slugifyUsernamePart(s: string): string {
+  return s.trim().toLowerCase().replace(/[^a-z0-9]+/g, '') || 'staff';
+}
+
+const MAX_USERNAME_ATTEMPTS = 20;
+
+/** Staff at the same course can share a real email, so email can't be their
+ * login — instead they get a generated `firstname.courseslug` username,
+ * unique across all admins. Retries with a numeric suffix on collision
+ * (e.g. two staff both named Jo at the same course). */
+async function insertStaffWithUniqueUsername(params: {
+  courseId: string;
+  courseSlug: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  passwordHash: string;
+}) {
+  const base = `${slugifyUsernamePart(params.firstName)}.${params.courseSlug}`;
+  for (let attempt = 0; attempt < MAX_USERNAME_ATTEMPTS; attempt++) {
+    const username = attempt === 0 ? base : `${base}${attempt + 1}`;
+    try {
+      return (await sql`
+        insert into admins (course_id, role, first_name, last_name, email, username, password_hash, must_change_password, activated_at)
+        values (${params.courseId}, 'staff', ${params.firstName}, ${params.lastName}, ${params.email}, ${username}, ${params.passwordHash}, true, now())
+        returning id, first_name, last_name, email, username, must_change_password, revoked_at, created_at
+      `) as Array<{
+        id: string;
+        first_name: string;
+        last_name: string;
+        email: string;
+        username: string;
+        must_change_password: boolean;
+        revoked_at: string | null;
+        created_at: string;
+      }>;
+    } catch (err) {
+      if (isDuplicateKeyError(err) && attempt < MAX_USERNAME_ATTEMPTS - 1) continue;
+      throw err;
+    }
+  }
+  throw new HttpError(500, 'Could not generate a unique username — try again');
+}
+
 function staffDto(row: {
   id: string;
   first_name: string;
   last_name: string;
   email: string;
+  username: string;
   must_change_password: boolean;
   revoked_at: string | null;
   created_at: string;
@@ -156,6 +205,7 @@ function staffDto(row: {
     firstName: row.first_name,
     lastName: row.last_name,
     email: row.email,
+    username: row.username,
     mustChangePassword: row.must_change_password,
     revoked: row.revoked_at !== null,
     createdAt: row.created_at,
@@ -214,14 +264,20 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       res.status(405).json({ error: 'Method not allowed' });
       return;
     }
-    const { email, password } = req.body as LoginBody;
-    if (!email || !password) {
-      throw new HttpError(400, 'Email and password are required');
+    const { identifier, password } = req.body as LoginBody;
+    if (!identifier || !password) {
+      throw new HttpError(400, 'Email/username and password are required');
     }
 
+    // A course_admin/super_admin's email is unique and is their login; a
+    // staff account's email can be shared with others, so it logs in by
+    // its own unique username instead. Both are checked here since one
+    // login screen serves every role.
+    const loginId = identifier.trim().toLowerCase();
     const rows = (await sql`
-      select id, course_id, role, first_name, last_name, email, password_hash, activated_at, must_change_password, revoked_at
-      from admins where email = ${email.trim().toLowerCase()}
+      select id, course_id, role, first_name, last_name, email, username, password_hash, activated_at, must_change_password, revoked_at
+      from admins
+      where (role = 'staff' and username = ${loginId}) or (role <> 'staff' and email = ${loginId})
     `) as Array<{
       id: string;
       course_id: string | null;
@@ -229,6 +285,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       first_name: string;
       last_name: string;
       email: string;
+      username: string | null;
       password_hash: string | null;
       activated_at: string | null;
       must_change_password: boolean;
@@ -237,10 +294,10 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
 
     const admin = rows[0];
     if (!admin || !admin.password_hash || !admin.activated_at) {
-      throw new HttpError(401, 'Invalid email or password');
+      throw new HttpError(401, 'Invalid email/username or password');
     }
     if (!(await verifyPassword(password, admin.password_hash))) {
-      throw new HttpError(401, 'Invalid email or password');
+      throw new HttpError(401, 'Invalid email/username or password');
     }
     if (admin.revoked_at) {
       throw new HttpError(403, 'Your access has been revoked. Contact your course administrator.');
@@ -261,6 +318,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         firstName: admin.first_name,
         lastName: admin.last_name,
         email: admin.email,
+        username: admin.username,
         role: admin.role,
         mustChangePassword: admin.must_change_password,
       },
@@ -295,6 +353,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         firstName: authed.firstName,
         lastName: authed.lastName,
         email: authed.email,
+        username: authed.username,
         role: authed.role,
         mustChangePassword: authed.mustChangePassword,
       },
@@ -529,7 +588,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
 
   if (action === 'staffList' && req.method === 'GET') {
     const rows = (await sql`
-      select id, first_name, last_name, email, must_change_password, revoked_at, created_at
+      select id, first_name, last_name, email, username, must_change_password, revoked_at, created_at
       from admins
       where course_id = ${courseId} and role = 'staff'
       order by created_at desc
@@ -538,6 +597,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       first_name: string;
       last_name: string;
       email: string;
+      username: string;
       must_change_password: boolean;
       revoked_at: string | null;
       created_at: string;
@@ -556,28 +616,20 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
 
     const tempPassword = generateTempPassword();
     const passwordHash = await hashPassword(tempPassword);
-
-    let created: Array<{
-      id: string;
-      first_name: string;
-      last_name: string;
-      email: string;
-      must_change_password: boolean;
-      revoked_at: string | null;
-      created_at: string;
-    }>;
-    try {
-      created = (await sql`
-        insert into admins (course_id, role, first_name, last_name, email, password_hash, must_change_password, activated_at)
-        values (${courseId}, 'staff', ${firstName}, ${lastName}, ${email}, ${passwordHash}, true, now())
-        returning id, first_name, last_name, email, must_change_password, revoked_at, created_at
-      `) as typeof created;
-    } catch (err) {
-      if (isDuplicateEmailError(err)) throw new HttpError(409, 'An account with this email already exists');
-      throw err;
-    }
-
     const course = await fetchCourse(courseId);
+
+    const created = await insertStaffWithUniqueUsername({
+      courseId,
+      courseSlug: course.slug,
+      firstName,
+      lastName,
+      email,
+      passwordHash,
+    });
+
+    // Deliberately emails the *username*, not the email address, as the
+    // login credential — the recipient inbox may be shared by several
+    // staff members, so the email itself can't double as an identifier.
     await sendEmail({
       to: email,
       subject: `You've been added as staff at ${course.name} on Flagrr`,
@@ -585,7 +637,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         <p>Hi ${escapeHtml(firstName)},</p>
         <p>${escapeHtml(authed.firstName)} ${escapeHtml(authed.lastName)} has set you up with staff access to the Flagrr app for ${escapeHtml(course.name)}, so you can validate members' reward vouchers.</p>
         <p><strong>Login link:</strong> <a href="https://flagrr-loyalty.vercel.app">https://flagrr-loyalty.vercel.app</a></p>
-        <p><strong>Email:</strong> ${escapeHtml(email)}<br/>
+        <p><strong>Username:</strong> ${escapeHtml(created[0].username)}<br/>
         <strong>Temporary password:</strong> ${escapeHtml(tempPassword)}</p>
         <p>You'll be asked to choose your own password the first time you log in.</p>
       `,
@@ -613,36 +665,35 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       throw new HttpError(400, 'New password must be at least 8 characters');
     }
 
+    // Email is no longer unique across staff, so there's nothing left here
+    // that can violate a uniqueness constraint (username is fixed at
+    // creation and never edited) — no duplicate-key handling needed.
     let updated: Array<{
       id: string;
       first_name: string;
       last_name: string;
       email: string;
+      username: string;
       must_change_password: boolean;
       revoked_at: string | null;
       created_at: string;
     }>;
-    try {
-      if (newPassword) {
-        const passwordHash = await hashPassword(newPassword);
-        updated = (await sql`
-          update admins
-          set first_name = ${firstName}, last_name = ${lastName}, email = ${email},
-              password_hash = ${passwordHash}, must_change_password = false
-          where id = ${id}
-          returning id, first_name, last_name, email, must_change_password, revoked_at, created_at
-        `) as typeof updated;
-      } else {
-        updated = (await sql`
-          update admins
-          set first_name = ${firstName}, last_name = ${lastName}, email = ${email}
-          where id = ${id}
-          returning id, first_name, last_name, email, must_change_password, revoked_at, created_at
-        `) as typeof updated;
-      }
-    } catch (err) {
-      if (isDuplicateEmailError(err)) throw new HttpError(409, 'An account with this email already exists');
-      throw err;
+    if (newPassword) {
+      const passwordHash = await hashPassword(newPassword);
+      updated = (await sql`
+        update admins
+        set first_name = ${firstName}, last_name = ${lastName}, email = ${email},
+            password_hash = ${passwordHash}, must_change_password = false
+        where id = ${id}
+        returning id, first_name, last_name, email, username, must_change_password, revoked_at, created_at
+      `) as typeof updated;
+    } else {
+      updated = (await sql`
+        update admins
+        set first_name = ${firstName}, last_name = ${lastName}, email = ${email}
+        where id = ${id}
+        returning id, first_name, last_name, email, username, must_change_password, revoked_at, created_at
+      `) as typeof updated;
     }
 
     res.status(200).json(staffDto(updated[0]));

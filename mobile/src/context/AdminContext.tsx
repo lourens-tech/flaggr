@@ -32,7 +32,15 @@ import type {
 const ADMIN_TOKEN_KEY = 'flagrr_admin_auth_token';
 type DashboardPeriod = 'month' | 'year' | 'all';
 
-const EMPTY_ADMIN: AdminUser = { id: '', firstName: '', lastName: '', email: '', role: 'course_admin', mustChangePassword: false };
+const EMPTY_ADMIN: AdminUser = {
+  id: '',
+  firstName: '',
+  lastName: '',
+  email: '',
+  username: null,
+  role: 'course_admin',
+  mustChangePassword: false,
+};
 const EMPTY_COURSE: AdminCourse = {
   id: '',
   name: '',
@@ -63,7 +71,7 @@ interface AdminContextValue {
   loadBroadcasts: () => Promise<void>;
   sendBroadcast: (payload: { title: string; body: string; target: BroadcastTarget }) => Promise<void>;
   deleteBroadcast: (id: string) => Promise<void>;
-  login: (email: string, password: string) => Promise<void>;
+  login: (identifier: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   setDashboardPeriod: (period: DashboardPeriod) => Promise<void>;
   refreshDashboard: () => Promise<void>;
@@ -146,8 +154,8 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     })();
   }, [loadNotifications]);
 
-  const login = async (email: string, password: string) => {
-    const res = await adminApi.login(email, password);
+  const login = async (identifier: string, password: string) => {
+    const res = await adminApi.login(identifier, password);
     await setAdminToken(res.token);
     setAdmin(res.admin);
     setCourse(res.course);

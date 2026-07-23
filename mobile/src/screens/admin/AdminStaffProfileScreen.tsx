@@ -62,14 +62,14 @@ export function AdminStaffProfileScreen() {
             <Ionicons name="person-outline" size={28} color={colors.clubGreen} />
           </View>
           <Text style={styles.name}>{admin.firstName} {admin.lastName}</Text>
-          <Text style={styles.email}>{admin.email}</Text>
+          <Text style={styles.email}>Username: {admin.username}</Text>
           <View style={styles.roleBadge}>
             <Text style={styles.roleBadgeText}>Staff</Text>
           </View>
         </View>
 
         <Text style={styles.helpText}>
-          Your name and email are managed by your course admin. Contact them if these need to change.
+          Your name and username are managed by your course admin. Contact them if these need to change.
         </Text>
 
         <Text style={styles.sectionTitle}>Change Password</Text>

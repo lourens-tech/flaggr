@@ -63,6 +63,7 @@ export interface AuthedAdmin {
   firstName: string;
   lastName: string;
   email: string;
+  username: string | null; // set for `staff`; null for course_admin/super_admin, who log in with email
   mustChangePassword: boolean;
 }
 
@@ -83,11 +84,12 @@ export async function getAuthedAdmin(req: VercelRequest): Promise<AuthedAdmin | 
     first_name: string;
     last_name: string;
     email: string;
+    username: string | null;
     must_change_password: boolean;
   }>;
   try {
     rows = (await sql`
-      select a.id, a.course_id, a.role, a.first_name, a.last_name, a.email, a.must_change_password
+      select a.id, a.course_id, a.role, a.first_name, a.last_name, a.email, a.username, a.must_change_password
       from admin_sessions s
       join admins a on a.id = s.admin_id
       where s.token = ${token} and s.expires_at > now() and a.activated_at is not null and a.revoked_at is null
@@ -105,6 +107,7 @@ export async function getAuthedAdmin(req: VercelRequest): Promise<AuthedAdmin | 
     firstName: r.first_name,
     lastName: r.last_name,
     email: r.email,
+    username: r.username,
     mustChangePassword: r.must_change_password,
   };
 }
