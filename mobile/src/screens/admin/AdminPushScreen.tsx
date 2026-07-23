@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,6 +9,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AdminStackParamList, AdminTabParamList } from '../../navigation/types';
 import { useAdmin } from '../../context/AdminContext';
 import { AdminApiError } from '../../api/adminClient';
+import { TextField } from '../../components/common/TextField';
 import { showAlert } from '../../utils/alert';
 import { colors, fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
 import type { AdminBroadcast } from '../../data/adminTypes';
@@ -17,6 +18,23 @@ type Props = CompositeScreenProps<
   BottomTabScreenProps<AdminTabParamList, 'AdminPush'>,
   NativeStackScreenProps<AdminStackParamList>
 >;
+
+type TargetFilter = 'all' | 'all-members' | 'Bronze' | 'Silver' | 'Gold' | 'Platinum';
+
+const FILTERS: Array<{ label: string; value: TargetFilter }> = [
+  { label: 'All', value: 'all' },
+  { label: 'All Members', value: 'all-members' },
+  { label: 'Bronze', value: 'Bronze' },
+  { label: 'Silver', value: 'Silver' },
+  { label: 'Gold', value: 'Gold' },
+  { label: 'Platinum', value: 'Platinum' },
+];
+
+function matchesFilter(b: AdminBroadcast, filter: TargetFilter): boolean {
+  if (filter === 'all') return true;
+  if (filter === 'all-members') return b.target === 'all';
+  return b.target === filter;
+}
 
 function formatSentAt(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
@@ -30,6 +48,17 @@ export function AdminPushScreen({ navigation }: Props) {
   const { broadcasts, loadBroadcasts, sendBroadcast, deleteBroadcast } = useAdmin();
   const [loading, setLoading] = useState(true);
   const [resendingId, setResendingId] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState<TargetFilter>('all');
+
+  const filtered = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return broadcasts.filter((b) => {
+      if (!matchesFilter(b, filter)) return false;
+      if (!query) return true;
+      return b.title.toLowerCase().includes(query) || b.body.toLowerCase().includes(query);
+    });
+  }, [broadcasts, filter, search]);
 
   useFocusEffect(
     useCallback(() => {
@@ -142,16 +171,43 @@ export function AdminPushScreen({ navigation }: Props) {
         </View>
       </SafeAreaView>
 
+      <View style={styles.searchArea}>
+        <TextField
+          placeholder="Search notifications"
+          variant="onLight"
+          icon="search"
+          value={search}
+          onChangeText={setSearch}
+        />
+        <View style={styles.filterRow}>
+          {FILTERS.map((f) => (
+            <TouchableOpacity
+              key={f.value}
+              onPress={() => setFilter(f.value)}
+              style={[styles.filterPill, filter === f.value && styles.filterPillActive]}
+              accessibilityLabel={`Filter ${f.label}`}
+              accessibilityRole="button"
+            >
+              <Text style={[styles.filterText, filter === f.value && styles.filterTextActive]}>{f.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
       {loading ? (
         <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
       ) : (
         <FlatList
-          data={broadcasts}
+          data={filtered}
           keyExtractor={(b) => b.id}
           renderItem={renderItem}
           contentContainerStyle={styles.listContent}
           ListEmptyComponent={
-            <Text style={styles.emptyText}>No notifications sent yet — tap + to send your first one.</Text>
+            <Text style={styles.emptyText}>
+              {broadcasts.length === 0
+                ? 'No notifications sent yet — tap + to send your first one.'
+                : 'No notifications match your search.'}
+            </Text>
           }
         />
       )}
@@ -170,6 +226,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   headerTitle: { fontFamily: fontFamily.headingDisplay, fontSize: fontSize.title, color: colors.white },
+  searchArea: { paddingHorizontal: screenPadding, paddingTop: spacing.md, gap: spacing.sm },
+  filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  filterPill: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: radius.pill, backgroundColor: colors.mintBgAlt },
+  filterPillActive: { backgroundColor: colors.darkGreen },
+  filterText: { fontFamily: fontFamily.heading, fontSize: 11, color: colors.darkGreen },
+  filterTextActive: { color: colors.white },
   listContent: { padding: screenPadding, gap: spacing.sm },
   card: {
     backgroundColor: colors.mintBg,
