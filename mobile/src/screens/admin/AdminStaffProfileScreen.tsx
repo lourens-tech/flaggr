@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { AdminHeaderAvatar } from '../../components/common/AdminHeaderAvatar';
 import { useAdmin } from '../../context/AdminContext';
 import { AdminApiError } from '../../api/adminClient';
 import { showAlert } from '../../utils/alert';
@@ -53,9 +54,7 @@ export function AdminStaffProfileScreen() {
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.avatarWrap}>
-          <View style={styles.avatar}>
-            <Ionicons name="person-outline" size={28} color={colors.clubGreen} />
-          </View>
+          <AdminHeaderAvatar logoUrl={course.logoUrl} size={64} />
           <Text style={styles.name}>{admin.firstName} {admin.lastName}</Text>
           <Text style={styles.email}>Username: {admin.username}</Text>
           <View style={styles.roleBadge}>
@@ -88,15 +87,6 @@ function createStyles(colors: ThemeColors) {
   headerSubtitle: { fontFamily: fontFamily.body, fontSize: 12, color: 'rgba(255,255,255,0.75)' },
   content: { padding: screenPadding, paddingBottom: spacing.xl * 2 },
   avatarWrap: { alignItems: 'center', gap: 4, marginBottom: spacing.lg },
-  avatar: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: colors.mintBg,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.xs,
-  },
   name: { fontFamily: fontFamily.heading, fontSize: fontSize.cardTitle, color: colors.textPrimary },
   email: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary },
   roleBadge: {
