@@ -23,6 +23,10 @@ const MEMBERS_PAGE_SIZE = 10;
 type Period = 'month' | 'year' | 'all';
 const PERIOD_LABELS: Record<Period, string> = { month: 'Month', year: 'Year', all: 'All' };
 const PERIODS: Period[] = ['month', 'year', 'all'];
+// "All" has no prior window to compare against (see api/_lib/periods.ts),
+// so its deltaPct is always forced to 0 server-side — show no delta at all
+// there rather than a misleading "0%".
+const DELTA_LABELS: Record<Period, string> = { month: 'vs Last Month', year: 'vs Last Year', all: '' };
 
 type ReportKind = 'redemptions' | 'receipts' | 'members';
 const REPORT_KINDS: ReportKind[] = ['redemptions', 'receipts', 'members'];
@@ -175,14 +179,16 @@ export function AdminDashboardScreen({ navigation }: Props) {
           <>
             <View style={styles.statsGrid}>
               <View style={styles.statsRow}>
-                <StatCard label="Members" value={dashboard.totals.members} deltaPct={0} fill backgroundColor={colors.mintBg} />
-                <StatCard label="New Members" value={dashboard.totals.newMembers} deltaPct={0} fill backgroundColor={colors.mintBg} />
+                <StatCard label="Members" value={dashboard.totals.members} deltaPct={0} showDelta={false} fill backgroundColor={colors.mintBg} />
+                <StatCard label="New Members" value={dashboard.totals.newMembers} deltaPct={0} showDelta={false} fill backgroundColor={colors.mintBg} />
               </View>
               <View style={styles.statsRow}>
                 <StatCard
                   label="Flagrr Cash Earned"
                   value={dashboard.totals.fcEarned.toLocaleString()}
                   deltaPct={dashboard.totals.fcEarnedDeltaPct}
+                  deltaLabel={DELTA_LABELS[dashboardPeriod]}
+                  showDelta={dashboardPeriod !== 'all'}
                   fill
                   backgroundColor={colors.mintBg}
                 />
@@ -190,6 +196,8 @@ export function AdminDashboardScreen({ navigation }: Props) {
                   label="Flagrr Cash Redeemed"
                   value={dashboard.totals.fcRedeemed.toLocaleString()}
                   deltaPct={dashboard.totals.fcRedeemedDeltaPct}
+                  deltaLabel={DELTA_LABELS[dashboardPeriod]}
+                  showDelta={dashboardPeriod !== 'all'}
                   fill
                   backgroundColor={colors.mintBg}
                 />
@@ -198,6 +206,8 @@ export function AdminDashboardScreen({ navigation }: Props) {
                 label="Receipts Scanned"
                 value={dashboard.totals.receiptsScanned}
                 deltaPct={dashboard.totals.receiptsScannedDeltaPct}
+                deltaLabel={DELTA_LABELS[dashboardPeriod]}
+                showDelta={dashboardPeriod !== 'all'}
                 width="100%"
                 backgroundColor={colors.mintBg}
               />

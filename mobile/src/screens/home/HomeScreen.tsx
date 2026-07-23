@@ -34,6 +34,10 @@ type Props = CompositeScreenProps<
 
 const PERIOD_LABELS: Record<StatsPeriod, string> = { month: 'Month', year: 'Year', all: 'All' };
 const PERIODS: StatsPeriod[] = ['month', 'year', 'all'];
+// "All" has no prior window to compare against (see api/_lib/periods.ts),
+// so its deltaPct is always forced to 0 server-side — show no delta at all
+// there rather than a misleading "0%".
+const DELTA_LABELS: Record<StatsPeriod, string> = { month: 'vs Last Month', year: 'vs Last Year', all: '' };
 
 export function HomeScreen({ navigation }: Props) {
   const colors = useThemeColors();
@@ -147,10 +151,38 @@ export function HomeScreen({ navigation }: Props) {
         </View>
 
         <View style={styles.statsGrid}>
-          <StatCard label="Rounds Played (9 Holes)" value={stats.roundsPlayed9} deltaPct={stats.roundsPlayed9DeltaPct} backgroundColor={colors.mintBg} />
-          <StatCard label="Rounds Played (18 Holes)" value={stats.roundsPlayed18} deltaPct={stats.roundsPlayed18DeltaPct} backgroundColor={colors.mintBg} />
-          <StatCard label="Flagrr Cash Earned" value={stats.bucksEarned.toLocaleString()} deltaPct={stats.bucksEarnedDeltaPct} backgroundColor={colors.mintBg} />
-          <StatCard label="Flagrr Cash Redeemed" value={stats.bucksRedeemed.toLocaleString()} deltaPct={stats.bucksRedeemedDeltaPct} backgroundColor={colors.mintBg} />
+          <StatCard
+            label="Rounds Played (9 Holes)"
+            value={stats.roundsPlayed9}
+            deltaPct={stats.roundsPlayed9DeltaPct}
+            deltaLabel={DELTA_LABELS[statsPeriod]}
+            showDelta={statsPeriod !== 'all'}
+            backgroundColor={colors.mintBg}
+          />
+          <StatCard
+            label="Rounds Played (18 Holes)"
+            value={stats.roundsPlayed18}
+            deltaPct={stats.roundsPlayed18DeltaPct}
+            deltaLabel={DELTA_LABELS[statsPeriod]}
+            showDelta={statsPeriod !== 'all'}
+            backgroundColor={colors.mintBg}
+          />
+          <StatCard
+            label="Flagrr Cash Earned"
+            value={stats.bucksEarned.toLocaleString()}
+            deltaPct={stats.bucksEarnedDeltaPct}
+            deltaLabel={DELTA_LABELS[statsPeriod]}
+            showDelta={statsPeriod !== 'all'}
+            backgroundColor={colors.mintBg}
+          />
+          <StatCard
+            label="Flagrr Cash Redeemed"
+            value={stats.bucksRedeemed.toLocaleString()}
+            deltaPct={stats.bucksRedeemedDeltaPct}
+            deltaLabel={DELTA_LABELS[statsPeriod]}
+            showDelta={statsPeriod !== 'all'}
+            backgroundColor={colors.mintBg}
+          />
         </View>
 
         <View style={styles.chartCard}>

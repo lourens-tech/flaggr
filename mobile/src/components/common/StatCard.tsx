@@ -8,6 +8,14 @@ interface Props {
   label: string;
   value: string | number;
   deltaPct: number;
+  // What the delta is being compared against — callers must pass the label
+  // that actually matches the selected period (e.g. "vs Last Month" when a
+  // month toggle is active), since this used to be hardcoded to "vs Last
+  // Year" regardless of period and silently lied about the comparison.
+  deltaLabel?: string;
+  // Hide the delta row entirely — use for a period with no meaningful prior
+  // window to compare against (e.g. "All") rather than showing a fake 0%.
+  showDelta?: boolean;
   width?: DimensionValue;
   // When true, sizes via flex instead of a fixed width — use inside a
   // flex-row container with a gap so a pair of cards splits it exactly,
@@ -17,7 +25,16 @@ interface Props {
   backgroundColor?: string;
 }
 
-export function StatCard({ label, value, deltaPct, width = '47%', fill = false, backgroundColor }: Props) {
+export function StatCard({
+  label,
+  value,
+  deltaPct,
+  deltaLabel = 'vs Last Year',
+  showDelta = true,
+  width = '47%',
+  fill = false,
+  backgroundColor,
+}: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const positive = deltaPct >= 0;
@@ -25,16 +42,18 @@ export function StatCard({ label, value, deltaPct, width = '47%', fill = false, 
     <View style={[styles.card, fill ? styles.fill : { width }, backgroundColor ? { backgroundColor } : null]}>
       <Text style={styles.label}>{label}</Text>
       <Text style={styles.value}>{value}</Text>
-      <View style={styles.deltaRow}>
-        <Ionicons
-          name={positive ? 'arrow-up' : 'arrow-down'}
-          size={10}
-          color={positive ? colors.positive : colors.negative}
-        />
-        <Text style={[styles.delta, { color: positive ? colors.positive : colors.negative }]}>
-          {Math.abs(deltaPct)}% vs Last Year
-        </Text>
-      </View>
+      {showDelta ? (
+        <View style={styles.deltaRow}>
+          <Ionicons
+            name={positive ? 'arrow-up' : 'arrow-down'}
+            size={10}
+            color={positive ? colors.positive : colors.negative}
+          />
+          <Text style={[styles.delta, { color: positive ? colors.positive : colors.negative }]}>
+            {Math.abs(deltaPct)}% {deltaLabel}
+          </Text>
+        </View>
+      ) : null}
     </View>
   );
 }
