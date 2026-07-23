@@ -79,16 +79,19 @@ export function AdminDashboardScreen({ navigation }: Props) {
       </SafeAreaView>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.periodToggle}>
-          {PERIODS.map((p) => (
-            <TouchableOpacity
-              key={p}
-              onPress={() => setDashboardPeriod(p)}
-              style={[styles.periodPill, dashboardPeriod === p && styles.periodPillActive]}
-            >
-              <Text style={[styles.periodText, dashboardPeriod === p && styles.periodTextActive]}>{PERIOD_LABELS[p]}</Text>
-            </TouchableOpacity>
-          ))}
+        <View style={styles.statsHeaderRow}>
+          <Text style={styles.sectionTitle}>Overview</Text>
+          <View style={styles.periodToggle}>
+            {PERIODS.map((p) => (
+              <TouchableOpacity
+                key={p}
+                onPress={() => setDashboardPeriod(p)}
+                style={[styles.periodPill, dashboardPeriod === p && styles.periodPillActive]}
+              >
+                <Text style={[styles.periodText, dashboardPeriod === p && styles.periodTextActive]}>{PERIOD_LABELS[p]}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
         </View>
 
         {dashboardLoading && !dashboard ? (
@@ -103,8 +106,8 @@ export function AdminDashboardScreen({ navigation }: Props) {
               <StatCard label="Receipts Scanned" value={dashboard.totals.receiptsScanned} deltaPct={dashboard.totals.receiptsScannedDeltaPct} width="100%" />
             </View>
 
-            <Text style={styles.sectionTitle}>Members Joined This Year</Text>
-            <View style={styles.card}>
+            <View style={styles.chartCard}>
+              <Text style={styles.chartTitle}>Members Joined This Year</Text>
               <BarChart data={dashboard.signupsByMonth} />
             </View>
 
@@ -202,20 +205,33 @@ const styles = StyleSheet.create({
   },
   badgeText: { fontFamily: fontFamily.bodySemiBold, fontSize: 9, color: colors.darkGreen },
   content: { padding: screenPadding, paddingBottom: spacing.xl * 2 },
+  statsHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
   periodToggle: {
     flexDirection: 'row',
-    alignSelf: 'flex-start',
-    backgroundColor: colors.mintBgAlt,
+    backgroundColor: colors.mintBg,
     borderRadius: radius.pill,
-    padding: 4,
-    marginBottom: spacing.md,
+    padding: 3,
   },
   periodPill: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: radius.pill },
   periodPillActive: { backgroundColor: colors.darkGreen },
   periodText: { fontFamily: fontFamily.heading, fontSize: 12, color: colors.darkGreen },
   periodTextActive: { color: colors.white },
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: spacing.lg },
-  sectionTitle: { fontFamily: fontFamily.heading, fontSize: fontSize.cardTitle, color: colors.darkGreen, marginBottom: spacing.sm },
+  sectionTitle: { fontFamily: fontFamily.heading, fontSize: fontSize.title, color: colors.darkGreen, marginBottom: spacing.sm },
+  chartCard: {
+    backgroundColor: colors.white,
+    borderWidth: 0.5,
+    borderColor: colors.clubGreen,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    marginBottom: spacing.lg,
+  },
+  chartTitle: { fontFamily: fontFamily.heading, fontSize: fontSize.small, color: colors.darkGreen, marginBottom: spacing.md },
   card: {
     backgroundColor: colors.white,
     borderWidth: 0.5,
