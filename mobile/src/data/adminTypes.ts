@@ -42,13 +42,6 @@ export interface TopReward {
   fcSpent: number;
 }
 
-export interface AdPerformance {
-  adId: string;
-  title: string;
-  placement: string;
-  clicks: number;
-}
-
 export interface MonthlyCount {
   month: string;
   value: number;
@@ -59,7 +52,6 @@ export interface DashboardReport {
   totals: DashboardTotals;
   tierDistribution: TierCount[];
   topRewards: TopReward[];
-  adPerformance: AdPerformance[];
   signupsByMonth: MonthlyCount[];
 }
 

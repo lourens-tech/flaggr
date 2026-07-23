@@ -139,20 +139,6 @@ export function AdminDashboardScreen({ navigation }: Props) {
               )}
             </View>
 
-            <Text style={styles.sectionTitle}>Ad Performance</Text>
-            <View style={styles.card}>
-              {dashboard.adPerformance.length === 0 ? (
-                <Text style={styles.emptyText}>No ads configured yet.</Text>
-              ) : (
-                dashboard.adPerformance.map((a) => (
-                  <View key={a.adId} style={styles.row}>
-                    <Text style={styles.rowLabel} numberOfLines={1}>{a.title || '(untitled ad)'}</Text>
-                    <Text style={styles.rowValue}>{a.clicks} clicks</Text>
-                  </View>
-                ))
-              )}
-            </View>
-
             <Text style={styles.sectionTitle}>Pull a Report</Text>
             <View style={styles.card}>
               {(['redemptions', 'receipts', 'members'] as const).map((report) => (

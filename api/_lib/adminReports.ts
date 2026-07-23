@@ -15,16 +15,19 @@ export interface DashboardReport {
   };
   tierDistribution: Array<{ tier: string; count: number }>;
   topRewards: Array<{ rewardId: string; title: string; redemptions: number; fcSpent: number }>;
-  adPerformance: Array<{ adId: string; title: string; placement: string; clicks: number }>;
   signupsByMonth: Array<{ month: string; value: number }>;
 }
 
 const MONTH_LETTERS = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'];
 
+// Ad performance (ads/ad_clicks) is deliberately excluded from the
+// course-admin dashboard — only a super_admin should see how an ad they
+// manage is performing across clubs. Revisit when the super-admin side
+// is built.
 export async function getDashboardReport(courseId: string, period: StatsPeriod): Promise<DashboardReport> {
   const { currentStart, previousStart, previousEnd, hasComparison } = periodWindow(period);
 
-  const [memberRows, bucksRows, receiptRows, tierRows, topRewardRows, adRows, signupRows] = await Promise.all([
+  const [memberRows, bucksRows, receiptRows, tierRows, topRewardRows, signupRows] = await Promise.all([
     sql`
       select
         count(*)::int as total,
@@ -58,14 +61,6 @@ export async function getDashboardReport(courseId: string, period: StatsPeriod):
       group by r.id, r.title
       order by redemptions desc
       limit 10
-    `,
-    sql`
-      select a.id as ad_id, a.title, a.placement, count(c.id)::int as clicks
-      from ads a
-      left join ad_clicks c on c.ad_id = a.id and c.clicked_at >= ${currentStart}
-      where a.course_id = ${courseId}
-      group by a.id, a.title, a.placement
-      order by clicks desc
     `,
     sql`
       select extract(month from member_since)::int as month, count(*)::int as count
@@ -109,12 +104,6 @@ export async function getDashboardReport(courseId: string, period: StatsPeriod):
     topRewards: (topRewardRows as Array<{ reward_id: string; title: string; redemptions: number; fc_spent: number }>).map(
       (r) => ({ rewardId: r.reward_id, title: r.title, redemptions: r.redemptions, fcSpent: r.fc_spent }),
     ),
-    adPerformance: (adRows as Array<{ ad_id: string; title: string; placement: string; clicks: number }>).map((a) => ({
-      adId: a.ad_id,
-      title: a.title,
-      placement: a.placement,
-      clicks: a.clicks,
-    })),
     signupsByMonth,
   };
 }
