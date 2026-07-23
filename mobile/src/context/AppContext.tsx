@@ -6,6 +6,9 @@ import type {
   ActivityEntry,
   Ad,
   AppNotification,
+  EnquiryMessage,
+  MyEnquirySummary,
+  MyEnquiryThread,
   PointsAccount,
   Receipt,
   Reward,
@@ -75,7 +78,10 @@ interface AppContextValue extends AppState {
   updateAvatar: (imageBase64: string) => Promise<void>;
   updateProfile: (payload: UpdateProfilePayload) => Promise<void>;
   changeHomeClub: (courseId: string) => Promise<void>;
-  sendContactEnquiry: (payload: ContactEnquiryPayload) => Promise<void>;
+  sendContactEnquiry: (payload: ContactEnquiryPayload) => Promise<string>;
+  listMyEnquiries: () => Promise<MyEnquirySummary[]>;
+  getEnquiryThread: (id: string) => Promise<MyEnquiryThread>;
+  replyToEnquiry: (enquiryId: string, message: string) => Promise<EnquiryMessage[]>;
   logAdClick: (adId: string) => void;
   statsPeriod: StatsPeriod;
   setStatsPeriod: (period: StatsPeriod) => Promise<void>;
@@ -224,9 +230,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setUser((prev) => ({ ...prev, ...updated }));
   };
 
-  const sendContactEnquiry = async (payload: ContactEnquiryPayload) => {
-    await api.sendContactEnquiry(payload);
+  const sendContactEnquiry = async (payload: ContactEnquiryPayload): Promise<string> => {
+    const res = await api.sendContactEnquiry(payload);
+    return res.enquiryId;
   };
+
+  const listMyEnquiries = async () => api.myEnquiries();
+  const getEnquiryThread = async (id: string) => api.enquiryThread(id);
+  const replyToEnquiry = async (enquiryId: string, message: string) => api.replyToEnquiry(enquiryId, message);
 
   // Rewards, ads, and vouchers are all scoped to the member's home club, so
   // switching clubs re-fetches everything rather than patching just the
@@ -289,6 +300,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     updateProfile,
     changeHomeClub,
     sendContactEnquiry,
+    listMyEnquiries,
+    getEnquiryThread,
+    replyToEnquiry,
     logAdClick,
     statsPeriod,
     setStatsPeriod,

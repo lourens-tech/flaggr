@@ -17,6 +17,7 @@ export type AuthStackParamList = {
 
 export type AdminTabParamList = {
   AdminDashboard: undefined;
+  AdminEnquiries: undefined;
   AdminRewards: undefined;
   AdminAds: undefined;
   AdminVouchers: undefined;
@@ -28,6 +29,7 @@ export type AdminStackParamList = {
   AdminRewardEdit: { rewardId?: string };
   AdminAdEdit: { adId?: string };
   AdminNotifications: undefined;
+  AdminEnquiryChat: { enquiryId: string };
 };
 
 export type MainTabParamList = {
@@ -51,6 +53,8 @@ export type RootStackParamList = {
   Contact: undefined;
   EditProfile: undefined;
   TermsPrivacy: undefined;
+  MyEnquiries: undefined;
+  EnquiryChat: { enquiryId: string };
 };
 
 declare global {

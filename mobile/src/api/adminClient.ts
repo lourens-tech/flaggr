@@ -3,12 +3,16 @@ import { Platform } from 'react-native';
 import type {
   AdminAd,
   AdminCourse,
+  AdminEnquirySummary,
+  AdminEnquiryThread,
   AdminMember,
   AdminNotification,
   AdminReward,
   AdminUser,
   AdminVoucherLookup,
   DashboardReport,
+  EnquiryMessage,
+  EnquiryStatus,
 } from '../data/adminTypes';
 
 // Deliberately separate from api/client.ts's token/base logic — a
@@ -158,6 +162,17 @@ export const adminApi = {
 
   markNotificationRead: (id: string) =>
     request<{ ok: boolean }>('?action=notificationRead', { method: 'POST', body: { id } }),
+
+  enquiries: (status?: EnquiryStatus) =>
+    request<AdminEnquirySummary[]>(`?action=enquiries${status ? `&status=${status}` : ''}`),
+
+  enquiryThread: (id: string) => request<AdminEnquiryThread>(`?action=enquiryThread&id=${id}`),
+
+  replyToEnquiry: (enquiryId: string, message: string) =>
+    request<EnquiryMessage[]>('?action=enquiryReply', { method: 'POST', body: { enquiryId, message } }),
+
+  setEnquiryStatus: (enquiryId: string, status: EnquiryStatus) =>
+    request<{ ok: boolean }>('?action=enquiryStatus', { method: 'POST', body: { enquiryId, status } }),
 
   lookupVoucher: (code: string) =>
     request<AdminVoucherLookup>(`?action=voucherLookup&code=${encodeURIComponent(code)}`),

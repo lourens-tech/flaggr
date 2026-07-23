@@ -235,7 +235,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         'Receipt flagged for review',
         `${authed.firstName} ${authed.lastName}'s receipt${courseName ? ` at ${courseName}` : ''} was flagged: ` +
           `${describeFraudReasons(fraud.reasons)}. ${finalPointsAwarded} Flagrr Cash awarded.`,
-        receiptId,
+        { receiptId },
       );
     }
 

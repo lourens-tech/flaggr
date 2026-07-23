@@ -14,6 +14,8 @@ import { HelpCenterScreen } from '../screens/profile/HelpCenterScreen';
 import { ContactScreen } from '../screens/profile/ContactScreen';
 import { EditProfileScreen } from '../screens/profile/EditProfileScreen';
 import { TermsPrivacyScreen } from '../screens/profile/TermsPrivacyScreen';
+import { MyEnquiriesScreen } from '../screens/profile/MyEnquiriesScreen';
+import { EnquiryChatScreen } from '../screens/profile/EnquiryChatScreen';
 import { AdminNavigator } from './AdminNavigator';
 import { useApp } from '../context/AppContext';
 import { useAdmin } from '../context/AdminContext';
@@ -55,6 +57,8 @@ export function RootNavigator() {
           <Stack.Screen name="Contact" component={ContactScreen} />
           <Stack.Screen name="EditProfile" component={EditProfileScreen} />
           <Stack.Screen name="TermsPrivacy" component={TermsPrivacyScreen} />
+          <Stack.Screen name="MyEnquiries" component={MyEnquiriesScreen} />
+          <Stack.Screen name="EnquiryChat" component={EnquiryChatScreen} />
         </>
       ) : (
         <Stack.Screen name="Auth" component={AuthNavigator} />

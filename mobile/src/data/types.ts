@@ -192,4 +192,31 @@ export interface AppNotification {
   body: string;
   date: string;
   read: boolean;
+  enquiryId: string | null;
+}
+
+export type EnquiryStatus = 'pending' | 'in_progress' | 'resolved';
+
+export interface EnquiryMessage {
+  id: string;
+  senderType: 'member' | 'admin';
+  body: string;
+  createdAt: string;
+}
+
+export interface MyEnquirySummary {
+  id: string;
+  enquiryType: string;
+  status: EnquiryStatus;
+  createdAt: string;
+  updatedAt: string;
+  lastMessage: string | null;
+  hasUnread: boolean;
+}
+
+export interface MyEnquiryThread {
+  id: string;
+  status: EnquiryStatus;
+  enquiryType: string;
+  messages: EnquiryMessage[];
 }

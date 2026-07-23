@@ -36,9 +36,8 @@ export function ContactScreen({ navigation }: Props) {
     }
     setSubmitting(true);
     try {
-      await sendContactEnquiry({ name, surname, phone, email, enquiryType, message: message.trim() });
-      showAlert('Enquiry sent', 'Thanks — our team will get back to you shortly.');
-      navigation.goBack();
+      const enquiryId = await sendContactEnquiry({ name, surname, phone, email, enquiryType, message: message.trim() });
+      navigation.replace('EnquiryChat', { enquiryId });
     } catch (err) {
       const errMessage = err instanceof ApiError ? err.message : 'Something went wrong. Please try again.';
       showAlert('Couldn’t send your enquiry', errMessage);
@@ -58,6 +57,12 @@ export function ContactScreen({ navigation }: Props) {
       </SafeAreaView>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <TouchableOpacity style={styles.myEnquiriesLink} onPress={() => navigation.navigate('MyEnquiries')}>
+          <Ionicons name="chatbubbles-outline" size={16} color={colors.clubGreen} />
+          <Text style={styles.myEnquiriesText}>View my previous enquiries</Text>
+          <Ionicons name="chevron-forward" size={14} color={colors.clubGreen} />
+        </TouchableOpacity>
+
         <View style={styles.formCard}>
           <View style={styles.row}>
             <View style={{ flex: 1 }}>
@@ -130,6 +135,15 @@ const styles = StyleSheet.create({
   heroContent: { paddingHorizontal: screenPadding, paddingBottom: spacing.xl, paddingTop: spacing.md },
   heroTitle: { fontFamily: fontFamily.heading, fontSize: 26, color: colors.white },
   content: { padding: screenPadding },
+  myEnquiriesLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    alignSelf: 'flex-start',
+    marginTop: -spacing.lg,
+    marginBottom: spacing.md,
+  },
+  myEnquiriesText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.small, color: colors.clubGreen },
   formCard: { backgroundColor: colors.white, marginTop: -spacing.xl },
   row: { flexDirection: 'row', gap: spacing.sm },
   dropdown: {

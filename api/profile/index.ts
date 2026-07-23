@@ -6,6 +6,7 @@ import { sendEmail } from '../_lib/email';
 import { logAdClick } from '../_lib/ads';
 import { registerPushToken, type PushPlatform } from '../_lib/pushNotifications';
 import { notifyCourseAdmins } from '../_lib/adminNotifications';
+import { addMemberMessage, createEnquiry, listEnquiryMessages, markThreadReadByMember } from '../_lib/enquiries';
 
 // Folded avatar update, profile field editing, the contact form's send,
 // ad-click logging, and push-token registration into one file (dispatched
@@ -53,18 +54,70 @@ interface RegisterPushTokenBody {
   platform?: PushPlatform;
 }
 
+interface EnquiryReplyBody {
+  enquiryId?: string;
+  message?: string;
+}
+
 function escapeHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
 export default withErrorHandling(async (req: VercelRequest, res: VercelResponse) => {
+  const authed = await requireAuthedUser(req);
+  const action = req.query.action;
+
+  if (action === 'myEnquiries' && req.method === 'GET') {
+    const rows = (await sql`
+      select e.id, e.enquiry_type, e.status, e.created_at, e.updated_at,
+             (select body from enquiry_messages m where m.enquiry_id = e.id order by m.created_at desc limit 1) as last_message,
+             exists(select 1 from enquiry_messages m where m.enquiry_id = e.id and m.read_by_member = false) as has_unread
+      from enquiries e
+      where e.user_id = ${authed.id}
+      order by e.updated_at desc
+    `) as Array<{
+      id: string;
+      enquiry_type: string;
+      status: string;
+      created_at: string;
+      updated_at: string;
+      last_message: string | null;
+      has_unread: boolean;
+    }>;
+    res.status(200).json(
+      rows.map((r) => ({
+        id: r.id,
+        enquiryType: r.enquiry_type,
+        status: r.status,
+        createdAt: r.created_at,
+        updatedAt: r.updated_at,
+        lastMessage: r.last_message,
+        hasUnread: r.has_unread,
+      })),
+    );
+    return;
+  }
+
+  if (action === 'enquiryThread' && req.method === 'GET') {
+    const id = typeof req.query.id === 'string' ? req.query.id : '';
+    const owned = (await sql`
+      select id, status, enquiry_type from enquiries where id = ${id} and user_id = ${authed.id}
+    `) as Array<{ id: string; status: string; enquiry_type: string }>;
+    if (owned.length === 0) throw new HttpError(404, 'Enquiry not found');
+    await markThreadReadByMember(id);
+    res.status(200).json({
+      id: owned[0].id,
+      status: owned[0].status,
+      enquiryType: owned[0].enquiry_type,
+      messages: await listEnquiryMessages(id),
+    });
+    return;
+  }
+
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'Method not allowed' });
     return;
   }
-
-  const authed = await requireAuthedUser(req);
-  const action = req.query.action;
 
   if (action === 'contact') {
     const body = req.body as ContactBody;
@@ -74,29 +127,46 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     }
     const fullName = [body.name?.trim(), body.surname?.trim()].filter(Boolean).join(' ') || authed.firstName;
     const replyEmail = body.email?.trim() || authed.email;
+    const enquiryType = body.enquiryType || 'General';
 
     await sendEmail({
       to: CONTACT_EMAIL,
-      subject: `Flaggr enquiry (${body.enquiryType || 'General'}) from ${fullName}`,
+      subject: `Flaggr enquiry (${enquiryType}) from ${fullName}`,
       html: `
         <p><strong>From:</strong> ${escapeHtml(fullName)} (${escapeHtml(replyEmail)})</p>
         <p><strong>Phone:</strong> ${escapeHtml(body.phone?.trim() || '—')}</p>
-        <p><strong>Enquiry type:</strong> ${escapeHtml(body.enquiryType || 'General')}</p>
+        <p><strong>Enquiry type:</strong> ${escapeHtml(enquiryType)}</p>
         <p><strong>Message:</strong></p>
         <p>${escapeHtml(message).replace(/\n/g, '<br/>')}</p>
       `,
     });
 
-    // Also notify that member's own club's admin — a course admin should
-    // know when one of their members has an enquiry, not just the central
-    // Flagrr inbox.
-    await notifyCourseAdmins(
-      authed.courseId,
-      `New enquiry from ${fullName}`,
-      `(${body.enquiryType || 'General'}) ${message}`,
-    );
+    // Also opens a real two-way thread with that member's own club's
+    // admin — not just a one-shot email to the central Flagrr inbox.
+    const enquiryId = await createEnquiry(authed.courseId, authed.id, enquiryType, message);
+    await notifyCourseAdmins(authed.courseId, `New enquiry from ${fullName}`, `(${enquiryType}) ${message}`, { enquiryId });
 
-    res.status(200).json({ ok: true });
+    res.status(200).json({ ok: true, enquiryId });
+    return;
+  }
+
+  if (action === 'enquiryReply') {
+    const { enquiryId, message } = req.body as EnquiryReplyBody;
+    const body = message?.trim();
+    if (!enquiryId || !body) {
+      throw new HttpError(400, 'enquiryId and message are required');
+    }
+    const owned = (await sql`
+      select id from enquiries where id = ${enquiryId} and user_id = ${authed.id}
+    `) as Array<{ id: string }>;
+    if (owned.length === 0) throw new HttpError(404, 'Enquiry not found');
+
+    await addMemberMessage(enquiryId, body);
+    await notifyCourseAdmins(authed.courseId, `${authed.firstName} ${authed.lastName} replied to an enquiry`, body, {
+      enquiryId,
+    });
+
+    res.status(200).json(await listEnquiryMessages(enquiryId));
     return;
   }
 

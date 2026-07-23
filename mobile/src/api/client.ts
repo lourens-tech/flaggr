@@ -3,6 +3,9 @@ import type {
   ActivityEntry,
   Ad,
   AppNotification,
+  EnquiryMessage,
+  MyEnquirySummary,
+  MyEnquiryThread,
   PointsAccount,
   Receipt,
   Reward,
@@ -129,6 +132,11 @@ export interface ContactEnquiryPayload {
   message: string;
 }
 
+export interface ContactEnquiryResponse {
+  ok: boolean;
+  enquiryId: string;
+}
+
 export const api = {
   courses: () => request<Course[]>('/courses', { auth: false }),
 
@@ -175,7 +183,14 @@ export const api = {
     }),
 
   sendContactEnquiry: (payload: ContactEnquiryPayload) =>
-    request<{ ok: boolean }>('/profile?action=contact', { method: 'POST', body: payload }),
+    request<ContactEnquiryResponse>('/profile?action=contact', { method: 'POST', body: payload }),
+
+  myEnquiries: () => request<MyEnquirySummary[]>('/profile?action=myEnquiries'),
+
+  enquiryThread: (id: string) => request<MyEnquiryThread>(`/profile?action=enquiryThread&id=${id}`),
+
+  replyToEnquiry: (enquiryId: string, message: string) =>
+    request<EnquiryMessage[]>('/profile?action=enquiryReply', { method: 'POST', body: { enquiryId, message } }),
 
   logAdClick: (adId: string) =>
     request<{ ok: boolean }>('/profile?action=adClick', { method: 'POST', body: { adId } }),

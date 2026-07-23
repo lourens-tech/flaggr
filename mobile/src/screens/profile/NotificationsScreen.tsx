@@ -52,7 +52,16 @@ export function NotificationsScreen({ navigation }: Props) {
             <Text style={styles.groupLabel}>{group.label}</Text>
             <View style={styles.card}>
               {group.entries.map((n, i) => (
-                <View key={n.id} style={[styles.row, i !== group.entries.length - 1 && styles.rowDivider]}>
+                <TouchableOpacity
+                  key={n.id}
+                  style={[styles.row, i !== group.entries.length - 1 && styles.rowDivider]}
+                  activeOpacity={n.enquiryId ? 0.7 : 1}
+                  disabled={!n.enquiryId}
+                  onPress={() => {
+                    if (!n.read) markNotificationRead(n.id);
+                    if (n.enquiryId) navigation.navigate('EnquiryChat', { enquiryId: n.enquiryId });
+                  }}
+                >
                   <Ionicons
                     name={n.read ? 'checkmark-circle-outline' : 'notifications'}
                     size={18}
@@ -63,10 +72,14 @@ export function NotificationsScreen({ navigation }: Props) {
                     <Text style={styles.rowTitle}>{n.title}</Text>
                     <Text style={styles.rowBody}>{n.body}</Text>
                   </View>
-                  <TouchableOpacity onPress={() => markNotificationRead(n.id)}>
-                    <Text style={styles.viewLink}>View</Text>
-                  </TouchableOpacity>
-                </View>
+                  {n.enquiryId ? (
+                    <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
+                  ) : (
+                    <TouchableOpacity onPress={() => markNotificationRead(n.id)}>
+                      <Text style={styles.viewLink}>View</Text>
+                    </TouchableOpacity>
+                  )}
+                </TouchableOpacity>
               ))}
             </View>
           </View>

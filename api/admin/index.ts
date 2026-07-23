@@ -6,6 +6,14 @@ import { HttpError, withErrorHandling } from '../_lib/http';
 import { isStatsPeriod, periodWindow, type StatsPeriod } from '../_lib/periods';
 import { getDashboardReport } from '../_lib/adminReports';
 import { toCsv } from '../_lib/csv';
+import {
+  addAdminMessage,
+  ENQUIRY_STATUSES,
+  listEnquiryMessages,
+  markThreadReadByAdmin,
+  type EnquiryStatus,
+} from '../_lib/enquiries';
+import { sendPushToUser } from '../_lib/pushNotifications';
 
 // Every action for the course-admin side of the app lives in this one file,
 // dispatched by ?action= (same pattern as api/profile/index.ts and
@@ -216,14 +224,30 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
 
   if (action === 'notifications' && req.method === 'GET') {
     const rows = (await sql`
-      select id, title, body, receipt_id, date, read
+      select id, title, body, receipt_id, enquiry_id, date, read
       from admin_notifications
       where course_id = ${courseId}
       order by date desc
       limit 50
-    `) as Array<{ id: string; title: string; body: string; receipt_id: string | null; date: string; read: boolean }>;
+    `) as Array<{
+      id: string;
+      title: string;
+      body: string;
+      receipt_id: string | null;
+      enquiry_id: string | null;
+      date: string;
+      read: boolean;
+    }>;
     res.status(200).json(
-      rows.map((r) => ({ id: r.id, title: r.title, body: r.body, receiptId: r.receipt_id, date: r.date, read: r.read })),
+      rows.map((r) => ({
+        id: r.id,
+        title: r.title,
+        body: r.body,
+        receiptId: r.receipt_id,
+        enquiryId: r.enquiry_id,
+        date: r.date,
+        read: r.read,
+      })),
     );
     return;
   }
@@ -232,6 +256,104 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     const id = (req.body as { id?: string }).id;
     if (!id) throw new HttpError(400, 'id is required');
     await sql`update admin_notifications set read = true where id = ${id} and course_id = ${courseId}`;
+    res.status(200).json({ ok: true });
+    return;
+  }
+
+  if (action === 'enquiries' && req.method === 'GET') {
+    const statusFilter = typeof req.query.status === 'string' ? req.query.status : null;
+    const rows = (await sql`
+      select e.id, e.enquiry_type, e.status, e.created_at, e.updated_at,
+             u.first_name, u.last_name, u.email,
+             (select body from enquiry_messages m where m.enquiry_id = e.id order by m.created_at desc limit 1) as last_message,
+             exists(select 1 from enquiry_messages m where m.enquiry_id = e.id and m.read_by_admin = false) as has_unread
+      from enquiries e
+      join users u on u.id = e.user_id
+      where e.course_id = ${courseId}
+        and (${statusFilter}::text is null or e.status = ${statusFilter})
+      order by e.updated_at desc
+    `) as Array<{
+      id: string;
+      enquiry_type: string;
+      status: string;
+      created_at: string;
+      updated_at: string;
+      first_name: string;
+      last_name: string;
+      email: string;
+      last_message: string | null;
+      has_unread: boolean;
+    }>;
+    res.status(200).json(
+      rows.map((r) => ({
+        id: r.id,
+        enquiryType: r.enquiry_type,
+        status: r.status,
+        createdAt: r.created_at,
+        updatedAt: r.updated_at,
+        memberName: `${r.first_name} ${r.last_name}`,
+        memberEmail: r.email,
+        lastMessage: r.last_message,
+        hasUnread: r.has_unread,
+      })),
+    );
+    return;
+  }
+
+  if (action === 'enquiryThread' && req.method === 'GET') {
+    const id = typeof req.query.id === 'string' ? req.query.id : '';
+    const owned = (await sql`
+      select e.id, e.status, e.enquiry_type, u.first_name, u.last_name, u.email
+      from enquiries e join users u on u.id = e.user_id
+      where e.id = ${id} and e.course_id = ${courseId}
+    `) as Array<{ id: string; status: string; enquiry_type: string; first_name: string; last_name: string; email: string }>;
+    if (owned.length === 0) throw new HttpError(404, 'Enquiry not found');
+    await markThreadReadByAdmin(id);
+    const e = owned[0];
+    res.status(200).json({
+      id: e.id,
+      status: e.status,
+      enquiryType: e.enquiry_type,
+      memberName: `${e.first_name} ${e.last_name}`,
+      memberEmail: e.email,
+      messages: await listEnquiryMessages(id),
+    });
+    return;
+  }
+
+  if (action === 'enquiryReply') {
+    const { enquiryId, message } = req.body as { enquiryId?: string; message?: string };
+    const body = message?.trim();
+    if (!enquiryId || !body) throw new HttpError(400, 'enquiryId and message are required');
+
+    const owned = (await sql`
+      select e.id, e.user_id from enquiries e where e.id = ${enquiryId} and e.course_id = ${courseId}
+    `) as Array<{ id: string; user_id: string }>;
+    if (owned.length === 0) throw new HttpError(404, 'Enquiry not found');
+
+    await addAdminMessage(enquiryId, authed.id, body);
+
+    const course = await fetchCourse(courseId);
+    const notifBody = `${course.name} replied: ${body}`;
+    await sql`
+      insert into notifications (user_id, title, body, enquiry_id)
+      values (${owned[0].user_id}, 'Reply to your enquiry', ${notifBody}, ${enquiryId})
+    `;
+    await sendPushToUser(owned[0].user_id, { title: 'Reply to your enquiry', body: notifBody });
+
+    res.status(200).json(await listEnquiryMessages(enquiryId));
+    return;
+  }
+
+  if (action === 'enquiryStatus') {
+    const { enquiryId, status } = req.body as { enquiryId?: string; status?: EnquiryStatus };
+    if (!enquiryId || !status || !ENQUIRY_STATUSES.includes(status)) {
+      throw new HttpError(400, 'enquiryId and a valid status are required');
+    }
+    await sql`
+      update enquiries set status = ${status}, updated_at = now()
+      where id = ${enquiryId} and course_id = ${courseId}
+    `;
     res.status(200).json({ ok: true });
     return;
   }

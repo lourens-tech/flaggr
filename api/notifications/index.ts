@@ -32,11 +32,13 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
   }
 
   const rows = (await sql`
-    select id, title, body, date, read
+    select id, title, body, date, read, enquiry_id
     from notifications
     where user_id = ${authed.id}
     order by date desc
-  `) as Array<{ id: string; title: string; body: string; date: string; read: boolean }>;
+  `) as Array<{ id: string; title: string; body: string; date: string; read: boolean; enquiry_id: string | null }>;
 
-  res.status(200).json(rows);
+  res.status(200).json(
+    rows.map((r) => ({ id: r.id, title: r.title, body: r.body, date: r.date, read: r.read, enquiryId: r.enquiry_id })),
+  );
 });

@@ -2,6 +2,7 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import type { AdminTabParamList } from './types';
 import { AdminDashboardScreen } from '../screens/admin/AdminDashboardScreen';
+import { AdminEnquiriesListScreen } from '../screens/admin/AdminEnquiriesListScreen';
 import { AdminRewardsListScreen } from '../screens/admin/AdminRewardsListScreen';
 import { AdminAdsListScreen } from '../screens/admin/AdminAdsListScreen';
 import { AdminVoucherRedeemScreen } from '../screens/admin/AdminVoucherRedeemScreen';
@@ -14,6 +15,7 @@ export function AdminTabNavigator() {
   return (
     <Tab.Navigator screenOptions={{ headerShown: false }} tabBar={(props) => <AdminTabBar {...props} />}>
       <Tab.Screen name="AdminDashboard" component={AdminDashboardScreen} />
+      <Tab.Screen name="AdminEnquiries" component={AdminEnquiriesListScreen} />
       <Tab.Screen name="AdminRewards" component={AdminRewardsListScreen} />
       <Tab.Screen name="AdminAds" component={AdminAdsListScreen} />
       <Tab.Screen name="AdminVouchers" component={AdminVoucherRedeemScreen} />

@@ -110,8 +110,39 @@ export interface AdminNotification {
   title: string;
   body: string;
   receiptId: string | null;
+  enquiryId: string | null;
   date: string;
   read: boolean;
+}
+
+export type EnquiryStatus = 'pending' | 'in_progress' | 'resolved';
+
+export interface EnquiryMessage {
+  id: string;
+  senderType: 'member' | 'admin';
+  body: string;
+  createdAt: string;
+}
+
+export interface AdminEnquirySummary {
+  id: string;
+  enquiryType: string;
+  status: EnquiryStatus;
+  createdAt: string;
+  updatedAt: string;
+  memberName: string;
+  memberEmail: string;
+  lastMessage: string | null;
+  hasUnread: boolean;
+}
+
+export interface AdminEnquiryThread {
+  id: string;
+  status: EnquiryStatus;
+  enquiryType: string;
+  memberName: string;
+  memberEmail: string;
+  messages: EnquiryMessage[];
 }
 
 export interface AdminVoucherLookup {

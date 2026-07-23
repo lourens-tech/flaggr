@@ -8,10 +8,10 @@ export async function notifyCourseAdmins(
   courseId: string,
   title: string,
   body: string,
-  receiptId: string | null = null,
+  options: { receiptId?: string | null; enquiryId?: string | null } = {},
 ): Promise<void> {
   await sql`
-    insert into admin_notifications (course_id, title, body, receipt_id)
-    values (${courseId}, ${title}, ${body}, ${receiptId})
+    insert into admin_notifications (course_id, title, body, receipt_id, enquiry_id)
+    values (${courseId}, ${title}, ${body}, ${options.receiptId ?? null}, ${options.enquiryId ?? null})
   `;
 }

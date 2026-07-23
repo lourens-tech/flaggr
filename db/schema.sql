@@ -242,13 +242,38 @@ create table activity (
   date timestamptz not null default now()
 );
 
+-- A member's Contact Us enquiry, as a real two-way thread with a course
+-- admin rather than a one-shot email. See api/profile/index.ts (member
+-- side) and api/admin/index.ts (admin side).
+create table enquiries (
+  id uuid primary key default gen_random_uuid(),
+  course_id uuid not null references courses(id) on delete cascade,
+  user_id uuid not null references users(id) on delete cascade,
+  enquiry_type text not null default 'General',
+  status text not null default 'pending' check (status in ('pending', 'in_progress', 'resolved')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table enquiry_messages (
+  id uuid primary key default gen_random_uuid(),
+  enquiry_id uuid not null references enquiries(id) on delete cascade,
+  sender_type text not null check (sender_type in ('member', 'admin')),
+  sender_admin_id uuid references admins(id) on delete set null,
+  body text not null,
+  created_at timestamptz not null default now(),
+  read_by_member boolean not null default false,
+  read_by_admin boolean not null default false
+);
+
 create table notifications (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references users(id) on delete cascade,
   title text not null,
   body text not null,
   date timestamptz not null default now(),
-  read boolean not null default false
+  read boolean not null default false,
+  enquiry_id uuid references enquiries(id) on delete cascade
 );
 
 -- Idempotency ledgers for the automatic tier perks (birthday bonus, once-a-
@@ -332,6 +357,7 @@ create table admin_notifications (
   title text not null,
   body text not null,
   receipt_id uuid references receipts(id) on delete set null,
+  enquiry_id uuid references enquiries(id) on delete cascade,
   date timestamptz not null default now(),
   read boolean not null default false
 );
@@ -347,6 +373,9 @@ create index receipts_course_id_idx on receipts(course_id);
 create index activity_user_id_idx on activity(user_id);
 create index activity_voucher_id_idx on activity(voucher_id);
 create index notifications_user_id_idx on notifications(user_id);
+create index enquiries_course_id_idx on enquiries(course_id);
+create index enquiries_user_id_idx on enquiries(user_id);
+create index enquiry_messages_enquiry_id_idx on enquiry_messages(enquiry_id);
 create index sessions_user_id_idx on sessions(user_id);
 create index admins_course_id_idx on admins(course_id);
 create index admin_sessions_admin_id_idx on admin_sessions(admin_id);

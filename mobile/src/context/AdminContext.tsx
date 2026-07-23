@@ -10,12 +10,16 @@ import {
 import type {
   AdminAd,
   AdminCourse,
+  AdminEnquirySummary,
+  AdminEnquiryThread,
   AdminMember,
   AdminNotification,
   AdminReward,
   AdminUser,
   AdminVoucherLookup,
   DashboardReport,
+  EnquiryMessage,
+  EnquiryStatus,
 } from '../data/adminTypes';
 
 const ADMIN_TOKEN_KEY = 'flagrr_admin_auth_token';
@@ -60,6 +64,10 @@ interface AdminContextValue {
   searchMembers: (query: string) => Promise<AdminMember[]>;
   lookupVoucher: (code: string) => Promise<AdminVoucherLookup>;
   redeemVoucher: (code: string) => Promise<AdminVoucherLookup>;
+  listEnquiries: (status?: EnquiryStatus) => Promise<AdminEnquirySummary[]>;
+  getEnquiryThread: (id: string) => Promise<AdminEnquiryThread>;
+  replyToEnquiry: (enquiryId: string, message: string) => Promise<EnquiryMessage[]>;
+  setEnquiryStatus: (enquiryId: string, status: EnquiryStatus) => Promise<void>;
   updateCourseProfile: (payload: CourseProfilePayload) => Promise<void>;
   updateCourseLogo: (imageBase64: string) => Promise<void>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
@@ -193,6 +201,13 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
   const lookupVoucher = async (code: string) => adminApi.lookupVoucher(code);
   const redeemVoucher = async (code: string) => adminApi.redeemVoucher(code);
 
+  const listEnquiries = async (status?: EnquiryStatus) => adminApi.enquiries(status);
+  const getEnquiryThread = async (id: string) => adminApi.enquiryThread(id);
+  const replyToEnquiry = async (enquiryId: string, message: string) => adminApi.replyToEnquiry(enquiryId, message);
+  const setEnquiryStatus = async (enquiryId: string, status: EnquiryStatus) => {
+    await adminApi.setEnquiryStatus(enquiryId, status);
+  };
+
   const updateCourseProfile = async (payload: CourseProfilePayload) => {
     const updated = await adminApi.updateCourseProfile(payload);
     setCourse(updated);
@@ -234,6 +249,10 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     searchMembers,
     lookupVoucher,
     redeemVoucher,
+    listEnquiries,
+    getEnquiryThread,
+    replyToEnquiry,
+    setEnquiryStatus,
     updateCourseProfile,
     updateCourseLogo,
     changePassword,

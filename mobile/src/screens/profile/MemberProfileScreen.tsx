@@ -130,7 +130,11 @@ export function MemberProfileScreen({ navigation }: Props) {
         <View style={styles.header}>
           <Text style={styles.headerTitle}>My Profile</Text>
           <View style={styles.headerRight}>
-            <TouchableOpacity onPress={() => navigation.navigate('Notifications')}>
+            <TouchableOpacity
+              onPress={() => navigation.navigate('Notifications')}
+              accessibilityLabel="Notifications"
+              accessibilityRole="button"
+            >
               <Ionicons name="notifications" size={20} color={colors.white} />
               {unreadNotificationCount > 0 ? <View style={styles.badge} /> : null}
             </TouchableOpacity>
