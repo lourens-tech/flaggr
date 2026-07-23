@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -6,11 +6,28 @@ import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AdminStackParamList } from '../../navigation/types';
 import { ScreenHeader } from '../../components/common/ScreenHeader';
+import { TextField } from '../../components/common/TextField';
 import { useAdmin } from '../../context/AdminContext';
 import { colors, fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
 import type { AdminNotification } from '../../data/adminTypes';
 
 type Props = NativeStackScreenProps<AdminStackParamList, 'AdminNotifications'>;
+
+type NotificationFilter = 'all' | 'unread' | 'receipts' | 'enquiries';
+
+const FILTERS: Array<{ label: string; value: NotificationFilter }> = [
+  { label: 'All', value: 'all' },
+  { label: 'Unread', value: 'unread' },
+  { label: 'Receipts', value: 'receipts' },
+  { label: 'Enquiries', value: 'enquiries' },
+];
+
+function matchesFilter(n: AdminNotification, filter: NotificationFilter): boolean {
+  if (filter === 'unread') return !n.read;
+  if (filter === 'receipts') return !!n.receiptId;
+  if (filter === 'enquiries') return !!n.enquiryId;
+  return true;
+}
 
 function groupLabel(dateIso: string): string {
   const date = new Date(dateIso);
@@ -28,6 +45,8 @@ function groupLabel(dateIso: string): string {
 
 export function AdminNotificationsScreen({ navigation }: Props) {
   const { notifications, loadNotifications, markNotificationRead } = useAdmin();
+  const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState<NotificationFilter>('all');
 
   useFocusEffect(
     useCallback(() => {
@@ -35,16 +54,25 @@ export function AdminNotificationsScreen({ navigation }: Props) {
     }, [loadNotifications]),
   );
 
+  const filtered = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return notifications.filter((n) => {
+      if (!matchesFilter(n, filter)) return false;
+      if (!query) return true;
+      return n.title.toLowerCase().includes(query) || n.body.toLowerCase().includes(query);
+    });
+  }, [notifications, filter, search]);
+
   const grouped = useMemo(() => {
     const groups: Record<string, AdminNotification[]> = {};
-    for (const n of notifications) {
+    for (const n of filtered) {
       const label = groupLabel(n.date);
       groups[label] = groups[label] ?? [];
       groups[label].push(n);
     }
     const order = ['Today', 'Yesterday', 'This Week', 'Earlier'];
     return order.filter((l) => groups[l]?.length).map((label) => ({ label, entries: groups[label] }));
-  }, [notifications]);
+  }, [filtered]);
 
   return (
     <View style={styles.screen}>
@@ -53,9 +81,34 @@ export function AdminNotificationsScreen({ navigation }: Props) {
         <ScreenHeader title="Notifications" onBack={() => navigation.goBack()} />
       </SafeAreaView>
 
+      <View style={styles.searchArea}>
+        <TextField
+          placeholder="Search notifications"
+          variant="onLight"
+          icon="search"
+          value={search}
+          onChangeText={setSearch}
+        />
+        <View style={styles.filterRow}>
+          {FILTERS.map((f) => (
+            <TouchableOpacity
+              key={f.value}
+              onPress={() => setFilter(f.value)}
+              style={[styles.filterPill, filter === f.value && styles.filterPillActive]}
+              accessibilityLabel={`Filter ${f.label}`}
+              accessibilityRole="button"
+            >
+              <Text style={[styles.filterText, filter === f.value && styles.filterTextActive]}>{f.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {grouped.length === 0 ? (
-          <Text style={styles.emptyText}>No notifications yet.</Text>
+          <Text style={styles.emptyText}>
+            {notifications.length === 0 ? 'No notifications yet.' : 'No notifications match your search.'}
+          </Text>
         ) : (
           grouped.map((group) => (
             <View key={group.label} style={{ marginBottom: spacing.lg }}>
@@ -104,6 +157,12 @@ export function AdminNotificationsScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.white },
   headerSafeArea: { backgroundColor: colors.clubGreen },
+  searchArea: { paddingHorizontal: screenPadding, paddingTop: spacing.md, gap: spacing.sm },
+  filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  filterPill: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: radius.pill, backgroundColor: colors.mintBgAlt },
+  filterPillActive: { backgroundColor: colors.darkGreen },
+  filterText: { fontFamily: fontFamily.heading, fontSize: 11, color: colors.darkGreen },
+  filterTextActive: { color: colors.white },
   content: { padding: screenPadding },
   emptyText: {
     fontFamily: fontFamily.body,
