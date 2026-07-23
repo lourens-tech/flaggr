@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import type {
   AdminAd,
+  AdminBroadcast,
   AdminCourse,
   AdminEnquirySummary,
   AdminEnquiryThread,
@@ -10,6 +11,7 @@ import type {
   AdminReward,
   AdminUser,
   AdminVoucherLookup,
+  BroadcastTarget,
   DashboardReport,
   EnquiryMessage,
   EnquiryStatus,
@@ -168,6 +170,14 @@ export const adminApi = {
 
   memberStats: (id: string, period: 'month' | 'year' | 'all') =>
     request<MemberStats>(`?action=memberStats&id=${id}&period=${period}`),
+
+  broadcasts: () => request<AdminBroadcast[]>('?action=broadcasts'),
+
+  sendBroadcast: (payload: { title: string; body: string; target: BroadcastTarget }) =>
+    request<AdminBroadcast>('?action=broadcastSend', { method: 'POST', body: payload }),
+
+  deleteBroadcast: (id: string) =>
+    request<{ ok: boolean }>('?action=broadcastDelete', { method: 'POST', body: { id } }),
 
   notifications: () => request<AdminNotification[]>('?action=notifications'),
 

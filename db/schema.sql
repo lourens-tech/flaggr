@@ -363,6 +363,22 @@ create table admin_notifications (
   read boolean not null default false
 );
 
+-- A course admin's own push/in-app broadcasts to their members (all, or a
+-- single tier). See api/admin/index.ts's broadcastSend action — this is the
+-- send history, not the per-member deliveries (those land in `notifications`
+-- like any other member notification).
+create table admin_broadcasts (
+  id uuid primary key default gen_random_uuid(),
+  course_id uuid not null references courses(id) on delete cascade,
+  admin_id uuid references admins(id) on delete set null,
+  title text not null,
+  body text not null,
+  target text not null,
+  recipient_count integer not null default 0,
+  sent_at timestamptz not null default now()
+);
+
+create index admin_broadcasts_course_id_idx on admin_broadcasts(course_id);
 create index rewards_course_id_idx on rewards(course_id);
 create index ads_course_id_placement_idx on ads(course_id, placement);
 create index ad_clicks_ad_id_idx on ad_clicks(ad_id);

@@ -20,6 +20,7 @@ export type AdminTabParamList = {
   AdminEnquiries: undefined;
   AdminRewards: undefined;
   AdminAds: undefined;
+  AdminPush: undefined;
   AdminVouchers: undefined;
   AdminCourseProfile: undefined;
 };
@@ -31,6 +32,7 @@ export type AdminStackParamList = {
   AdminNotifications: undefined;
   AdminEnquiryChat: { enquiryId: string };
   AdminMemberStats: { memberId: string };
+  AdminBroadcastCompose: { title?: string; body?: string; target?: string } | undefined;
 };
 
 export type MainTabParamList = {

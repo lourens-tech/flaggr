@@ -9,6 +9,7 @@ import {
 } from '../api/adminClient';
 import type {
   AdminAd,
+  AdminBroadcast,
   AdminCourse,
   AdminEnquirySummary,
   AdminEnquiryThread,
@@ -17,6 +18,7 @@ import type {
   AdminReward,
   AdminUser,
   AdminVoucherLookup,
+  BroadcastTarget,
   DashboardReport,
   EnquiryMessage,
   EnquiryStatus,
@@ -54,6 +56,10 @@ interface AdminContextValue {
   unreadNotificationCount: number;
   loadNotifications: () => Promise<void>;
   markNotificationRead: (id: string) => Promise<void>;
+  broadcasts: AdminBroadcast[];
+  loadBroadcasts: () => Promise<void>;
+  sendBroadcast: (payload: { title: string; body: string; target: BroadcastTarget }) => Promise<void>;
+  deleteBroadcast: (id: string) => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   setDashboardPeriod: (period: DashboardPeriod) => Promise<void>;
@@ -92,6 +98,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
   const [rewards, setRewards] = useState<AdminReward[]>([]);
   const [ads, setAds] = useState<AdminAd[]>([]);
   const [notifications, setNotifications] = useState<AdminNotification[]>([]);
+  const [broadcasts, setBroadcasts] = useState<AdminBroadcast[]>([]);
 
   const refreshDashboard = useCallback(async () => {
     setDashboardLoading(true);
@@ -150,6 +157,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     setRewards([]);
     setAds([]);
     setNotifications([]);
+    setBroadcasts([]);
   };
 
   const markNotificationRead = async (id: string) => {
@@ -162,6 +170,20 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
   };
 
   const unreadNotificationCount = useMemo(() => notifications.filter((n) => !n.read).length, [notifications]);
+
+  const loadBroadcasts = useCallback(async () => {
+    setBroadcasts(await adminApi.broadcasts());
+  }, []);
+
+  const sendBroadcast = async (payload: { title: string; body: string; target: BroadcastTarget }) => {
+    await adminApi.sendBroadcast(payload);
+    await loadBroadcasts();
+  };
+
+  const deleteBroadcast = async (id: string) => {
+    await adminApi.deleteBroadcast(id);
+    setBroadcasts((prev) => prev.filter((b) => b.id !== id));
+  };
 
   const setDashboardPeriod = async (period: DashboardPeriod) => {
     setDashboardPeriodState(period);
@@ -249,6 +271,10 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     unreadNotificationCount,
     loadNotifications,
     markNotificationRead,
+    broadcasts,
+    loadBroadcasts,
+    sendBroadcast,
+    deleteBroadcast,
     login,
     logout,
     setDashboardPeriod,

@@ -143,6 +143,17 @@ export interface AdminNotification {
   read: boolean;
 }
 
+export type BroadcastTarget = 'all' | 'Bronze' | 'Silver' | 'Gold' | 'Platinum';
+
+export interface AdminBroadcast {
+  id: string;
+  title: string;
+  body: string;
+  target: BroadcastTarget;
+  recipientCount: number;
+  sentAt: string;
+}
+
 export type EnquiryStatus = 'pending' | 'in_progress' | 'resolved';
 
 export interface EnquiryMessage {

@@ -92,8 +92,19 @@ interface VoucherRedeemBody {
   code?: string;
 }
 
+interface BroadcastSendBody {
+  title?: string;
+  body?: string;
+  target?: string;
+}
+
+interface BroadcastDeleteBody {
+  id?: string;
+}
+
 const REWARD_CATEGORIES = ['rounds', 'experiences', 'pro-shop', 'practice', 'dining'];
 const AD_PLACEMENTS = ['home', 'rewards_shop'];
+const BROADCAST_TARGETS = ['all', 'Bronze', 'Silver', 'Gold', 'Platinum'];
 
 function courseDto(row: {
   id: string;
@@ -835,6 +846,91 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         monthly: fillMonthlyByNumber(monthlyRows as Array<{ month: number; value: number }>),
       },
     });
+    return;
+  }
+
+  if (action === 'broadcasts' && req.method === 'GET') {
+    const rows = (await sql`
+      select id, title, body, target, recipient_count, sent_at
+      from admin_broadcasts
+      where course_id = ${courseId}
+      order by sent_at desc
+      limit 100
+    `) as Array<{
+      id: string;
+      title: string;
+      body: string;
+      target: string;
+      recipient_count: number;
+      sent_at: string;
+    }>;
+    res.status(200).json(
+      rows.map((r) => ({
+        id: r.id,
+        title: r.title,
+        body: r.body,
+        target: r.target,
+        recipientCount: r.recipient_count,
+        sentAt: r.sent_at,
+      })),
+    );
+    return;
+  }
+
+  if (action === 'broadcastSend') {
+    const body = req.body as BroadcastSendBody;
+    const title = body.title?.trim();
+    const message = body.body?.trim();
+    const target = body.target?.trim();
+    if (!title) throw new HttpError(400, 'title is required');
+    if (!message) throw new HttpError(400, 'body is required');
+    if (!target || !BROADCAST_TARGETS.includes(target)) throw new HttpError(400, 'a valid target is required');
+
+    const recipients = (await sql`
+      select id from users
+      where course_id = ${courseId}
+        ${target !== 'all' ? sql`and tier = ${target}` : sql``}
+    `) as Array<{ id: string }>;
+
+    if (recipients.length > 0) {
+      await sql`
+        insert into notifications (user_id, title, body)
+        select id, ${title}, ${message} from users
+        where course_id = ${courseId}
+          ${target !== 'all' ? sql`and tier = ${target}` : sql``}
+      `;
+      await Promise.allSettled(recipients.map((r) => sendPushToUser(r.id, { title, body: message })));
+    }
+
+    const inserted = (await sql`
+      insert into admin_broadcasts (course_id, admin_id, title, body, target, recipient_count)
+      values (${courseId}, ${authed.id}, ${title}, ${message}, ${target}, ${recipients.length})
+      returning id, title, body, target, recipient_count, sent_at
+    `) as Array<{
+      id: string;
+      title: string;
+      body: string;
+      target: string;
+      recipient_count: number;
+      sent_at: string;
+    }>;
+    const b = inserted[0];
+    res.status(200).json({
+      id: b.id,
+      title: b.title,
+      body: b.body,
+      target: b.target,
+      recipientCount: b.recipient_count,
+      sentAt: b.sent_at,
+    });
+    return;
+  }
+
+  if (action === 'broadcastDelete') {
+    const id = (req.body as BroadcastDeleteBody).id;
+    if (!id) throw new HttpError(400, 'id is required');
+    await sql`delete from admin_broadcasts where id = ${id} and course_id = ${courseId}`;
+    res.status(200).json({ ok: true });
     return;
   }
 
