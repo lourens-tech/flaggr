@@ -2,8 +2,6 @@ import React, { useState, useMemo } from 'react';
 import { ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { TextField } from '../../components/common/TextField';
-import { PillButton } from '../../components/common/PillButton';
 import { useAdmin } from '../../context/AdminContext';
 import { AdminApiError } from '../../api/adminClient';
 import { showAlert } from '../../utils/alert';
@@ -12,18 +10,16 @@ import type { ThemePreference } from '../../context/ThemeContext';
 import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
 import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 
-// The basic profile tab for a `staff` account — just their name/email, a
-// change-password form, and logout. Everything a course_admin gets on
-// AdminCourseProfileScreen (course settings, logo, cover photo) is
-// deliberately out of reach here.
+// The basic profile tab for a `staff` account — just their name/email and
+// logout. Password resets for a staff account are course-admin-managed
+// (Manage Staff > Reset Password) rather than self-service. Everything a
+// course_admin gets on AdminCourseProfileScreen (course settings, logo,
+// cover photo) is deliberately out of reach here too.
 export function AdminStaffProfileScreen() {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const { admin, course, changePassword, updateThemePreference, logout } = useAdmin();
+  const { admin, course, updateThemePreference, logout } = useAdmin();
 
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [changingPassword, setChangingPassword] = useState(false);
   const [savingTheme, setSavingTheme] = useState(false);
 
   const handleThemeChange = async (preference: ThemePreference) => {
@@ -35,25 +31,6 @@ export function AdminStaffProfileScreen() {
       showAlert('Couldn’t update appearance', message);
     } finally {
       setSavingTheme(false);
-    }
-  };
-
-  const handleChangePassword = async () => {
-    if (!currentPassword || newPassword.length < 8) {
-      showAlert('Missing info', 'Enter your current password and a new password (min. 8 characters).');
-      return;
-    }
-    setChangingPassword(true);
-    try {
-      await changePassword(currentPassword, newPassword);
-      setCurrentPassword('');
-      setNewPassword('');
-      showAlert('Password changed', 'Use your new password next time you log in.');
-    } catch (err) {
-      const message = err instanceof AdminApiError ? err.message : 'Something went wrong. Please try again.';
-      showAlert('Couldn’t change password', message);
-    } finally {
-      setChangingPassword(false);
     }
   };
 
@@ -92,13 +69,6 @@ export function AdminStaffProfileScreen() {
 
         <Text style={styles.sectionTitle}>Appearance</Text>
         <ThemeToggleRow onChange={handleThemeChange} disabled={savingTheme} />
-
-        <Text style={styles.sectionTitle}>Change Password</Text>
-        <TextField placeholder="Current Password" variant="onLight" isPassword value={currentPassword} onChangeText={setCurrentPassword} />
-        <View style={{ height: spacing.md }} />
-        <TextField placeholder="New Password" variant="onLight" isPassword value={newPassword} onChangeText={setNewPassword} />
-        <View style={{ height: spacing.md }} />
-        <PillButton label="Update Password" variant="outline" onPress={handleChangePassword} loading={changingPassword} />
 
         <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
           <Ionicons name="log-out-outline" size={18} color={colors.negative} />
