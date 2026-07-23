@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,13 +10,16 @@ import { TextField } from '../../components/common/TextField';
 import { ApiError } from '../../api/client';
 import { useApp } from '../../context/AppContext';
 import { showAlert } from '../../utils/alert';
-import { colors, fontFamily, screenPadding, spacing } from '../../theme';
+import { fontFamily, screenPadding, spacing } from '../../theme';
+import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Login'>;
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function LoginScreen({ navigation }: Props) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { login } = useApp();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -145,7 +148,8 @@ export function LoginScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.darkGreen },
   safeArea: { flex: 1, paddingHorizontal: screenPadding },
   backButton: { width: 32, height: 32, justifyContent: 'center', marginTop: spacing.sm },
@@ -160,3 +164,4 @@ const styles = StyleSheet.create({
   signupText: { fontFamily: fontFamily.body, fontSize: 13, color: colors.white },
   signupBold: { fontFamily: fontFamily.bodySemiBold, fontSize: 13, color: colors.lime },
 });
+}

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,18 +7,36 @@ import { PillButton } from '../../components/common/PillButton';
 import { useAdmin } from '../../context/AdminContext';
 import { AdminApiError } from '../../api/adminClient';
 import { showAlert } from '../../utils/alert';
-import { colors, fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
+import { ThemeToggleRow } from '../../components/common/ThemeToggleRow';
+import type { ThemePreference } from '../../context/ThemeContext';
+import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
+import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 
 // The basic profile tab for a `staff` account — just their name/email, a
 // change-password form, and logout. Everything a course_admin gets on
 // AdminCourseProfileScreen (course settings, logo, cover photo) is
 // deliberately out of reach here.
 export function AdminStaffProfileScreen() {
-  const { admin, course, changePassword, logout } = useAdmin();
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { admin, course, changePassword, updateThemePreference, logout } = useAdmin();
 
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [changingPassword, setChangingPassword] = useState(false);
+  const [savingTheme, setSavingTheme] = useState(false);
+
+  const handleThemeChange = async (preference: ThemePreference) => {
+    setSavingTheme(true);
+    try {
+      await updateThemePreference(preference);
+    } catch (err) {
+      const message = err instanceof AdminApiError ? err.message : 'Something went wrong. Please try again.';
+      showAlert('Couldn’t update appearance', message);
+    } finally {
+      setSavingTheme(false);
+    }
+  };
 
   const handleChangePassword = async () => {
     if (!currentPassword || newPassword.length < 8) {
@@ -72,6 +90,9 @@ export function AdminStaffProfileScreen() {
           Your name and username are managed by your course admin. Contact them if these need to change.
         </Text>
 
+        <Text style={styles.sectionTitle}>Appearance</Text>
+        <ThemeToggleRow onChange={handleThemeChange} disabled={savingTheme} />
+
         <Text style={styles.sectionTitle}>Change Password</Text>
         <TextField placeholder="Current Password" variant="onLight" isPassword value={currentPassword} onChangeText={setCurrentPassword} />
         <View style={{ height: spacing.md }} />
@@ -88,8 +109,9 @@ export function AdminStaffProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.white },
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.background },
   headerSafeArea: { backgroundColor: colors.clubGreen },
   header: { paddingHorizontal: screenPadding, paddingVertical: spacing.md },
   headerTitle: { fontFamily: fontFamily.headingDisplay, fontSize: fontSize.title, color: colors.white },
@@ -105,7 +127,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: spacing.xs,
   },
-  name: { fontFamily: fontFamily.heading, fontSize: fontSize.cardTitle, color: colors.darkGreen },
+  name: { fontFamily: fontFamily.heading, fontSize: fontSize.cardTitle, color: colors.textPrimary },
   email: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary },
   roleBadge: {
     backgroundColor: colors.mintBg,
@@ -114,7 +136,7 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     marginTop: 4,
   },
-  roleBadgeText: { fontFamily: fontFamily.bodySemiBold, fontSize: 10, color: colors.darkGreen },
+  roleBadgeText: { fontFamily: fontFamily.bodySemiBold, fontSize: 10, color: colors.textPrimary },
   helpText: {
     fontFamily: fontFamily.body,
     fontSize: fontSize.tiny,
@@ -125,7 +147,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontFamily: fontFamily.heading,
     fontSize: fontSize.cardTitle,
-    color: colors.darkGreen,
+    color: colors.textPrimary,
     marginBottom: spacing.md,
   },
   logoutButton: {
@@ -138,3 +160,4 @@ const styles = StyleSheet.create({
   },
   logoutText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.negative },
 });
+}

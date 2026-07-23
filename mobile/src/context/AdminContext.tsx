@@ -28,6 +28,7 @@ import type {
   MemberStats,
   MembersPage,
 } from '../data/adminTypes';
+import { useTheme, type ThemePreference } from './ThemeContext';
 
 const ADMIN_TOKEN_KEY = 'flagrr_admin_auth_token';
 type DashboardPeriod = 'month' | 'year' | 'all';
@@ -40,6 +41,7 @@ const EMPTY_ADMIN: AdminUser = {
   username: null,
   role: 'course_admin',
   mustChangePassword: false,
+  themePreference: 'system',
 };
 const EMPTY_COURSE: AdminCourse = {
   id: '',
@@ -95,6 +97,7 @@ interface AdminContextValue {
   updateCourseCover: (imageBase64: string) => Promise<void>;
   contactSupport: () => Promise<void>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
+  updateThemePreference: (preference: ThemePreference) => Promise<void>;
   staff: AdminStaff[];
   loadStaff: () => Promise<void>;
   createStaff: (payload: StaffCreatePayload) => Promise<AdminStaff>;
@@ -107,6 +110,7 @@ interface AdminContextValue {
 const AdminContext = createContext<AdminContextValue | undefined>(undefined);
 
 export function AdminProvider({ children }: { children: React.ReactNode }) {
+  const theme = useTheme();
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
   const [admin, setAdmin] = useState<AdminUser>(EMPTY_ADMIN);
@@ -144,6 +148,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
           setAdmin(me.admin);
           setCourse(me.course);
           setIsAdminAuthenticated(true);
+          theme.hydrateFromAccount(me.admin.themePreference);
           loadNotifications().catch(() => {});
         }
       } catch {
@@ -160,6 +165,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     setAdmin(res.admin);
     setCourse(res.course);
     setIsAdminAuthenticated(true);
+    theme.hydrateFromAccount(res.admin.themePreference);
     loadNotifications().catch(() => {});
   };
 
@@ -283,6 +289,12 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     setAdmin((prev) => ({ ...prev, mustChangePassword: false }));
   };
 
+  const updateThemePreference = async (preference: ThemePreference) => {
+    const res = await adminApi.updateThemePreference(preference);
+    setAdmin((prev) => ({ ...prev, themePreference: res.themePreference }));
+    await theme.setPreference(res.themePreference);
+  };
+
   const loadStaff = useCallback(async () => {
     setStaff(await adminApi.staffList());
   }, []);
@@ -355,6 +367,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     updateCourseLogo,
     updateCourseCover,
     contactSupport,
+    updateThemePreference,
     staff,
     loadStaff,
     createStaff,

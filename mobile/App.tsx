@@ -8,6 +8,7 @@ import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import * as Notifications from 'expo-notifications';
 import { fontsToLoad } from './src/theme';
+import { ThemeProvider } from './src/context/ThemeContext';
 import { AppProvider } from './src/context/AppContext';
 import { AdminProvider } from './src/context/AdminContext';
 import { RootNavigator } from './src/navigation/RootNavigator';
@@ -49,14 +50,16 @@ export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <AppProvider>
-          <AdminProvider>
-            <NavigationContainer ref={navigationRef}>
-              <RootNavigator />
-            </NavigationContainer>
-            <AppAlertHost />
-          </AdminProvider>
-        </AppProvider>
+        <ThemeProvider>
+          <AppProvider>
+            <AdminProvider>
+              <NavigationContainer ref={navigationRef}>
+                <RootNavigator />
+              </NavigationContainer>
+              <AppAlertHost />
+            </AdminProvider>
+          </AppProvider>
+        </ThemeProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

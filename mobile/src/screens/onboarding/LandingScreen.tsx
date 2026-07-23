@@ -1,15 +1,18 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Image, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from '../../navigation/types';
 import { FlagrrLogo } from '../../components/common/FlagrrLogo';
 import { PillButton } from '../../components/common/PillButton';
-import { ONBOARDING_BACKGROUNDS, colors, fontFamily, screenPadding, spacing } from '../../theme';
+import { ONBOARDING_BACKGROUNDS, fontFamily, screenPadding, spacing } from '../../theme';
+import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Landing'>;
 
 export function LandingScreen({ navigation }: Props) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View style={styles.background}>
       {/* ImageBackground's inner <img> doesn't respect resizeMode="cover" on
@@ -61,7 +64,8 @@ export function LandingScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   background: { flex: 1, backgroundColor: colors.darkGreen },
   // react-native-web's <Image> bakes the source asset's intrinsic width/height
   // into its own style array, which otherwise wins over absoluteFill's inset
@@ -95,3 +99,4 @@ const styles = StyleSheet.create({
   },
   termsBold: { fontFamily: fontFamily.bodyMedium },
 });
+}

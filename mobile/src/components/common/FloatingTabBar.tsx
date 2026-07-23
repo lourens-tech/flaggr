@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
-import { colors } from '../../theme';
+import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 
 const ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   Home: 'home-outline',
@@ -14,6 +14,8 @@ const ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
 // Custom floating pill nav with a raised center "Scan" button, matching the
 // Figma "Show QR Button Container" / scan bar seen on Home, Rewards Shop, etc.
 export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const leftRoutes = state.routes.slice(0, 2);
   const rightRoutes = state.routes.slice(2);
 
@@ -55,7 +57,8 @@ export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   wrapper: { position: 'absolute', left: 0, right: 0, bottom: 24, alignItems: 'center' },
   bar: {
     flexDirection: 'row',
@@ -84,3 +87,4 @@ const styles = StyleSheet.create({
     marginTop: -18,
   },
 });
+}

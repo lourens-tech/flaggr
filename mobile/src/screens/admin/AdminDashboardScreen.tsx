@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { ActivityIndicator, Image, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,7 +14,8 @@ import { PillButton } from '../../components/common/PillButton';
 import { useAdmin } from '../../context/AdminContext';
 import { downloadCsvReport, AdminApiError } from '../../api/adminClient';
 import { showAlert } from '../../utils/alert';
-import { colors, fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
+import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
+import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 import type { AdminMember } from '../../data/adminTypes';
 
 const MEMBERS_PAGE_SIZE = 10;
@@ -42,6 +43,8 @@ type Props = CompositeScreenProps<
 >;
 
 export function AdminDashboardScreen({ navigation }: Props) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const {
     course,
     dashboard,
@@ -327,7 +330,7 @@ export function AdminDashboardScreen({ navigation }: Props) {
                         style={[styles.pageButton, (allMembersPage <= 1 || loadingAllMembers) && styles.pageButtonDisabled]}
                         accessibilityLabel="Previous page"
                       >
-                        <Ionicons name="chevron-back" size={16} color={colors.darkGreen} />
+                        <Ionicons name="chevron-back" size={16} color={colors.textPrimary} />
                       </TouchableOpacity>
                       <Text style={styles.pageIndicator}>
                         Page {allMembersPage} of {Math.max(1, Math.ceil(allMembersTotal / MEMBERS_PAGE_SIZE))}
@@ -341,7 +344,7 @@ export function AdminDashboardScreen({ navigation }: Props) {
                         ]}
                         accessibilityLabel="Next page"
                       >
-                        <Ionicons name="chevron-forward" size={16} color={colors.darkGreen} />
+                        <Ionicons name="chevron-forward" size={16} color={colors.textPrimary} />
                       </TouchableOpacity>
                     </View>
                   </>
@@ -355,8 +358,9 @@ export function AdminDashboardScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.white },
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.background },
   headerSafeArea: { backgroundColor: colors.clubGreen },
   header: {
     paddingHorizontal: screenPadding,
@@ -381,7 +385,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 3,
   },
-  badgeText: { fontFamily: fontFamily.bodySemiBold, fontSize: 9, color: colors.darkGreen },
+  badgeText: { fontFamily: fontFamily.bodySemiBold, fontSize: 9, color: colors.textPrimary },
   content: { padding: screenPadding, paddingBottom: spacing.xl * 2 },
   coverImage: {
     width: '100%',
@@ -403,11 +407,11 @@ const styles = StyleSheet.create({
   },
   periodPill: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: radius.pill },
   periodPillActive: { backgroundColor: colors.darkGreen },
-  periodText: { fontFamily: fontFamily.heading, fontSize: 12, color: colors.darkGreen },
+  periodText: { fontFamily: fontFamily.heading, fontSize: 12, color: colors.textPrimary },
   periodTextActive: { color: colors.white },
   statsGrid: { gap: spacing.sm, marginBottom: spacing.lg },
   statsRow: { flexDirection: 'row', gap: 10 },
-  sectionTitle: { fontFamily: fontFamily.heading, fontSize: fontSize.title, color: colors.darkGreen, marginBottom: spacing.sm },
+  sectionTitle: { fontFamily: fontFamily.heading, fontSize: fontSize.title, color: colors.textPrimary, marginBottom: spacing.sm },
   chartCard: {
     backgroundColor: colors.mintBg,
     borderWidth: 0.5,
@@ -416,7 +420,7 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     marginBottom: spacing.lg,
   },
-  chartTitle: { fontFamily: fontFamily.heading, fontSize: fontSize.small, color: colors.darkGreen, marginBottom: spacing.md },
+  chartTitle: { fontFamily: fontFamily.heading, fontSize: fontSize.small, color: colors.textPrimary, marginBottom: spacing.md },
   card: {
     backgroundColor: colors.mintBg,
     borderWidth: 0.5,
@@ -429,12 +433,12 @@ const styles = StyleSheet.create({
   emptyText: { fontFamily: fontFamily.body, fontSize: fontSize.body, color: colors.textSecondary },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: spacing.sm },
   rowLabel: { flex: 1, fontFamily: fontFamily.body, fontSize: fontSize.body, color: colors.textPrimary },
-  rowValue: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.darkGreen },
+  rowValue: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.textPrimary },
   reportGrid: { flexDirection: 'row', gap: spacing.sm },
   reportTile: {
     flex: 1,
     aspectRatio: 1,
-    backgroundColor: colors.white,
+    backgroundColor: colors.background,
     borderWidth: 0.5,
     borderColor: colors.clubGreen,
     borderRadius: radius.md,
@@ -443,7 +447,7 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
     padding: spacing.sm,
   },
-  reportTileLabel: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.tiny, color: colors.darkGreen, textAlign: 'center' },
+  reportTileLabel: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.tiny, color: colors.textPrimary, textAlign: 'center' },
   reportTileOverlay: {
     ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(255,255,255,0.7)',
@@ -455,13 +459,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    backgroundColor: colors.white,
+    backgroundColor: colors.background,
     borderRadius: radius.md,
     padding: spacing.sm,
   },
   memberName: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.textPrimary },
   memberEmail: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary },
-  memberTier: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.tiny, color: colors.darkGreen },
+  memberTier: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.tiny, color: colors.textPrimary },
   memberBalance: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary },
   paginationRow: {
     flexDirection: 'row',
@@ -474,12 +478,13 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: radius.pill,
-    backgroundColor: colors.white,
+    backgroundColor: colors.background,
     borderWidth: 0.5,
     borderColor: colors.clubGreen,
     alignItems: 'center',
     justifyContent: 'center',
   },
   pageButtonDisabled: { opacity: 0.4 },
-  pageIndicator: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.tiny, color: colors.darkGreen },
+  pageIndicator: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.tiny, color: colors.textPrimary },
 });
+}

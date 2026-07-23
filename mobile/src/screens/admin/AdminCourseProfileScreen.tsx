@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { ActivityIndicator, Image, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -12,7 +12,10 @@ import { useAdmin } from '../../context/AdminContext';
 import { AdminApiError } from '../../api/adminClient';
 import { pickAndResizeAvatar, pickAndResizeCoverImage, AvatarPermissionError } from '../../utils/pickAvatar';
 import { showAlert } from '../../utils/alert';
-import { colors, fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
+import { ThemeToggleRow } from '../../components/common/ThemeToggleRow';
+import type { ThemePreference } from '../../context/ThemeContext';
+import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
+import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -22,8 +25,19 @@ type Props = CompositeScreenProps<
 >;
 
 export function AdminCourseProfileScreen({ navigation }: Props) {
-  const { admin, course, updateCourseProfile, updateCourseLogo, updateCourseCover, contactSupport, changePassword, logout } =
-    useAdmin();
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const {
+    admin,
+    course,
+    updateCourseProfile,
+    updateCourseLogo,
+    updateCourseCover,
+    contactSupport,
+    updateThemePreference,
+    changePassword,
+    logout,
+  } = useAdmin();
 
   const [name, setName] = useState(course.name);
   const [contactEmail, setContactEmail] = useState(course.contactEmail ?? '');
@@ -33,6 +47,7 @@ export function AdminCourseProfileScreen({ navigation }: Props) {
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
   const [contactingSupport, setContactingSupport] = useState(false);
+  const [savingTheme, setSavingTheme] = useState(false);
 
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -98,6 +113,18 @@ export function AdminCourseProfileScreen({ navigation }: Props) {
       showAlert('Couldn’t send request', message);
     } finally {
       setContactingSupport(false);
+    }
+  };
+
+  const handleThemeChange = async (preference: ThemePreference) => {
+    setSavingTheme(true);
+    try {
+      await updateThemePreference(preference);
+    } catch (err) {
+      const message = err instanceof AdminApiError ? err.message : 'Something went wrong. Please try again.';
+      showAlert('Couldn’t update appearance', message);
+    } finally {
+      setSavingTheme(false);
     }
   };
 
@@ -213,6 +240,9 @@ export function AdminCourseProfileScreen({ navigation }: Props) {
         <View style={{ height: spacing.sm }} />
         <PillButton label="Manage Staff" icon="people-outline" variant="outline" onPress={() => navigation.navigate('AdminStaffList')} />
 
+        <Text style={styles.sectionTitle}>Appearance</Text>
+        <ThemeToggleRow onChange={handleThemeChange} disabled={savingTheme} />
+
         <Text style={styles.sectionTitle}>Change Password</Text>
         <TextField placeholder="Current Password" variant="onLight" isPassword value={currentPassword} onChangeText={setCurrentPassword} />
         <View style={{ height: spacing.md }} />
@@ -229,8 +259,9 @@ export function AdminCourseProfileScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.white },
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.background },
   headerSafeArea: { backgroundColor: colors.clubGreen },
   header: { paddingHorizontal: screenPadding, paddingVertical: spacing.md },
   headerTitle: { fontFamily: fontFamily.headingDisplay, fontSize: fontSize.title, color: colors.white },
@@ -274,7 +305,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontFamily: fontFamily.heading,
     fontSize: fontSize.cardTitle,
-    color: colors.darkGreen,
+    color: colors.textPrimary,
     marginTop: spacing.xl,
     marginBottom: spacing.md,
   },
@@ -288,3 +319,4 @@ const styles = StyleSheet.create({
   },
   logoutText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.negative },
 });
+}

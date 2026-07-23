@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Image, KeyboardAvoidingView, Platform, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,7 +10,8 @@ import { TextField } from '../../components/common/TextField';
 import { ApiError } from '../../api/client';
 import { useApp } from '../../context/AppContext';
 import { showAlert } from '../../utils/alert';
-import { ONBOARDING_BACKGROUNDS, colors, fontFamily, screenPadding, spacing } from '../../theme';
+import { ONBOARDING_BACKGROUNDS, fontFamily, screenPadding, spacing } from '../../theme';
+import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'SignUpStep2'>;
 
@@ -18,6 +19,8 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_PASSWORD_LENGTH = 8;
 
 export function SignUpStep2Screen({ navigation, route }: Props) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { signup } = useApp();
   const [email, setEmail] = useState(route.params.email ?? '');
   const [password, setPassword] = useState('');
@@ -145,7 +148,8 @@ export function SignUpStep2Screen({ navigation, route }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   background: { flex: 1, backgroundColor: colors.darkGreen },
   // react-native-web's <Image> bakes the source asset's intrinsic width/height
   // into its own style array, which otherwise wins over absoluteFill's inset
@@ -158,3 +162,4 @@ const styles = StyleSheet.create({
   form: { marginTop: spacing.lg },
   hint: { fontFamily: fontFamily.body, fontSize: 12, color: 'rgba(255,255,255,0.6)', marginTop: 4, marginLeft: 4 },
 });
+}

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { ActivityIndicator, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,7 +9,8 @@ import { BarChart } from '../../components/common/BarChart';
 import { useAdmin } from '../../context/AdminContext';
 import { downloadCsvReport, AdminApiError } from '../../api/adminClient';
 import { showAlert } from '../../utils/alert';
-import { colors, fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
+import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
+import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 import type { MemberStats } from '../../data/adminTypes';
 
 type Period = 'month' | 'year' | 'all';
@@ -19,6 +20,8 @@ const PERIODS: Period[] = ['month', 'year', 'all'];
 type Props = NativeStackScreenProps<AdminStackParamList, 'AdminMemberStats'>;
 
 export function AdminMemberStatsScreen({ route, navigation }: Props) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { memberId } = route.params;
   const { getMemberStats } = useAdmin();
   const [period, setPeriod] = useState<Period>('month');
@@ -105,7 +108,7 @@ export function AdminMemberStatsScreen({ route, navigation }: Props) {
           <>
             <View style={styles.tierRow}>
               <View style={styles.tierPill}>
-                <Ionicons name="trophy-outline" size={14} color={colors.darkGreen} />
+                <Ionicons name="trophy-outline" size={14} color={colors.textPrimary} />
                 <Text style={styles.tierPillText}>{data.member.tier} Member</Text>
               </View>
               <Text style={styles.balanceText}>{data.member.balance.toLocaleString()} FC Balance</Text>
@@ -172,8 +175,9 @@ export function AdminMemberStatsScreen({ route, navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.white },
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.background },
   headerSafeArea: { backgroundColor: colors.clubGreen },
   header: {
     paddingHorizontal: screenPadding,
@@ -200,9 +204,9 @@ const styles = StyleSheet.create({
   },
   periodPill: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: radius.pill },
   periodPillActive: { backgroundColor: colors.darkGreen },
-  periodText: { fontFamily: fontFamily.heading, fontSize: 12, color: colors.darkGreen },
+  periodText: { fontFamily: fontFamily.heading, fontSize: 12, color: colors.textPrimary },
   periodTextActive: { color: colors.white },
-  sectionTitle: { fontFamily: fontFamily.heading, fontSize: fontSize.title, color: colors.darkGreen, marginBottom: spacing.sm },
+  sectionTitle: { fontFamily: fontFamily.heading, fontSize: fontSize.title, color: colors.textPrimary, marginBottom: spacing.sm },
   tierRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -218,8 +222,8 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: radius.pill,
   },
-  tierPillText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.tiny, color: colors.darkGreen },
-  balanceText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.darkGreen },
+  tierPillText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.tiny, color: colors.textPrimary },
+  balanceText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.textPrimary },
   statsGrid: { gap: spacing.sm, marginBottom: spacing.lg },
   statsRow: { flexDirection: 'row', gap: 10 },
   chartCard: {
@@ -230,7 +234,7 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     marginBottom: spacing.lg,
   },
-  chartTitle: { fontFamily: fontFamily.heading, fontSize: fontSize.small, color: colors.darkGreen, marginBottom: spacing.md },
+  chartTitle: { fontFamily: fontFamily.heading, fontSize: fontSize.small, color: colors.textPrimary, marginBottom: spacing.md },
   card: {
     backgroundColor: colors.mintBg,
     borderWidth: 0.5,
@@ -243,3 +247,4 @@ const styles = StyleSheet.create({
   downloadRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   downloadLabel: { flex: 1, fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.textPrimary },
 });
+}

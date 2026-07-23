@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { FlatList, Modal, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, fontFamily, fontSize, radius, spacing } from '../../theme';
+import { fontFamily, fontSize, radius, spacing } from '../../theme';
+import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 
 export interface SelectOption {
   label: string;
@@ -18,6 +19,8 @@ interface Props {
 }
 
 export function SelectField({ placeholder, options, value, onChange, variant = 'onDark', disabled }: Props) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [open, setOpen] = useState(false);
   const onDark = variant === 'onDark';
   const selected = options.find((o) => o.value === value);
@@ -79,7 +82,8 @@ export function SelectField({ placeholder, options, value, onChange, variant = '
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -89,11 +93,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
   },
   containerOnDark: { backgroundColor: 'rgba(255,255,255,0.12)' },
-  containerOnLight: { backgroundColor: '#F5F6F8', borderWidth: 1, borderColor: '#E5E7EB' },
+  containerOnLight: { backgroundColor: colors.inputBg, borderWidth: 1, borderColor: colors.inputBorder },
   text: { flex: 1, fontFamily: fontFamily.body, fontSize: fontSize.body },
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
   sheet: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.background,
     borderTopLeftRadius: radius.lg,
     borderTopRightRadius: radius.lg,
     padding: spacing.lg,
@@ -102,7 +106,7 @@ const styles = StyleSheet.create({
   sheetTitle: {
     fontFamily: fontFamily.heading,
     fontSize: fontSize.cardTitle,
-    color: colors.darkGreen,
+    color: colors.textPrimary,
     marginBottom: spacing.md,
   },
   optionRow: {
@@ -111,7 +115,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: '#EEE',
+    borderBottomColor: colors.border,
   },
   optionText: { fontFamily: fontFamily.body, fontSize: fontSize.body, color: colors.textPrimary },
 });
+}

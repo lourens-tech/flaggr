@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Image, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,11 +9,14 @@ import { PillButton } from '../../components/common/PillButton';
 import { ApiError } from '../../api/client';
 import { useApp } from '../../context/AppContext';
 import { showAlert } from '../../utils/alert';
-import { colors, fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
+import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
+import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ReviewReceipt'>;
 
 export function ReviewReceiptScreen({ route, navigation }: Props) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { submitReceipt } = useApp();
   const [submitting, setSubmitting] = useState(false);
   const { scanResult, imageBase64, imageUri } = route.params;
@@ -147,8 +150,9 @@ export function ReviewReceiptScreen({ route, navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.white },
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.background },
   headerSafeArea: { backgroundColor: colors.clubGreen },
   content: { padding: screenPadding },
   receiptImage: { width: '100%', height: 220, borderRadius: radius.md },
@@ -173,7 +177,7 @@ const styles = StyleSheet.create({
     padding: spacing.sm + 2,
     marginTop: spacing.md,
   },
-  awayClubText: { flex: 1, fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.darkGreen, lineHeight: 16 },
+  awayClubText: { flex: 1, fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textPrimary, lineHeight: 16 },
   summaryCard: {
     backgroundColor: colors.mintBgAlt,
     borderRadius: radius.lg,
@@ -181,7 +185,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
   },
   summaryLabel: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary },
-  summaryValue: { fontFamily: fontFamily.heading, fontSize: fontSize.cardTitle, color: colors.darkGreen, marginTop: 2 },
+  summaryValue: { fontFamily: fontFamily.heading, fontSize: fontSize.cardTitle, color: colors.textPrimary, marginTop: 2 },
   summaryValueSmall: { fontFamily: fontFamily.bodyMedium, fontSize: fontSize.small, color: colors.textPrimary, marginTop: 2 },
   noItemsText: { fontFamily: fontFamily.body, fontSize: fontSize.small, color: colors.textSecondary, marginTop: spacing.sm },
   itemRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing.sm },
@@ -197,7 +201,7 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   divider: { height: 1, backgroundColor: 'rgba(31,66,52,0.15)', marginVertical: spacing.md },
-  totalLabel: { fontFamily: fontFamily.heading, fontSize: fontSize.label, color: colors.darkGreen },
+  totalLabel: { fontFamily: fontFamily.heading, fontSize: fontSize.label, color: colors.textPrimary },
   totalValue: { fontFamily: fontFamily.heading, fontSize: fontSize.label, color: colors.clubGreen },
   totalValueSmall: { fontFamily: fontFamily.bodyMedium, fontSize: fontSize.small, color: colors.textPrimary },
   disclaimer: {
@@ -208,3 +212,4 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 });
+}

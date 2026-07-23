@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { colors, fontFamily, fontSize, radius, spacing } from '../../theme';
+import { fontFamily, fontSize, radius, spacing } from '../../theme';
+import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 
 interface Props {
   value: string | null; // 'YYYY-MM-DD'
@@ -15,6 +16,8 @@ interface Props {
 // no web implementation — the browser's own <input type="date"> is the
 // standard, accessible substitute here.
 export function DateField({ value, onChange, placeholder = 'Date of Birth', error, variant = 'onDark', maximumDate }: Props) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const onDark = variant === 'onDark';
 
   const input = React.createElement('input', {
@@ -52,7 +55,8 @@ export function DateField({ value, onChange, placeholder = 'Date of Birth', erro
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -61,7 +65,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
   },
   containerOnDark: { backgroundColor: 'rgba(255,255,255,0.12)' },
-  containerOnLight: { backgroundColor: '#F5F6F8', borderWidth: 1, borderColor: '#E5E7EB' },
+  containerOnLight: { backgroundColor: colors.inputBg, borderWidth: 1, borderColor: colors.inputBorder },
   containerError: { borderWidth: 1, borderColor: colors.negative },
   errorText: {
     color: colors.negative,
@@ -71,3 +75,4 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
 });
+}

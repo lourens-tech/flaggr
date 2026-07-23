@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useS
 import { api, setToken, type ContactEnquiryPayload, type SignupPayload, type UpdateProfilePayload } from '../api/client';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { registerForPushNotificationsAsync } from '../utils/pushNotifications';
+import { useTheme, type ThemePreference } from './ThemeContext';
 import type {
   ActivityEntry,
   Ad,
@@ -31,6 +32,7 @@ const EMPTY_USER: User = {
   courseId: '',
   tier: 'Bronze',
   memberSince: '',
+  themePreference: 'system',
 };
 const EMPTY_POINTS: PointsAccount = {
   balance: 0,
@@ -77,6 +79,7 @@ interface AppContextValue extends AppState {
   markNotificationRead: (id: string) => Promise<void>;
   updateAvatar: (imageBase64: string) => Promise<void>;
   updateProfile: (payload: UpdateProfilePayload) => Promise<void>;
+  updateThemePreference: (preference: ThemePreference) => Promise<void>;
   changeHomeClub: (courseId: string) => Promise<void>;
   sendContactEnquiry: (payload: ContactEnquiryPayload) => Promise<string>;
   listMyEnquiries: () => Promise<MyEnquirySummary[]>;
@@ -91,6 +94,7 @@ interface AppContextValue extends AppState {
 const AppContext = createContext<AppContextValue | undefined>(undefined);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
+  const theme = useTheme();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
   const [user, setUser] = useState<User>(EMPTY_USER);
@@ -128,6 +132,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setReceipts(receiptsRes);
     setNotifications(notificationsRes);
     setAds(me.ads);
+    theme.hydrateFromAccount(me.user.themePreference);
 
     // Fire-and-forget — no EAS project exists yet, so this is a silent
     // no-op until one is set up; never block the app load on it.
@@ -230,6 +235,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setUser((prev) => ({ ...prev, ...updated }));
   };
 
+  const updateThemePreference = async (preference: ThemePreference) => {
+    const res = await api.updateThemePreference(preference);
+    setUser((prev) => ({ ...prev, themePreference: res.themePreference }));
+    await theme.setPreference(res.themePreference);
+  };
+
   const sendContactEnquiry = async (payload: ContactEnquiryPayload): Promise<string> => {
     const res = await api.sendContactEnquiry(payload);
     return res.enquiryId;
@@ -298,6 +309,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     markNotificationRead,
     updateAvatar,
     updateProfile,
+    updateThemePreference,
     changeHomeClub,
     sendContactEnquiry,
     listMyEnquiries,

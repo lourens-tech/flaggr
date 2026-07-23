@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Modal, Platform, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, fontFamily, fontSize, radius, spacing } from '../../theme';
+import { fontFamily, fontSize, radius, spacing } from '../../theme';
+import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 
 interface Props {
   value: string | null; // 'YYYY-MM-DD'
@@ -30,6 +31,8 @@ function formatDisplay(iso: string): string {
 }
 
 export function DateField({ value, onChange, placeholder = 'Date of Birth', error, variant = 'onDark', maximumDate }: Props) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [open, setOpen] = useState(false);
   const onDark = variant === 'onDark';
   const selectedDate = value ? parseISODate(value) : new Date(2000, 0, 1);
@@ -111,7 +114,8 @@ export function DateField({ value, onChange, placeholder = 'Date of Birth', erro
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -120,7 +124,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
   },
   containerOnDark: { backgroundColor: 'rgba(255,255,255,0.12)' },
-  containerOnLight: { backgroundColor: '#F5F6F8', borderWidth: 1, borderColor: '#E5E7EB' },
+  containerOnLight: { backgroundColor: colors.inputBg, borderWidth: 1, borderColor: colors.inputBorder },
   containerError: { borderWidth: 1, borderColor: colors.negative },
   text: { flex: 1, fontFamily: fontFamily.body, fontSize: fontSize.body },
   errorText: {
@@ -131,7 +135,8 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center' },
-  sheet: { backgroundColor: colors.white, borderRadius: radius.lg, padding: spacing.md },
+  sheet: { backgroundColor: colors.background, borderRadius: radius.lg, padding: spacing.md },
   doneButton: { alignItems: 'center', paddingVertical: spacing.sm, marginTop: spacing.sm },
   doneText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.clubGreen },
 });
+}

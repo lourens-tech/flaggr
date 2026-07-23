@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { StyleSheet, Text, View, type DimensionValue } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, fontFamily, fontSize, radius, spacing } from '../../theme';
+import { fontFamily, fontSize, radius, spacing } from '../../theme';
+import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 
 interface Props {
   label: string;
@@ -17,6 +18,8 @@ interface Props {
 }
 
 export function StatCard({ label, value, deltaPct, width = '47%', fill = false, backgroundColor }: Props) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const positive = deltaPct >= 0;
   return (
     <View style={[styles.card, fill ? styles.fill : { width }, backgroundColor ? { backgroundColor } : null]}>
@@ -36,9 +39,10 @@ export function StatCard({ label, value, deltaPct, width = '47%', fill = false, 
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   card: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.background,
     borderWidth: 0.5,
     borderColor: colors.clubGreen,
     borderRadius: radius.md,
@@ -46,8 +50,9 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   fill: { flex: 1 },
-  label: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.darkGreen },
-  value: { fontFamily: fontFamily.heading, fontSize: fontSize.title, color: colors.darkGreen },
+  label: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textPrimary },
+  value: { fontFamily: fontFamily.heading, fontSize: fontSize.title, color: colors.textPrimary },
   deltaRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
   delta: { fontFamily: fontFamily.body, fontSize: fontSize.tiny },
 });
+}

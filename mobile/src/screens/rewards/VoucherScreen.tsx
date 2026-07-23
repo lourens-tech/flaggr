@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { StatusBar, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -8,11 +8,14 @@ import type { RootStackParamList } from '../../navigation/types';
 import { ScreenHeader } from '../../components/common/ScreenHeader';
 import { PillButton } from '../../components/common/PillButton';
 import { useApp } from '../../context/AppContext';
-import { colors, fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
+import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
+import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Voucher'>;
 
 export function VoucherScreen({ route, navigation }: Props) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { vouchers } = useApp();
   const voucher = vouchers.find((v) => v.id === route.params.voucherId);
 
@@ -65,14 +68,15 @@ export function VoucherScreen({ route, navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.white },
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.background },
   headerSafeArea: { backgroundColor: colors.clubGreen },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   fallbackText: { fontFamily: fontFamily.body, color: colors.textSecondary },
   content: { flex: 1, paddingHorizontal: screenPadding, paddingTop: spacing.lg, justifyContent: 'center' },
   card: { borderRadius: radius.xl, padding: spacing.lg, alignItems: 'center' },
-  qrWrapper: { backgroundColor: colors.white, padding: spacing.md, borderRadius: radius.md, marginBottom: spacing.lg },
+  qrWrapper: { backgroundColor: colors.background, padding: spacing.md, borderRadius: radius.md, marginBottom: spacing.lg },
   redeemedTitle: { fontFamily: fontFamily.heading, fontSize: 28, color: colors.lime, marginBottom: spacing.sm },
   redeemedSubtitle: {
     fontFamily: fontFamily.body,
@@ -92,3 +96,4 @@ const styles = StyleSheet.create({
   codeLabel: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.tiny, color: colors.white },
   codeValue: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.small, color: colors.white, marginTop: 2 },
 });
+}

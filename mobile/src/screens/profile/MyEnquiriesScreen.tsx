@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useMemo } from 'react';
 import { ActivityIndicator, FlatList, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,15 +7,18 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/types';
 import { ScreenHeader } from '../../components/common/ScreenHeader';
 import { useApp } from '../../context/AppContext';
-import { colors, fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
+import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
+import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 import type { EnquiryStatus, MyEnquirySummary } from '../../data/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'MyEnquiries'>;
 
+// A fixed, theme-invariant palette — these are small self-contained status
+// chips (own bg + fg pair), not surfaces that should flip with dark mode.
 const STATUS_BADGE: Record<EnquiryStatus, { label: string; bg: string; fg: string }> = {
   pending: { label: 'Pending', bg: '#FDE9C8', fg: '#8A5A00' },
-  in_progress: { label: 'Chat in Progress', bg: '#CCF2E6', fg: colors.clubGreen },
-  resolved: { label: 'Resolved', bg: '#E5E7EB', fg: colors.textSecondary },
+  in_progress: { label: 'Chat in Progress', bg: '#CCF2E6', fg: '#00805A' },
+  resolved: { label: 'Resolved', bg: '#E5E7EB', fg: '#4B5563' },
 };
 
 function relativeTime(iso: string): string {
@@ -30,6 +33,8 @@ function relativeTime(iso: string): string {
 }
 
 export function MyEnquiriesScreen({ navigation }: Props) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { listMyEnquiries } = useApp();
   const [enquiries, setEnquiries] = useState<MyEnquirySummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -101,15 +106,16 @@ export function MyEnquiriesScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.white },
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.background },
   headerSafeArea: { backgroundColor: colors.clubGreen },
   listContent: { padding: screenPadding, gap: spacing.sm },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    backgroundColor: colors.white,
+    backgroundColor: colors.background,
     borderWidth: 0.5,
     borderColor: colors.clubGreen,
     borderRadius: radius.md,
@@ -131,3 +137,4 @@ const styles = StyleSheet.create({
     marginTop: spacing.xl,
   },
 });
+}

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -9,13 +9,16 @@ import { PillButton } from '../../components/common/PillButton';
 import { useAdmin } from '../../context/AdminContext';
 import { AdminApiError } from '../../api/adminClient';
 import { showAlert } from '../../utils/alert';
-import { colors, fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
+import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
+import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 
 type Props = NativeStackScreenProps<AdminStackParamList, 'AdminStaffEdit'>;
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function AdminStaffEditScreen({ navigation, route }: Props) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { staff, createStaff, updateStaff, deleteStaff } = useAdmin();
   const existing = staff.find((s) => s.id === route.params?.staffId);
 
@@ -150,14 +153,15 @@ export function AdminStaffEditScreen({ navigation, route }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.white },
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.background },
   headerSafeArea: { backgroundColor: colors.clubGreen },
   content: { padding: screenPadding, paddingBottom: spacing.xl * 2 },
   sectionTitle: {
     fontFamily: fontFamily.heading,
     fontSize: fontSize.cardTitle,
-    color: colors.darkGreen,
+    color: colors.textPrimary,
     marginTop: spacing.lg,
     marginBottom: spacing.sm,
   },
@@ -168,7 +172,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
   },
   usernameBox: {
-    backgroundColor: '#F5F6F8',
+    backgroundColor: colors.inputBg,
     borderRadius: radius.md,
     height: 53,
     justifyContent: 'center',
@@ -178,3 +182,4 @@ const styles = StyleSheet.create({
   deleteButton: { alignItems: 'center', marginTop: spacing.lg },
   deleteText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.negative },
 });
+}

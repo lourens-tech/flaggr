@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Image, StyleProp, StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { colors, fontFamily, fontSize, radius, spacing } from '../../theme';
+import { fontFamily, fontSize, radius, spacing } from '../../theme';
+import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 import type { Reward } from '../../data/types';
 
 interface Props {
@@ -25,6 +26,8 @@ function iconForReward(title: string): keyof typeof MaterialCommunityIcons.glyph
 }
 
 export function RewardCard({ reward, width, style, onPress, onRedeem }: Props) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [imageFailed, setImageFailed] = useState(false);
   const variant = reward.variants[selectedIndex] ?? reward.variants[0];
@@ -92,9 +95,10 @@ export function RewardCard({ reward, width, style, onPress, onRedeem }: Props) {
   return <View style={cardStyle}>{body}</View>;
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   card: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.background,
     borderRadius: radius.md,
     borderWidth: 0.5,
     borderColor: colors.clubGreen,
@@ -103,9 +107,9 @@ const styles = StyleSheet.create({
   image: { width: '100%', height: 112, backgroundColor: colors.imagePlaceholder },
   imageFallback: { backgroundColor: colors.darkGreen, alignItems: 'center', justifyContent: 'center' },
   body: { padding: spacing.sm + 4, gap: 4 },
-  title: { fontFamily: fontFamily.heading, fontSize: fontSize.cardTitle, color: colors.darkGreen },
+  title: { fontFamily: fontFamily.heading, fontSize: fontSize.cardTitle, color: colors.textPrimary },
   description: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary },
-  cost: { fontFamily: fontFamily.heading, fontSize: fontSize.label, color: colors.darkGreen, marginTop: 2 },
+  cost: { fontFamily: fontFamily.heading, fontSize: fontSize.label, color: colors.textPrimary, marginTop: 2 },
   variantRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 2 },
   variantChip: {
     paddingHorizontal: spacing.sm,
@@ -129,3 +133,4 @@ const styles = StyleSheet.create({
   },
   redeemButtonText: { fontFamily: fontFamily.heading, fontSize: 12, color: colors.darkGreen },
 });
+}

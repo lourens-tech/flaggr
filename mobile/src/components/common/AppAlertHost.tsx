@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { colors, fontFamily, fontSize, radius, spacing } from '../../theme';
+import { fontFamily, fontSize, radius, spacing } from '../../theme';
+import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 import { dismissAlert, subscribeAlert, type AlertButtonConfig, type AlertConfig } from '../../utils/alertStore';
 
 // Mounted once near the app root. Replaces react-native-web's no-op Alert.alert
@@ -8,6 +9,8 @@ import { dismissAlert, subscribeAlert, type AlertButtonConfig, type AlertConfig 
 // latter shows the page's URL in the dialog chrome) with an in-app modal
 // that matches the rest of the UI everywhere the app runs.
 export function AppAlertHost() {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [config, setConfig] = useState<AlertConfig>({ visible: false, title: '', message: undefined, buttons: [] });
 
   useEffect(() => subscribeAlert(setConfig), []);
@@ -53,7 +56,8 @@ export function AppAlertHost() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   backdrop: {
     flex: 1,
     backgroundColor: 'rgba(15,31,25,0.55)',
@@ -64,7 +68,7 @@ const styles = StyleSheet.create({
   card: {
     width: '100%',
     maxWidth: 340,
-    backgroundColor: colors.white,
+    backgroundColor: colors.background,
     borderRadius: radius.xl,
     padding: spacing.lg,
     alignItems: 'center',
@@ -72,7 +76,7 @@ const styles = StyleSheet.create({
   title: {
     fontFamily: fontFamily.heading,
     fontSize: fontSize.title,
-    color: colors.darkGreen,
+    color: colors.textPrimary,
     textAlign: 'center',
   },
   message: {
@@ -102,5 +106,6 @@ const styles = StyleSheet.create({
     textTransform: 'capitalize',
   },
   buttonTextSolid: { color: colors.white },
-  buttonTextOutline: { color: colors.darkGreen },
+  buttonTextOutline: { color: colors.textPrimary },
 });
+}

@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useMemo } from 'react';
 import { ActivityIndicator, FlatList, Image, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -8,7 +8,8 @@ import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AdminStackParamList, AdminTabParamList } from '../../navigation/types';
 import { useAdmin } from '../../context/AdminContext';
-import { colors, fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
+import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
+import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 import type { AdminAd } from '../../data/adminTypes';
 
 type Props = CompositeScreenProps<
@@ -22,6 +23,8 @@ const PLACEMENTS: Array<{ label: string; value: AdminAd['placement'] }> = [
 ];
 
 export function AdminAdsListScreen({ navigation }: Props) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { ads, loadAds } = useAdmin();
   const [loading, setLoading] = useState(true);
   const [placement, setPlacement] = useState<AdminAd['placement']>('home');
@@ -113,8 +116,9 @@ export function AdminAdsListScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.white },
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.background },
   headerSafeArea: { backgroundColor: colors.clubGreen },
   header: {
     paddingHorizontal: screenPadding,
@@ -127,14 +131,14 @@ const styles = StyleSheet.create({
   placementToggle: { flexDirection: 'row', gap: spacing.sm, paddingHorizontal: screenPadding, paddingTop: spacing.md },
   placementPill: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: radius.pill, backgroundColor: colors.mintBgAlt },
   placementPillActive: { backgroundColor: colors.darkGreen },
-  placementText: { fontFamily: fontFamily.heading, fontSize: 12, color: colors.darkGreen },
+  placementText: { fontFamily: fontFamily.heading, fontSize: 12, color: colors.textPrimary },
   placementTextActive: { color: colors.white },
   listContent: { padding: screenPadding, gap: spacing.sm },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    backgroundColor: colors.white,
+    backgroundColor: colors.background,
     borderWidth: 0.5,
     borderColor: colors.clubGreen,
     borderRadius: radius.md,
@@ -153,3 +157,4 @@ const styles = StyleSheet.create({
     marginTop: spacing.xl,
   },
 });
+}

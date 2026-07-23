@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   ActivityIndicator,
   GestureResponderEvent,
@@ -8,7 +8,8 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, fontFamily, fontSize, radius } from '../../theme';
+import { fontFamily, fontSize, radius } from '../../theme';
+import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 
 interface Props {
   label: string;
@@ -29,6 +30,8 @@ export function PillButton({
   loading,
   fullWidth = true,
 }: Props) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const isPrimary = variant === 'primary';
   const isDark = variant === 'dark';
   const isOutline = variant === 'outline';
@@ -42,19 +45,20 @@ export function PillButton({
         styles.base,
         isPrimary && { backgroundColor: colors.lime },
         isDark && { backgroundColor: colors.darkGreen },
-        isOutline && { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: colors.darkGreen },
+        isOutline && { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: colors.textPrimary },
         fullWidth && { alignSelf: 'stretch' },
         disabled && styles.disabled,
       ]}
     >
       {loading ? (
-        <ActivityIndicator color={isPrimary ? colors.darkGreen : colors.white} />
+        <ActivityIndicator color={isPrimary ? colors.darkGreen : isOutline ? colors.textPrimary : colors.white} />
       ) : (
         <View style={styles.content}>
           <Text
             style={[
               styles.label,
-              (isPrimary || isOutline) && { color: colors.darkGreen },
+              isPrimary && { color: colors.darkGreen },
+              isOutline && { color: colors.textPrimary },
               isDark && { color: colors.white },
             ]}
           >
@@ -64,7 +68,7 @@ export function PillButton({
             <Ionicons
               name={icon}
               size={18}
-              color={isPrimary || isOutline ? colors.darkGreen : colors.white}
+              color={isPrimary ? colors.darkGreen : isOutline ? colors.textPrimary : colors.white}
             />
           ) : null}
         </View>
@@ -73,7 +77,8 @@ export function PillButton({
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   base: {
     height: 53,
     borderRadius: radius.pill,
@@ -91,3 +96,4 @@ const styles = StyleSheet.create({
   },
   disabled: { opacity: 0.5 },
 });
+}

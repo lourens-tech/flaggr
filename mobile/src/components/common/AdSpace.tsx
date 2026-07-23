@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Image, Linking, StyleProp, StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
 import { useApp } from '../../context/AppContext';
-import { colors, fontFamily, fontSize, radius } from '../../theme';
+import { fontFamily, fontSize, radius } from '../../theme';
+import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 import type { AdPlacement } from '../../data/types';
 
 interface Props {
@@ -13,6 +14,8 @@ interface Props {
 const AD_SPACE_HEIGHT = 180;
 
 export function AdSpace({ placement, style }: Props) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { ads, logAdClick } = useApp();
   const ad = ads.find((a) => a.placement === placement);
 
@@ -52,9 +55,11 @@ export function AdSpace({ placement, style }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   box: { height: AD_SPACE_HEIGHT, borderRadius: radius.md, overflow: 'hidden' },
   image: { width: '100%', height: '100%' },
   placeholder: { backgroundColor: colors.darkGreen, alignItems: 'center', justifyContent: 'center' },
   placeholderText: { fontFamily: fontFamily.heading, fontSize: fontSize.title, color: colors.lime },
 });
+}

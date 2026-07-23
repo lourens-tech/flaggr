@@ -8,6 +8,7 @@ export interface AdminUser {
   username: string | null;
   role: AdminRole;
   mustChangePassword: boolean;
+  themePreference: 'system' | 'light' | 'dark';
 }
 
 export interface AdminStaff {

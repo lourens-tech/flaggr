@@ -59,6 +59,10 @@ interface EnquiryReplyBody {
   message?: string;
 }
 
+interface ThemePreferenceBody {
+  preference?: string;
+}
+
 function escapeHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
@@ -187,6 +191,16 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     }
     await registerPushToken(authed.id, token, platform);
     res.status(200).json({ ok: true });
+    return;
+  }
+
+  if (action === 'themePreference') {
+    const preference = (req.body as ThemePreferenceBody).preference;
+    if (preference !== 'system' && preference !== 'light' && preference !== 'dark') {
+      throw new HttpError(400, 'preference must be system, light, or dark');
+    }
+    await sql`update users set theme_preference = ${preference} where id = ${authed.id}`;
+    res.status(200).json({ themePreference: preference });
     return;
   }
 

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   ScrollView,
   StatusBar,
@@ -23,7 +23,8 @@ import { RewardCard } from '../../components/common/RewardCard';
 import { HeaderAvatar } from '../../components/common/HeaderAvatar';
 import { AdSpace } from '../../components/common/AdSpace';
 import { useApp } from '../../context/AppContext';
-import { colors, fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
+import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
+import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 import type { StatsPeriod } from '../../data/types';
 
 type Props = CompositeScreenProps<
@@ -35,6 +36,8 @@ const PERIOD_LABELS: Record<StatsPeriod, string> = { month: 'Month', year: 'Year
 const PERIODS: StatsPeriod[] = ['month', 'year', 'all'];
 
 export function HomeScreen({ navigation }: Props) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { user, points, streak, stats, rewards, unreadNotificationCount, statsPeriod, setStatsPeriod } = useApp();
 
   return (
@@ -181,8 +184,9 @@ export function HomeScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.white },
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.background },
   safeArea: { backgroundColor: colors.clubGreen },
   topBar: {
     height: 62,
@@ -207,8 +211,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 3,
   },
-  badgeText: { fontFamily: fontFamily.bodySemiBold, fontSize: 9, color: colors.darkGreen },
-  scrollContent: { backgroundColor: colors.white },
+  badgeText: { fontFamily: fontFamily.bodySemiBold, fontSize: 9, color: colors.textPrimary },
+  scrollContent: { backgroundColor: colors.background },
   welcome: {
     fontFamily: fontFamily.heading,
     fontSize: fontSize.title,
@@ -274,7 +278,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: screenPadding,
     marginTop: spacing.lg,
   },
-  sectionTitle: { fontFamily: fontFamily.heading, fontSize: fontSize.title, color: colors.darkGreen },
+  sectionTitle: { fontFamily: fontFamily.heading, fontSize: fontSize.title, color: colors.textPrimary },
   periodToggle: {
     flexDirection: 'row',
     backgroundColor: colors.mintBg,
@@ -283,7 +287,7 @@ const styles = StyleSheet.create({
   },
   periodPill: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: radius.pill },
   periodPillActive: { backgroundColor: colors.darkGreen },
-  periodText: { fontFamily: fontFamily.heading, fontSize: 12, color: colors.darkGreen },
+  periodText: { fontFamily: fontFamily.heading, fontSize: 12, color: colors.textPrimary },
   periodTextActive: { color: colors.white },
   statsGrid: {
     flexDirection: 'row',
@@ -302,7 +306,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     padding: spacing.md,
   },
-  chartTitle: { fontFamily: fontFamily.heading, fontSize: fontSize.small, color: colors.darkGreen, marginBottom: spacing.md },
+  chartTitle: { fontFamily: fontFamily.heading, fontSize: fontSize.small, color: colors.textPrimary, marginBottom: spacing.md },
   adSpace: { marginHorizontal: screenPadding, marginTop: spacing.md },
   rewardsHeaderRow: {
     flexDirection: 'row',
@@ -315,3 +319,4 @@ const styles = StyleSheet.create({
   viewAllText: { fontFamily: fontFamily.heading, fontSize: fontSize.label, color: colors.clubGreen },
   rewardsRow: { paddingHorizontal: screenPadding, gap: spacing.sm, marginTop: spacing.sm },
 });
+}

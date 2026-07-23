@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -11,7 +11,8 @@ import { HeaderAvatar } from '../../components/common/HeaderAvatar';
 import { RewardCard } from '../../components/common/RewardCard';
 import { AdSpace } from '../../components/common/AdSpace';
 import { showAlert } from '../../utils/alert';
-import { colors, fontFamily, fontSize, screenPadding, spacing } from '../../theme';
+import { fontFamily, fontSize, screenPadding, spacing } from '../../theme';
+import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 import type { Reward } from '../../data/types';
 
 type Props = CompositeScreenProps<
@@ -20,6 +21,8 @@ type Props = CompositeScreenProps<
 >;
 
 export function RewardsShopScreen({ navigation }: Props) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { rewards, points, redeemReward, unreadNotificationCount } = useApp();
 
   const handleRedeem = (reward: Reward, variantId: string) => {
@@ -80,8 +83,9 @@ export function RewardsShopScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.white },
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.background },
   headerSafeArea: { backgroundColor: colors.clubGreen },
   header: {
     height: 62,
@@ -106,3 +110,4 @@ const styles = StyleSheet.create({
   card: { width: '47%' },
   adSpace: { width: '100%' },
 });
+}

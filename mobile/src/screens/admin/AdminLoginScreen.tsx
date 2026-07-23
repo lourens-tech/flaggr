@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,11 +10,14 @@ import { TextField } from '../../components/common/TextField';
 import { AdminApiError } from '../../api/adminClient';
 import { useAdmin } from '../../context/AdminContext';
 import { showAlert } from '../../utils/alert';
-import { colors, fontFamily, screenPadding, spacing } from '../../theme';
+import { fontFamily, screenPadding, spacing } from '../../theme';
+import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'AdminLogin'>;
 
 export function AdminLoginScreen({ navigation }: Props) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { login } = useAdmin();
   // A course admin logs in with their email; a staff account logs in with
   // a username instead (see api/admin/index.ts's login action) — one field
@@ -100,7 +103,8 @@ export function AdminLoginScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.darkGreen },
   safeArea: { flex: 1, paddingHorizontal: screenPadding },
   backButton: { width: 32, height: 32, justifyContent: 'center', marginTop: spacing.sm },
@@ -117,3 +121,4 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
 });
+}

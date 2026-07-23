@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { Image, KeyboardAvoidingView, Platform, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,13 +10,16 @@ import { TextField } from '../../components/common/TextField';
 import { SelectField } from '../../components/common/SelectField';
 import { DateField } from '../../components/common/DateField';
 import { api, type Course } from '../../api/client';
-import { ONBOARDING_BACKGROUNDS, colors, fontFamily, screenPadding, spacing } from '../../theme';
+import { ONBOARDING_BACKGROUNDS, fontFamily, screenPadding, spacing } from '../../theme';
+import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'SignUpStep1'>;
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function SignUpStep1Screen({ navigation }: Props) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -174,7 +177,8 @@ export function SignUpStep1Screen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   background: { flex: 1, backgroundColor: colors.darkGreen },
   // react-native-web's <Image> bakes the source asset's intrinsic width/height
   // into its own style array, which otherwise wins over absoluteFill's inset
@@ -191,3 +195,4 @@ const styles = StyleSheet.create({
   loginBold: { fontFamily: fontFamily.bodySemiBold, fontSize: 13, color: colors.lime },
   errorText: { color: colors.negative, fontFamily: fontFamily.body, fontSize: 12, marginTop: 4, marginLeft: 4 },
 });
+}

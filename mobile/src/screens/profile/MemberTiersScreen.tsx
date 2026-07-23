@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -9,7 +9,8 @@ import { ScreenHeader } from '../../components/common/ScreenHeader';
 import { ProgressBar } from '../../components/common/ProgressBar';
 import { useApp } from '../../context/AppContext';
 import { memberTiers } from '../../data/mockData';
-import { colors, fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
+import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
+import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 import type { TierName } from '../../data/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'MemberTiers'>;
@@ -21,6 +22,8 @@ const STEPS = [
 ];
 
 export function MemberTiersScreen({ navigation }: Props) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { user, points } = useApp();
   const [selectedTier, setSelectedTier] = useState<TierName>(user.tier);
   const tier = memberTiers.find((t) => t.name === selectedTier) ?? memberTiers[0];
@@ -111,11 +114,12 @@ export function MemberTiersScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.darkGreen },
   headerSafeArea: { backgroundColor: colors.clubGreen },
   pointsCard: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.background,
     marginHorizontal: screenPadding,
     marginTop: spacing.lg,
     borderRadius: radius.lg,
@@ -124,8 +128,8 @@ const styles = StyleSheet.create({
   },
   pointsHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   pointsSummary: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  pointsValue: { fontFamily: fontFamily.heading, fontSize: fontSize.title, color: colors.darkGreen },
-  pointsLabel: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.darkGreen },
+  pointsValue: { fontFamily: fontFamily.heading, fontSize: fontSize.title, color: colors.textPrimary },
+  pointsLabel: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textPrimary },
   tierBadge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -154,7 +158,7 @@ const styles = StyleSheet.create({
   stepTitle: { fontFamily: fontFamily.heading, fontSize: fontSize.small, color: colors.white, marginBottom: 4 },
   stepBody: { fontFamily: fontFamily.body, fontSize: 10, color: 'rgba(255,255,255,0.75)', textAlign: 'center' },
   benefitsSection: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.background,
     borderTopLeftRadius: radius.xl,
     borderTopRightRadius: radius.xl,
     marginTop: spacing.xl,
@@ -165,7 +169,7 @@ const styles = StyleSheet.create({
   tabRow: { flexDirection: 'row', gap: spacing.md, marginBottom: spacing.lg },
   tab: { paddingBottom: spacing.sm },
   tabText: { fontFamily: fontFamily.bodyMedium, fontSize: fontSize.small, color: colors.textSecondary },
-  tabTextActive: { color: colors.darkGreen, fontFamily: fontFamily.bodySemiBold },
+  tabTextActive: { color: colors.textPrimary, fontFamily: fontFamily.bodySemiBold },
   tabIndicator: { height: 2, backgroundColor: colors.clubGreen, marginTop: 6, borderRadius: 1 },
   tierPill: {
     flexDirection: 'row',
@@ -188,3 +192,4 @@ const styles = StyleSheet.create({
   perkRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md, alignItems: 'flex-start' },
   perkText: { flex: 1, fontFamily: fontFamily.body, fontSize: fontSize.small, color: colors.textPrimary, lineHeight: 20 },
 });
+}

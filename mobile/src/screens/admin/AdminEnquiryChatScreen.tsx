@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -20,7 +20,8 @@ import { TextField } from '../../components/common/TextField';
 import { useAdmin } from '../../context/AdminContext';
 import { AdminApiError } from '../../api/adminClient';
 import { showAlert } from '../../utils/alert';
-import { colors, fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
+import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
+import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 import type { AdminEnquiryThread, EnquiryStatus } from '../../data/adminTypes';
 
 type Props = NativeStackScreenProps<AdminStackParamList, 'AdminEnquiryChat'>;
@@ -36,6 +37,8 @@ function formatTime(iso: string): string {
 }
 
 export function AdminEnquiryChatScreen({ route }: Props) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { enquiryId } = route.params;
   const { getEnquiryThread, replyToEnquiry, setEnquiryStatus } = useAdmin();
   const [thread, setThread] = useState<AdminEnquiryThread | null>(null);
@@ -172,8 +175,9 @@ export function AdminEnquiryChatScreen({ route }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.white },
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.background },
   headerSafeArea: { backgroundColor: colors.clubGreen },
   memberInfo: { paddingHorizontal: screenPadding, paddingTop: spacing.sm },
   memberEmail: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary },
@@ -181,14 +185,14 @@ const styles = StyleSheet.create({
   statusRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, padding: screenPadding, paddingBottom: spacing.sm },
   statusPill: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: radius.pill, backgroundColor: colors.mintBgAlt },
   statusPillActive: { backgroundColor: colors.darkGreen },
-  statusText: { fontFamily: fontFamily.heading, fontSize: 11, color: colors.darkGreen },
+  statusText: { fontFamily: fontFamily.heading, fontSize: 11, color: colors.textPrimary },
   statusTextActive: { color: colors.white },
   messages: { padding: screenPadding, gap: spacing.sm, flexGrow: 1 },
   bubbleRow: { maxWidth: '80%' },
   bubbleRowLeft: { alignSelf: 'flex-start' },
   bubbleRowRight: { alignSelf: 'flex-end' },
   bubble: { borderRadius: radius.md, padding: spacing.sm },
-  bubbleMember: { backgroundColor: '#F5F6F8' },
+  bubbleMember: { backgroundColor: colors.inputBg },
   bubbleAdmin: { backgroundColor: colors.clubGreen },
   bubbleText: { fontFamily: fontFamily.body, fontSize: fontSize.body, color: colors.textPrimary },
   bubbleTextAdmin: { color: colors.white },
@@ -199,7 +203,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     padding: screenPadding,
     borderTopWidth: 1,
-    borderTopColor: '#EEE',
+    borderTopColor: colors.border,
   },
   sendButton: {
     width: 44,
@@ -210,3 +214,4 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 });
+}

@@ -157,6 +157,12 @@ export const adminApi = {
   changePassword: (currentPassword: string, newPassword: string) =>
     request<{ ok: boolean }>('?action=changePassword', { method: 'POST', body: { currentPassword, newPassword } }),
 
+  updateThemePreference: (preference: 'system' | 'light' | 'dark') =>
+    request<{ themePreference: 'system' | 'light' | 'dark' }>('?action=themePreference', {
+      method: 'POST',
+      body: { preference },
+    }),
+
   updateCourseProfile: (payload: CourseProfilePayload) =>
     request<AdminCourse>('?action=courseProfile', { method: 'POST', body: payload }),
 

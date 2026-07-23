@@ -65,6 +65,7 @@ export interface AuthedAdmin {
   email: string;
   username: string | null; // set for `staff`; null for course_admin/super_admin, who log in with email
   mustChangePassword: boolean;
+  themePreference: 'system' | 'light' | 'dark';
 }
 
 /** Same shape as getAuthedUser, but against the separate admins/admin_sessions
@@ -86,10 +87,11 @@ export async function getAuthedAdmin(req: VercelRequest): Promise<AuthedAdmin | 
     email: string;
     username: string | null;
     must_change_password: boolean;
+    theme_preference: 'system' | 'light' | 'dark';
   }>;
   try {
     rows = (await sql`
-      select a.id, a.course_id, a.role, a.first_name, a.last_name, a.email, a.username, a.must_change_password
+      select a.id, a.course_id, a.role, a.first_name, a.last_name, a.email, a.username, a.must_change_password, a.theme_preference
       from admin_sessions s
       join admins a on a.id = s.admin_id
       where s.token = ${token} and s.expires_at > now() and a.activated_at is not null and a.revoked_at is null
@@ -109,6 +111,7 @@ export async function getAuthedAdmin(req: VercelRequest): Promise<AuthedAdmin | 
     email: r.email,
     username: r.username,
     mustChangePassword: r.must_change_password,
+    themePreference: r.theme_preference,
   };
 }
 

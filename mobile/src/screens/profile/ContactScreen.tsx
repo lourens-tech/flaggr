@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -12,13 +12,16 @@ import { faqs } from '../../data/faqData';
 import { useApp } from '../../context/AppContext';
 import { ApiError } from '../../api/client';
 import { showAlert } from '../../utils/alert';
-import { colors, fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
+import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
+import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Contact'>;
 
 const ENQUIRY_TYPES = ['Rewards & Points', 'Receipts', 'Membership', 'Technical Issue', 'Other'];
 
 export function ContactScreen({ navigation }: Props) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { user, sendContactEnquiry } = useApp();
   const [name, setName] = useState(user.firstName);
   const [surname, setSurname] = useState(user.lastName);
@@ -129,8 +132,9 @@ export function ContactScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.white },
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.background },
   headerSafeArea: { backgroundColor: colors.darkGreen },
   heroContent: { paddingHorizontal: screenPadding, paddingBottom: spacing.xl, paddingTop: spacing.md },
   heroTitle: { fontFamily: fontFamily.heading, fontSize: 26, color: colors.white },
@@ -144,27 +148,27 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   myEnquiriesText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.small, color: colors.clubGreen },
-  formCard: { backgroundColor: colors.white, marginTop: -spacing.xl },
+  formCard: { backgroundColor: colors.background, marginTop: -spacing.xl },
   row: { flexDirection: 'row', gap: spacing.sm },
   dropdown: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#F5F6F8',
+    backgroundColor: colors.inputBg,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.inputBorder,
     borderRadius: radius.md,
     height: 53,
     paddingHorizontal: spacing.md,
   },
   dropdownText: { fontFamily: fontFamily.body, fontSize: fontSize.body, color: colors.textPrimary },
-  dropdownList: { backgroundColor: colors.white, borderWidth: 1, borderColor: '#E5E7EB', borderRadius: radius.md, marginTop: 4 },
+  dropdownList: { backgroundColor: colors.background, borderWidth: 1, borderColor: colors.inputBorder, borderRadius: radius.md, marginTop: 4 },
   dropdownItem: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm + 2 },
   dropdownItemText: { fontFamily: fontFamily.body, fontSize: fontSize.small, color: colors.textPrimary },
   messageInput: {
-    backgroundColor: '#F5F6F8',
+    backgroundColor: colors.inputBg,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.inputBorder,
     borderRadius: radius.md,
     padding: spacing.md,
     minHeight: 100,
@@ -175,3 +179,4 @@ const styles = StyleSheet.create({
   },
   sectionLabel: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.small, color: colors.textPrimary, marginTop: spacing.xl, marginBottom: spacing.sm },
 });
+}

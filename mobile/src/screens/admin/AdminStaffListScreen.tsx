@@ -10,7 +10,8 @@ import { TextField } from '../../components/common/TextField';
 import { useAdmin } from '../../context/AdminContext';
 import { AdminApiError } from '../../api/adminClient';
 import { showAlert } from '../../utils/alert';
-import { colors, fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
+import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
+import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 import type { AdminStaff } from '../../data/adminTypes';
 
 type Props = NativeStackScreenProps<AdminStackParamList, 'AdminStaffList'>;
@@ -24,6 +25,8 @@ const FILTERS: Array<{ label: string; value: StatusFilter }> = [
 ];
 
 export function AdminStaffListScreen({ navigation }: Props) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { staff, loadStaff, revokeStaff, reactivateStaff, deleteStaff } = useAdmin();
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -212,14 +215,15 @@ export function AdminStaffListScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.white },
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.background },
   headerSafeArea: { backgroundColor: colors.clubGreen },
   searchArea: { paddingHorizontal: screenPadding, paddingTop: spacing.md, gap: spacing.sm },
   filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   filterPill: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: radius.pill, backgroundColor: colors.mintBgAlt },
   filterPillActive: { backgroundColor: colors.darkGreen },
-  filterText: { fontFamily: fontFamily.heading, fontSize: 11, color: colors.darkGreen },
+  filterText: { fontFamily: fontFamily.heading, fontSize: 11, color: colors.textPrimary },
   filterTextActive: { color: colors.white },
   listContent: { padding: screenPadding, gap: spacing.sm },
   card: {
@@ -233,9 +237,9 @@ const styles = StyleSheet.create({
   },
   cardTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
   cardTitle: { flex: 1, fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.textPrimary },
-  statusBadge: { backgroundColor: colors.white, borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 3 },
+  statusBadge: { backgroundColor: colors.background, borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 3 },
   statusBadgeRevoked: { backgroundColor: 'rgba(222,92,92,0.15)' },
-  statusBadgeText: { fontFamily: fontFamily.bodySemiBold, fontSize: 10, color: colors.darkGreen },
+  statusBadgeText: { fontFamily: fontFamily.bodySemiBold, fontSize: 10, color: colors.textPrimary },
   statusBadgeTextRevoked: { color: colors.negative },
   cardEmail: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary },
   pendingText: { fontFamily: fontFamily.body, fontSize: 10, color: colors.textSecondary, fontStyle: 'italic' },
@@ -250,3 +254,4 @@ const styles = StyleSheet.create({
     marginTop: spacing.xl,
   },
 });
+}

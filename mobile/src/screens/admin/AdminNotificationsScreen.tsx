@@ -8,7 +8,8 @@ import type { AdminStackParamList } from '../../navigation/types';
 import { ScreenHeader } from '../../components/common/ScreenHeader';
 import { TextField } from '../../components/common/TextField';
 import { useAdmin } from '../../context/AdminContext';
-import { colors, fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
+import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
+import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 import type { AdminNotification } from '../../data/adminTypes';
 
 type Props = NativeStackScreenProps<AdminStackParamList, 'AdminNotifications'>;
@@ -44,6 +45,8 @@ function groupLabel(dateIso: string): string {
 }
 
 export function AdminNotificationsScreen({ navigation }: Props) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { notifications, loadNotifications, markNotificationRead } = useAdmin();
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<NotificationFilter>('all');
@@ -154,14 +157,15 @@ export function AdminNotificationsScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.white },
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.background },
   headerSafeArea: { backgroundColor: colors.clubGreen },
   searchArea: { paddingHorizontal: screenPadding, paddingTop: spacing.md, gap: spacing.sm },
   filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   filterPill: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: radius.pill, backgroundColor: colors.mintBgAlt },
   filterPillActive: { backgroundColor: colors.darkGreen },
-  filterText: { fontFamily: fontFamily.heading, fontSize: 11, color: colors.darkGreen },
+  filterText: { fontFamily: fontFamily.heading, fontSize: 11, color: colors.textPrimary },
   filterTextActive: { color: colors.white },
   content: { padding: screenPadding },
   emptyText: {
@@ -179,3 +183,4 @@ const styles = StyleSheet.create({
   rowBody: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary, marginTop: 2 },
   viewLink: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.tiny, color: colors.clubGreen, marginTop: 2 },
 });
+}

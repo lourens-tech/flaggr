@@ -9,7 +9,8 @@ import type { MainTabParamList, RootStackParamList } from '../../navigation/type
 import { useApp } from '../../context/AppContext';
 import { HeaderAvatar } from '../../components/common/HeaderAvatar';
 import { showAlert } from '../../utils/alert';
-import { colors, fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
+import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
+import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 import type { ActivityEntry } from '../../data/types';
 
 type Props = CompositeScreenProps<
@@ -38,6 +39,8 @@ function formatTime(dateIso: string): string {
 }
 
 export function RewardsActivityScreen({ navigation }: Props) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { activity, vouchers, unreadNotificationCount } = useApp();
 
   const handleEntryPress = (entry: ActivityEntry) => {
@@ -139,8 +142,9 @@ export function RewardsActivityScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.white },
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.background },
   headerSafeArea: { backgroundColor: colors.clubGreen },
   header: {
     height: 62,
@@ -163,3 +167,4 @@ const styles = StyleSheet.create({
   rowSubtitle: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary, marginTop: 2 },
   rowAmount: { fontFamily: fontFamily.heading, fontSize: fontSize.label },
 });
+}

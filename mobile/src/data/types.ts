@@ -18,6 +18,7 @@ export interface User {
   tier: TierName;
   memberSince: string; // ISO date
   avatarUrl?: string;
+  themePreference: 'system' | 'light' | 'dark';
 }
 
 export interface PointsAccount {

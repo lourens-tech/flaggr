@@ -11,7 +11,8 @@ import { useAdmin } from '../../context/AdminContext';
 import { AdminApiError } from '../../api/adminClient';
 import { TextField } from '../../components/common/TextField';
 import { showAlert } from '../../utils/alert';
-import { colors, fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
+import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
+import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 import type { AdminBroadcast } from '../../data/adminTypes';
 
 type Props = CompositeScreenProps<
@@ -45,6 +46,8 @@ function targetLabel(target: string): string {
 }
 
 export function AdminPushScreen({ navigation }: Props) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { broadcasts, loadBroadcasts, sendBroadcast, deleteBroadcast } = useAdmin();
   const [loading, setLoading] = useState(true);
   const [resendingId, setResendingId] = useState<string | null>(null);
@@ -215,8 +218,9 @@ export function AdminPushScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.white },
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.background },
   headerSafeArea: { backgroundColor: colors.clubGreen },
   header: {
     paddingHorizontal: screenPadding,
@@ -230,7 +234,7 @@ const styles = StyleSheet.create({
   filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   filterPill: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: radius.pill, backgroundColor: colors.mintBgAlt },
   filterPillActive: { backgroundColor: colors.darkGreen },
-  filterText: { fontFamily: fontFamily.heading, fontSize: 11, color: colors.darkGreen },
+  filterText: { fontFamily: fontFamily.heading, fontSize: 11, color: colors.textPrimary },
   filterTextActive: { color: colors.white },
   listContent: { padding: screenPadding, gap: spacing.sm },
   card: {
@@ -244,8 +248,8 @@ const styles = StyleSheet.create({
   },
   cardTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
   cardTitle: { flex: 1, fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.textPrimary },
-  targetBadge: { backgroundColor: colors.white, borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 3 },
-  targetBadgeText: { fontFamily: fontFamily.bodySemiBold, fontSize: 10, color: colors.darkGreen },
+  targetBadge: { backgroundColor: colors.background, borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 3 },
+  targetBadgeText: { fontFamily: fontFamily.bodySemiBold, fontSize: 10, color: colors.textPrimary },
   cardBody: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary },
   cardMeta: { fontFamily: fontFamily.body, fontSize: 10, color: colors.textSecondary, marginTop: 2 },
   cardActions: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.xs },
@@ -259,3 +263,4 @@ const styles = StyleSheet.create({
     marginTop: spacing.xl,
   },
 });
+}

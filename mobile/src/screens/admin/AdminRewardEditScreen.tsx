@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { Image, ScrollView, StatusBar, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -12,7 +12,8 @@ import { useAdmin } from '../../context/AdminContext';
 import { AdminApiError, type RewardVariantPayload } from '../../api/adminClient';
 import { pickAndResizeAvatar, AvatarPermissionError } from '../../utils/pickAvatar';
 import { showAlert } from '../../utils/alert';
-import { colors, fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
+import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
+import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 
 type Props = NativeStackScreenProps<AdminStackParamList, 'AdminRewardEdit'>;
 
@@ -35,6 +36,8 @@ function newVariant(sortOrder: number): LocalVariant {
 }
 
 export function AdminRewardEditScreen({ navigation, route }: Props) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { rewards, course, saveReward, deleteReward } = useAdmin();
   const existing = rewards.find((r) => r.id === route.params.rewardId);
 
@@ -245,8 +248,9 @@ export function AdminRewardEditScreen({ navigation, route }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.white },
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.background },
   headerSafeArea: { backgroundColor: colors.clubGreen },
   content: { padding: screenPadding, paddingBottom: spacing.xl * 2 },
   imagePicker: { alignSelf: 'center', marginBottom: spacing.lg },
@@ -271,12 +275,12 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontFamily: fontFamily.heading,
     fontSize: fontSize.cardTitle,
-    color: colors.darkGreen,
+    color: colors.textPrimary,
     marginTop: spacing.lg,
     marginBottom: spacing.sm,
   },
   variantCard: {
-    backgroundColor: '#F5F6F8',
+    backgroundColor: colors.inputBg,
     borderRadius: radius.md,
     padding: spacing.sm,
     marginBottom: spacing.sm,
@@ -288,3 +292,4 @@ const styles = StyleSheet.create({
   deleteButton: { alignItems: 'center', marginTop: spacing.lg },
   deleteText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.negative },
 });
+}

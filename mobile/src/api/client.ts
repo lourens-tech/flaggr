@@ -197,4 +197,10 @@ export const api = {
 
   registerPushToken: (token: string, platform: 'ios' | 'android') =>
     request<{ ok: boolean }>('/profile?action=registerPushToken', { method: 'POST', body: { token, platform } }),
+
+  updateThemePreference: (preference: 'system' | 'light' | 'dark') =>
+    request<{ themePreference: 'system' | 'light' | 'dark' }>('/profile?action=themePreference', {
+      method: 'POST',
+      body: { preference },
+    }),
 };

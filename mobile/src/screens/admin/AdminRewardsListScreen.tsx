@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useMemo } from 'react';
 import { ActivityIndicator, Image, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -8,7 +8,8 @@ import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AdminStackParamList, AdminTabParamList } from '../../navigation/types';
 import { useAdmin } from '../../context/AdminContext';
-import { colors, fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
+import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
+import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 import type { AdminReward } from '../../data/adminTypes';
 
 type Props = CompositeScreenProps<
@@ -35,6 +36,8 @@ function priceLabelFor(item: AdminReward): string {
 }
 
 export function AdminRewardsListScreen({ navigation }: Props) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { rewards, loadRewards } = useAdmin();
   const [loading, setLoading] = useState(true);
 
@@ -124,8 +127,9 @@ export function AdminRewardsListScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.white },
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.background },
   headerSafeArea: { backgroundColor: colors.clubGreen },
   header: {
     paddingHorizontal: screenPadding,
@@ -139,7 +143,7 @@ const styles = StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: spacing.md },
   card: {
     width: '47%',
-    backgroundColor: colors.white,
+    backgroundColor: colors.background,
     borderRadius: radius.md,
     borderWidth: 0.5,
     borderColor: colors.clubGreen,
@@ -158,9 +162,9 @@ const styles = StyleSheet.create({
   },
   inactiveBadgeText: { fontFamily: fontFamily.body, fontSize: 10, color: colors.white },
   body: { padding: spacing.sm + 4, gap: 4 },
-  title: { fontFamily: fontFamily.heading, fontSize: fontSize.cardTitle, color: colors.darkGreen },
+  title: { fontFamily: fontFamily.heading, fontSize: fontSize.cardTitle, color: colors.textPrimary },
   description: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary },
-  cost: { fontFamily: fontFamily.heading, fontSize: fontSize.label, color: colors.darkGreen, marginTop: 2 },
+  cost: { fontFamily: fontFamily.heading, fontSize: fontSize.label, color: colors.textPrimary, marginTop: 2 },
   editButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -180,3 +184,4 @@ const styles = StyleSheet.create({
     marginTop: spacing.xl,
   },
 });
+}

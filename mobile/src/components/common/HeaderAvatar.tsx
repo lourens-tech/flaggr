@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Image, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../../context/AppContext';
-import { colors } from '../../theme';
+import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 
 interface Props {
   size?: number;
@@ -12,6 +12,8 @@ interface Props {
 // member's uploaded profile picture when set, otherwise the same person-icon
 // placeholder every screen used before avatars existed.
 export function HeaderAvatar({ size = 32 }: Props) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { user } = useApp();
 
   return (
@@ -25,7 +27,8 @@ export function HeaderAvatar({ size = 32 }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   container: {
     backgroundColor: colors.lime,
     alignItems: 'center',
@@ -34,3 +37,4 @@ const styles = StyleSheet.create({
   },
   image: { width: '100%', height: '100%' },
 });
+}

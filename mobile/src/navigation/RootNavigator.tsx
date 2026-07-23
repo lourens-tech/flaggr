@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { RootStackParamList } from './types';
@@ -20,11 +20,13 @@ import { AdminNavigator } from './AdminNavigator';
 import { AdminForceChangePasswordScreen } from '../screens/admin/AdminForceChangePasswordScreen';
 import { useApp } from '../context/AppContext';
 import { useAdmin } from '../context/AdminContext';
-import { colors } from '../theme';
+import { useThemeColors, type ThemeColors } from '../context/ThemeContext';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export function RootNavigator() {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { isAuthenticated, isInitializing } = useApp();
   const { isAdminAuthenticated, isInitializing: isAdminInitializing, admin } = useAdmin();
 
@@ -74,6 +76,8 @@ export function RootNavigator() {
   );
 }
 
-const styles = StyleSheet.create({
-  loading: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.white },
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+  loading: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
 });
+}

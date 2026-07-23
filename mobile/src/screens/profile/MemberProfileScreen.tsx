@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -23,7 +23,10 @@ import { useApp } from '../../context/AppContext';
 import { api, ApiError, type Course } from '../../api/client';
 import { AvatarPermissionError, pickAndResizeAvatar } from '../../utils/pickAvatar';
 import { showAlert } from '../../utils/alert';
-import { colors, fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
+import { ThemeToggleRow } from '../../components/common/ThemeToggleRow';
+import type { ThemePreference } from '../../context/ThemeContext';
+import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
+import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 
 type Props = CompositeScreenProps<
   BottomTabScreenProps<MainTabParamList, 'Profile'>,
@@ -31,6 +34,8 @@ type Props = CompositeScreenProps<
 >;
 
 function ProfileField({ label, value, onPress }: { label: string; value: string; onPress?: () => void }) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <TouchableOpacity style={styles.fieldRow} onPress={onPress} disabled={!onPress} activeOpacity={onPress ? 0.7 : 1}>
       <View style={{ flex: 1 }}>
@@ -51,6 +56,8 @@ function LinkRow({
   label: string;
   onPress: () => void;
 }) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <TouchableOpacity style={styles.linkRow} onPress={onPress}>
       <Ionicons name={icon} size={18} color={colors.clubGreen} />
@@ -61,8 +68,11 @@ function LinkRow({
 }
 
 export function MemberProfileScreen({ navigation }: Props) {
-  const { user, unreadNotificationCount, logout, updateAvatar, changeHomeClub } = useApp();
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { user, unreadNotificationCount, logout, updateAvatar, changeHomeClub, updateThemePreference } = useApp();
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [savingTheme, setSavingTheme] = useState(false);
   const [clubPickerOpen, setClubPickerOpen] = useState(false);
   const [courses, setCourses] = useState<Course[]>([]);
   const [loadingCourses, setLoadingCourses] = useState(false);
@@ -120,6 +130,18 @@ export function MemberProfileScreen({ navigation }: Props) {
       }
     } finally {
       setUploadingAvatar(false);
+    }
+  };
+
+  const handleThemeChange = async (preference: ThemePreference) => {
+    setSavingTheme(true);
+    try {
+      await updateThemePreference(preference);
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : 'Something went wrong. Please try again.';
+      showAlert('Couldn’t update appearance', message);
+    } finally {
+      setSavingTheme(false);
     }
   };
 
@@ -234,6 +256,11 @@ export function MemberProfileScreen({ navigation }: Props) {
           <LinkRow icon="chatbubbles-outline" label="My Enquiries" onPress={() => navigation.navigate('MyEnquiries')} />
         </View>
 
+        <Text style={styles.sectionLabel}>Appearance</Text>
+        <View style={[styles.linksCard, { padding: spacing.sm }]}>
+          <ThemeToggleRow onChange={handleThemeChange} disabled={savingTheme} />
+        </View>
+
         <Text style={styles.sectionLabel}>Legal</Text>
         <View style={styles.linksCard}>
           <LinkRow
@@ -278,7 +305,8 @@ export function MemberProfileScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.clubGreen },
   headerSafeArea: { backgroundColor: colors.clubGreen },
   header: {
@@ -308,7 +336,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: screenPadding,
     paddingVertical: spacing.md,
   },
-  content: { backgroundColor: colors.white, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, paddingTop: spacing.xl },
+  content: { backgroundColor: colors.background, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, paddingTop: spacing.xl },
   profileCard: { alignItems: 'center', paddingHorizontal: screenPadding },
   avatarLarge: {
     width: 96,
@@ -356,7 +384,7 @@ const styles = StyleSheet.create({
     marginTop: -12,
   },
   tierBadgeText: { fontFamily: fontFamily.heading, fontSize: 11, color: colors.white, textTransform: 'uppercase' },
-  name: { fontFamily: fontFamily.heading, fontSize: fontSize.title, color: colors.darkGreen, marginTop: spacing.sm },
+  name: { fontFamily: fontFamily.heading, fontSize: fontSize.title, color: colors.textPrimary, marginTop: spacing.sm },
   club: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary, marginTop: 2 },
   fieldsWrapper: { width: '100%', marginTop: spacing.lg, gap: spacing.sm },
   fieldRow: {
@@ -396,7 +424,7 @@ const styles = StyleSheet.create({
   logoutText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.small, color: colors.negative },
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
   sheet: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.background,
     borderTopLeftRadius: radius.lg,
     borderTopRightRadius: radius.lg,
     padding: spacing.lg,
@@ -405,7 +433,7 @@ const styles = StyleSheet.create({
   sheetTitle: {
     fontFamily: fontFamily.heading,
     fontSize: fontSize.cardTitle,
-    color: colors.darkGreen,
+    color: colors.textPrimary,
     marginBottom: spacing.md,
   },
   clubOptionRow: {
@@ -414,7 +442,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: '#EEE',
+    borderBottomColor: colors.border,
   },
   clubOptionText: { fontFamily: fontFamily.body, fontSize: fontSize.body, color: colors.textPrimary },
 });
+}

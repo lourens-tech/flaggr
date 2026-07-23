@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { colors, fontFamily, fontSize } from '../../theme';
+import { fontFamily, fontSize } from '../../theme';
+import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 import type { MonthlyPoint } from '../../data/types';
 
 interface Props {
@@ -10,6 +11,8 @@ interface Props {
 }
 
 export function BarChart({ data, height = 90, highlightIndex }: Props) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const max = Math.max(...data.map((d) => d.value));
   const peakIdx = highlightIndex ?? data.reduce((best, d, i) => (d.value > data[best].value ? i : best), 0);
 
@@ -46,16 +49,18 @@ export function BarChart({ data, height = 90, highlightIndex }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' },
   barColumn: { alignItems: 'center', flex: 1, gap: 4 },
   bar: { width: 28, borderTopLeftRadius: 5, borderTopRightRadius: 5 },
-  value: { fontFamily: fontFamily.heading, fontSize: 9, color: colors.darkGreen },
+  value: { fontFamily: fontFamily.heading, fontSize: 9, color: colors.textPrimary },
   label: {
     fontFamily: fontFamily.heading,
     fontSize: fontSize.tiny,
-    color: colors.darkGreen,
+    color: colors.textPrimary,
     textTransform: 'uppercase',
     marginTop: 8,
   },
 });
+}

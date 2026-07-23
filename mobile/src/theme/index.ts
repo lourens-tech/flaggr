@@ -1,4 +1,4 @@
-export { colors } from './colors';
+export { colors, lightColors, darkColors, type ColorToken, type ThemeColors } from './colors';
 export { fontFamily, fontSize, fontsToLoad } from './typography';
 export { spacing, radius, screenPadding } from './spacing';
 export { ONBOARDING_BACKGROUNDS } from './images';

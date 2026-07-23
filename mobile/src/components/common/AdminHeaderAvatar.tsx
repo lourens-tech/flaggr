@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Image, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../../theme';
+import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 
 interface Props {
   logoUrl: string | null;
@@ -13,6 +13,8 @@ interface Props {
 // the identity that matters in this header is the club, not the individual
 // admin. Same shape/placement as the member app's HeaderAvatar.
 export function AdminHeaderAvatar({ logoUrl, size = 32 }: Props) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View style={[styles.container, { width: size, height: size, borderRadius: size / 2 }]}>
       {logoUrl ? (
@@ -24,7 +26,8 @@ export function AdminHeaderAvatar({ logoUrl, size = 32 }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   container: {
     backgroundColor: colors.lime,
     alignItems: 'center',
@@ -33,3 +36,4 @@ const styles = StyleSheet.create({
   },
   image: { width: '100%', height: '100%' },
 });
+}

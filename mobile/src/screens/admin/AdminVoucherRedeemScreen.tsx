@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useMemo } from 'react';
 import { ActivityIndicator, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'expo-camera';
@@ -8,7 +8,8 @@ import { PillButton } from '../../components/common/PillButton';
 import { useAdmin } from '../../context/AdminContext';
 import { AdminApiError } from '../../api/adminClient';
 import { showAlert } from '../../utils/alert';
-import { colors, fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
+import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
+import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 import type { AdminVoucherLookup } from '../../data/adminTypes';
 
 const STATUS_LABEL: Record<AdminVoucherLookup['status'], string> = {
@@ -20,6 +21,8 @@ const STATUS_LABEL: Record<AdminVoucherLookup['status'], string> = {
 const VOUCHER_QR_PREFIX = 'flagrr://voucher/';
 
 export function AdminVoucherRedeemScreen() {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { lookupVoucher, redeemVoucher } = useAdmin();
   const [permission, requestPermission] = useCameraPermissions();
   const [code, setCode] = useState('');
@@ -193,8 +196,9 @@ export function AdminVoucherRedeemScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.white },
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.background },
   scannerScreen: { flex: 1, backgroundColor: colors.darkGreen },
   headerSafeArea: { backgroundColor: colors.clubGreen },
   header: { paddingHorizontal: screenPadding, paddingVertical: spacing.md },
@@ -202,20 +206,20 @@ const styles = StyleSheet.create({
   content: { padding: screenPadding },
   helpText: { fontFamily: fontFamily.body, fontSize: fontSize.body, color: colors.textSecondary, marginBottom: spacing.md },
   dividerRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  dividerLine: { flex: 1, height: 1, backgroundColor: '#EEE' },
+  dividerLine: { flex: 1, height: 1, backgroundColor: colors.border },
   dividerText: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary },
   searchRow: { flexDirection: 'row' },
   card: {
     marginTop: spacing.lg,
-    backgroundColor: colors.white,
+    backgroundColor: colors.background,
     borderWidth: 0.5,
     borderColor: colors.clubGreen,
     borderRadius: radius.md,
     padding: spacing.md,
   },
-  rewardTitle: { fontFamily: fontFamily.heading, fontSize: fontSize.cardTitle, color: colors.darkGreen },
+  rewardTitle: { fontFamily: fontFamily.heading, fontSize: fontSize.cardTitle, color: colors.textPrimary },
   variantLabel: { fontFamily: fontFamily.body, fontSize: fontSize.body, color: colors.textSecondary, marginTop: 2 },
-  divider: { height: 1, backgroundColor: '#EEE', marginVertical: spacing.sm },
+  divider: { height: 1, backgroundColor: colors.border, marginVertical: spacing.sm },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.xs },
   rowText: { fontFamily: fontFamily.body, fontSize: fontSize.body, color: colors.textPrimary },
   scannerHeader: {
@@ -254,3 +258,4 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
   },
 });
+}

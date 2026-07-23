@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -20,15 +20,18 @@ import { TextField } from '../../components/common/TextField';
 import { useApp } from '../../context/AppContext';
 import { ApiError } from '../../api/client';
 import { showAlert } from '../../utils/alert';
-import { colors, fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
+import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
+import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 import type { EnquiryStatus, MyEnquiryThread } from '../../data/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'EnquiryChat'>;
 
+// A fixed, theme-invariant palette — these are small self-contained status
+// chips (own bg + fg pair), not surfaces that should flip with dark mode.
 const STATUS_BADGE: Record<EnquiryStatus, { label: string; bg: string; fg: string }> = {
   pending: { label: 'Pending', bg: '#FDE9C8', fg: '#8A5A00' },
-  in_progress: { label: 'Chat in Progress', bg: '#CCF2E6', fg: colors.clubGreen },
-  resolved: { label: 'Resolved', bg: '#E5E7EB', fg: colors.textSecondary },
+  in_progress: { label: 'Chat in Progress', bg: '#CCF2E6', fg: '#00805A' },
+  resolved: { label: 'Resolved', bg: '#E5E7EB', fg: '#4B5563' },
 };
 
 function formatTime(iso: string): string {
@@ -36,6 +39,8 @@ function formatTime(iso: string): string {
 }
 
 export function EnquiryChatScreen({ route }: Props) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { enquiryId } = route.params;
   const { getEnquiryThread, replyToEnquiry } = useApp();
   const [thread, setThread] = useState<MyEnquiryThread | null>(null);
@@ -143,8 +148,9 @@ export function EnquiryChatScreen({ route }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.white },
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.background },
   headerSafeArea: { backgroundColor: colors.clubGreen },
   statusRow: { paddingHorizontal: screenPadding, paddingTop: spacing.md },
   badge: { alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 5, borderRadius: radius.pill },
@@ -154,7 +160,7 @@ const styles = StyleSheet.create({
   bubbleRowLeft: { alignSelf: 'flex-start' },
   bubbleRowRight: { alignSelf: 'flex-end' },
   bubble: { borderRadius: radius.md, padding: spacing.sm },
-  bubbleTheirs: { backgroundColor: '#F5F6F8' },
+  bubbleTheirs: { backgroundColor: colors.inputBg },
   bubbleMine: { backgroundColor: colors.clubGreen },
   bubbleText: { fontFamily: fontFamily.body, fontSize: fontSize.body, color: colors.textPrimary },
   bubbleTextMine: { color: colors.white },
@@ -165,7 +171,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     padding: screenPadding,
     borderTopWidth: 1,
-    borderTopColor: '#EEE',
+    borderTopColor: colors.border,
   },
   sendButton: {
     width: 44,
@@ -176,3 +182,4 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 });
+}

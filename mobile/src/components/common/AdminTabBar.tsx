@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
-import { colors, fontFamily, fontSize } from '../../theme';
+import { fontFamily, fontSize } from '../../theme';
+import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 
 const ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   AdminDashboard: 'bar-chart-outline',
@@ -28,6 +29,8 @@ const LABELS: Record<string, string> = {
 // member app's FloatingTabBar is built around a center "Scan" action that
 // doesn't apply here, so this is a simpler, standard bar instead.
 export function AdminTabBar({ state, navigation }: BottomTabBarProps) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View style={styles.bar}>
       {state.routes.map((route, index) => {
@@ -55,15 +58,17 @@ export function AdminTabBar({ state, navigation }: BottomTabBarProps) {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   bar: {
     flexDirection: 'row',
-    backgroundColor: colors.white,
+    backgroundColor: colors.background,
     borderTopWidth: 1,
-    borderTopColor: '#EEE',
+    borderTopColor: colors.border,
     paddingTop: 8,
     paddingBottom: 20,
   },
   tab: { flex: 1, alignItems: 'center', gap: 2 },
   label: { fontFamily: fontFamily.body, fontSize: fontSize.tiny },
 });
+}

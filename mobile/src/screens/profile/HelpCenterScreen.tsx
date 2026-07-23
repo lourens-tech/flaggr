@@ -8,11 +8,14 @@ import { TextField } from '../../components/common/TextField';
 import { FaqAccordion } from '../../components/common/FaqAccordion';
 import { useApp } from '../../context/AppContext';
 import { articles, faqs } from '../../data/faqData';
-import { colors, fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
+import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
+import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'HelpCenter'>;
 
 export function HelpCenterScreen({ navigation }: Props) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { user } = useApp();
   const [query, setQuery] = useState('');
 
@@ -77,8 +80,9 @@ export function HelpCenterScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.white },
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.background },
   headerSafeArea: { backgroundColor: colors.darkGreen, borderBottomLeftRadius: radius.xl, borderBottomRightRadius: radius.xl },
   heroContent: { paddingHorizontal: screenPadding, paddingBottom: spacing.xl, paddingTop: spacing.sm },
   welcome: { fontFamily: fontFamily.bodyMedium, fontSize: fontSize.body, color: colors.white },
@@ -88,7 +92,7 @@ const styles = StyleSheet.create({
   emptyText: { fontFamily: fontFamily.body, fontSize: fontSize.small, color: colors.textSecondary },
   articleCard: {
     width: 140,
-    backgroundColor: colors.white,
+    backgroundColor: colors.background,
     borderWidth: 1,
     borderColor: 'rgba(31,66,52,0.1)',
     borderRadius: radius.sm,
@@ -98,3 +102,4 @@ const styles = StyleSheet.create({
   articleTitle: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.tiny, color: colors.textPrimary },
   articleSummary: { fontFamily: fontFamily.body, fontSize: 9, color: colors.textSecondary, marginTop: 4 },
 });
+}

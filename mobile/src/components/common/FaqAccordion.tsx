@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { LayoutAnimation, Platform, StyleSheet, Text, TouchableOpacity, UIManager, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, fontFamily, fontSize, radius, spacing } from '../../theme';
+import { fontFamily, fontSize, radius, spacing } from '../../theme';
+import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 import type { FaqEntry } from '../../data/faqData';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -9,6 +10,8 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 }
 
 export function FaqAccordion({ items, initialOpenIndex = 0 }: { items: FaqEntry[]; initialOpenIndex?: number }) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [openIndex, setOpenIndex] = useState<number | null>(initialOpenIndex);
 
   const toggle = (index: number) => {
@@ -34,9 +37,11 @@ export function FaqAccordion({ items, initialOpenIndex = 0 }: { items: FaqEntry[
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   card: { backgroundColor: colors.mintBgAlt, borderRadius: radius.md, padding: spacing.md },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   question: { flex: 1, fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.small, color: colors.textPrimary, marginRight: spacing.sm },
   answer: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary, marginTop: spacing.sm, lineHeight: 18 },
 });
+}

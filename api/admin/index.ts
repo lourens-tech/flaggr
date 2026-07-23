@@ -136,7 +136,7 @@ const BROADCAST_TARGETS = ['all', 'Bronze', 'Silver', 'Gold', 'Platinum'];
 // Staff accounts only get a course-admin-created login for the Vouchers tab
 // and their own basic profile — every other action stays course_admin-only,
 // enforced right after auth below rather than scattered per-action.
-const STAFF_ALLOWED_ACTIONS = new Set(['logout', 'me', 'changePassword', 'voucherLookup', 'voucherRedeem']);
+const STAFF_ALLOWED_ACTIONS = new Set(['logout', 'me', 'changePassword', 'voucherLookup', 'voucherRedeem', 'themePreference']);
 
 function isDuplicateKeyError(err: unknown): boolean {
   return err instanceof Error && /duplicate key value/i.test(err.message);
@@ -275,7 +275,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     // login screen serves every role.
     const loginId = identifier.trim().toLowerCase();
     const rows = (await sql`
-      select id, course_id, role, first_name, last_name, email, username, password_hash, activated_at, must_change_password, revoked_at
+      select id, course_id, role, first_name, last_name, email, username, password_hash, activated_at, must_change_password, revoked_at, theme_preference
       from admins
       where (role = 'staff' and username = ${loginId}) or (role <> 'staff' and email = ${loginId})
     `) as Array<{
@@ -290,6 +290,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       activated_at: string | null;
       must_change_password: boolean;
       revoked_at: string | null;
+      theme_preference: 'system' | 'light' | 'dark';
     }>;
 
     const admin = rows[0];
@@ -321,6 +322,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         username: admin.username,
         role: admin.role,
         mustChangePassword: admin.must_change_password,
+        themePreference: admin.theme_preference,
       },
       course,
     });
@@ -345,6 +347,16 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     return;
   }
 
+  if (action === 'themePreference') {
+    const preference = (req.body as { preference?: string }).preference;
+    if (preference !== 'system' && preference !== 'light' && preference !== 'dark') {
+      throw new HttpError(400, 'preference must be system, light, or dark');
+    }
+    await sql`update admins set theme_preference = ${preference} where id = ${authed.id}`;
+    res.status(200).json({ themePreference: preference });
+    return;
+  }
+
   if (action === 'me' && req.method === 'GET') {
     const course = await fetchCourse(courseId);
     res.status(200).json({
@@ -356,6 +368,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         username: authed.username,
         role: authed.role,
         mustChangePassword: authed.mustChangePassword,
+        themePreference: authed.themePreference,
       },
       course,
     });

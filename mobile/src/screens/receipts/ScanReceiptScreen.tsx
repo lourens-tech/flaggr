@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useMemo } from 'react';
 import { ActivityIndicator, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
@@ -10,7 +10,8 @@ import type { RootStackParamList } from '../../navigation/types';
 import { PillButton } from '../../components/common/PillButton';
 import { api, ApiError } from '../../api/client';
 import { showAlert } from '../../utils/alert';
-import { colors, fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
+import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
+import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ScanReceipt'>;
 
@@ -35,6 +36,8 @@ async function prepareForScan(uri: string, width: number, height: number): Promi
 }
 
 export function ScanReceiptScreen({ navigation }: Props) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [permission, requestPermission] = useCameraPermissions();
   const cameraRef = useRef<CameraView>(null);
   const [capturing, setCapturing] = useState(false);
@@ -154,7 +157,8 @@ export function ScanReceiptScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.darkGreen },
   headerSafeArea: { backgroundColor: colors.clubGreen },
   header: {
@@ -184,7 +188,7 @@ const styles = StyleSheet.create({
     borderColor: colors.lime,
     borderStyle: 'dashed',
   },
-  footer: { backgroundColor: colors.white, padding: screenPadding, alignItems: 'center', gap: spacing.md },
+  footer: { backgroundColor: colors.background, padding: screenPadding, alignItems: 'center', gap: spacing.md },
   uploadRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   uploadRowText: { fontFamily: fontFamily.body, fontSize: fontSize.small, color: colors.textSecondary },
   permissionContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: screenPadding },
@@ -214,3 +218,4 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
 });
+}

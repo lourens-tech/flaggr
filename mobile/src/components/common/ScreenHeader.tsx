@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { colors, fontFamily, fontSize, spacing } from '../../theme';
+import { fontFamily, fontSize, spacing } from '../../theme';
+import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 
 interface Props {
   title: string;
@@ -12,6 +13,8 @@ interface Props {
 
 // The compact green header used on sub-screens (Scan Receipt, Help Center, etc.)
 export function ScreenHeader({ title, onBack, right }: Props) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const navigation = useNavigation();
   return (
     <View style={styles.container}>
@@ -30,7 +33,8 @@ export function ScreenHeader({ title, onBack, right }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   container: {
     height: 62,
     backgroundColor: colors.clubGreen,
@@ -48,3 +52,4 @@ const styles = StyleSheet.create({
     color: colors.white,
   },
 });
+}
