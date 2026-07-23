@@ -1,7 +1,7 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, Image, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useState } from 'react';
+import { ActivityIndicator, Image, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import type { CompositeScreenProps } from '@react-navigation/native';
 import { useFocusEffect } from '@react-navigation/native';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
@@ -15,6 +15,24 @@ type Props = CompositeScreenProps<
   BottomTabScreenProps<AdminTabParamList, 'AdminRewards'>,
   NativeStackScreenProps<AdminStackParamList>
 >;
+
+const CATEGORY_ICON: Record<string, keyof typeof MaterialCommunityIcons.glyphMap> = {
+  rounds: 'golf',
+  experiences: 'star-four-points-outline',
+  'pro-shop': 'shopping',
+  practice: 'golf-tee',
+  dining: 'silverware-fork-knife',
+};
+
+function priceLabelFor(item: AdminReward): string {
+  const prices = item.variants
+    .filter((v) => v.active !== false)
+    .map((v) => v.cost ?? 0)
+    .sort((a, b) => a - b);
+  if (prices.length === 0) return 'No active variants';
+  if (prices.length === 1) return `${prices[0].toLocaleString()} Flagrr Cash`;
+  return `${prices[0].toLocaleString()}–${prices[prices.length - 1].toLocaleString()} Flagrr Cash`;
+}
 
 export function AdminRewardsListScreen({ navigation }: Props) {
   const { rewards, loadRewards } = useAdmin();
@@ -38,45 +56,6 @@ export function AdminRewardsListScreen({ navigation }: Props) {
     }, []),
   );
 
-  const renderItem = ({ item }: { item: AdminReward }) => {
-    const priceRange = item.variants
-      .filter((v) => v.active !== false)
-      .map((v) => v.cost ?? 0)
-      .sort((a, b) => a - b);
-    const priceLabel =
-      priceRange.length === 0
-        ? 'No active variants'
-        : priceRange.length === 1
-          ? `${priceRange[0].toLocaleString()} FC`
-          : `${priceRange[0].toLocaleString()}–${priceRange[priceRange.length - 1].toLocaleString()} FC`;
-
-    return (
-      <TouchableOpacity
-        style={styles.row}
-        onPress={() => navigation.navigate('AdminRewardEdit', { rewardId: item.id })}
-        activeOpacity={0.8}
-      >
-        {item.imageUrl ? (
-          <Image source={{ uri: item.imageUrl }} style={styles.thumb} />
-        ) : (
-          <View style={[styles.thumb, styles.thumbPlaceholder]}>
-            <Ionicons name="gift-outline" size={20} color={colors.clubGreen} />
-          </View>
-        )}
-        <View style={{ flex: 1 }}>
-          <Text style={styles.title} numberOfLines={1}>{item.title}</Text>
-          <Text style={styles.subtitle}>{priceLabel}</Text>
-        </View>
-        {!item.active ? (
-          <View style={styles.inactiveBadge}>
-            <Text style={styles.inactiveBadgeText}>Inactive</Text>
-          </View>
-        ) : null}
-        <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
-      </TouchableOpacity>
-    );
-  };
-
   return (
     <View style={styles.screen}>
       <StatusBar barStyle="light-content" />
@@ -96,16 +75,50 @@ export function AdminRewardsListScreen({ navigation }: Props) {
 
       {loading ? (
         <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
+      ) : rewards.length === 0 ? (
+        <Text style={styles.emptyText}>No rewards yet — tap + to create your first one.</Text>
       ) : (
-        <FlatList
-          data={rewards}
-          keyExtractor={(r) => r.id}
-          renderItem={renderItem}
-          contentContainerStyle={styles.listContent}
-          ListEmptyComponent={
-            <Text style={styles.emptyText}>No rewards yet — tap + to create your first one.</Text>
-          }
-        />
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+          <View style={styles.grid}>
+            {rewards.map((reward) => (
+              <TouchableOpacity
+                key={reward.id}
+                style={styles.card}
+                activeOpacity={0.85}
+                onPress={() => navigation.navigate('AdminRewardEdit', { rewardId: reward.id })}
+              >
+                {reward.imageUrl ? (
+                  <Image source={{ uri: reward.imageUrl }} style={styles.image} />
+                ) : (
+                  <View style={[styles.image, styles.imageFallback]}>
+                    <MaterialCommunityIcons
+                      name={CATEGORY_ICON[reward.category] ?? 'gift'}
+                      size={40}
+                      color={colors.lime}
+                    />
+                  </View>
+                )}
+                {!reward.active ? (
+                  <View style={styles.inactiveBadge}>
+                    <Text style={styles.inactiveBadgeText}>Inactive</Text>
+                  </View>
+                ) : null}
+
+                <View style={styles.body}>
+                  <Text style={styles.title} numberOfLines={1}>{reward.title}</Text>
+                  <Text style={styles.description} numberOfLines={2}>{reward.description}</Text>
+                  <Text style={styles.cost}>{priceLabelFor(reward)}</Text>
+
+                  <View style={styles.editButton}>
+                    <Text style={styles.editButtonText}>Edit</Text>
+                    <Ionicons name="arrow-forward" size={14} color={colors.darkGreen} />
+                  </View>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+          <View style={{ height: 120 }} />
+        </ScrollView>
       )}
     </View>
   );
@@ -122,24 +135,43 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   headerTitle: { fontFamily: fontFamily.headingDisplay, fontSize: fontSize.title, color: colors.white },
-  listContent: { padding: screenPadding, gap: spacing.sm },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
+  content: { paddingHorizontal: screenPadding, paddingTop: spacing.lg },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: spacing.md },
+  card: {
+    width: '47%',
     backgroundColor: colors.white,
+    borderRadius: radius.md,
     borderWidth: 0.5,
     borderColor: colors.clubGreen,
-    borderRadius: radius.md,
-    padding: spacing.sm,
-    marginBottom: spacing.sm,
+    overflow: 'hidden',
   },
-  thumb: { width: 48, height: 48, borderRadius: radius.sm, backgroundColor: colors.imagePlaceholder },
-  thumbPlaceholder: { alignItems: 'center', justifyContent: 'center' },
-  title: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.textPrimary },
-  subtitle: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary, marginTop: 2 },
-  inactiveBadge: { backgroundColor: '#F2F2F2', paddingHorizontal: 8, paddingVertical: 3, borderRadius: radius.pill },
-  inactiveBadgeText: { fontFamily: fontFamily.body, fontSize: 10, color: colors.textSecondary },
+  image: { width: '100%', height: 112, backgroundColor: colors.imagePlaceholder },
+  imageFallback: { backgroundColor: colors.darkGreen, alignItems: 'center', justifyContent: 'center' },
+  inactiveBadge: {
+    position: 'absolute',
+    top: spacing.sm,
+    right: spacing.sm,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radius.pill,
+  },
+  inactiveBadgeText: { fontFamily: fontFamily.body, fontSize: 10, color: colors.white },
+  body: { padding: spacing.sm + 4, gap: 4 },
+  title: { fontFamily: fontFamily.heading, fontSize: fontSize.cardTitle, color: colors.darkGreen },
+  description: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary },
+  cost: { fontFamily: fontFamily.heading, fontSize: fontSize.label, color: colors.darkGreen, marginTop: 2 },
+  editButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: colors.lime,
+    borderRadius: radius.pill,
+    paddingVertical: 10,
+    marginTop: 4,
+  },
+  editButtonText: { fontFamily: fontFamily.heading, fontSize: 12, color: colors.darkGreen },
   emptyText: {
     fontFamily: fontFamily.body,
     fontSize: fontSize.body,
