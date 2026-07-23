@@ -13,16 +13,17 @@ import { colors, fontFamily, fontSize, radius, screenPadding, spacing } from '..
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function AdminCourseProfileScreen() {
-  const { admin, course, updateCourseProfile, updateCourseLogo, updateCourseCover, changePassword, logout } = useAdmin();
+  const { admin, course, updateCourseProfile, updateCourseLogo, updateCourseCover, contactSupport, changePassword, logout } =
+    useAdmin();
 
   const [name, setName] = useState(course.name);
   const [contactEmail, setContactEmail] = useState(course.contactEmail ?? '');
   const [contactPhone, setContactPhone] = useState(course.contactPhone ?? '');
   const [address, setAddress] = useState(course.address ?? '');
-  const [fbPerRand, setFbPerRand] = useState(String(course.fbPerRand));
   const [savingProfile, setSavingProfile] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
+  const [contactingSupport, setContactingSupport] = useState(false);
 
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -61,11 +62,6 @@ export function AdminCourseProfileScreen() {
       showAlert('Invalid email', 'Enter a valid contact email address.');
       return;
     }
-    const rate = Number(fbPerRand);
-    if (!Number.isFinite(rate) || rate <= 0) {
-      showAlert('Invalid rate', 'Flagrr Cash per Rand must be a positive number.');
-      return;
-    }
     setSavingProfile(true);
     try {
       await updateCourseProfile({
@@ -73,7 +69,6 @@ export function AdminCourseProfileScreen() {
         contactEmail: contactEmail.trim(),
         contactPhone: contactPhone.trim(),
         address: address.trim(),
-        fbPerRand: rate,
       });
       showAlert('Saved', 'Your course profile has been updated.');
     } catch (err) {
@@ -81,6 +76,19 @@ export function AdminCourseProfileScreen() {
       showAlert('Couldn’t save', message);
     } finally {
       setSavingProfile(false);
+    }
+  };
+
+  const handleContactSupport = async () => {
+    setContactingSupport(true);
+    try {
+      await contactSupport();
+      showAlert('Request sent', 'The Flagrr team has been notified and will be in touch about changing your Flagrr Cash denomination.');
+    } catch (err) {
+      const message = err instanceof AdminApiError ? err.message : 'Something went wrong. Please try again.';
+      showAlert('Couldn’t send request', message);
+    } finally {
+      setContactingSupport(false);
     }
   };
 
@@ -166,16 +174,25 @@ export function AdminCourseProfileScreen() {
         <View style={{ height: spacing.md }} />
         <TextField placeholder="Address" variant="onLight" value={address} onChangeText={setAddress} />
         <View style={{ height: spacing.md }} />
-        <TextField
-          placeholder="Flagrr Cash per Rand"
-          variant="onLight"
-          keyboardType="decimal-pad"
-          value={fbPerRand}
-          onChangeText={setFbPerRand}
-        />
+        <View style={styles.disabledField}>
+          <TextField
+            placeholder="Flagrr Cash per Rand"
+            variant="onLight"
+            editable={false}
+            value={String(course.fbPerRand)}
+          />
+        </View>
         <Text style={styles.helpText}>
-          Used to auto-price Rand-denominated reward options. Changing this repricess existing reward options too.
+          Your Flagrr Cash denomination can only be changed by the Flagrr team. Contact us if you'd like to request a change.
         </Text>
+        <View style={{ height: spacing.sm }} />
+        <PillButton
+          label="Contact Us"
+          icon="mail-outline"
+          variant="outline"
+          onPress={handleContactSupport}
+          loading={contactingSupport}
+        />
 
         <View style={{ height: spacing.md }} />
         <PillButton label="Save Course Profile" onPress={handleSaveProfile} loading={savingProfile} />
@@ -237,6 +254,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   helpText: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary, marginTop: 6, marginLeft: 4 },
+  disabledField: { opacity: 0.5 },
   sectionTitle: {
     fontFamily: fontFamily.heading,
     fontSize: fontSize.cardTitle,

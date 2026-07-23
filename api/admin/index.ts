@@ -15,6 +15,7 @@ import {
   type EnquiryStatus,
 } from '../_lib/enquiries';
 import { sendPushToUser } from '../_lib/pushNotifications';
+import { sendEmail } from '../_lib/email';
 
 // Every action for the course-admin side of the app lives in this one file,
 // dispatched by ?action= (same pattern as api/profile/index.ts and
@@ -26,6 +27,11 @@ import { sendPushToUser } from '../_lib/pushNotifications';
 const DATA_URI_PATTERN = /^data:image\/(jpeg|jpg|png|webp);base64,/;
 const MAX_IMAGE_BASE64_LENGTH = 2_000_000;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const CONTACT_EMAIL = process.env.CONTACT_EMAIL || 'lourens@ewosolutions.com';
+
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
 
 interface LoginBody {
   email?: string;
@@ -42,7 +48,6 @@ interface CourseProfileBody {
   contactEmail?: string;
   contactPhone?: string;
   address?: string;
-  fbPerRand?: number;
 }
 
 interface LogoBody {
@@ -398,33 +403,33 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     }
     const contactPhone = body.contactPhone?.trim() || null;
     const address = body.address?.trim() || null;
-    const fbPerRand = typeof body.fbPerRand === 'number' && body.fbPerRand > 0 ? body.fbPerRand : null;
-    if (body.fbPerRand !== undefined && fbPerRand === null) {
-      throw new HttpError(400, 'fbPerRand must be a positive number');
-    }
 
-    const current = await fetchCourse(courseId);
-    const nextFbPerRand = fbPerRand ?? current.fbPerRand;
-
+    // Flagrr Cash per Rand is deliberately not editable here — changing it
+    // reprices every existing reward variant, so it now requires the
+    // Flagrr team's direct involvement (see the contactSupport action).
     await sql`
       update courses
-      set name = ${name}, contact_email = ${contactEmail}, contact_phone = ${contactPhone},
-          address = ${address}, fb_per_rand = ${nextFbPerRand}
+      set name = ${name}, contact_email = ${contactEmail}, contact_phone = ${contactPhone}, address = ${address}
       where id = ${courseId}
     `;
 
-    // Reprice existing Rand-denominated variants so displayed FC costs stay
-    // consistent with the new rate, rather than only affecting new rewards.
-    if (fbPerRand !== null && fbPerRand !== current.fbPerRand) {
-      await sql`
-        update reward_variants
-        set cost = round(rand_value * ${fbPerRand})
-        where rand_value is not null
-          and reward_id in (select id from rewards where course_id = ${courseId})
-      `;
-    }
-
     res.status(200).json(await fetchCourse(courseId));
+    return;
+  }
+
+  if (action === 'contactSupport') {
+    const course = await fetchCourse(courseId);
+    await sendEmail({
+      to: CONTACT_EMAIL,
+      subject: `Flagrr Cash rate change request — ${course.name}`,
+      html: `
+        <p><strong>Course:</strong> ${escapeHtml(course.name)}</p>
+        <p><strong>Requested by:</strong> ${escapeHtml(authed.firstName)} ${escapeHtml(authed.lastName)} (${escapeHtml(authed.email)})</p>
+        <p><strong>Current Flagrr Cash per Rand:</strong> ${course.fbPerRand}</p>
+        <p>This course admin would like to change their Flagrr Cash per Rand denomination and needs the Flagrr team's assistance.</p>
+      `,
+    });
+    res.status(200).json({ ok: true });
     return;
   }
 

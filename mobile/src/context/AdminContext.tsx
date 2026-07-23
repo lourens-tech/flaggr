@@ -82,6 +82,7 @@ interface AdminContextValue {
   updateCourseProfile: (payload: CourseProfilePayload) => Promise<void>;
   updateCourseLogo: (imageBase64: string) => Promise<void>;
   updateCourseCover: (imageBase64: string) => Promise<void>;
+  contactSupport: () => Promise<void>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
 }
 
@@ -253,6 +254,10 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     setCourse((prev) => ({ ...prev, coverImageUrl: res.coverImageUrl }));
   };
 
+  const contactSupport = async () => {
+    await adminApi.contactSupport();
+  };
+
   const changePassword = async (currentPassword: string, newPassword: string) => {
     await adminApi.changePassword(currentPassword, newPassword);
   };
@@ -297,6 +302,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     updateCourseProfile,
     updateCourseLogo,
     updateCourseCover,
+    contactSupport,
     changePassword,
   };
 

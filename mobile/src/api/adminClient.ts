@@ -123,7 +123,6 @@ export interface CourseProfilePayload {
   contactEmail: string;
   contactPhone: string;
   address: string;
-  fbPerRand?: number;
 }
 
 export const adminApi = {
@@ -148,6 +147,8 @@ export const adminApi = {
 
   updateCourseCover: (imageBase64: string) =>
     request<{ coverImageUrl: string }>('?action=courseCover', { method: 'POST', body: { imageBase64 } }),
+
+  contactSupport: () => request<{ ok: boolean }>('?action=contactSupport', { method: 'POST' }),
 
   rewards: () => request<AdminReward[]>('?action=rewards'),
 
