@@ -54,6 +54,7 @@ const EMPTY_COURSE: AdminCourse = {
   address: null,
   fbPerRand: 2.8,
   onboardingCompletedAt: null,
+  staffOnboardingCompletedAt: null,
 };
 
 interface AdminContextValue {
@@ -112,6 +113,14 @@ interface AdminContextValue {
   // AdminForceChangePasswordScreen for this before the normal admin tabs).
   staffWelcomePending: boolean;
   dismissStaffWelcome: () => void;
+  // A second wizard, chained right after the course-details wizard closes
+  // (whether finished or skipped), walking a course_admin through inviting
+  // their first staff member. Gated the same way: server-side
+  // course.staffOnboardingCompletedAt plus a session-only dismissal.
+  showStaffOnboardingWizard: boolean;
+  dismissStaffOnboardingWizard: () => void;
+  reopenStaffOnboardingWizard: () => void;
+  completeStaffOnboarding: () => Promise<void>;
   staff: AdminStaff[];
   loadStaff: () => Promise<void>;
   createStaff: (payload: StaffCreatePayload) => Promise<AdminStaff>;
@@ -139,6 +148,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
   const [staff, setStaff] = useState<AdminStaff[]>([]);
   const [onboardingDismissed, setOnboardingDismissed] = useState(false);
   const [staffWelcomePending, setStaffWelcomePending] = useState(false);
+  const [staffOnboardingDismissed, setStaffOnboardingDismissed] = useState(false);
 
   const refreshDashboard = useCallback(async () => {
     setDashboardLoading(true);
@@ -203,6 +213,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     setStaff([]);
     setOnboardingDismissed(false);
     setStaffWelcomePending(false);
+    setStaffOnboardingDismissed(false);
   };
 
   const markNotificationRead = async (id: string) => {
@@ -328,6 +339,25 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
 
   const dismissStaffWelcome = () => setStaffWelcomePending(false);
 
+  // Chained right after the course-details wizard closes (showOnboardingWizard
+  // false), whether it was finished or skipped — a fresh course_admin isn't
+  // interrupted by both wizards stacked at once.
+  const showStaffOnboardingWizard =
+    isAdminAuthenticated &&
+    admin.role === 'course_admin' &&
+    !admin.mustChangePassword &&
+    !showOnboardingWizard &&
+    !staffOnboardingDismissed &&
+    course.staffOnboardingCompletedAt === null;
+
+  const dismissStaffOnboardingWizard = () => setStaffOnboardingDismissed(true);
+  const reopenStaffOnboardingWizard = () => setStaffOnboardingDismissed(false);
+
+  const completeStaffOnboarding = async () => {
+    const updated = await adminApi.completeStaffOnboarding();
+    setCourse(updated);
+  };
+
   const updateThemePreference = async (preference: ThemePreference) => {
     const res = await adminApi.updateThemePreference(preference);
     setAdmin((prev) => ({ ...prev, themePreference: res.themePreference }));
@@ -413,6 +443,10 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     completeOnboarding,
     staffWelcomePending,
     dismissStaffWelcome,
+    showStaffOnboardingWizard,
+    dismissStaffOnboardingWizard,
+    reopenStaffOnboardingWizard,
+    completeStaffOnboarding,
     staff,
     loadStaff,
     createStaff,

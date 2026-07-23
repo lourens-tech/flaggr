@@ -11,12 +11,13 @@ import { AdminBroadcastComposeScreen } from '../screens/admin/AdminBroadcastComp
 import { AdminStaffListScreen } from '../screens/admin/AdminStaffListScreen';
 import { AdminStaffEditScreen } from '../screens/admin/AdminStaffEditScreen';
 import { AdminOnboardingWizard } from '../components/admin/AdminOnboardingWizard';
+import { AdminStaffOnboardingWizard } from '../components/admin/AdminStaffOnboardingWizard';
 import { useAdmin } from '../context/AdminContext';
 
 const Stack = createNativeStackNavigator<AdminStackParamList>();
 
 export function AdminNavigator() {
-  const { showOnboardingWizard } = useAdmin();
+  const { showOnboardingWizard, showStaffOnboardingWizard } = useAdmin();
   return (
     <>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
@@ -31,6 +32,7 @@ export function AdminNavigator() {
         <Stack.Screen name="AdminStaffEdit" component={AdminStaffEditScreen} />
       </Stack.Navigator>
       {showOnboardingWizard ? <AdminOnboardingWizard /> : null}
+      {showStaffOnboardingWizard ? <AdminStaffOnboardingWizard /> : null}
     </>
   );
 }

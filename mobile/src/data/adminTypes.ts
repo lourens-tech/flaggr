@@ -33,6 +33,7 @@ export interface AdminCourse {
   address: string | null;
   fbPerRand: number;
   onboardingCompletedAt: string | null;
+  staffOnboardingCompletedAt: string | null;
 }
 
 export interface DashboardTotals {

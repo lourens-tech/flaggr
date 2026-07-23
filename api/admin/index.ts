@@ -223,6 +223,7 @@ function courseDto(row: {
   address: string | null;
   fb_per_rand: number;
   onboarding_completed_at: string | null;
+  staff_onboarding_completed_at: string | null;
 }) {
   return {
     id: row.id,
@@ -235,12 +236,14 @@ function courseDto(row: {
     address: row.address,
     fbPerRand: Number(row.fb_per_rand),
     onboardingCompletedAt: row.onboarding_completed_at,
+    staffOnboardingCompletedAt: row.staff_onboarding_completed_at,
   };
 }
 
 async function fetchCourse(courseId: string) {
   const rows = (await sql`
-    select id, name, slug, logo_url, cover_image_url, contact_email, contact_phone, address, fb_per_rand, onboarding_completed_at
+    select id, name, slug, logo_url, cover_image_url, contact_email, contact_phone, address, fb_per_rand,
+      onboarding_completed_at, staff_onboarding_completed_at
     from courses where id = ${courseId}
   `) as Array<{
     id: string;
@@ -253,6 +256,7 @@ async function fetchCourse(courseId: string) {
     address: string | null;
     fb_per_rand: number;
     onboarding_completed_at: string | null;
+    staff_onboarding_completed_at: string | null;
   }>;
   if (rows.length === 0) throw new HttpError(404, 'Course not found');
   return courseDto(rows[0]);
@@ -604,6 +608,12 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
 
   if (action === 'completeOnboarding') {
     await sql`update courses set onboarding_completed_at = now() where id = ${courseId}`;
+    res.status(200).json(await fetchCourse(courseId));
+    return;
+  }
+
+  if (action === 'completeStaffOnboarding') {
+    await sql`update courses set staff_onboarding_completed_at = now() where id = ${courseId}`;
     res.status(200).json(await fetchCourse(courseId));
     return;
   }

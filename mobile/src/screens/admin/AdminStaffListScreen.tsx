@@ -27,7 +27,7 @@ const FILTERS: Array<{ label: string; value: StatusFilter }> = [
 export function AdminStaffListScreen({ navigation }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const { staff, loadStaff, revokeStaff, reactivateStaff, deleteStaff } = useAdmin();
+  const { staff, loadStaff, revokeStaff, reactivateStaff, deleteStaff, course, reopenStaffOnboardingWizard } = useAdmin();
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
@@ -196,6 +196,14 @@ export function AdminStaffListScreen({ navigation }: Props) {
         </View>
       </View>
 
+      {course.staffOnboardingCompletedAt === null ? (
+        <TouchableOpacity style={styles.onboardingBanner} onPress={reopenStaffOnboardingWizard} activeOpacity={0.85}>
+          <Ionicons name="people-outline" size={18} color={colors.darkGreen} />
+          <Text style={styles.onboardingBannerText}>Invite your team</Text>
+          <Ionicons name="chevron-forward" size={16} color={colors.darkGreen} />
+        </TouchableOpacity>
+      ) : null}
+
       {loading ? (
         <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
       ) : (
@@ -220,6 +228,17 @@ function createStyles(colors: ThemeColors) {
   screen: { flex: 1, backgroundColor: colors.background },
   headerSafeArea: { backgroundColor: colors.clubGreen },
   searchArea: { paddingHorizontal: screenPadding, paddingTop: spacing.md, gap: spacing.sm },
+  onboardingBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.mintBg,
+    borderRadius: radius.md,
+    padding: spacing.sm + 4,
+    marginHorizontal: screenPadding,
+    marginTop: spacing.md,
+  },
+  onboardingBannerText: { flex: 1, fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.darkGreen },
   filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   filterPill: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: radius.pill, backgroundColor: colors.mintBgAlt },
   filterPillActive: { backgroundColor: colors.darkGreen },
