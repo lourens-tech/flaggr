@@ -47,6 +47,13 @@ export function LandingScreen({ navigation }: Props) {
 
         <View style={styles.footer}>
           <PillButton label="Get Started" onPress={() => navigation.navigate('SignUpStep1')} />
+          <View style={{ height: spacing.md }} />
+          <PillButton
+            label="Golf Course Admin? Log in here"
+            icon="business-outline"
+            variant="outlineLight"
+            onPress={() => navigation.navigate('AdminLogin')}
+          />
           <TouchableOpacity onPress={() => navigation.navigate('Login')} style={{ marginTop: spacing.lg }}>
             <Text style={styles.loginLink}>I already have an account</Text>
           </TouchableOpacity>
@@ -55,9 +62,6 @@ export function LandingScreen({ navigation }: Props) {
             <Text style={styles.termsBold}>Terms of Use</Text> and{' '}
             <Text style={styles.termsBold}>Privacy Notice</Text>
           </Text>
-          <TouchableOpacity onPress={() => navigation.navigate('AdminLogin')} style={{ marginTop: spacing.md }}>
-            <Text style={styles.adminLink}>Golf Course Admin? Log in here</Text>
-          </TouchableOpacity>
         </View>
       </SafeAreaView>
     </View>
@@ -88,7 +92,6 @@ function createStyles(colors: ThemeColors) {
   },
   footer: { alignItems: 'center', paddingBottom: spacing.lg },
   loginLink: { fontFamily: fontFamily.bodySemiBold, fontSize: 12, color: colors.white },
-  adminLink: { fontFamily: fontFamily.body, fontSize: 11, color: 'rgba(255,255,255,0.6)' },
   terms: {
     fontFamily: fontFamily.bodyLight,
     fontSize: 12,

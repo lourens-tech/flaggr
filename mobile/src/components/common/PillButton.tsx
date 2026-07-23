@@ -14,7 +14,12 @@ import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 interface Props {
   label: string;
   onPress?: (e: GestureResponderEvent) => void;
-  variant?: 'primary' | 'dark' | 'outline';
+  // 'outline' adapts to the theme (dark text/border in light mode, light in
+  // dark mode) — use it on a themed page surface. 'outlineLight' is always a
+  // white border/text regardless of theme — use it on a permanently-dark
+  // surface (onboarding screens keep their dark-green background in both
+  // themes), where 'outline' would go near-invisible in light mode.
+  variant?: 'primary' | 'dark' | 'outline' | 'outlineLight';
   icon?: keyof typeof Ionicons.glyphMap | null;
   disabled?: boolean;
   loading?: boolean;
@@ -35,6 +40,8 @@ export function PillButton({
   const isPrimary = variant === 'primary';
   const isDark = variant === 'dark';
   const isOutline = variant === 'outline';
+  const isOutlineLight = variant === 'outlineLight';
+  const outlineColor = isOutlineLight ? colors.white : colors.textPrimary;
 
   return (
     <TouchableOpacity
@@ -45,20 +52,20 @@ export function PillButton({
         styles.base,
         isPrimary && { backgroundColor: colors.lime },
         isDark && { backgroundColor: colors.darkGreen },
-        isOutline && { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: colors.textPrimary },
+        (isOutline || isOutlineLight) && { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: outlineColor },
         fullWidth && { alignSelf: 'stretch' },
         disabled && styles.disabled,
       ]}
     >
       {loading ? (
-        <ActivityIndicator color={isPrimary ? colors.darkGreen : isOutline ? colors.textPrimary : colors.white} />
+        <ActivityIndicator color={isPrimary ? colors.darkGreen : isOutline || isOutlineLight ? outlineColor : colors.white} />
       ) : (
         <View style={styles.content}>
           <Text
             style={[
               styles.label,
               isPrimary && { color: colors.darkGreen },
-              isOutline && { color: colors.textPrimary },
+              (isOutline || isOutlineLight) && { color: outlineColor },
               isDark && { color: colors.white },
             ]}
           >
@@ -68,7 +75,7 @@ export function PillButton({
             <Ionicons
               name={icon}
               size={18}
-              color={isPrimary ? colors.darkGreen : isOutline ? colors.textPrimary : colors.white}
+              color={isPrimary ? colors.darkGreen : isOutline || isOutlineLight ? outlineColor : colors.white}
             />
           ) : null}
         </View>
