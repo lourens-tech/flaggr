@@ -144,10 +144,10 @@ export function HomeScreen({ navigation }: Props) {
         </View>
 
         <View style={styles.statsGrid}>
-          <StatCard label="Rounds Played (9 Holes)" value={stats.roundsPlayed9} deltaPct={stats.roundsPlayed9DeltaPct} />
-          <StatCard label="Rounds Played (18 Holes)" value={stats.roundsPlayed18} deltaPct={stats.roundsPlayed18DeltaPct} />
-          <StatCard label="Flagrr Cash Earned" value={stats.bucksEarned.toLocaleString()} deltaPct={stats.bucksEarnedDeltaPct} />
-          <StatCard label="Flagrr Cash Redeemed" value={stats.bucksRedeemed.toLocaleString()} deltaPct={stats.bucksRedeemedDeltaPct} />
+          <StatCard label="Rounds Played (9 Holes)" value={stats.roundsPlayed9} deltaPct={stats.roundsPlayed9DeltaPct} backgroundColor={colors.mintBg} />
+          <StatCard label="Rounds Played (18 Holes)" value={stats.roundsPlayed18} deltaPct={stats.roundsPlayed18DeltaPct} backgroundColor={colors.mintBg} />
+          <StatCard label="Flagrr Cash Earned" value={stats.bucksEarned.toLocaleString()} deltaPct={stats.bucksEarnedDeltaPct} backgroundColor={colors.mintBg} />
+          <StatCard label="Flagrr Cash Redeemed" value={stats.bucksRedeemed.toLocaleString()} deltaPct={stats.bucksRedeemedDeltaPct} backgroundColor={colors.mintBg} />
         </View>
 
         <View style={styles.chartCard}>
@@ -296,7 +296,7 @@ const styles = StyleSheet.create({
   chartCard: {
     marginHorizontal: screenPadding,
     marginTop: spacing.md,
-    backgroundColor: colors.white,
+    backgroundColor: colors.mintBg,
     borderWidth: 0.5,
     borderColor: colors.clubGreen,
     borderRadius: radius.md,
