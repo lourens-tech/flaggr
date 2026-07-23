@@ -957,6 +957,15 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       update vouchers set status = 'redeemed', redeemed_at = now(), redeemed_by_admin_id = ${authed.id}
       where id = ${voucher.id}
     `;
+
+    const displayName = voucher.variantLabel === 'Standard' ? voucher.rewardTitle : `${voucher.rewardTitle} (${voucher.variantLabel})`;
+    const notificationBody = `Your ${displayName} voucher has been validated and redeemed at the club. Enjoy!`;
+    await sql`
+      insert into notifications (user_id, title, body)
+      values (${voucher.userId}, 'Reward validated', ${notificationBody})
+    `;
+    await sendPushToUser(voucher.userId, { title: 'Reward validated', body: notificationBody });
+
     res.status(200).json({ ...voucher, status: 'redeemed' });
     return;
   }
@@ -1067,7 +1076,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
 
 async function lookupVoucher(code: string, courseId: string) {
   const rows = (await sql`
-    select v.id, v.code, v.variant_label, v.cost, v.status, v.issued_at, v.expires_at,
+    select v.id, v.user_id, v.code, v.variant_label, v.cost, v.status, v.issued_at, v.expires_at,
            r.title as reward_title, u.first_name, u.last_name, u.email
     from vouchers v
     join rewards r on r.id = v.reward_id
@@ -1075,6 +1084,7 @@ async function lookupVoucher(code: string, courseId: string) {
     where v.code = ${code} and r.course_id = ${courseId}
   `) as Array<{
     id: string;
+    user_id: string;
     code: string;
     variant_label: string;
     cost: number;
@@ -1088,6 +1098,7 @@ async function lookupVoucher(code: string, courseId: string) {
   }>;
   return rows.map((r) => ({
     id: r.id,
+    userId: r.user_id,
     code: r.code,
     variantLabel: r.variant_label,
     cost: r.cost,
