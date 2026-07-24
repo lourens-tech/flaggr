@@ -562,6 +562,21 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     return;
   }
 
+  if (action === 'changePassword') {
+    const { currentPassword, newPassword } = req.body as ChangePasswordBody;
+    if (!currentPassword || !newPassword || newPassword.length < 8) {
+      throw new HttpError(400, 'Current password and a new password (min. 8 characters) are required');
+    }
+    const rows = (await sql`select password_hash from admins where id = ${authedAdmin.id}`) as Array<{ password_hash: string | null }>;
+    if (!rows[0]?.password_hash || !(await verifyPassword(currentPassword, rows[0].password_hash))) {
+      throw new HttpError(401, 'Current password is incorrect');
+    }
+    const newHash = await hashPassword(newPassword);
+    await sql`update admins set password_hash = ${newHash}, must_change_password = false where id = ${authedAdmin.id}`;
+    res.status(200).json({ ok: true });
+    return;
+  }
+
   // --- Super-admin: cross-club actions, not scoped to any single course ---
   if (authedAdmin.role === 'super_admin') {
     if (!SUPER_ADMIN_ALLOWED_ACTIONS.has(String(action))) {
@@ -856,21 +871,6 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       update enquiries set status = ${status}, updated_at = now()
       where id = ${enquiryId} and course_id = ${courseId}
     `;
-    res.status(200).json({ ok: true });
-    return;
-  }
-
-  if (action === 'changePassword') {
-    const { currentPassword, newPassword } = req.body as ChangePasswordBody;
-    if (!currentPassword || !newPassword || newPassword.length < 8) {
-      throw new HttpError(400, 'Current password and a new password (min. 8 characters) are required');
-    }
-    const rows = (await sql`select password_hash from admins where id = ${authed.id}`) as Array<{ password_hash: string | null }>;
-    if (!rows[0]?.password_hash || !(await verifyPassword(currentPassword, rows[0].password_hash))) {
-      throw new HttpError(401, 'Current password is incorrect');
-    }
-    const newHash = await hashPassword(newPassword);
-    await sql`update admins set password_hash = ${newHash}, must_change_password = false where id = ${authed.id}`;
     res.status(200).json({ ok: true });
     return;
   }
