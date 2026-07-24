@@ -59,7 +59,7 @@ export async function requireAuthedUser(req: VercelRequest): Promise<AuthedUser>
 export interface AuthedAdmin {
   id: string;
   courseId: string | null; // null only for a super_admin, which isn't scoped to one club
-  role: 'super_admin' | 'course_admin' | 'staff';
+  role: 'super_admin' | 'course_admin' | 'staff' | 'support_agent';
   firstName: string;
   lastName: string;
   email: string;
@@ -81,7 +81,7 @@ export async function getAuthedAdmin(req: VercelRequest): Promise<AuthedAdmin | 
   let rows: Array<{
     id: string;
     course_id: string | null;
-    role: 'super_admin' | 'course_admin' | 'staff';
+    role: 'super_admin' | 'course_admin' | 'staff' | 'support_agent';
     first_name: string;
     last_name: string;
     email: string;
@@ -157,6 +157,20 @@ export async function requireAuthedSuperAdmin(
   const admin = await getAuthedAdmin(req);
   if (!admin) throw new HttpError(401, 'Not authenticated');
   if (admin.role !== 'super_admin') {
+    throw new HttpError(403, 'Not authorized for this action');
+  }
+  return admin as AuthedAdmin & { courseId: null };
+}
+
+/** Requires a logged-in super_admin OR support_agent — the two roles that
+ * can see the cross-club Support Centre inbox. Agent management itself
+ * (creating/revoking support_agent accounts) stays super_admin-only. */
+export async function requireAuthedSupportStaff(
+  req: VercelRequest,
+): Promise<AuthedAdmin & { courseId: null }> {
+  const admin = await getAuthedAdmin(req);
+  if (!admin) throw new HttpError(401, 'Not authenticated');
+  if (admin.role !== 'super_admin' && admin.role !== 'support_agent') {
     throw new HttpError(403, 'Not authorized for this action');
   }
   return admin as AuthedAdmin & { courseId: null };

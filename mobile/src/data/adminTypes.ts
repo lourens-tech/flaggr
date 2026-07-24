@@ -1,4 +1,4 @@
-export type AdminRole = 'super_admin' | 'course_admin' | 'staff';
+export type AdminRole = 'super_admin' | 'course_admin' | 'staff' | 'support_agent';
 
 export interface AdminUser {
   id: string;
@@ -241,6 +241,60 @@ export interface AdminEnquiryThread {
   memberName: string;
   memberEmail: string;
   messages: EnquiryMessage[];
+}
+
+export type SupportTicketStatus = 'open' | 'in_progress' | 'resolved';
+export type SupportRequesterType = 'member' | 'course_admin' | 'staff';
+
+export interface SupportTicketMessage {
+  id: string;
+  senderType: 'requester' | 'agent';
+  body: string;
+  createdAt: string;
+}
+
+// A member/course_admin/staff's own view of a ticket they logged — a
+// platform-level ticket to the Flagrr team itself, distinct from the
+// existing per-club Enquiry (member <-> that club's own admins).
+export interface SupportTicketSummary {
+  id: string;
+  subject: string;
+  status: SupportTicketStatus;
+  createdAt: string;
+  updatedAt: string;
+  lastMessage: string | null;
+  hasUnread: boolean;
+}
+
+export interface SupportTicketThread {
+  id: string;
+  subject: string;
+  status: SupportTicketStatus;
+  messages: SupportTicketMessage[];
+}
+
+// The support-team (super_admin/support_agent) view of the same tickets —
+// every club/member is visible, so it also carries who's asking.
+export interface SupportInboxTicket extends SupportTicketSummary {
+  requesterType: SupportRequesterType;
+  requesterName: string;
+  requesterEmail: string;
+}
+
+export interface SupportInboxTicketThread extends SupportTicketThread {
+  requesterType: SupportRequesterType;
+  requesterName: string;
+  requesterEmail: string;
+}
+
+export interface SupportAgent {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  mustChangePassword: boolean;
+  revoked: boolean;
+  createdAt: string;
 }
 
 export interface AdminVoucherLookup {

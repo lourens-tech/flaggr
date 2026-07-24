@@ -12,6 +12,7 @@ import {
   type SuperAdminCourseCreateResponse,
   type SuperAdminAdSavePayload,
   type SuperAdminRewardSavePayload,
+  type SupportAgentCreatePayload,
 } from '../api/adminClient';
 import type {
   AdminAd,
@@ -36,6 +37,13 @@ import type {
   AdPerformanceRow,
   StatBreakdownMetric,
   StatBreakdownRow,
+  SupportAgent,
+  SupportInboxTicket,
+  SupportInboxTicketThread,
+  SupportTicketMessage,
+  SupportTicketStatus,
+  SupportTicketSummary,
+  SupportTicketThread,
 } from '../data/adminTypes';
 import { useTheme, type ThemePreference } from './ThemeContext';
 
@@ -156,6 +164,24 @@ interface AdminContextValue {
   getSuperAdminDashboard: (period: DashboardPeriod) => Promise<SuperAdminDashboardReport>;
   getSuperAdminAdPerformance: () => Promise<AdPerformanceRow[]>;
   getSuperAdminStatBreakdown: (metric: StatBreakdownMetric, period: DashboardPeriod) => Promise<StatBreakdownRow[]>;
+  // Support Centre (course_admin/staff requester side — a ticket to the
+  // Flagrr team, distinct from the per-club 'enquiries' above).
+  createSupportTicket: (subject: string, message: string) => Promise<string>;
+  listSupportTickets: () => Promise<SupportTicketSummary[]>;
+  getSupportTicketThread: (id: string) => Promise<SupportTicketThread>;
+  replyToSupportTicket: (ticketId: string, message: string) => Promise<SupportTicketMessage[]>;
+  // Support Centre (super_admin/support_agent inbox side)
+  getSupportInbox: (status?: SupportTicketStatus) => Promise<SupportInboxTicket[]>;
+  getSupportInboxThread: (id: string) => Promise<SupportInboxTicketThread>;
+  replyToSupportInboxTicket: (ticketId: string, message: string) => Promise<SupportTicketMessage[]>;
+  setSupportTicketStatus: (ticketId: string, status: SupportTicketStatus) => Promise<void>;
+  // Support agent account management (super_admin only)
+  supportAgents: SupportAgent[];
+  loadSupportAgents: () => Promise<void>;
+  createSupportAgent: (payload: SupportAgentCreatePayload) => Promise<SupportAgent>;
+  revokeSupportAgent: (id: string) => Promise<void>;
+  reactivateSupportAgent: (id: string) => Promise<void>;
+  deleteSupportAgent: (id: string) => Promise<void>;
 }
 
 const AdminContext = createContext<AdminContextValue | undefined>(undefined);
@@ -174,6 +200,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
   const [notifications, setNotifications] = useState<AdminNotification[]>([]);
   const [broadcasts, setBroadcasts] = useState<AdminBroadcast[]>([]);
   const [staff, setStaff] = useState<AdminStaff[]>([]);
+  const [supportAgents, setSupportAgents] = useState<SupportAgent[]>([]);
   const [onboardingDismissed, setOnboardingDismissed] = useState(false);
   const [staffWelcomePending, setStaffWelcomePending] = useState(false);
   const [staffOnboardingDismissed, setStaffOnboardingDismissed] = useState(false);
@@ -463,6 +490,43 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
   const getSuperAdminStatBreakdown = async (metric: StatBreakdownMetric, period: DashboardPeriod) =>
     adminApi.superAdminStatBreakdown(metric, period);
 
+  const createSupportTicket = async (subject: string, message: string) => {
+    const res = await adminApi.createSupportTicket(subject, message);
+    return res.ticketId;
+  };
+  const listSupportTickets = async () => adminApi.supportTickets();
+  const getSupportTicketThread = async (id: string) => adminApi.supportTicketThread(id);
+  const replyToSupportTicket = async (ticketId: string, message: string) => adminApi.replyToSupportTicket(ticketId, message);
+
+  const getSupportInbox = async (status?: SupportTicketStatus) => adminApi.supportInbox(status);
+  const getSupportInboxThread = async (id: string) => adminApi.supportInboxThread(id);
+  const replyToSupportInboxTicket = async (ticketId: string, message: string) =>
+    adminApi.replyToSupportInboxTicket(ticketId, message);
+  const setSupportTicketStatus = async (ticketId: string, status: SupportTicketStatus) => {
+    await adminApi.setSupportTicketStatus(ticketId, status);
+  };
+
+  const loadSupportAgents = useCallback(async () => {
+    setSupportAgents(await adminApi.supportAgents());
+  }, []);
+  const createSupportAgent = async (payload: SupportAgentCreatePayload) => {
+    const created = await adminApi.createSupportAgent(payload);
+    await loadSupportAgents();
+    return created;
+  };
+  const revokeSupportAgent = async (id: string) => {
+    await adminApi.revokeSupportAgent(id);
+    await loadSupportAgents();
+  };
+  const reactivateSupportAgent = async (id: string) => {
+    await adminApi.reactivateSupportAgent(id);
+    await loadSupportAgents();
+  };
+  const deleteSupportAgent = async (id: string) => {
+    await adminApi.deleteSupportAgent(id);
+    setSupportAgents((prev) => prev.filter((a) => a.id !== id));
+  };
+
   const value: AdminContextValue = {
     isAdminAuthenticated,
     isInitializing,
@@ -537,6 +601,20 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     getSuperAdminDashboard,
     getSuperAdminAdPerformance,
     getSuperAdminStatBreakdown,
+    createSupportTicket,
+    listSupportTickets,
+    getSupportTicketThread,
+    replyToSupportTicket,
+    getSupportInbox,
+    getSupportInboxThread,
+    replyToSupportInboxTicket,
+    setSupportTicketStatus,
+    supportAgents,
+    loadSupportAgents,
+    createSupportAgent,
+    revokeSupportAgent,
+    reactivateSupportAgent,
+    deleteSupportAgent,
   };
 
   return <AdminContext.Provider value={value}>{children}</AdminContext.Provider>;

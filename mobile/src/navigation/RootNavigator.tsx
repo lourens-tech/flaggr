@@ -16,6 +16,9 @@ import { EditProfileScreen } from '../screens/profile/EditProfileScreen';
 import { TermsPrivacyScreen } from '../screens/profile/TermsPrivacyScreen';
 import { MyEnquiriesScreen } from '../screens/profile/MyEnquiriesScreen';
 import { EnquiryChatScreen } from '../screens/profile/EnquiryChatScreen';
+import { SupportTicketsScreen } from '../screens/profile/SupportTicketsScreen';
+import { SupportTicketCreateScreen } from '../screens/profile/SupportTicketCreateScreen';
+import { SupportTicketChatScreen } from '../screens/profile/SupportTicketChatScreen';
 import { AdminNavigator } from './AdminNavigator';
 import { SuperAdminNavigator } from './SuperAdminNavigator';
 import { AdminForceChangePasswordScreen } from '../screens/admin/AdminForceChangePasswordScreen';
@@ -54,7 +57,7 @@ export function RootNavigator() {
           <Stack.Screen name="AdminForceChangePassword" component={AdminForceChangePasswordScreen} />
         ) : staffWelcomePending ? (
           <Stack.Screen name="AdminStaffWelcome" component={AdminStaffWelcomeScreen} />
-        ) : admin.role === 'super_admin' ? (
+        ) : admin.role === 'super_admin' || admin.role === 'support_agent' ? (
           <Stack.Screen name="SuperAdminMain" component={SuperAdminNavigator} />
         ) : (
           <Stack.Screen name="AdminMain" component={AdminNavigator} />
@@ -74,6 +77,9 @@ export function RootNavigator() {
           <Stack.Screen name="TermsPrivacy" component={TermsPrivacyScreen} />
           <Stack.Screen name="MyEnquiries" component={MyEnquiriesScreen} />
           <Stack.Screen name="EnquiryChat" component={EnquiryChatScreen} />
+          <Stack.Screen name="SupportTickets" component={SupportTicketsScreen} />
+          <Stack.Screen name="SupportTicketCreate" component={SupportTicketCreateScreen} />
+          <Stack.Screen name="SupportTicketChat" component={SupportTicketChatScreen} />
         </>
       ) : (
         <Stack.Screen name="Auth" component={AuthNavigator} />

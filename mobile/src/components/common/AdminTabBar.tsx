@@ -16,6 +16,7 @@ const ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   SuperAdminCourses: 'business-outline',
   SuperAdminAds: 'megaphone-outline',
   SuperAdminReports: 'bar-chart-outline',
+  SuperAdminSupport: 'headset-outline',
   SuperAdminProfile: 'person-circle-outline',
 };
 
@@ -30,6 +31,7 @@ const LABELS: Record<string, string> = {
   SuperAdminCourses: 'Courses',
   SuperAdminAds: 'Ads',
   SuperAdminReports: 'Reports',
+  SuperAdminSupport: 'Support',
   SuperAdminProfile: 'Profile',
 };
 

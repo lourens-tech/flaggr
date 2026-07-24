@@ -249,6 +249,18 @@ export function AdminCourseProfileScreen({ navigation }: Props) {
         <View style={{ height: spacing.sm }} />
         <PillButton label="Manage Staff" icon="people-outline" variant="outline" onPress={() => navigation.navigate('AdminStaffList')} />
 
+        <Text style={styles.sectionTitle}>Support Centre</Text>
+        <Text style={styles.helpText}>
+          Log a ticket with the Flagrr team and chat with our support staff.
+        </Text>
+        <View style={{ height: spacing.sm }} />
+        <PillButton
+          label="Support Centre"
+          icon="headset-outline"
+          variant="outline"
+          onPress={() => navigation.navigate('AdminSupportTickets')}
+        />
+
         <Text style={styles.sectionTitle}>Appearance</Text>
         <ThemeToggleRow onChange={handleThemeChange} disabled={savingTheme} />
 

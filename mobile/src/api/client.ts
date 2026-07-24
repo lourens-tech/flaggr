@@ -13,6 +13,9 @@ import type {
   Stats,
   StatsPeriod,
   Streak,
+  SupportTicketMessage,
+  SupportTicketSummary,
+  SupportTicketThread,
   User,
   Voucher,
 } from '../data/types';
@@ -191,6 +194,22 @@ export const api = {
 
   replyToEnquiry: (enquiryId: string, message: string) =>
     request<EnquiryMessage[]>('/profile?action=enquiryReply', { method: 'POST', body: { enquiryId, message } }),
+
+  createSupportTicket: (subject: string, message: string) =>
+    request<{ ok: boolean; ticketId: string }>('/profile?action=supportTicketCreate', {
+      method: 'POST',
+      body: { subject, message },
+    }),
+
+  supportTickets: () => request<SupportTicketSummary[]>('/profile?action=supportTickets'),
+
+  supportTicketThread: (id: string) => request<SupportTicketThread>(`/profile?action=supportTicketThread&id=${id}`),
+
+  replyToSupportTicket: (ticketId: string, message: string) =>
+    request<SupportTicketMessage[]>('/profile?action=supportTicketReply', {
+      method: 'POST',
+      body: { ticketId, message },
+    }),
 
   logAdClick: (adId: string) =>
     request<{ ok: boolean }>('/profile?action=adClick', { method: 'POST', body: { adId } }),

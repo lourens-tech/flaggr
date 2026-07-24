@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
-import { ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/types';
 import { ScreenHeader } from '../../components/common/ScreenHeader';
@@ -52,6 +53,15 @@ export function HelpCenterScreen({ navigation }: Props) {
       </SafeAreaView>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <TouchableOpacity style={styles.supportRow} onPress={() => navigation.navigate('SupportTickets')} activeOpacity={0.85}>
+          <Ionicons name="headset-outline" size={20} color={colors.clubGreen} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.supportTitle}>Contact Flagrr Support</Text>
+            <Text style={styles.supportSubtitle}>Log a ticket and chat with our support team</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
+        </TouchableOpacity>
+
         {filteredArticles.length > 0 ? (
           <>
             <Text style={styles.sectionLabel}>Latest Articles</Text>
@@ -88,6 +98,19 @@ function createStyles(colors: ThemeColors) {
   welcome: { fontFamily: fontFamily.bodyMedium, fontSize: fontSize.body, color: colors.white },
   heroTitle: { fontFamily: fontFamily.heading, fontSize: 26, color: colors.white, marginVertical: spacing.md, lineHeight: 32 },
   content: { padding: screenPadding },
+  supportRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.mintBg,
+    borderWidth: 0.5,
+    borderColor: colors.clubGreen,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    marginBottom: spacing.xl,
+  },
+  supportTitle: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.textPrimary },
+  supportSubtitle: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary, marginTop: 2 },
   sectionLabel: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.small, color: colors.textPrimary, marginBottom: spacing.sm },
   emptyText: { fontFamily: fontFamily.body, fontSize: fontSize.small, color: colors.textSecondary },
   articleCard: {

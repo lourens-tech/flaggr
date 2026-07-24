@@ -2,7 +2,12 @@ import React, { useState, useMemo } from 'react';
 import { ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import type { CompositeScreenProps } from '@react-navigation/native';
+import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import type { AdminStackParamList, AdminTabParamList } from '../../navigation/types';
 import { AdminHeaderAvatar } from '../../components/common/AdminHeaderAvatar';
+import { PillButton } from '../../components/common/PillButton';
 import { useAdmin } from '../../context/AdminContext';
 import { AdminApiError } from '../../api/adminClient';
 import { showAlert } from '../../utils/alert';
@@ -11,12 +16,17 @@ import type { ThemePreference } from '../../context/ThemeContext';
 import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
 import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 
+type Props = CompositeScreenProps<
+  BottomTabScreenProps<AdminTabParamList, 'AdminStaffProfile'>,
+  NativeStackScreenProps<AdminStackParamList>
+>;
+
 // The basic profile tab for a `staff` account — just their name/email and
 // logout. Password resets for a staff account are course-admin-managed
 // (Manage Staff > Reset Password) rather than self-service. Everything a
 // course_admin gets on AdminCourseProfileScreen (course settings, logo,
 // cover photo) is deliberately out of reach here too.
-export function AdminStaffProfileScreen() {
+export function AdminStaffProfileScreen({ navigation }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { admin, course, updateThemePreference, logout } = useAdmin();
@@ -65,6 +75,14 @@ export function AdminStaffProfileScreen() {
         <Text style={styles.helpText}>
           Your name and username are managed by your course admin. Contact them if these need to change.
         </Text>
+
+        <Text style={styles.sectionTitle}>Support Centre</Text>
+        <PillButton
+          label="Support Centre"
+          icon="headset-outline"
+          variant="outline"
+          onPress={() => navigation.navigate('AdminSupportTickets')}
+        />
 
         <Text style={styles.sectionTitle}>Appearance</Text>
         <ThemeToggleRow onChange={handleThemeChange} disabled={savingTheme} />

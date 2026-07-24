@@ -2,6 +2,11 @@ import React, { useState, useMemo } from 'react';
 import { ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import type { CompositeScreenProps } from '@react-navigation/native';
+import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import type { SuperAdminStackParamList, SuperAdminTabParamList } from '../../navigation/types';
+import { PillButton } from '../../components/common/PillButton';
 import { useAdmin } from '../../context/AdminContext';
 import { AdminApiError } from '../../api/adminClient';
 import { showAlert } from '../../utils/alert';
@@ -10,11 +15,21 @@ import type { ThemePreference } from '../../context/ThemeContext';
 import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
 import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 
-// The basic profile tab for a `super_admin` account — name, appearance, and
-// logout. A super_admin isn't scoped to any single club, so there's no
-// course logo to show here (unlike AdminStaffProfileScreen); a generic
-// shield icon stands in for the platform-level identity instead.
-export function SuperAdminProfileScreen() {
+type Props = CompositeScreenProps<
+  BottomTabScreenProps<SuperAdminTabParamList, 'SuperAdminProfile'>,
+  NativeStackScreenProps<SuperAdminStackParamList>
+>;
+
+const ROLE_LABEL: Record<string, string> = {
+  super_admin: 'Super Admin',
+  support_agent: 'Support Agent',
+};
+
+// The basic profile tab for a `super_admin` or `support_agent` account —
+// name, appearance, and logout. Neither role is scoped to any single club,
+// so there's no course logo to show here (unlike AdminStaffProfileScreen);
+// a generic shield icon stands in for the platform-level identity instead.
+export function SuperAdminProfileScreen({ navigation }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { admin, updateThemePreference, logout } = useAdmin();
@@ -46,7 +61,7 @@ export function SuperAdminProfileScreen() {
       <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
         <View style={styles.header}>
           <Text style={styles.headerTitle}>My Profile</Text>
-          <Text style={styles.headerSubtitle}>Flagrr Super Admin</Text>
+          <Text style={styles.headerSubtitle}>Flagrr {ROLE_LABEL[admin.role] ?? admin.role}</Text>
         </View>
       </SafeAreaView>
 
@@ -58,9 +73,21 @@ export function SuperAdminProfileScreen() {
           <Text style={styles.name}>{admin.firstName} {admin.lastName}</Text>
           <Text style={styles.email}>{admin.email}</Text>
           <View style={styles.roleBadge}>
-            <Text style={styles.roleBadgeText}>Super Admin</Text>
+            <Text style={styles.roleBadgeText}>{ROLE_LABEL[admin.role] ?? admin.role}</Text>
           </View>
         </View>
+
+        {admin.role === 'super_admin' ? (
+          <>
+            <Text style={styles.sectionTitle}>Support Agents</Text>
+            <PillButton
+              label="Manage Support Agents"
+              icon="headset-outline"
+              variant="outline"
+              onPress={() => navigation.navigate('SuperAdminAgents')}
+            />
+          </>
+        ) : null}
 
         <Text style={styles.sectionTitle}>Appearance</Text>
         <ThemeToggleRow onChange={handleThemeChange} disabled={savingTheme} />

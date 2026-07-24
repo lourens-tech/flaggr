@@ -37,12 +37,16 @@ export type AdminStackParamList = {
   AdminBroadcastCompose: { title?: string; body?: string; target?: string } | undefined;
   AdminStaffList: undefined;
   AdminStaffEdit: { staffId?: string } | undefined;
+  AdminSupportTickets: undefined;
+  AdminSupportTicketCreate: undefined;
+  AdminSupportTicketChat: { ticketId: string };
 };
 
 export type SuperAdminTabParamList = {
   SuperAdminCourses: undefined;
   SuperAdminAds: undefined;
   SuperAdminReports: undefined;
+  SuperAdminSupport: undefined;
   SuperAdminProfile: undefined;
 };
 
@@ -54,6 +58,9 @@ export type SuperAdminStackParamList = {
   SuperAdminCourseRewards: { courseId: string; courseName: string; fbPerRand: number };
   SuperAdminRewardEdit: { courseId: string; fbPerRand: number; rewardId?: string };
   SuperAdminStatBreakdown: { metric: StatBreakdownMetric; label: string; period: 'month' | 'year' | 'all' };
+  SuperAdminSupportTicketChat: { ticketId: string };
+  SuperAdminAgents: undefined;
+  SuperAdminAgentCreate: undefined;
 };
 
 export type MainTabParamList = {
@@ -82,6 +89,9 @@ export type RootStackParamList = {
   TermsPrivacy: undefined;
   MyEnquiries: undefined;
   EnquiryChat: { enquiryId: string };
+  SupportTickets: undefined;
+  SupportTicketCreate: undefined;
+  SupportTicketChat: { ticketId: string };
 };
 
 declare global {

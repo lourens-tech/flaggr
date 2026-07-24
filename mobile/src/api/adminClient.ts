@@ -23,6 +23,13 @@ import type {
   AdPerformanceRow,
   StatBreakdownMetric,
   StatBreakdownRow,
+  SupportAgent,
+  SupportInboxTicket,
+  SupportInboxTicketThread,
+  SupportTicketMessage,
+  SupportTicketStatus,
+  SupportTicketSummary,
+  SupportTicketThread,
 } from '../data/adminTypes';
 
 // Deliberately separate from api/client.ts's token/base logic — a
@@ -166,6 +173,12 @@ export interface SuperAdminRewardSavePayload extends RewardSavePayload {
   courseId: string;
 }
 
+export interface SupportAgentCreatePayload {
+  firstName: string;
+  lastName: string;
+  email: string;
+}
+
 export const adminApi = {
   // `identifier` is a course_admin/super_admin's email, or a staff
   // account's generated username — one login screen serves both, and the
@@ -305,6 +318,44 @@ export const adminApi = {
 
   reactivateSuperAdminCourseSubscription: (courseId: string) =>
     request<{ ok: boolean }>('?action=superAdminCourseReactivateSubscription', { method: 'POST', body: { courseId } }),
+
+  // --- Support Centre: requester side (course_admin/staff logging a ticket
+  // to the Flagrr team — separate from the per-club 'enquiries' actions
+  // above, which stay member <-> this club's own admins). ---
+  createSupportTicket: (subject: string, message: string) =>
+    request<{ ok: boolean; ticketId: string }>('?action=supportTicketCreate', { method: 'POST', body: { subject, message } }),
+
+  supportTickets: () => request<SupportTicketSummary[]>('?action=supportTickets'),
+
+  supportTicketThread: (id: string) => request<SupportTicketThread>(`?action=supportTicketThread&id=${id}`),
+
+  replyToSupportTicket: (ticketId: string, message: string) =>
+    request<SupportTicketMessage[]>('?action=supportTicketReply', { method: 'POST', body: { ticketId, message } }),
+
+  // --- Support Centre: agent side (super_admin or support_agent) ---
+  supportInbox: (status?: SupportTicketStatus) =>
+    request<SupportInboxTicket[]>(`?action=supportInbox${status ? `&status=${status}` : ''}`),
+
+  supportInboxThread: (id: string) => request<SupportInboxTicketThread>(`?action=supportInboxThread&id=${id}`),
+
+  replyToSupportInboxTicket: (ticketId: string, message: string) =>
+    request<SupportTicketMessage[]>('?action=supportAgentReply', { method: 'POST', body: { ticketId, message } }),
+
+  setSupportTicketStatus: (ticketId: string, status: SupportTicketStatus) =>
+    request<{ ok: boolean }>('?action=supportTicketStatus', { method: 'POST', body: { ticketId, status } }),
+
+  // --- Support agent account management (super_admin only) ---
+  supportAgents: () => request<SupportAgent[]>('?action=supportAgents'),
+
+  createSupportAgent: (payload: SupportAgentCreatePayload) =>
+    request<SupportAgent>('?action=supportAgentCreate', { method: 'POST', body: payload }),
+
+  revokeSupportAgent: (id: string) => request<{ ok: boolean }>('?action=supportAgentRevoke', { method: 'POST', body: { id } }),
+
+  reactivateSupportAgent: (id: string) =>
+    request<{ ok: boolean }>('?action=supportAgentReactivate', { method: 'POST', body: { id } }),
+
+  deleteSupportAgent: (id: string) => request<{ ok: boolean }>('?action=supportAgentDelete', { method: 'POST', body: { id } }),
 };
 
 /** Downloads a CSV report. Only works on the web build (the only build that

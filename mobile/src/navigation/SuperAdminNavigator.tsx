@@ -8,9 +8,15 @@ import { SuperAdminAdEditScreen } from '../screens/superadmin/SuperAdminAdEditSc
 import { SuperAdminCourseRewardsScreen } from '../screens/superadmin/SuperAdminCourseRewardsScreen';
 import { SuperAdminRewardEditScreen } from '../screens/superadmin/SuperAdminRewardEditScreen';
 import { SuperAdminStatBreakdownScreen } from '../screens/superadmin/SuperAdminStatBreakdownScreen';
+import { SuperAdminSupportTicketChatScreen } from '../screens/superadmin/SuperAdminSupportTicketChatScreen';
+import { SuperAdminAgentsScreen } from '../screens/superadmin/SuperAdminAgentsScreen';
+import { SuperAdminAgentCreateScreen } from '../screens/superadmin/SuperAdminAgentCreateScreen';
 
 const Stack = createNativeStackNavigator<SuperAdminStackParamList>();
 
+// Shared by super_admin and support_agent — the latter just sees fewer tabs
+// inside SuperAdminTabNavigator (Support + Profile only), enforced there and
+// server-side (see SUPPORT_AGENT_ALLOWED_ACTIONS in api/admin/index.ts).
 export function SuperAdminNavigator() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
@@ -21,6 +27,9 @@ export function SuperAdminNavigator() {
       <Stack.Screen name="SuperAdminCourseRewards" component={SuperAdminCourseRewardsScreen} />
       <Stack.Screen name="SuperAdminRewardEdit" component={SuperAdminRewardEditScreen} />
       <Stack.Screen name="SuperAdminStatBreakdown" component={SuperAdminStatBreakdownScreen} />
+      <Stack.Screen name="SuperAdminSupportTicketChat" component={SuperAdminSupportTicketChatScreen} />
+      <Stack.Screen name="SuperAdminAgents" component={SuperAdminAgentsScreen} />
+      <Stack.Screen name="SuperAdminAgentCreate" component={SuperAdminAgentCreateScreen} />
     </Stack.Navigator>
   );
 }

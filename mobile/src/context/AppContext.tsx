@@ -16,6 +16,9 @@ import type {
   Stats,
   StatsPeriod,
   Streak,
+  SupportTicketMessage,
+  SupportTicketSummary,
+  SupportTicketThread,
   User,
   Voucher,
 } from '../data/types';
@@ -85,6 +88,10 @@ interface AppContextValue extends AppState {
   listMyEnquiries: () => Promise<MyEnquirySummary[]>;
   getEnquiryThread: (id: string) => Promise<MyEnquiryThread>;
   replyToEnquiry: (enquiryId: string, message: string) => Promise<EnquiryMessage[]>;
+  createSupportTicket: (subject: string, message: string) => Promise<string>;
+  listMySupportTickets: () => Promise<SupportTicketSummary[]>;
+  getSupportTicketThread: (id: string) => Promise<SupportTicketThread>;
+  replyToSupportTicket: (ticketId: string, message: string) => Promise<SupportTicketMessage[]>;
   logAdClick: (adId: string) => void;
   statsPeriod: StatsPeriod;
   setStatsPeriod: (period: StatsPeriod) => Promise<void>;
@@ -250,6 +257,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const getEnquiryThread = async (id: string) => api.enquiryThread(id);
   const replyToEnquiry = async (enquiryId: string, message: string) => api.replyToEnquiry(enquiryId, message);
 
+  const createSupportTicket = async (subject: string, message: string): Promise<string> => {
+    const res = await api.createSupportTicket(subject, message);
+    return res.ticketId;
+  };
+  const listMySupportTickets = async () => api.supportTickets();
+  const getSupportTicketThread = async (id: string) => api.supportTicketThread(id);
+  const replyToSupportTicket = async (ticketId: string, message: string) => api.replyToSupportTicket(ticketId, message);
+
   // Rewards, ads, and vouchers are all scoped to the member's home club, so
   // switching clubs re-fetches everything rather than patching just the
   // user's homeClub/courseId fields.
@@ -315,6 +330,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     listMyEnquiries,
     getEnquiryThread,
     replyToEnquiry,
+    createSupportTicket,
+    listMySupportTickets,
+    getSupportTicketThread,
+    replyToSupportTicket,
     logAdClick,
     statsPeriod,
     setStatsPeriod,

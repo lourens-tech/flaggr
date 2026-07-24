@@ -22,6 +22,16 @@ import {
 } from '../_lib/enquiries';
 import { sendPushToUser } from '../_lib/pushNotifications';
 import { sendEmail } from '../_lib/email';
+import {
+  addAgentMessage,
+  addRequesterMessage,
+  createSupportTicket,
+  listSupportTicketMessages,
+  markThreadReadByAgent,
+  markThreadReadByRequester,
+  SUPPORT_TICKET_STATUSES,
+  type SupportTicketStatus,
+} from '../_lib/supportTickets';
 
 // Every action for the course-admin side of the app lives in this one file,
 // dispatched by ?action= (same pattern as api/profile/index.ts and
@@ -102,6 +112,31 @@ interface SubscriptionActionBody {
   courseId?: string;
 }
 
+interface SupportTicketCreateBody {
+  subject?: string;
+  message?: string;
+}
+
+interface SupportTicketReplyBody {
+  ticketId?: string;
+  message?: string;
+}
+
+interface SupportTicketStatusBody {
+  ticketId?: string;
+  status?: SupportTicketStatus;
+}
+
+interface SupportAgentCreateBody {
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+}
+
+interface SupportAgentIdBody {
+  id?: string;
+}
+
 interface AdSaveBody {
   id?: string;
   placement?: string;
@@ -177,7 +212,18 @@ const BROADCAST_TARGETS = ['all', 'Bronze', 'Silver', 'Gold', 'Platinum'];
 // Staff accounts only get a course-admin-created login for the Vouchers tab
 // and their own basic profile — every other action stays course_admin-only,
 // enforced right after auth below rather than scattered per-action.
-const STAFF_ALLOWED_ACTIONS = new Set(['logout', 'me', 'changePassword', 'voucherLookup', 'voucherRedeem', 'themePreference']);
+const STAFF_ALLOWED_ACTIONS = new Set([
+  'logout',
+  'me',
+  'changePassword',
+  'voucherLookup',
+  'voucherRedeem',
+  'themePreference',
+  'supportTicketCreate',
+  'supportTickets',
+  'supportTicketThread',
+  'supportTicketReply',
+]);
 
 // Cross-club actions a super_admin can perform — not scoped to any single
 // course_id, unlike everything else in this file.
@@ -198,6 +244,30 @@ const SUPER_ADMIN_ALLOWED_ACTIONS = new Set([
   'superAdminStatBreakdown',
   'superAdminCourseCancelSubscription',
   'superAdminCourseReactivateSubscription',
+  'supportInbox',
+  'supportInboxThread',
+  'supportAgentReply',
+  'supportTicketStatus',
+  'supportAgents',
+  'supportAgentCreate',
+  'supportAgentRevoke',
+  'supportAgentReactivate',
+  'supportAgentDelete',
+]);
+
+// A support_agent is a Flagrr-team account (created by a super_admin) that
+// can only see and reply to the cross-club support inbox — not scoped to
+// any single course, like super_admin, but with none of super_admin's
+// course/ads/rewards/reporting/agent-management access.
+const SUPPORT_AGENT_ALLOWED_ACTIONS = new Set([
+  'logout',
+  'me',
+  'themePreference',
+  'changePassword',
+  'supportInbox',
+  'supportInboxThread',
+  'supportAgentReply',
+  'supportTicketStatus',
 ]);
 
 function isDuplicateKeyError(err: unknown): boolean {
@@ -661,7 +731,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     `) as Array<{
       id: string;
       course_id: string | null;
-      role: 'super_admin' | 'course_admin' | 'staff';
+      role: 'super_admin' | 'course_admin' | 'staff' | 'support_agent';
       first_name: string;
       last_name: string;
       email: string;
@@ -685,7 +755,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     }
     if (admin.role === 'course_admin' || admin.role === 'staff') {
       if (!admin.course_id) throw new HttpError(403, 'This account type is not supported yet');
-    } else if (admin.role !== 'super_admin') {
+    } else if (admin.role !== 'super_admin' && admin.role !== 'support_agent') {
       throw new HttpError(403, 'This account type is not supported yet');
     }
 
@@ -693,9 +763,12 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       insert into admin_sessions (admin_id) values (${admin.id}) returning token
     `) as Array<{ token: string }>;
 
-    // A super_admin has no course_id — return the placeholder shape instead
-    // of querying a course that doesn't exist.
-    const course = admin.role === 'super_admin' ? EMPTY_COURSE_DTO : await fetchCourse(admin.course_id as string);
+    // A super_admin/support_agent has no course_id — return the placeholder
+    // shape instead of querying a course that doesn't exist.
+    const course =
+      admin.role === 'super_admin' || admin.role === 'support_agent'
+        ? EMPTY_COURSE_DTO
+        : await fetchCourse(admin.course_id as string);
     res.status(200).json({
       token: sessionRows[0].token,
       admin: {
@@ -754,9 +827,11 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     return;
   }
 
-  // --- Super-admin: cross-club actions, not scoped to any single course ---
-  if (authedAdmin.role === 'super_admin') {
-    if (!SUPER_ADMIN_ALLOWED_ACTIONS.has(String(action))) {
+  // --- Support Centre agents + super-admin: cross-club actions, not scoped
+  // to any single course ---
+  if (authedAdmin.role === 'super_admin' || authedAdmin.role === 'support_agent') {
+    const allowedActions = authedAdmin.role === 'super_admin' ? SUPER_ADMIN_ALLOWED_ACTIONS : SUPPORT_AGENT_ALLOWED_ACTIONS;
+    if (!allowedActions.has(String(action))) {
       throw new HttpError(403, 'Not authorized for this action');
     }
 
@@ -777,157 +852,353 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       return;
     }
 
-    if (action === 'superAdminCourses' && req.method === 'GET') {
+    // --- Support Centre inbox — shared by super_admin and support_agent;
+    // any agent can pick up and reply to any ticket, no per-ticket
+    // assignment (same "anyone on the team can answer" model the existing
+    // per-club enquiries inbox already uses). ---
+    if (action === 'supportInbox' && req.method === 'GET') {
+      const statusFilter = typeof req.query.status === 'string' ? req.query.status : null;
       const rows = (await sql`
-        select c.id, c.name, c.slug, c.contact_email, c.subscription_status, c.created_at, c.fb_per_rand,
-          c.onboarding_completed_at, c.staff_onboarding_completed_at,
-          (select count(*) from admins a where a.course_id = c.id and a.role = 'course_admin' and a.revoked_at is null) as admin_count,
-          (select count(*) from users u where u.course_id = c.id) as member_count
-        from courses c
-        order by c.created_at desc
-      `) as Array<Parameters<typeof superAdminCourseDto>[0]>;
-      res.status(200).json(rows.map(superAdminCourseDto));
+        select t.id, t.requester_type, t.requester_name, t.requester_email, t.subject, t.status,
+               t.created_at, t.updated_at,
+               (select body from support_ticket_messages m where m.ticket_id = t.id order by m.created_at desc limit 1) as last_message,
+               exists(select 1 from support_ticket_messages m where m.ticket_id = t.id and m.read_by_agent = false) as has_unread
+        from support_tickets t
+        where (${statusFilter}::text is null or t.status = ${statusFilter})
+        order by t.updated_at desc
+      `) as Array<{
+        id: string;
+        requester_type: string;
+        requester_name: string;
+        requester_email: string;
+        subject: string;
+        status: string;
+        created_at: string;
+        updated_at: string;
+        last_message: string | null;
+        has_unread: boolean;
+      }>;
+      res.status(200).json(
+        rows.map((r) => ({
+          id: r.id,
+          requesterType: r.requester_type,
+          requesterName: r.requester_name,
+          requesterEmail: r.requester_email,
+          subject: r.subject,
+          status: r.status,
+          createdAt: r.created_at,
+          updatedAt: r.updated_at,
+          lastMessage: r.last_message,
+          hasUnread: r.has_unread,
+        })),
+      );
       return;
     }
 
-    if (action === 'superAdminCourseCreate' && req.method === 'POST') {
-      const body = req.body as CourseCreateBody;
-      const courseName = body.courseName?.trim();
-      const contactEmail = body.contactEmail?.trim().toLowerCase() || null;
-      const adminFirstName = body.adminFirstName?.trim();
-      const adminLastName = body.adminLastName?.trim() || '';
-      const adminEmail = body.adminEmail?.trim().toLowerCase();
-      if (!courseName || !adminFirstName || !adminEmail) {
-        throw new HttpError(400, 'Course name, admin first name, and admin email are required');
-      }
-      if (!EMAIL_PATTERN.test(adminEmail)) throw new HttpError(400, 'Enter a valid admin email address');
-      if (contactEmail && !EMAIL_PATTERN.test(contactEmail)) throw new HttpError(400, 'Enter a valid contact email address');
-
-      const newCourse = (await insertCourseWithUniqueSlug({ name: courseName, contactEmail }))[0];
-
-      const tempPassword = generateTempPassword();
-      const passwordHash = await hashPassword(tempPassword);
-      let createdAdmin: Array<{ id: string; first_name: string; last_name: string; email: string }>;
-      try {
-        createdAdmin = (await sql`
-          insert into admins (course_id, role, first_name, last_name, email, password_hash, must_change_password, activated_at)
-          values (${newCourse.id}, 'course_admin', ${adminFirstName}, ${adminLastName}, ${adminEmail}, ${passwordHash}, true, now())
-          returning id, first_name, last_name, email
-        `) as typeof createdAdmin;
-      } catch (err) {
-        if (isDuplicateKeyError(err)) throw new HttpError(409, 'A course admin with that email already exists');
-        throw err;
-      }
-
-      await sendEmail({
-        to: adminEmail,
-        subject: `You've been set up as a course admin for ${courseName} on Flagrr`,
-        html: `
-          <p>Hi ${escapeHtml(adminFirstName)},</p>
-          <p>${escapeHtml(authedAdmin.firstName)} ${escapeHtml(authedAdmin.lastName)} has set you up as the course admin for ${escapeHtml(courseName)} on Flagrr.</p>
-          <p><strong>Login link:</strong> <a href="https://flagrr-loyalty.vercel.app">https://flagrr-loyalty.vercel.app</a></p>
-          <p><strong>Email:</strong> ${escapeHtml(adminEmail)}<br/>
-          <strong>Temporary password:</strong> ${escapeHtml(tempPassword)}</p>
-          <p>You'll be asked to choose your own password the first time you log in.</p>
-        `,
-      });
-
+    if (action === 'supportInboxThread' && req.method === 'GET') {
+      const id = typeof req.query.id === 'string' ? req.query.id : '';
+      const rows = (await sql`
+        select id, requester_type, requester_name, requester_email, subject, status
+        from support_tickets where id = ${id}
+      `) as Array<{
+        id: string;
+        requester_type: string;
+        requester_name: string;
+        requester_email: string;
+        subject: string;
+        status: string;
+      }>;
+      if (rows.length === 0) throw new HttpError(404, 'Ticket not found');
+      await markThreadReadByAgent(id);
+      const t = rows[0];
       res.status(200).json({
-        course: superAdminCourseDto({ ...newCourse, admin_count: 1, member_count: 0 }),
-        admin: {
-          id: createdAdmin[0].id,
-          firstName: createdAdmin[0].first_name,
-          lastName: createdAdmin[0].last_name,
-          email: createdAdmin[0].email,
-        },
+        id: t.id,
+        requesterType: t.requester_type,
+        requesterName: t.requester_name,
+        requesterEmail: t.requester_email,
+        subject: t.subject,
+        status: t.status,
+        messages: await listSupportTicketMessages(id),
       });
       return;
     }
 
-    // No live billing/Stripe wiring yet — these just flip the same
-    // subscription_status column the Courses list already reads for its
-    // badge, so a super_admin can manually stop (or resume) a club's access
-    // ahead of that integration existing.
-    if (action === 'superAdminCourseCancelSubscription') {
-      const { courseId } = req.body as SubscriptionActionBody;
-      if (!courseId) throw new HttpError(400, 'courseId is required');
-      await sql`update courses set subscription_status = 'canceled' where id = ${courseId}`;
-      res.status(200).json({ ok: true });
+    if (action === 'supportAgentReply') {
+      const { ticketId, message } = req.body as SupportTicketReplyBody;
+      const body = message?.trim();
+      if (!ticketId || !body) throw new HttpError(400, 'ticketId and message are required');
+      const owned = (await sql`select id from support_tickets where id = ${ticketId}`) as Array<{ id: string }>;
+      if (owned.length === 0) throw new HttpError(404, 'Ticket not found');
+      await addAgentMessage(ticketId, authedAdmin.id, body);
+      res.status(200).json(await listSupportTicketMessages(ticketId));
       return;
     }
 
-    if (action === 'superAdminCourseReactivateSubscription') {
-      const { courseId } = req.body as SubscriptionActionBody;
-      if (!courseId) throw new HttpError(400, 'courseId is required');
-      await sql`update courses set subscription_status = 'active' where id = ${courseId}`;
-      res.status(200).json({ ok: true });
-      return;
-    }
-
-    if (action === 'superAdminAds' && req.method === 'GET') {
-      const targetCourseId = resolveAdCourseId(typeof req.query.courseId === 'string' ? req.query.courseId : undefined);
-      res.status(200).json(await listAdsForCourse(targetCourseId));
-      return;
-    }
-
-    if (action === 'superAdminAdSave') {
-      const body = req.body as SuperAdminAdSaveBody;
-      const targetCourseId = resolveAdCourseId(body.courseId);
-      res.status(200).json(await saveAdForCourse(targetCourseId, body));
-      return;
-    }
-
-    if (action === 'superAdminAdDelete') {
-      const body = req.body as SuperAdminAdDeleteBody;
-      const targetCourseId = resolveAdCourseId(body.courseId);
-      if (!body.id) throw new HttpError(400, 'id is required');
-      await deleteAdForCourse(targetCourseId, body.id);
-      res.status(200).json({ ok: true });
-      return;
-    }
-
-    if (action === 'superAdminRewards' && req.method === 'GET') {
-      const targetCourseId = typeof req.query.courseId === 'string' ? req.query.courseId : undefined;
-      if (!targetCourseId) throw new HttpError(400, 'courseId is required');
-      res.status(200).json(await listRewardsForCourse(targetCourseId));
-      return;
-    }
-
-    if (action === 'superAdminRewardSave') {
-      const body = req.body as SuperAdminRewardSaveBody;
-      if (!body.courseId) throw new HttpError(400, 'courseId is required');
-      res.status(200).json(await saveRewardForCourse(body.courseId, body));
-      return;
-    }
-
-    if (action === 'superAdminRewardDelete') {
-      const body = req.body as SuperAdminRewardDeleteBody;
-      if (!body.courseId) throw new HttpError(400, 'courseId is required');
-      if (!body.id) throw new HttpError(400, 'id is required');
-      await deleteRewardForCourse(body.courseId, body.id);
-      res.status(200).json({ ok: true });
-      return;
-    }
-
-    if (action === 'superAdminDashboard' && req.method === 'GET') {
-      const period: StatsPeriod = isStatsPeriod(req.query.period) ? req.query.period : 'month';
-      res.status(200).json(await getSuperAdminDashboardReport(period));
-      return;
-    }
-
-    if (action === 'superAdminAdPerformance' && req.method === 'GET') {
-      res.status(200).json(await getAdPerformanceReport());
-      return;
-    }
-
-    if (action === 'superAdminStatBreakdown' && req.method === 'GET') {
-      const period: StatsPeriod = isStatsPeriod(req.query.period) ? req.query.period : 'month';
-      const metric = req.query.metric;
-      if (!STAT_BREAKDOWN_METRICS.has(String(metric))) {
-        throw new HttpError(400, 'metric must be one of members, newMembers, fcEarned, fcRedeemed, receiptsScanned');
+    if (action === 'supportTicketStatus') {
+      const { ticketId, status } = req.body as SupportTicketStatusBody;
+      if (!ticketId || !status || !SUPPORT_TICKET_STATUSES.includes(status)) {
+        throw new HttpError(400, 'ticketId and a valid status are required');
       }
-      res.status(200).json(await getSuperAdminStatBreakdown(period, metric as StatBreakdownMetric));
+      await sql`update support_tickets set status = ${status}, updated_at = now() where id = ${ticketId}`;
+      res.status(200).json({ ok: true });
       return;
+    }
+
+    // --- Everything below is super_admin-only: course/ads/rewards/reporting
+    // management, plus support_agent account management. ---
+    if (authedAdmin.role === 'super_admin') {
+      if (action === 'superAdminCourses' && req.method === 'GET') {
+        const rows = (await sql`
+          select c.id, c.name, c.slug, c.contact_email, c.subscription_status, c.created_at, c.fb_per_rand,
+            c.onboarding_completed_at, c.staff_onboarding_completed_at,
+            (select count(*) from admins a where a.course_id = c.id and a.role = 'course_admin' and a.revoked_at is null) as admin_count,
+            (select count(*) from users u where u.course_id = c.id) as member_count
+          from courses c
+          order by c.created_at desc
+        `) as Array<Parameters<typeof superAdminCourseDto>[0]>;
+        res.status(200).json(rows.map(superAdminCourseDto));
+        return;
+      }
+
+      if (action === 'superAdminCourseCreate' && req.method === 'POST') {
+        const body = req.body as CourseCreateBody;
+        const courseName = body.courseName?.trim();
+        const contactEmail = body.contactEmail?.trim().toLowerCase() || null;
+        const adminFirstName = body.adminFirstName?.trim();
+        const adminLastName = body.adminLastName?.trim() || '';
+        const adminEmail = body.adminEmail?.trim().toLowerCase();
+        if (!courseName || !adminFirstName || !adminEmail) {
+          throw new HttpError(400, 'Course name, admin first name, and admin email are required');
+        }
+        if (!EMAIL_PATTERN.test(adminEmail)) throw new HttpError(400, 'Enter a valid admin email address');
+        if (contactEmail && !EMAIL_PATTERN.test(contactEmail)) throw new HttpError(400, 'Enter a valid contact email address');
+
+        const newCourse = (await insertCourseWithUniqueSlug({ name: courseName, contactEmail }))[0];
+
+        const tempPassword = generateTempPassword();
+        const passwordHash = await hashPassword(tempPassword);
+        let createdAdmin: Array<{ id: string; first_name: string; last_name: string; email: string }>;
+        try {
+          createdAdmin = (await sql`
+            insert into admins (course_id, role, first_name, last_name, email, password_hash, must_change_password, activated_at)
+            values (${newCourse.id}, 'course_admin', ${adminFirstName}, ${adminLastName}, ${adminEmail}, ${passwordHash}, true, now())
+            returning id, first_name, last_name, email
+          `) as typeof createdAdmin;
+        } catch (err) {
+          if (isDuplicateKeyError(err)) throw new HttpError(409, 'A course admin with that email already exists');
+          throw err;
+        }
+
+        await sendEmail({
+          to: adminEmail,
+          subject: `You've been set up as a course admin for ${courseName} on Flagrr`,
+          html: `
+            <p>Hi ${escapeHtml(adminFirstName)},</p>
+            <p>${escapeHtml(authedAdmin.firstName)} ${escapeHtml(authedAdmin.lastName)} has set you up as the course admin for ${escapeHtml(courseName)} on Flagrr.</p>
+            <p><strong>Login link:</strong> <a href="https://flagrr-loyalty.vercel.app">https://flagrr-loyalty.vercel.app</a></p>
+            <p><strong>Email:</strong> ${escapeHtml(adminEmail)}<br/>
+            <strong>Temporary password:</strong> ${escapeHtml(tempPassword)}</p>
+            <p>You'll be asked to choose your own password the first time you log in.</p>
+          `,
+        });
+
+        res.status(200).json({
+          course: superAdminCourseDto({ ...newCourse, admin_count: 1, member_count: 0 }),
+          admin: {
+            id: createdAdmin[0].id,
+            firstName: createdAdmin[0].first_name,
+            lastName: createdAdmin[0].last_name,
+            email: createdAdmin[0].email,
+          },
+        });
+        return;
+      }
+
+      // No live billing/Stripe wiring yet — these just flip the same
+      // subscription_status column the Courses list already reads for its
+      // badge, so a super_admin can manually stop (or resume) a club's access
+      // ahead of that integration existing.
+      if (action === 'superAdminCourseCancelSubscription') {
+        const { courseId } = req.body as SubscriptionActionBody;
+        if (!courseId) throw new HttpError(400, 'courseId is required');
+        await sql`update courses set subscription_status = 'canceled' where id = ${courseId}`;
+        res.status(200).json({ ok: true });
+        return;
+      }
+
+      if (action === 'superAdminCourseReactivateSubscription') {
+        const { courseId } = req.body as SubscriptionActionBody;
+        if (!courseId) throw new HttpError(400, 'courseId is required');
+        await sql`update courses set subscription_status = 'active' where id = ${courseId}`;
+        res.status(200).json({ ok: true });
+        return;
+      }
+
+      if (action === 'superAdminAds' && req.method === 'GET') {
+        const targetCourseId = resolveAdCourseId(typeof req.query.courseId === 'string' ? req.query.courseId : undefined);
+        res.status(200).json(await listAdsForCourse(targetCourseId));
+        return;
+      }
+
+      if (action === 'superAdminAdSave') {
+        const body = req.body as SuperAdminAdSaveBody;
+        const targetCourseId = resolveAdCourseId(body.courseId);
+        res.status(200).json(await saveAdForCourse(targetCourseId, body));
+        return;
+      }
+
+      if (action === 'superAdminAdDelete') {
+        const body = req.body as SuperAdminAdDeleteBody;
+        const targetCourseId = resolveAdCourseId(body.courseId);
+        if (!body.id) throw new HttpError(400, 'id is required');
+        await deleteAdForCourse(targetCourseId, body.id);
+        res.status(200).json({ ok: true });
+        return;
+      }
+
+      if (action === 'superAdminRewards' && req.method === 'GET') {
+        const targetCourseId = typeof req.query.courseId === 'string' ? req.query.courseId : undefined;
+        if (!targetCourseId) throw new HttpError(400, 'courseId is required');
+        res.status(200).json(await listRewardsForCourse(targetCourseId));
+        return;
+      }
+
+      if (action === 'superAdminRewardSave') {
+        const body = req.body as SuperAdminRewardSaveBody;
+        if (!body.courseId) throw new HttpError(400, 'courseId is required');
+        res.status(200).json(await saveRewardForCourse(body.courseId, body));
+        return;
+      }
+
+      if (action === 'superAdminRewardDelete') {
+        const body = req.body as SuperAdminRewardDeleteBody;
+        if (!body.courseId) throw new HttpError(400, 'courseId is required');
+        if (!body.id) throw new HttpError(400, 'id is required');
+        await deleteRewardForCourse(body.courseId, body.id);
+        res.status(200).json({ ok: true });
+        return;
+      }
+
+      if (action === 'superAdminDashboard' && req.method === 'GET') {
+        const period: StatsPeriod = isStatsPeriod(req.query.period) ? req.query.period : 'month';
+        res.status(200).json(await getSuperAdminDashboardReport(period));
+        return;
+      }
+
+      if (action === 'superAdminAdPerformance' && req.method === 'GET') {
+        res.status(200).json(await getAdPerformanceReport());
+        return;
+      }
+
+      if (action === 'superAdminStatBreakdown' && req.method === 'GET') {
+        const period: StatsPeriod = isStatsPeriod(req.query.period) ? req.query.period : 'month';
+        const metric = req.query.metric;
+        if (!STAT_BREAKDOWN_METRICS.has(String(metric))) {
+          throw new HttpError(400, 'metric must be one of members, newMembers, fcEarned, fcRedeemed, receiptsScanned');
+        }
+        res.status(200).json(await getSuperAdminStatBreakdown(period, metric as StatBreakdownMetric));
+        return;
+      }
+
+      // --- Support agent account management ---
+      if (action === 'supportAgents' && req.method === 'GET') {
+        const rows = (await sql`
+          select id, first_name, last_name, email, must_change_password, revoked_at, created_at
+          from admins where role = 'support_agent'
+          order by created_at desc
+        `) as Array<{
+          id: string;
+          first_name: string;
+          last_name: string;
+          email: string;
+          must_change_password: boolean;
+          revoked_at: string | null;
+          created_at: string;
+        }>;
+        res.status(200).json(
+          rows.map((r) => ({
+            id: r.id,
+            firstName: r.first_name,
+            lastName: r.last_name,
+            email: r.email,
+            mustChangePassword: r.must_change_password,
+            revoked: r.revoked_at !== null,
+            createdAt: r.created_at,
+          })),
+        );
+        return;
+      }
+
+      if (action === 'supportAgentCreate' && req.method === 'POST') {
+        const body = req.body as SupportAgentCreateBody;
+        const firstName = body.firstName?.trim();
+        const lastName = body.lastName?.trim() || '';
+        const email = body.email?.trim().toLowerCase();
+        if (!firstName || !email) throw new HttpError(400, 'firstName and email are required');
+        if (!EMAIL_PATTERN.test(email)) throw new HttpError(400, 'Enter a valid email address');
+
+        const tempPassword = generateTempPassword();
+        const passwordHash = await hashPassword(tempPassword);
+        let created: Array<{ id: string; first_name: string; last_name: string; email: string; created_at: string }>;
+        try {
+          created = (await sql`
+            insert into admins (course_id, role, first_name, last_name, email, password_hash, must_change_password, activated_at)
+            values (null, 'support_agent', ${firstName}, ${lastName}, ${email}, ${passwordHash}, true, now())
+            returning id, first_name, last_name, email, created_at
+          `) as typeof created;
+        } catch (err) {
+          if (isDuplicateKeyError(err)) throw new HttpError(409, 'A support agent with that email already exists');
+          throw err;
+        }
+
+        await sendEmail({
+          to: email,
+          subject: `You've been set up as a Flagrr support agent`,
+          html: `
+            <p>Hi ${escapeHtml(firstName)},</p>
+            <p>${escapeHtml(authedAdmin.firstName)} ${escapeHtml(authedAdmin.lastName)} has set you up with support agent access on Flagrr, so you can respond to member and club support tickets.</p>
+            <p><strong>Login link:</strong> <a href="https://flagrr-loyalty.vercel.app">https://flagrr-loyalty.vercel.app</a></p>
+            <p><strong>Email:</strong> ${escapeHtml(email)}<br/>
+            <strong>Temporary password:</strong> ${escapeHtml(tempPassword)}</p>
+            <p>You'll be asked to choose your own password the first time you log in.</p>
+          `,
+        });
+
+        res.status(200).json({
+          id: created[0].id,
+          firstName: created[0].first_name,
+          lastName: created[0].last_name,
+          email: created[0].email,
+          mustChangePassword: true,
+          revoked: false,
+          createdAt: created[0].created_at,
+        });
+        return;
+      }
+
+      if (action === 'supportAgentRevoke') {
+        const id = (req.body as SupportAgentIdBody).id;
+        if (!id) throw new HttpError(400, 'id is required');
+        await sql`update admins set revoked_at = now() where id = ${id} and role = 'support_agent'`;
+        res.status(200).json({ ok: true });
+        return;
+      }
+
+      if (action === 'supportAgentReactivate') {
+        const id = (req.body as SupportAgentIdBody).id;
+        if (!id) throw new HttpError(400, 'id is required');
+        await sql`update admins set revoked_at = null where id = ${id} and role = 'support_agent'`;
+        res.status(200).json({ ok: true });
+        return;
+      }
+
+      if (action === 'supportAgentDelete') {
+        const id = (req.body as SupportAgentIdBody).id;
+        if (!id) throw new HttpError(400, 'id is required');
+        await sql`delete from admins where id = ${id} and role = 'support_agent'`;
+        res.status(200).json({ ok: true });
+        return;
+      }
     }
 
     throw new HttpError(404, 'Unknown action');
@@ -966,6 +1237,101 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     const period: StatsPeriod = isStatsPeriod(req.query.period) ? req.query.period : 'month';
     const report = await getDashboardReport(courseId, period);
     res.status(200).json(report);
+    return;
+  }
+
+  // Support Centre (requester side) — a ticket to the Flagrr team itself,
+  // not the club's own enquiries inbox (see 'enquiries' below, which stays
+  // member <-> this club's admins). Available to course_admin and staff.
+  if (action === 'supportTickets' && req.method === 'GET') {
+    const rows = (await sql`
+      select t.id, t.subject, t.status, t.created_at, t.updated_at,
+             (select body from support_ticket_messages m where m.ticket_id = t.id order by m.created_at desc limit 1) as last_message,
+             exists(select 1 from support_ticket_messages m where m.ticket_id = t.id and m.read_by_requester = false) as has_unread
+      from support_tickets t
+      where t.requester_admin_id = ${authed.id}
+      order by t.updated_at desc
+    `) as Array<{
+      id: string;
+      subject: string;
+      status: string;
+      created_at: string;
+      updated_at: string;
+      last_message: string | null;
+      has_unread: boolean;
+    }>;
+    res.status(200).json(
+      rows.map((r) => ({
+        id: r.id,
+        subject: r.subject,
+        status: r.status,
+        createdAt: r.created_at,
+        updatedAt: r.updated_at,
+        lastMessage: r.last_message,
+        hasUnread: r.has_unread,
+      })),
+    );
+    return;
+  }
+
+  if (action === 'supportTicketThread' && req.method === 'GET') {
+    const id = typeof req.query.id === 'string' ? req.query.id : '';
+    const owned = (await sql`
+      select id, status, subject from support_tickets where id = ${id} and requester_admin_id = ${authed.id}
+    `) as Array<{ id: string; status: string; subject: string }>;
+    if (owned.length === 0) throw new HttpError(404, 'Ticket not found');
+    await markThreadReadByRequester(id);
+    res.status(200).json({
+      id: owned[0].id,
+      status: owned[0].status,
+      subject: owned[0].subject,
+      messages: await listSupportTicketMessages(id),
+    });
+    return;
+  }
+
+  if (action === 'supportTicketCreate') {
+    const { subject, message } = req.body as SupportTicketCreateBody;
+    const trimmedSubject = subject?.trim();
+    const trimmedMessage = message?.trim();
+    if (!trimmedSubject || !trimmedMessage) {
+      throw new HttpError(400, 'subject and message are required');
+    }
+    const requesterName = `${authed.firstName} ${authed.lastName}`.trim();
+    const ticketId = await createSupportTicket({
+      requesterType: authed.role === 'staff' ? 'staff' : 'course_admin',
+      requesterUserId: null,
+      requesterAdminId: authed.id,
+      requesterName,
+      requesterEmail: authed.email,
+      courseId,
+      subject: trimmedSubject,
+      message: trimmedMessage,
+    });
+    await sendEmail({
+      to: CONTACT_EMAIL,
+      subject: `New support ticket: ${trimmedSubject}`,
+      html: `
+        <p><strong>From:</strong> ${escapeHtml(requesterName)} (${escapeHtml(authed.email)}) — ${authed.role}</p>
+        <p><strong>Subject:</strong> ${escapeHtml(trimmedSubject)}</p>
+        <p><strong>Message:</strong></p>
+        <p>${escapeHtml(trimmedMessage).replace(/\n/g, '<br/>')}</p>
+      `,
+    });
+    res.status(200).json({ ok: true, ticketId });
+    return;
+  }
+
+  if (action === 'supportTicketReply') {
+    const { ticketId, message } = req.body as SupportTicketReplyBody;
+    const body = message?.trim();
+    if (!ticketId || !body) throw new HttpError(400, 'ticketId and message are required');
+    const owned = (await sql`
+      select id from support_tickets where id = ${ticketId} and requester_admin_id = ${authed.id}
+    `) as Array<{ id: string }>;
+    if (owned.length === 0) throw new HttpError(404, 'Ticket not found');
+    await addRequesterMessage(ticketId, body);
+    res.status(200).json(await listSupportTicketMessages(ticketId));
     return;
   }
 
