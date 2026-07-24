@@ -147,6 +147,13 @@ export function SuperAdminCoursesScreen({ navigation }: Props) {
           <Ionicons name="cloud-upload-outline" size={14} color={colors.clubGreen} />
           <Text style={styles.actionButtonText}>Member List</Text>
         </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.actionButton}
+          onPress={() => navigation.navigate('SuperAdminCourseAdmins', { courseId: item.id, courseName: item.name })}
+        >
+          <Ionicons name="person-add-outline" size={14} color={colors.clubGreen} />
+          <Text style={styles.actionButtonText}>Manage Admins</Text>
+        </TouchableOpacity>
         {item.subscriptionStatus === 'canceled' ? (
           <TouchableOpacity
             style={styles.actionButton}

@@ -316,6 +316,16 @@ export interface SupportAgent {
   createdAt: string;
 }
 
+export interface CourseAdminAccount {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  mustChangePassword: boolean;
+  revoked: boolean;
+  createdAt: string;
+}
+
 export interface MemberRosterStatus {
   count: number;
   lastUploadedAt: string | null;

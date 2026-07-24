@@ -13,6 +13,8 @@ import { SuperAdminAgentsScreen } from '../screens/superadmin/SuperAdminAgentsSc
 import { SuperAdminAgentCreateScreen } from '../screens/superadmin/SuperAdminAgentCreateScreen';
 import { SuperAdminCourseMemberListScreen } from '../screens/superadmin/SuperAdminCourseMemberListScreen';
 import { SuperAdminBroadcastComposeScreen } from '../screens/superadmin/SuperAdminBroadcastComposeScreen';
+import { SuperAdminCourseAdminsScreen } from '../screens/superadmin/SuperAdminCourseAdminsScreen';
+import { SuperAdminCourseAdminCreateScreen } from '../screens/superadmin/SuperAdminCourseAdminCreateScreen';
 
 const Stack = createNativeStackNavigator<SuperAdminStackParamList>();
 
@@ -34,6 +36,8 @@ export function SuperAdminNavigator() {
       <Stack.Screen name="SuperAdminAgentCreate" component={SuperAdminAgentCreateScreen} />
       <Stack.Screen name="SuperAdminCourseMemberList" component={SuperAdminCourseMemberListScreen} />
       <Stack.Screen name="SuperAdminBroadcastCompose" component={SuperAdminBroadcastComposeScreen} />
+      <Stack.Screen name="SuperAdminCourseAdmins" component={SuperAdminCourseAdminsScreen} />
+      <Stack.Screen name="SuperAdminCourseAdminCreate" component={SuperAdminCourseAdminCreateScreen} />
     </Stack.Navigator>
   );
 }

@@ -10,6 +10,7 @@ import type {
   AdminNotification,
   AdminReward,
   AdminStaff,
+  CourseAdminAccount,
   AdminUser,
   AdminVoucherLookup,
   BroadcastTarget,
@@ -346,6 +347,26 @@ export const adminApi = {
 
   deleteSuperAdminBroadcast: (id: string) =>
     request<{ ok: boolean }>('?action=superAdminBroadcastDelete', { method: 'POST', body: { id } }),
+
+  // --- Course admin account management — add/reset/revoke/reactivate/
+  // delete a course_admin at a specific club. ---
+  superAdminCourseAdmins: (courseId: string) =>
+    request<CourseAdminAccount[]>(`?action=superAdminCourseAdmins&courseId=${encodeURIComponent(courseId)}`),
+
+  createSuperAdminCourseAdmin: (payload: { courseId: string; firstName: string; lastName: string; email: string }) =>
+    request<CourseAdminAccount>('?action=superAdminCourseAdminCreate', { method: 'POST', body: payload }),
+
+  resetSuperAdminCourseAdminPassword: (id: string) =>
+    request<{ ok: boolean }>('?action=superAdminCourseAdminResetPassword', { method: 'POST', body: { id } }),
+
+  revokeSuperAdminCourseAdmin: (id: string) =>
+    request<{ ok: boolean }>('?action=superAdminCourseAdminRevoke', { method: 'POST', body: { id } }),
+
+  reactivateSuperAdminCourseAdmin: (id: string) =>
+    request<{ ok: boolean }>('?action=superAdminCourseAdminReactivate', { method: 'POST', body: { id } }),
+
+  deleteSuperAdminCourseAdmin: (id: string) =>
+    request<{ ok: boolean }>('?action=superAdminCourseAdminDelete', { method: 'POST', body: { id } }),
 
   // --- Support Centre: requester side (course_admin/staff logging a ticket
   // to the Flagrr team — separate from the per-club 'enquiries' actions

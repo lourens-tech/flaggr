@@ -238,6 +238,17 @@ interface CourseCreateBody {
   adminEmail?: string;
 }
 
+interface SuperAdminCourseAdminCreateBody {
+  courseId?: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+}
+
+interface SuperAdminCourseAdminIdBody {
+  id?: string;
+}
+
 const REWARD_CATEGORIES = ['rounds', 'experiences', 'pro-shop', 'practice', 'dining'];
 
 const STAT_BREAKDOWN_METRICS = new Set(['members', 'newMembers', 'fcEarned', 'fcRedeemed', 'receiptsScanned']);
@@ -289,6 +300,12 @@ const SUPER_ADMIN_ALLOWED_ACTIONS = new Set([
   'superAdminBroadcasts',
   'superAdminBroadcastSend',
   'superAdminBroadcastDelete',
+  'superAdminCourseAdmins',
+  'superAdminCourseAdminCreate',
+  'superAdminCourseAdminResetPassword',
+  'superAdminCourseAdminRevoke',
+  'superAdminCourseAdminReactivate',
+  'superAdminCourseAdminDelete',
   'supportInbox',
   'supportInboxThread',
   'supportAgentReply',
@@ -425,6 +442,26 @@ function staffDto(row: {
     lastName: row.last_name,
     email: row.email,
     username: row.username,
+    mustChangePassword: row.must_change_password,
+    revoked: row.revoked_at !== null,
+    createdAt: row.created_at,
+  };
+}
+
+function courseAdminAccountDto(row: {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  must_change_password: boolean;
+  revoked_at: string | null;
+  created_at: string;
+}) {
+  return {
+    id: row.id,
+    firstName: row.first_name,
+    lastName: row.last_name,
+    email: row.email,
     mustChangePassword: row.must_change_password,
     revoked: row.revoked_at !== null,
     createdAt: row.created_at,
@@ -1232,6 +1269,132 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         const id = (req.body as SuperAdminBroadcastDeleteBody).id;
         if (!id) throw new HttpError(400, 'id is required');
         await sql`delete from super_admin_broadcasts where id = ${id}`;
+        res.status(200).json({ ok: true });
+        return;
+      }
+
+      // --- Course admin account management — add a second (or replacement)
+      // course_admin to an existing club, reset a password, or revoke/
+      // reactivate/delete access, without needing direct DB access. ---
+      if (action === 'superAdminCourseAdmins' && req.method === 'GET') {
+        const targetCourseId = typeof req.query.courseId === 'string' ? req.query.courseId : undefined;
+        if (!targetCourseId) throw new HttpError(400, 'courseId is required');
+        const rows = (await sql`
+          select id, first_name, last_name, email, must_change_password, revoked_at, created_at
+          from admins where course_id = ${targetCourseId} and role = 'course_admin'
+          order by created_at desc
+        `) as Array<{
+          id: string;
+          first_name: string;
+          last_name: string;
+          email: string;
+          must_change_password: boolean;
+          revoked_at: string | null;
+          created_at: string;
+        }>;
+        res.status(200).json(rows.map(courseAdminAccountDto));
+        return;
+      }
+
+      if (action === 'superAdminCourseAdminCreate' && req.method === 'POST') {
+        const body = req.body as SuperAdminCourseAdminCreateBody;
+        const targetCourseId = body.courseId?.trim();
+        const firstName = body.firstName?.trim();
+        const lastName = body.lastName?.trim() || '';
+        const email = body.email?.trim().toLowerCase();
+        if (!targetCourseId) throw new HttpError(400, 'courseId is required');
+        if (!firstName || !email) throw new HttpError(400, 'First name and email are required');
+        if (!EMAIL_PATTERN.test(email)) throw new HttpError(400, 'Enter a valid email address');
+
+        const targetCourse = await fetchCourse(targetCourseId);
+
+        const tempPassword = generateTempPassword();
+        const passwordHash = await hashPassword(tempPassword);
+        let created: Array<{
+          id: string;
+          first_name: string;
+          last_name: string;
+          email: string;
+          must_change_password: boolean;
+          revoked_at: string | null;
+          created_at: string;
+        }>;
+        try {
+          created = (await sql`
+            insert into admins (course_id, role, first_name, last_name, email, password_hash, must_change_password, activated_at)
+            values (${targetCourseId}, 'course_admin', ${firstName}, ${lastName}, ${email}, ${passwordHash}, true, now())
+            returning id, first_name, last_name, email, must_change_password, revoked_at, created_at
+          `) as typeof created;
+        } catch (err) {
+          if (isDuplicateKeyError(err)) throw new HttpError(409, 'An admin with that email already exists');
+          throw err;
+        }
+
+        await sendEmail({
+          to: email,
+          subject: `You've been set up as a course admin for ${targetCourse.name} on Flagrr`,
+          html: `
+            <p>Hi ${escapeHtml(firstName)},</p>
+            <p>${escapeHtml(authedAdmin.firstName)} ${escapeHtml(authedAdmin.lastName)} has set you up as a course admin for ${escapeHtml(targetCourse.name)} on Flagrr.</p>
+            <p><strong>Login link:</strong> <a href="https://flagrr-loyalty.vercel.app">https://flagrr-loyalty.vercel.app</a></p>
+            <p><strong>Email:</strong> ${escapeHtml(email)}<br/>
+            <strong>Temporary password:</strong> ${escapeHtml(tempPassword)}</p>
+            <p>You'll be asked to choose your own password the first time you log in.</p>
+          `,
+        });
+
+        res.status(200).json(courseAdminAccountDto(created[0]));
+        return;
+      }
+
+      if (action === 'superAdminCourseAdminResetPassword' && req.method === 'POST') {
+        const id = (req.body as SuperAdminCourseAdminIdBody).id;
+        if (!id) throw new HttpError(400, 'id is required');
+        const rows = (await sql`
+          select email, first_name, course_id from admins where id = ${id} and role = 'course_admin'
+        `) as Array<{ email: string; first_name: string; course_id: string }>;
+        if (rows.length === 0) throw new HttpError(404, 'Course admin not found');
+        const target = rows[0];
+
+        const tempPassword = generateTempPassword();
+        const passwordHash = await hashPassword(tempPassword);
+        await sql`update admins set password_hash = ${passwordHash}, must_change_password = true where id = ${id}`;
+
+        const targetCourse = await fetchCourse(target.course_id);
+        await sendEmail({
+          to: target.email,
+          subject: `Your Flagrr password has been reset`,
+          html: `
+            <p>Hi ${escapeHtml(target.first_name)},</p>
+            <p>Your password for ${escapeHtml(targetCourse.name)} on Flagrr has been reset.</p>
+            <p><strong>Temporary password:</strong> ${escapeHtml(tempPassword)}</p>
+            <p>You'll be asked to choose your own password the next time you log in.</p>
+          `,
+        });
+        res.status(200).json({ ok: true });
+        return;
+      }
+
+      if (action === 'superAdminCourseAdminRevoke') {
+        const id = (req.body as SuperAdminCourseAdminIdBody).id;
+        if (!id) throw new HttpError(400, 'id is required');
+        await sql`update admins set revoked_at = now() where id = ${id} and role = 'course_admin'`;
+        res.status(200).json({ ok: true });
+        return;
+      }
+
+      if (action === 'superAdminCourseAdminReactivate') {
+        const id = (req.body as SuperAdminCourseAdminIdBody).id;
+        if (!id) throw new HttpError(400, 'id is required');
+        await sql`update admins set revoked_at = null where id = ${id} and role = 'course_admin'`;
+        res.status(200).json({ ok: true });
+        return;
+      }
+
+      if (action === 'superAdminCourseAdminDelete') {
+        const id = (req.body as SuperAdminCourseAdminIdBody).id;
+        if (!id) throw new HttpError(400, 'id is required');
+        await sql`delete from admins where id = ${id} and role = 'course_admin'`;
         res.status(200).json({ ok: true });
         return;
       }

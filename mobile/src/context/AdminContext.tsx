@@ -18,6 +18,7 @@ import { registerForPushNotificationsAsync } from '../utils/pushNotifications';
 import type {
   AdminAd,
   AdminBroadcast,
+  CourseAdminAccount,
   AdminCourse,
   AdminEnquirySummary,
   AdminEnquiryThread,
@@ -182,6 +183,14 @@ interface AdminContextValue {
   loadSuperAdminBroadcasts: () => Promise<void>;
   sendSuperAdminBroadcast: (payload: { title: string; body: string; target: SuperAdminBroadcastTarget; courseId?: string | null }) => Promise<void>;
   deleteSuperAdminBroadcast: (id: string) => Promise<void>;
+  // Per-course, fetched on demand — mirrors getSuperAdminAds/getSuperAdminRewards's
+  // pattern of a thin passthrough whose caller owns the resulting list.
+  getSuperAdminCourseAdmins: (courseId: string) => Promise<CourseAdminAccount[]>;
+  createSuperAdminCourseAdmin: (payload: { courseId: string; firstName: string; lastName: string; email: string }) => Promise<CourseAdminAccount>;
+  resetSuperAdminCourseAdminPassword: (id: string) => Promise<void>;
+  revokeSuperAdminCourseAdmin: (id: string) => Promise<void>;
+  reactivateSuperAdminCourseAdmin: (id: string) => Promise<void>;
+  deleteSuperAdminCourseAdmin: (id: string) => Promise<void>;
   getSuperAdminDashboard: (period: DashboardPeriod) => Promise<SuperAdminDashboardReport>;
   getSuperAdminAdPerformance: () => Promise<AdPerformanceRow[]>;
   getSuperAdminStatBreakdown: (metric: StatBreakdownMetric, period: DashboardPeriod) => Promise<StatBreakdownRow[]>;
@@ -541,6 +550,22 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     setSuperAdminBroadcasts((prev) => prev.filter((b) => b.id !== id));
   };
 
+  const getSuperAdminCourseAdmins = async (courseId: string) => adminApi.superAdminCourseAdmins(courseId);
+  const createSuperAdminCourseAdmin = async (payload: { courseId: string; firstName: string; lastName: string; email: string }) =>
+    adminApi.createSuperAdminCourseAdmin(payload);
+  const resetSuperAdminCourseAdminPassword = async (id: string) => {
+    await adminApi.resetSuperAdminCourseAdminPassword(id);
+  };
+  const revokeSuperAdminCourseAdmin = async (id: string) => {
+    await adminApi.revokeSuperAdminCourseAdmin(id);
+  };
+  const reactivateSuperAdminCourseAdmin = async (id: string) => {
+    await adminApi.reactivateSuperAdminCourseAdmin(id);
+  };
+  const deleteSuperAdminCourseAdmin = async (id: string) => {
+    await adminApi.deleteSuperAdminCourseAdmin(id);
+  };
+
   const getSuperAdminDashboard = async (period: DashboardPeriod) => adminApi.superAdminDashboard(period);
   const getSuperAdminAdPerformance = async () => adminApi.superAdminAdPerformance();
 
@@ -663,6 +688,12 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     loadSuperAdminBroadcasts,
     sendSuperAdminBroadcast,
     deleteSuperAdminBroadcast,
+    getSuperAdminCourseAdmins,
+    createSuperAdminCourseAdmin,
+    resetSuperAdminCourseAdminPassword,
+    revokeSuperAdminCourseAdmin,
+    reactivateSuperAdminCourseAdmin,
+    deleteSuperAdminCourseAdmin,
     getSuperAdminDashboard,
     getSuperAdminAdPerformance,
     getSuperAdminStatBreakdown,

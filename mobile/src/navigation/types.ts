@@ -65,6 +65,8 @@ export type SuperAdminStackParamList = {
   SuperAdminAgentCreate: undefined;
   SuperAdminBroadcastCompose: { title?: string; body?: string; target?: string } | undefined;
   SuperAdminCourseMemberList: { courseId: string; courseName: string };
+  SuperAdminCourseAdmins: { courseId: string; courseName: string };
+  SuperAdminCourseAdminCreate: { courseId: string; courseName: string };
 };
 
 export type MainTabParamList = {
