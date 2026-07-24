@@ -9,6 +9,7 @@ import { ScreenHeader } from '../../components/common/ScreenHeader';
 import { useAdmin } from '../../context/AdminContext';
 import { AdminApiError } from '../../api/adminClient';
 import { showAlert } from '../../utils/alert';
+import { toCsv, exportCsv } from '../../utils/csv';
 import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
 import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 import type { AdminAd } from '../../data/adminTypes';
@@ -19,6 +20,8 @@ const PLACEMENTS: Array<{ label: string; value: AdminAd['placement'] }> = [
   { label: 'Home', value: 'home' },
   { label: 'Rewards Shop', value: 'rewards_shop' },
 ];
+
+const PLACEMENT_LABELS: Record<AdminAd['placement'], string> = { home: 'Home', rewards_shop: 'Rewards Shop' };
 
 // Same list/edit shape as the course-admin AdminAdsListScreen/AdminAdEditScreen
 // (currently unreachable — the Ads tab was removed from the course-admin nav
@@ -61,6 +64,33 @@ export function SuperAdminCourseAdsScreen({ navigation, route }: Props) {
 
   const filtered = ads.filter((a) => a.placement === placement);
 
+  const report = useMemo(() => {
+    const totalClicks = ads.reduce((sum, a) => sum + a.clicks, 0);
+    const activeAds = ads.filter((a) => a.active).length;
+    return { totalAds: ads.length, activeAds, totalClicks };
+  }, [ads]);
+
+  const handleExport = async () => {
+    const csv = toCsv(
+      ['Title', 'Placement', 'Status', 'Clicks', 'Starts', 'Ends'],
+      ads.map((a) => [
+        a.title || '(untitled ad)',
+        PLACEMENT_LABELS[a.placement],
+        a.active ? 'Active' : 'Inactive',
+        a.clicks,
+        a.startsAt ?? '',
+        a.endsAt ?? '',
+      ]),
+    );
+    const safeName = courseName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'course';
+    try {
+      await exportCsv(`${safeName}-ads-report.csv`, csv);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Something went wrong. Please try again.';
+      showAlert('Couldn’t export report', message);
+    }
+  };
+
   const renderItem = ({ item }: { item: AdminAd }) => (
     <TouchableOpacity
       style={styles.row}
@@ -90,17 +120,42 @@ export function SuperAdminCourseAdsScreen({ navigation, route }: Props) {
           title={courseName}
           onBack={() => navigation.goBack()}
           right={
-            <TouchableOpacity
-              onPress={() => navigation.navigate('SuperAdminAdEdit', { courseId })}
-              hitSlop={8}
-              accessibilityLabel="Add Ad"
-              accessibilityRole="button"
-            >
-              <Ionicons name="add-circle" size={26} color={colors.white} />
-            </TouchableOpacity>
+            <View style={styles.headerActions}>
+              <TouchableOpacity
+                onPress={handleExport}
+                hitSlop={8}
+                accessibilityLabel="Export Report"
+                accessibilityRole="button"
+              >
+                <Ionicons name="download-outline" size={24} color={colors.white} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => navigation.navigate('SuperAdminAdEdit', { courseId })}
+                hitSlop={8}
+                accessibilityLabel="Add Ad"
+                accessibilityRole="button"
+              >
+                <Ionicons name="add-circle" size={26} color={colors.white} />
+              </TouchableOpacity>
+            </View>
           }
         />
       </SafeAreaView>
+
+      <View style={styles.reportCard}>
+        <View style={styles.reportStat}>
+          <Text style={styles.reportValue}>{report.totalAds}</Text>
+          <Text style={styles.reportLabel}>Total Ads</Text>
+        </View>
+        <View style={styles.reportStat}>
+          <Text style={styles.reportValue}>{report.activeAds}</Text>
+          <Text style={styles.reportLabel}>Active</Text>
+        </View>
+        <View style={styles.reportStat}>
+          <Text style={styles.reportValue}>{report.totalClicks}</Text>
+          <Text style={styles.reportLabel}>Total Clicks</Text>
+        </View>
+      </View>
 
       <View style={styles.placementToggle}>
         {PLACEMENTS.map((p) => (
@@ -133,6 +188,20 @@ function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
   headerSafeArea: { backgroundColor: colors.clubGreen },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  reportCard: {
+    flexDirection: 'row',
+    backgroundColor: colors.mintBg,
+    borderWidth: 0.5,
+    borderColor: colors.clubGreen,
+    borderRadius: radius.md,
+    marginHorizontal: screenPadding,
+    marginTop: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  reportStat: { flex: 1, alignItems: 'center' },
+  reportValue: { fontFamily: fontFamily.heading, fontSize: fontSize.title, color: colors.textPrimary },
+  reportLabel: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary, marginTop: 2 },
   placementToggle: { flexDirection: 'row', gap: spacing.sm, paddingHorizontal: screenPadding, paddingTop: spacing.md },
   placementPill: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: radius.pill, backgroundColor: colors.mintBgAlt },
   placementPillActive: { backgroundColor: colors.darkGreen },
