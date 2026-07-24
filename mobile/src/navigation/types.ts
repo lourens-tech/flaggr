@@ -50,6 +50,8 @@ export type SuperAdminStackParamList = {
   SuperAdminCourseCreate: undefined;
   SuperAdminCourseAds: { courseId: string; courseName: string };
   SuperAdminAdEdit: { courseId: string; adId?: string };
+  SuperAdminCourseRewards: { courseId: string; courseName: string; fbPerRand: number };
+  SuperAdminRewardEdit: { courseId: string; fbPerRand: number; rewardId?: string };
 };
 
 export type MainTabParamList = {

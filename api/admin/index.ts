@@ -81,6 +81,17 @@ interface RewardDeleteBody {
   id?: string;
 }
 
+// A super_admin isn't scoped to one course, so its reward actions carry the
+// target courseId explicitly instead of it coming from the session. Unlike
+// ads, rewards have no "global" concept — courseId is always a real course.
+interface SuperAdminRewardSaveBody extends RewardSaveBody {
+  courseId?: string;
+}
+
+interface SuperAdminRewardDeleteBody extends RewardDeleteBody {
+  courseId?: string;
+}
+
 interface AdSaveBody {
   id?: string;
   placement?: string;
@@ -169,6 +180,9 @@ const SUPER_ADMIN_ALLOWED_ACTIONS = new Set([
   'superAdminAdDelete',
   'superAdminDashboard',
   'superAdminAdPerformance',
+  'superAdminRewards',
+  'superAdminRewardSave',
+  'superAdminRewardDelete',
 ]);
 
 function isDuplicateKeyError(err: unknown): boolean {
@@ -344,6 +358,7 @@ function superAdminCourseDto(row: {
   created_at: string;
   admin_count: number | string;
   member_count: number | string;
+  fb_per_rand: number;
 }) {
   return {
     id: row.id,
@@ -356,6 +371,7 @@ function superAdminCourseDto(row: {
     createdAt: row.created_at,
     adminCount: Number(row.admin_count),
     memberCount: Number(row.member_count),
+    fbPerRand: Number(row.fb_per_rand),
   };
 }
 
@@ -456,6 +472,141 @@ async function saveAdForCourse(courseId: string | null, body: AdSaveBody): Promi
 
 async function deleteAdForCourse(courseId: string | null, id: string) {
   await sql`delete from ads where id = ${id} and course_id is not distinct from ${courseId}`;
+}
+
+// Shared by the course_admin path (implicit courseId from the session) and
+// the super_admin path (explicit courseId — for viewing/overriding any
+// club's rewards). Unlike ads, rewards have no "global" concept, so courseId
+// here is always a real course id, never null.
+async function listRewardsForCourse(courseId: string) {
+  const rows = (await sql`
+    select r.id, r.title, r.description, r.image_url, r.category, r.active,
+           v.id as variant_id, v.label, v.rand_value, v.cost, v.sort_order, v.active as variant_active
+    from rewards r
+    left join reward_variants v on v.reward_id = r.id
+    where r.course_id = ${courseId}
+    order by r.title, v.sort_order
+  `) as Array<{
+    id: string;
+    title: string;
+    description: string;
+    image_url: string | null;
+    category: string;
+    active: boolean;
+    variant_id: string | null;
+    label: string | null;
+    rand_value: number | null;
+    cost: number | null;
+    sort_order: number | null;
+    variant_active: boolean | null;
+  }>;
+
+  const byId = new Map<string, any>();
+  for (const row of rows) {
+    let reward = byId.get(row.id);
+    if (!reward) {
+      reward = {
+        id: row.id,
+        title: row.title,
+        description: row.description,
+        imageUrl: row.image_url,
+        category: row.category,
+        active: row.active,
+        variants: [],
+      };
+      byId.set(row.id, reward);
+    }
+    if (row.variant_id) {
+      reward.variants.push({
+        id: row.variant_id,
+        label: row.label,
+        randValue: row.rand_value,
+        cost: row.cost,
+        sortOrder: row.sort_order,
+        active: row.variant_active,
+      });
+    }
+  }
+  return Array.from(byId.values());
+}
+
+async function saveRewardForCourse(courseId: string, body: RewardSaveBody): Promise<{ id: string }> {
+  const title = body.title?.trim();
+  const category = body.category;
+  if (!title || !category || !REWARD_CATEGORIES.includes(category)) {
+    throw new HttpError(400, 'title and a valid category are required');
+  }
+  if (body.imageBase64 && (!DATA_URI_PATTERN.test(body.imageBase64) || body.imageBase64.length > MAX_IMAGE_BASE64_LENGTH)) {
+    throw new HttpError(400, 'imageBase64 must be a jpeg/png/webp data URI under the size limit');
+  }
+  if (!body.variants || body.variants.length === 0) {
+    throw new HttpError(400, 'At least one variant is required');
+  }
+
+  const course = await fetchCourse(courseId);
+
+  let rewardId = body.id;
+  if (rewardId) {
+    const owned = (await sql`select id from rewards where id = ${rewardId} and course_id = ${courseId}`) as Array<{ id: string }>;
+    if (owned.length === 0) throw new HttpError(404, 'Reward not found');
+    await sql`
+      update rewards
+      set title = ${title}, description = ${body.description ?? ''}, category = ${category},
+          active = ${body.active ?? true}
+          ${body.imageBase64 ? sql`, image_url = ${body.imageBase64}` : sql``}
+      where id = ${rewardId}
+    `;
+  } else {
+    const inserted = (await sql`
+      insert into rewards (course_id, title, description, image_url, category, active)
+      values (${courseId}, ${title}, ${body.description ?? ''}, ${body.imageBase64 ?? null}, ${category}, ${body.active ?? true})
+      returning id
+    `) as Array<{ id: string }>;
+    rewardId = inserted[0].id;
+  }
+
+  for (const [i, variant] of body.variants.entries()) {
+    const label = variant.label?.trim();
+    if (!label) throw new HttpError(400, 'Every variant needs a label');
+    const randValue = typeof variant.randValue === 'number' ? variant.randValue : null;
+    const cost = randValue !== null ? Math.round(randValue * course.fbPerRand) : variant.cost;
+    if (typeof cost !== 'number' || cost < 0) {
+      throw new HttpError(400, `Variant "${label}" needs a Rand value or an explicit Flagrr Cash cost`);
+    }
+    const sortOrder = variant.sortOrder ?? i;
+    const active = variant.active ?? true;
+
+    if (variant.id) {
+      const owned = (await sql`
+        select v.id from reward_variants v join rewards r on r.id = v.reward_id
+        where v.id = ${variant.id} and r.course_id = ${courseId}
+      `) as Array<{ id: string }>;
+      if (owned.length === 0) throw new HttpError(404, 'Variant not found');
+      await sql`
+        update reward_variants
+        set label = ${label}, rand_value = ${randValue}, cost = ${cost}, sort_order = ${sortOrder}, active = ${active}
+        where id = ${variant.id}
+      `;
+    } else {
+      await sql`
+        insert into reward_variants (reward_id, label, rand_value, cost, sort_order, active)
+        values (${rewardId}, ${label}, ${randValue}, ${cost}, ${sortOrder}, ${active})
+      `;
+    }
+  }
+
+  return { id: rewardId as string };
+}
+
+async function deleteRewardForCourse(courseId: string, id: string) {
+  // Soft-delete: rewards/variants are referenced by past vouchers with no
+  // cascade, so hard-deleting would either fail or orphan redemption
+  // history. Deactivating hides it from the Rewards Shop instead.
+  await sql`update rewards set active = false where id = ${id} and course_id = ${courseId}`;
+  await sql`
+    update reward_variants set active = false
+    where reward_id in (select id from rewards where id = ${id} and course_id = ${courseId})
+  `;
 }
 
 // A super_admin's ad actions carry a courseId that's either a real course
@@ -613,7 +764,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
 
     if (action === 'superAdminCourses' && req.method === 'GET') {
       const rows = (await sql`
-        select c.id, c.name, c.slug, c.contact_email, c.subscription_status, c.created_at,
+        select c.id, c.name, c.slug, c.contact_email, c.subscription_status, c.created_at, c.fb_per_rand,
           c.onboarding_completed_at, c.staff_onboarding_completed_at,
           (select count(*) from admins a where a.course_id = c.id and a.role = 'course_admin' and a.revoked_at is null) as admin_count,
           (select count(*) from users u where u.course_id = c.id) as member_count
@@ -696,6 +847,29 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       const targetCourseId = resolveAdCourseId(body.courseId);
       if (!body.id) throw new HttpError(400, 'id is required');
       await deleteAdForCourse(targetCourseId, body.id);
+      res.status(200).json({ ok: true });
+      return;
+    }
+
+    if (action === 'superAdminRewards' && req.method === 'GET') {
+      const targetCourseId = typeof req.query.courseId === 'string' ? req.query.courseId : undefined;
+      if (!targetCourseId) throw new HttpError(400, 'courseId is required');
+      res.status(200).json(await listRewardsForCourse(targetCourseId));
+      return;
+    }
+
+    if (action === 'superAdminRewardSave') {
+      const body = req.body as SuperAdminRewardSaveBody;
+      if (!body.courseId) throw new HttpError(400, 'courseId is required');
+      res.status(200).json(await saveRewardForCourse(body.courseId, body));
+      return;
+    }
+
+    if (action === 'superAdminRewardDelete') {
+      const body = req.body as SuperAdminRewardDeleteBody;
+      if (!body.courseId) throw new HttpError(400, 'courseId is required');
+      if (!body.id) throw new HttpError(400, 'id is required');
+      await deleteRewardForCourse(body.courseId, body.id);
       res.status(200).json({ ok: true });
       return;
     }
@@ -1103,139 +1277,19 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
   }
 
   if (action === 'rewards' && req.method === 'GET') {
-    const rows = (await sql`
-      select r.id, r.title, r.description, r.image_url, r.category, r.active,
-             v.id as variant_id, v.label, v.rand_value, v.cost, v.sort_order, v.active as variant_active
-      from rewards r
-      left join reward_variants v on v.reward_id = r.id
-      where r.course_id = ${courseId}
-      order by r.title, v.sort_order
-    `) as Array<{
-      id: string;
-      title: string;
-      description: string;
-      image_url: string | null;
-      category: string;
-      active: boolean;
-      variant_id: string | null;
-      label: string | null;
-      rand_value: number | null;
-      cost: number | null;
-      sort_order: number | null;
-      variant_active: boolean | null;
-    }>;
-
-    const byId = new Map<string, any>();
-    for (const row of rows) {
-      let reward = byId.get(row.id);
-      if (!reward) {
-        reward = {
-          id: row.id,
-          title: row.title,
-          description: row.description,
-          imageUrl: row.image_url,
-          category: row.category,
-          active: row.active,
-          variants: [],
-        };
-        byId.set(row.id, reward);
-      }
-      if (row.variant_id) {
-        reward.variants.push({
-          id: row.variant_id,
-          label: row.label,
-          randValue: row.rand_value,
-          cost: row.cost,
-          sortOrder: row.sort_order,
-          active: row.variant_active,
-        });
-      }
-    }
-    res.status(200).json(Array.from(byId.values()));
+    res.status(200).json(await listRewardsForCourse(courseId));
     return;
   }
 
   if (action === 'rewardSave') {
-    const body = req.body as RewardSaveBody;
-    const title = body.title?.trim();
-    const category = body.category;
-    if (!title || !category || !REWARD_CATEGORIES.includes(category)) {
-      throw new HttpError(400, 'title and a valid category are required');
-    }
-    if (body.imageBase64 && (!DATA_URI_PATTERN.test(body.imageBase64) || body.imageBase64.length > MAX_IMAGE_BASE64_LENGTH)) {
-      throw new HttpError(400, 'imageBase64 must be a jpeg/png/webp data URI under the size limit');
-    }
-    if (!body.variants || body.variants.length === 0) {
-      throw new HttpError(400, 'At least one variant is required');
-    }
-
-    const course = await fetchCourse(courseId);
-
-    let rewardId = body.id;
-    if (rewardId) {
-      const owned = (await sql`select id from rewards where id = ${rewardId} and course_id = ${courseId}`) as Array<{ id: string }>;
-      if (owned.length === 0) throw new HttpError(404, 'Reward not found');
-      await sql`
-        update rewards
-        set title = ${title}, description = ${body.description ?? ''}, category = ${category},
-            active = ${body.active ?? true}
-            ${body.imageBase64 ? sql`, image_url = ${body.imageBase64}` : sql``}
-        where id = ${rewardId}
-      `;
-    } else {
-      const inserted = (await sql`
-        insert into rewards (course_id, title, description, image_url, category, active)
-        values (${courseId}, ${title}, ${body.description ?? ''}, ${body.imageBase64 ?? null}, ${category}, ${body.active ?? true})
-        returning id
-      `) as Array<{ id: string }>;
-      rewardId = inserted[0].id;
-    }
-
-    for (const [i, variant] of body.variants.entries()) {
-      const label = variant.label?.trim();
-      if (!label) throw new HttpError(400, 'Every variant needs a label');
-      const randValue = typeof variant.randValue === 'number' ? variant.randValue : null;
-      const cost = randValue !== null ? Math.round(randValue * course.fbPerRand) : variant.cost;
-      if (typeof cost !== 'number' || cost < 0) {
-        throw new HttpError(400, `Variant "${label}" needs a Rand value or an explicit Flagrr Cash cost`);
-      }
-      const sortOrder = variant.sortOrder ?? i;
-      const active = variant.active ?? true;
-
-      if (variant.id) {
-        const owned = (await sql`
-          select v.id from reward_variants v join rewards r on r.id = v.reward_id
-          where v.id = ${variant.id} and r.course_id = ${courseId}
-        `) as Array<{ id: string }>;
-        if (owned.length === 0) throw new HttpError(404, 'Variant not found');
-        await sql`
-          update reward_variants
-          set label = ${label}, rand_value = ${randValue}, cost = ${cost}, sort_order = ${sortOrder}, active = ${active}
-          where id = ${variant.id}
-        `;
-      } else {
-        await sql`
-          insert into reward_variants (reward_id, label, rand_value, cost, sort_order, active)
-          values (${rewardId}, ${label}, ${randValue}, ${cost}, ${sortOrder}, ${active})
-        `;
-      }
-    }
-
-    res.status(200).json({ id: rewardId });
+    res.status(200).json(await saveRewardForCourse(courseId, req.body as RewardSaveBody));
     return;
   }
 
   if (action === 'rewardDelete') {
     const id = (req.body as RewardDeleteBody).id;
     if (!id) throw new HttpError(400, 'id is required');
-    // Soft-delete: rewards/variants are referenced by past vouchers with no
-    // cascade, so hard-deleting would either fail or orphan redemption
-    // history. Deactivating hides it from the Rewards Shop instead.
-    await sql`update rewards set active = false where id = ${id} and course_id = ${courseId}`;
-    await sql`
-      update reward_variants set active = false
-      where reward_id in (select id from rewards where id = ${id} and course_id = ${courseId})
-    `;
+    await deleteRewardForCourse(courseId, id);
     res.status(200).json({ ok: true });
     return;
   }

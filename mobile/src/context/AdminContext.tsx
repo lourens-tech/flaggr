@@ -11,6 +11,7 @@ import {
   type SuperAdminCourseCreatePayload,
   type SuperAdminCourseCreateResponse,
   type SuperAdminAdSavePayload,
+  type SuperAdminRewardSavePayload,
 } from '../api/adminClient';
 import type {
   AdminAd,
@@ -145,6 +146,9 @@ interface AdminContextValue {
   getSuperAdminAds: (courseId: string) => Promise<AdminAd[]>;
   saveSuperAdminAd: (payload: SuperAdminAdSavePayload) => Promise<{ id: string }>;
   deleteSuperAdminAd: (courseId: string, id: string) => Promise<void>;
+  getSuperAdminRewards: (courseId: string) => Promise<AdminReward[]>;
+  saveSuperAdminReward: (payload: SuperAdminRewardSavePayload) => Promise<{ id: string }>;
+  deleteSuperAdminReward: (courseId: string, id: string) => Promise<void>;
   getSuperAdminDashboard: (period: DashboardPeriod) => Promise<SuperAdminDashboardReport>;
   getSuperAdminAdPerformance: () => Promise<AdPerformanceRow[]>;
 }
@@ -432,6 +436,12 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     await adminApi.deleteSuperAdminAd(courseId, id);
   };
 
+  const getSuperAdminRewards = async (courseId: string) => adminApi.superAdminRewards(courseId);
+  const saveSuperAdminReward = async (payload: SuperAdminRewardSavePayload) => adminApi.saveSuperAdminReward(payload);
+  const deleteSuperAdminReward = async (courseId: string, id: string) => {
+    await adminApi.deleteSuperAdminReward(courseId, id);
+  };
+
   const getSuperAdminDashboard = async (period: DashboardPeriod) => adminApi.superAdminDashboard(period);
   const getSuperAdminAdPerformance = async () => adminApi.superAdminAdPerformance();
 
@@ -501,6 +511,9 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     getSuperAdminAds,
     saveSuperAdminAd,
     deleteSuperAdminAd,
+    getSuperAdminRewards,
+    saveSuperAdminReward,
+    deleteSuperAdminReward,
     getSuperAdminDashboard,
     getSuperAdminAdPerformance,
   };

@@ -79,13 +79,28 @@ export function SuperAdminCoursesScreen({ navigation }: Props) {
         </View>
       </View>
       {item.onboardingCompletedAt === null ? <Text style={styles.pendingText}>Setup pending</Text> : null}
-      <TouchableOpacity
-        style={styles.adsButton}
-        onPress={() => navigation.navigate('SuperAdminCourseAds', { courseId: item.id, courseName: item.name })}
-      >
-        <Ionicons name="megaphone-outline" size={14} color={colors.clubGreen} />
-        <Text style={styles.adsButtonText}>Manage Ads</Text>
-      </TouchableOpacity>
+      <View style={styles.actionsRow}>
+        <TouchableOpacity
+          style={styles.actionButton}
+          onPress={() => navigation.navigate('SuperAdminCourseAds', { courseId: item.id, courseName: item.name })}
+        >
+          <Ionicons name="megaphone-outline" size={14} color={colors.clubGreen} />
+          <Text style={styles.actionButtonText}>Manage Ads</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.actionButton}
+          onPress={() =>
+            navigation.navigate('SuperAdminCourseRewards', {
+              courseId: item.id,
+              courseName: item.name,
+              fbPerRand: item.fbPerRand,
+            })
+          }
+        >
+          <Ionicons name="gift-outline" size={14} color={colors.clubGreen} />
+          <Text style={styles.actionButtonText}>Manage Rewards</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 
@@ -167,8 +182,9 @@ function createStyles(colors: ThemeColors) {
   statusBadge: { backgroundColor: colors.background, borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 3 },
   statusBadgeText: { fontFamily: fontFamily.bodySemiBold, fontSize: 10, color: colors.textPrimary },
   pendingText: { fontFamily: fontFamily.body, fontSize: 10, color: colors.textSecondary, fontStyle: 'italic' },
-  adsButton: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: spacing.xs, alignSelf: 'flex-start' },
-  adsButtonText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.tiny, color: colors.clubGreen },
+  actionsRow: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.xs },
+  actionButton: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  actionButtonText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.tiny, color: colors.clubGreen },
   emptyText: {
     fontFamily: fontFamily.body,
     fontSize: fontSize.body,

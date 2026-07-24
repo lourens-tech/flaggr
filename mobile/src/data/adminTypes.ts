@@ -50,6 +50,7 @@ export interface SuperAdminCourseSummary {
   createdAt: string;
   adminCount: number;
   memberCount: number;
+  fbPerRand: number;
 }
 
 export interface DashboardTotals {
