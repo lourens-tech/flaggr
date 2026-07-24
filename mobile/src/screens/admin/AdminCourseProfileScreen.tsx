@@ -233,6 +233,18 @@ export function AdminCourseProfileScreen({ navigation }: Props) {
         <View style={{ height: spacing.sm }} />
         <PillButton label="Manage Staff" icon="people-outline" variant="outline" onPress={() => navigation.navigate('AdminStaffList')} />
 
+        <Text style={styles.sectionTitle}>Club Admins</Text>
+        <Text style={styles.helpText}>
+          See who else administers your club, or add one more admin (up to 2 in total).
+        </Text>
+        <View style={{ height: spacing.sm }} />
+        <PillButton
+          label="Club Admins"
+          icon="person-add-outline"
+          variant="outline"
+          onPress={() => navigation.navigate('AdminClubAdmins')}
+        />
+
         <Text style={styles.sectionTitle}>Member List</Text>
         <Text style={styles.helpText}>
           Upload your club's membership list so new signups can be confirmed as actual members. Members who don't

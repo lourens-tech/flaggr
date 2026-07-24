@@ -10,6 +10,7 @@ import type {
   AdminNotification,
   AdminReward,
   AdminStaff,
+  ClubAdminSummary,
   CourseAdminAccount,
   AdminUser,
   AdminVoucherLookup,
@@ -224,6 +225,11 @@ export const adminApi = {
   completeOnboarding: () => request<AdminCourse>('?action=completeOnboarding', { method: 'POST' }),
   completeStaffOnboarding: () => request<AdminCourse>('?action=completeStaffOnboarding', { method: 'POST' }),
 
+
+  courseAdmins: () => request<ClubAdminSummary[]>('?action=courseAdmins'),
+
+  inviteCourseAdmin: (payload: { firstName: string; lastName: string; email: string }) =>
+    request<ClubAdminSummary>('?action=courseAdminInvite', { method: 'POST', body: payload }),
 
   staffList: () => request<AdminStaff[]>('?action=staffList'),
 

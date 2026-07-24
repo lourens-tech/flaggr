@@ -18,6 +18,7 @@ import { registerForPushNotificationsAsync } from '../utils/pushNotifications';
 import type {
   AdminAd,
   AdminBroadcast,
+  ClubAdminSummary,
   CourseAdminAccount,
   AdminCourse,
   AdminEnquirySummary,
@@ -156,6 +157,11 @@ interface AdminContextValue {
   revokeStaff: (id: string) => Promise<void>;
   reactivateStaff: (id: string) => Promise<void>;
   deleteStaff: (id: string) => Promise<void>;
+  // course_admin's own read-only view of who administers their club, plus
+  // the ability to add exactly one more themselves (capped server-side at
+  // MAX_COURSE_ADMINS_PER_CLUB) — no reset/revoke/delete (super_admin only).
+  getClubAdmins: () => Promise<ClubAdminSummary[]>;
+  inviteClubAdmin: (payload: { firstName: string; lastName: string; email: string }) => Promise<ClubAdminSummary>;
   // super_admin only — cross-club course/course-admin management. Not scoped
   // to `course`, since a super_admin has no single course of its own.
   superAdminCourses: SuperAdminCourseSummary[];
@@ -469,6 +475,10 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     await theme.setPreference(res.themePreference);
   };
 
+  const getClubAdmins = async () => adminApi.courseAdmins();
+  const inviteClubAdmin = async (payload: { firstName: string; lastName: string; email: string }) =>
+    adminApi.inviteCourseAdmin(payload);
+
   const loadStaff = useCallback(async () => {
     setStaff(await adminApi.staffList());
   }, []);
@@ -664,6 +674,8 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     reopenStaffOnboardingWizard,
     completeStaffOnboarding,
     staff,
+    getClubAdmins,
+    inviteClubAdmin,
     loadStaff,
     createStaff,
     updateStaff,

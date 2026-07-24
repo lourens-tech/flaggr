@@ -218,6 +218,18 @@ interface StaffCreateBody {
   email?: string;
 }
 
+interface CourseAdminInviteBody {
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+}
+
+// A club can have at most this many course_admin accounts — a course_admin
+// can invite one more themselves (see 'courseAdminInvite' below), but has no
+// further admin-management ability (no reset/revoke/delete — that stays
+// super_admin-only, see SuperAdminCourseAdminsScreen).
+const MAX_COURSE_ADMINS_PER_CLUB = 2;
+
 interface StaffUpdateBody {
   id?: string;
   firstName?: string;
@@ -1933,6 +1945,74 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
   if (action === 'completeStaffOnboarding') {
     await sql`update courses set staff_onboarding_completed_at = now() where id = ${courseId}`;
     res.status(200).json(await fetchCourse(courseId));
+    return;
+  }
+
+  // course_admin-only (not in STAFF_ALLOWED_ACTIONS) — lets a course_admin
+  // add exactly one more admin for their own club themselves, without any
+  // further management ability (no reset/revoke/delete — that stays
+  // super_admin-only, see superAdminCourseAdmin* actions above).
+  if (action === 'courseAdmins' && req.method === 'GET') {
+    const rows = (await sql`
+      select id, first_name, last_name, email
+      from admins where course_id = ${courseId} and role = 'course_admin'
+      order by created_at asc
+    `) as Array<{ id: string; first_name: string; last_name: string; email: string }>;
+    res.status(200).json(
+      rows.map((r) => ({ id: r.id, firstName: r.first_name, lastName: r.last_name, email: r.email })),
+    );
+    return;
+  }
+
+  if (action === 'courseAdminInvite') {
+    const body = req.body as CourseAdminInviteBody;
+    const firstName = body.firstName?.trim();
+    const lastName = body.lastName?.trim() || '';
+    const email = body.email?.trim().toLowerCase();
+    if (!firstName || !email) throw new HttpError(400, 'First name and email are required');
+    if (!EMAIL_PATTERN.test(email)) throw new HttpError(400, 'Enter a valid email address');
+
+    const existingCount = (await sql`
+      select count(*)::int as count from admins where course_id = ${courseId} and role = 'course_admin'
+    `) as Array<{ count: number }>;
+    if (existingCount[0].count >= MAX_COURSE_ADMINS_PER_CLUB) {
+      throw new HttpError(400, `Your club already has the maximum of ${MAX_COURSE_ADMINS_PER_CLUB} admins`);
+    }
+
+    const course = await fetchCourse(courseId);
+    const tempPassword = generateTempPassword();
+    const passwordHash = await hashPassword(tempPassword);
+    let created: Array<{ id: string; first_name: string; last_name: string; email: string }>;
+    try {
+      created = (await sql`
+        insert into admins (course_id, role, first_name, last_name, email, password_hash, must_change_password, activated_at)
+        values (${courseId}, 'course_admin', ${firstName}, ${lastName}, ${email}, ${passwordHash}, true, now())
+        returning id, first_name, last_name, email
+      `) as typeof created;
+    } catch (err) {
+      if (isDuplicateKeyError(err)) throw new HttpError(409, 'An admin with that email already exists');
+      throw err;
+    }
+
+    await sendEmail({
+      to: email,
+      subject: `You've been set up as a course admin for ${course.name} on Flagrr`,
+      html: `
+        <p>Hi ${escapeHtml(firstName)},</p>
+        <p>${escapeHtml(authed.firstName)} ${escapeHtml(authed.lastName)} has set you up as a course admin for ${escapeHtml(course.name)} on Flagrr.</p>
+        <p><strong>Login link:</strong> <a href="https://flagrr-loyalty.vercel.app">https://flagrr-loyalty.vercel.app</a></p>
+        <p><strong>Email:</strong> ${escapeHtml(email)}<br/>
+        <strong>Temporary password:</strong> ${escapeHtml(tempPassword)}</p>
+        <p>You'll be asked to choose your own password the first time you log in.</p>
+      `,
+    });
+
+    res.status(200).json({
+      id: created[0].id,
+      firstName: created[0].first_name,
+      lastName: created[0].last_name,
+      email: created[0].email,
+    });
     return;
   }
 

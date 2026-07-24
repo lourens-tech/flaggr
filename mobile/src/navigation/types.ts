@@ -36,6 +36,7 @@ export type AdminStackParamList = {
   AdminMemberStats: { memberId: string };
   AdminBroadcastCompose: { title?: string; body?: string; target?: string } | undefined;
   AdminStaffList: undefined;
+  AdminClubAdmins: undefined;
   AdminStaffEdit: { staffId?: string } | undefined;
   AdminSupportTickets: undefined;
   AdminSupportTicketCreate: undefined;

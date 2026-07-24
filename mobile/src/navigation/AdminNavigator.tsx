@@ -9,6 +9,7 @@ import { AdminEnquiryChatScreen } from '../screens/admin/AdminEnquiryChatScreen'
 import { AdminMemberStatsScreen } from '../screens/admin/AdminMemberStatsScreen';
 import { AdminBroadcastComposeScreen } from '../screens/admin/AdminBroadcastComposeScreen';
 import { AdminStaffListScreen } from '../screens/admin/AdminStaffListScreen';
+import { AdminClubAdminsScreen } from '../screens/admin/AdminClubAdminsScreen';
 import { AdminStaffEditScreen } from '../screens/admin/AdminStaffEditScreen';
 import { AdminSupportTicketsScreen } from '../screens/admin/AdminSupportTicketsScreen';
 import { AdminSupportTicketCreateScreen } from '../screens/admin/AdminSupportTicketCreateScreen';
@@ -33,6 +34,7 @@ export function AdminNavigator() {
         <Stack.Screen name="AdminMemberStats" component={AdminMemberStatsScreen} />
         <Stack.Screen name="AdminBroadcastCompose" component={AdminBroadcastComposeScreen} />
         <Stack.Screen name="AdminStaffList" component={AdminStaffListScreen} />
+        <Stack.Screen name="AdminClubAdmins" component={AdminClubAdminsScreen} />
         <Stack.Screen name="AdminStaffEdit" component={AdminStaffEditScreen} />
         <Stack.Screen name="AdminSupportTickets" component={AdminSupportTicketsScreen} />
         <Stack.Screen name="AdminSupportTicketCreate" component={AdminSupportTicketCreateScreen} />

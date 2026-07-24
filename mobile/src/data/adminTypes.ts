@@ -22,6 +22,16 @@ export interface AdminStaff {
   createdAt: string;
 }
 
+// A course_admin's own view of who else administers their club — read-only,
+// no reset/revoke/delete ability (that stays super_admin-only, see
+// CourseAdminAccount / SuperAdminCourseAdminsScreen).
+export interface ClubAdminSummary {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+}
+
 export interface AdminCourse {
   id: string;
   name: string;
