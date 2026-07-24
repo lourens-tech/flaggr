@@ -9,8 +9,6 @@ const ROSTER_MIME_TYPES = [
   // Excel
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   'application/vnd.ms-excel',
-  // PDF
-  'application/pdf',
 ];
 const MAX_FILE_BYTES = 3_000_000;
 const BASE64_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
@@ -44,7 +42,7 @@ function bytesToBase64(bytes: Uint8Array): string {
 // blob: URL on web and a file:// URI on native, and RN's fetch polyfill can
 // read both directly — then base64-encodes them ourselves rather than
 // relying on the picker's own (web-only) base64 option, so the same code
-// path works for CSV, Excel, and PDF on every platform.
+// path works for both CSV and Excel on every platform.
 export async function pickMemberRosterFile(): Promise<PickedRosterFile | null> {
   const result = await DocumentPicker.getDocumentAsync({ type: ROSTER_MIME_TYPES });
   if (result.canceled || !result.assets[0]) return null;

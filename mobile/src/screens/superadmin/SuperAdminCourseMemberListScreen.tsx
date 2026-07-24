@@ -90,13 +90,9 @@ export function SuperAdminCourseMemberListScreen({ navigation, route }: Props) {
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.helpText}>
-          Upload {courseName}'s membership list on their behalf so new signups can be confirmed as actual members. CSV,
-          Excel (.xlsx), and PDF files are all supported — First Name, Last Name, and Email columns are needed (Member
-          Number optional). Re-uploading replaces the previous list entirely.
-        </Text>
-        <Text style={styles.helpText}>
-          For a PDF, either a table with visible borders or comma-separated text works best — a plain text layout
-          without commas may not be readable. If in doubt, CSV or Excel is the most reliable format.
+          Upload {courseName}'s membership list on their behalf so new signups can be confirmed as actual members. CSV
+          and Excel (.xlsx) files are supported — First Name, Last Name, and Email columns are needed (Member Number
+          optional). Re-uploading replaces the previous list entirely.
         </Text>
         <Text style={styles.helpText}>
           A member who doesn't match the list can still use the app fully, but stays capped at Bronze tier until

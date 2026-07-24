@@ -86,13 +86,9 @@ export function AdminMemberListScreen({ navigation }: Props) {
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.helpText}>
-          Upload your club's membership list so Flagrr can confirm that new signups are actual members. CSV, Excel
-          (.xlsx), and PDF files are all supported — First Name, Last Name, and Email columns are needed (Member
-          Number optional). Re-uploading replaces the previous list entirely.
-        </Text>
-        <Text style={styles.helpText}>
-          For a PDF, either a table with visible borders or comma-separated text works best — a plain text layout
-          without commas may not be readable. If in doubt, CSV or Excel is the most reliable format.
+          Upload your club's membership list so Flagrr can confirm that new signups are actual members. CSV and Excel
+          (.xlsx) files are supported — First Name, Last Name, and Email columns are needed (Member Number optional).
+          Re-uploading replaces the previous list entirely.
         </Text>
         <Text style={styles.helpText}>
           A member who doesn't match your list can still use the app fully, but stays capped at Bronze tier until
