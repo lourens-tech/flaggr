@@ -154,6 +154,10 @@ export interface SuperAdminCourseCreateResponse {
   admin: { id: string; firstName: string; lastName: string; email: string };
 }
 
+export interface SuperAdminAdSavePayload extends AdSavePayload {
+  courseId: string;
+}
+
 export const adminApi = {
   // `identifier` is a course_admin/super_admin's email, or a staff
   // account's generated username — one login screen serves both, and the
@@ -261,6 +265,15 @@ export const adminApi = {
 
   createSuperAdminCourse: (payload: SuperAdminCourseCreatePayload) =>
     request<SuperAdminCourseCreateResponse>('?action=superAdminCourseCreate', { method: 'POST', body: payload }),
+
+  superAdminAds: (courseId: string) =>
+    request<AdminAd[]>(`?action=superAdminAds&courseId=${encodeURIComponent(courseId)}`),
+
+  saveSuperAdminAd: (payload: SuperAdminAdSavePayload) =>
+    request<{ id: string }>('?action=superAdminAdSave', { method: 'POST', body: payload }),
+
+  deleteSuperAdminAd: (courseId: string, id: string) =>
+    request<{ ok: boolean }>('?action=superAdminAdDelete', { method: 'POST', body: { courseId, id } }),
 };
 
 /** Downloads a CSV report. Only works on the web build (the only build that

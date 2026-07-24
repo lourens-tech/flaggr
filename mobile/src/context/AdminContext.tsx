@@ -10,6 +10,7 @@ import {
   type StaffUpdatePayload,
   type SuperAdminCourseCreatePayload,
   type SuperAdminCourseCreateResponse,
+  type SuperAdminAdSavePayload,
 } from '../api/adminClient';
 import type {
   AdminAd,
@@ -136,6 +137,12 @@ interface AdminContextValue {
   superAdminCourses: SuperAdminCourseSummary[];
   loadSuperAdminCourses: () => Promise<void>;
   createSuperAdminCourse: (payload: SuperAdminCourseCreatePayload) => Promise<SuperAdminCourseCreateResponse>;
+  // Per-course, fetched on demand rather than cached globally — mirrors
+  // getMemberStats's pattern of a thin passthrough whose caller owns the
+  // resulting list in its own local state.
+  getSuperAdminAds: (courseId: string) => Promise<AdminAd[]>;
+  saveSuperAdminAd: (payload: SuperAdminAdSavePayload) => Promise<{ id: string }>;
+  deleteSuperAdminAd: (courseId: string, id: string) => Promise<void>;
 }
 
 const AdminContext = createContext<AdminContextValue | undefined>(undefined);
@@ -415,6 +422,12 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     return created;
   };
 
+  const getSuperAdminAds = async (courseId: string) => adminApi.superAdminAds(courseId);
+  const saveSuperAdminAd = async (payload: SuperAdminAdSavePayload) => adminApi.saveSuperAdminAd(payload);
+  const deleteSuperAdminAd = async (courseId: string, id: string) => {
+    await adminApi.deleteSuperAdminAd(courseId, id);
+  };
+
   const value: AdminContextValue = {
     isAdminAuthenticated,
     isInitializing,
@@ -478,6 +491,9 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     superAdminCourses,
     loadSuperAdminCourses,
     createSuperAdminCourse,
+    getSuperAdminAds,
+    saveSuperAdminAd,
+    deleteSuperAdminAd,
   };
 
   return <AdminContext.Provider value={value}>{children}</AdminContext.Provider>;

@@ -97,6 +97,16 @@ interface AdDeleteBody {
   id?: string;
 }
 
+// A super_admin isn't scoped to one course, so its ad actions carry the
+// target courseId explicitly instead of it coming from the session.
+interface SuperAdminAdSaveBody extends AdSaveBody {
+  courseId?: string;
+}
+
+interface SuperAdminAdDeleteBody extends AdDeleteBody {
+  courseId?: string;
+}
+
 interface VoucherRedeemBody {
   code?: string;
 }
@@ -148,7 +158,16 @@ const STAFF_ALLOWED_ACTIONS = new Set(['logout', 'me', 'changePassword', 'vouche
 
 // Cross-club actions a super_admin can perform — not scoped to any single
 // course_id, unlike everything else in this file.
-const SUPER_ADMIN_ALLOWED_ACTIONS = new Set(['logout', 'me', 'themePreference', 'superAdminCourses', 'superAdminCourseCreate']);
+const SUPER_ADMIN_ALLOWED_ACTIONS = new Set([
+  'logout',
+  'me',
+  'themePreference',
+  'superAdminCourses',
+  'superAdminCourseCreate',
+  'superAdminAds',
+  'superAdminAdSave',
+  'superAdminAdDelete',
+]);
 
 function isDuplicateKeyError(err: unknown): boolean {
   return err instanceof Error && /duplicate key value/i.test(err.message);
@@ -360,6 +379,83 @@ async function fetchCourse(courseId: string) {
   return courseDto(rows[0]);
 }
 
+// Shared by the course_admin path (implicit courseId from the session) and
+// the super_admin path (explicit courseId — a super_admin isn't scoped to
+// one club) so the actual query logic isn't duplicated per role.
+async function listAdsForCourse(courseId: string) {
+  const rows = (await sql`
+    select a.id, a.placement, a.title, a.image_url, a.target_url, a.sort_order, a.active,
+           a.starts_at, a.ends_at, count(c.id)::int as clicks
+    from ads a
+    left join ad_clicks c on c.ad_id = a.id
+    where a.course_id = ${courseId}
+    group by a.id
+    order by a.placement, a.sort_order
+  `) as Array<{
+    id: string;
+    placement: string;
+    title: string;
+    image_url: string | null;
+    target_url: string | null;
+    sort_order: number;
+    active: boolean;
+    starts_at: string | null;
+    ends_at: string | null;
+    clicks: number;
+  }>;
+  return rows.map((r) => ({
+    id: r.id,
+    placement: r.placement,
+    title: r.title,
+    imageUrl: r.image_url,
+    targetUrl: r.target_url,
+    sortOrder: r.sort_order,
+    active: r.active,
+    startsAt: r.starts_at,
+    endsAt: r.ends_at,
+    clicks: r.clicks,
+  }));
+}
+
+async function saveAdForCourse(courseId: string, body: AdSaveBody): Promise<{ id: string }> {
+  const title = body.title?.trim();
+  const placement = body.placement;
+  if (!title || !placement || !AD_PLACEMENTS.includes(placement)) {
+    throw new HttpError(400, 'title and a valid placement are required');
+  }
+  if (body.imageBase64 && (!DATA_URI_PATTERN.test(body.imageBase64) || body.imageBase64.length > MAX_IMAGE_BASE64_LENGTH)) {
+    throw new HttpError(400, 'imageBase64 must be a jpeg/png/webp data URI under the size limit');
+  }
+  const targetUrl = body.targetUrl?.trim() || null;
+  const startsAt = body.startsAt || null;
+  const endsAt = body.endsAt || null;
+  const sortOrder = body.sortOrder ?? 0;
+  const active = body.active ?? true;
+
+  if (body.id) {
+    const owned = (await sql`select id from ads where id = ${body.id} and course_id = ${courseId}`) as Array<{ id: string }>;
+    if (owned.length === 0) throw new HttpError(404, 'Ad not found');
+    await sql`
+      update ads
+      set title = ${title}, placement = ${placement}, target_url = ${targetUrl}, sort_order = ${sortOrder},
+          active = ${active}, starts_at = ${startsAt}, ends_at = ${endsAt}, updated_at = now()
+          ${body.imageBase64 ? sql`, image_url = ${body.imageBase64}` : sql``}
+      where id = ${body.id}
+    `;
+    return { id: body.id };
+  }
+  const inserted = (await sql`
+    insert into ads (course_id, placement, title, image_url, target_url, sort_order, active, starts_at, ends_at)
+    values (${courseId}, ${placement}, ${title}, ${body.imageBase64 ?? null}, ${targetUrl}, ${sortOrder}, ${active}, ${startsAt}, ${endsAt})
+    returning id
+  `) as Array<{ id: string }>;
+  return { id: inserted[0].id };
+}
+
+async function deleteAdForCourse(courseId: string, id: string) {
+  await sql`delete from ads where id = ${id} and course_id = ${courseId}`;
+}
+
 export default withErrorHandling(async (req: VercelRequest, res: VercelResponse) => {
   const action = req.query.action;
 
@@ -551,6 +647,28 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
           email: createdAdmin[0].email,
         },
       });
+      return;
+    }
+
+    if (action === 'superAdminAds' && req.method === 'GET') {
+      const targetCourseId = typeof req.query.courseId === 'string' ? req.query.courseId : '';
+      if (!targetCourseId) throw new HttpError(400, 'courseId is required');
+      res.status(200).json(await listAdsForCourse(targetCourseId));
+      return;
+    }
+
+    if (action === 'superAdminAdSave') {
+      const body = req.body as SuperAdminAdSaveBody;
+      if (!body.courseId) throw new HttpError(400, 'courseId is required');
+      res.status(200).json(await saveAdForCourse(body.courseId, body));
+      return;
+    }
+
+    if (action === 'superAdminAdDelete') {
+      const body = req.body as SuperAdminAdDeleteBody;
+      if (!body.courseId || !body.id) throw new HttpError(400, 'courseId and id are required');
+      await deleteAdForCourse(body.courseId, body.id);
+      res.status(200).json({ ok: true });
       return;
     }
 
@@ -1099,85 +1217,19 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
   }
 
   if (action === 'ads' && req.method === 'GET') {
-    const rows = (await sql`
-      select a.id, a.placement, a.title, a.image_url, a.target_url, a.sort_order, a.active,
-             a.starts_at, a.ends_at, count(c.id)::int as clicks
-      from ads a
-      left join ad_clicks c on c.ad_id = a.id
-      where a.course_id = ${courseId}
-      group by a.id
-      order by a.placement, a.sort_order
-    `) as Array<{
-      id: string;
-      placement: string;
-      title: string;
-      image_url: string | null;
-      target_url: string | null;
-      sort_order: number;
-      active: boolean;
-      starts_at: string | null;
-      ends_at: string | null;
-      clicks: number;
-    }>;
-    res.status(200).json(
-      rows.map((r) => ({
-        id: r.id,
-        placement: r.placement,
-        title: r.title,
-        imageUrl: r.image_url,
-        targetUrl: r.target_url,
-        sortOrder: r.sort_order,
-        active: r.active,
-        startsAt: r.starts_at,
-        endsAt: r.ends_at,
-        clicks: r.clicks,
-      })),
-    );
+    res.status(200).json(await listAdsForCourse(courseId));
     return;
   }
 
   if (action === 'adSave') {
-    const body = req.body as AdSaveBody;
-    const title = body.title?.trim();
-    const placement = body.placement;
-    if (!title || !placement || !AD_PLACEMENTS.includes(placement)) {
-      throw new HttpError(400, 'title and a valid placement are required');
-    }
-    if (body.imageBase64 && (!DATA_URI_PATTERN.test(body.imageBase64) || body.imageBase64.length > MAX_IMAGE_BASE64_LENGTH)) {
-      throw new HttpError(400, 'imageBase64 must be a jpeg/png/webp data URI under the size limit');
-    }
-    const targetUrl = body.targetUrl?.trim() || null;
-    const startsAt = body.startsAt || null;
-    const endsAt = body.endsAt || null;
-    const sortOrder = body.sortOrder ?? 0;
-    const active = body.active ?? true;
-
-    if (body.id) {
-      const owned = (await sql`select id from ads where id = ${body.id} and course_id = ${courseId}`) as Array<{ id: string }>;
-      if (owned.length === 0) throw new HttpError(404, 'Ad not found');
-      await sql`
-        update ads
-        set title = ${title}, placement = ${placement}, target_url = ${targetUrl}, sort_order = ${sortOrder},
-            active = ${active}, starts_at = ${startsAt}, ends_at = ${endsAt}, updated_at = now()
-            ${body.imageBase64 ? sql`, image_url = ${body.imageBase64}` : sql``}
-        where id = ${body.id}
-      `;
-      res.status(200).json({ id: body.id });
-    } else {
-      const inserted = (await sql`
-        insert into ads (course_id, placement, title, image_url, target_url, sort_order, active, starts_at, ends_at)
-        values (${courseId}, ${placement}, ${title}, ${body.imageBase64 ?? null}, ${targetUrl}, ${sortOrder}, ${active}, ${startsAt}, ${endsAt})
-        returning id
-      `) as Array<{ id: string }>;
-      res.status(200).json({ id: inserted[0].id });
-    }
+    res.status(200).json(await saveAdForCourse(courseId, req.body as AdSaveBody));
     return;
   }
 
   if (action === 'adDelete') {
     const id = (req.body as AdDeleteBody).id;
     if (!id) throw new HttpError(400, 'id is required');
-    await sql`delete from ads where id = ${id} and course_id = ${courseId}`;
+    await deleteAdForCourse(courseId, id);
     res.status(200).json({ ok: true });
     return;
   }
