@@ -43,7 +43,10 @@ function createStyles(colors: ThemeColors) {
     justifyContent: 'space-between',
     paddingHorizontal: spacing.md,
   },
-  iconButton: { width: 32, alignItems: 'center', justifyContent: 'center' },
+  // minWidth (not a fixed width) so a `right` node with more than one icon
+  // (e.g. SuperAdminCourseAdsScreen's export + add buttons) can grow instead
+  // of getting clipped into a box sized for just the back button.
+  iconButton: { minWidth: 32, alignItems: 'center', justifyContent: 'center' },
   title: {
     // Every screen passes a short, punctuation-free static title, so this is
     // safe for the Ws Paradose demo build (see typography.ts).
