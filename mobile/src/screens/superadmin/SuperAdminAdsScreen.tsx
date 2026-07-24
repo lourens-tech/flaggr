@@ -6,6 +6,7 @@ import { useFocusEffect, type CompositeScreenProps } from '@react-navigation/nat
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SuperAdminStackParamList, SuperAdminTabParamList } from '../../navigation/types';
+import { TextField } from '../../components/common/TextField';
 import { useAdmin } from '../../context/AdminContext';
 import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
 import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
@@ -25,6 +26,15 @@ export function SuperAdminAdsScreen({ navigation }: Props) {
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { superAdminCourses, loadSuperAdminCourses } = useAdmin();
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+
+  const filtered = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    if (!query) return superAdminCourses;
+    return superAdminCourses.filter(
+      (c) => c.name.toLowerCase().includes(query) || c.slug.toLowerCase().includes(query),
+    );
+  }, [superAdminCourses, search]);
 
   useFocusEffect(
     useCallback(() => {
@@ -67,11 +77,15 @@ export function SuperAdminAdsScreen({ navigation }: Props) {
         <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
       </TouchableOpacity>
 
+      <View style={styles.searchArea}>
+        <TextField placeholder="Search courses" variant="onLight" icon="search" value={search} onChangeText={setSearch} />
+      </View>
+
       {loading ? (
         <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
       ) : (
         <FlatList
-          data={superAdminCourses}
+          data={filtered}
           keyExtractor={(c) => c.id}
           contentContainerStyle={styles.listContent}
           ListHeaderComponent={<Text style={styles.sectionTitle}>Specific Club</Text>}
@@ -86,7 +100,11 @@ export function SuperAdminAdsScreen({ navigation }: Props) {
               <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
             </TouchableOpacity>
           )}
-          ListEmptyComponent={<Text style={styles.emptyText}>No courses yet.</Text>}
+          ListEmptyComponent={
+            <Text style={styles.emptyText}>
+              {superAdminCourses.length === 0 ? 'No courses yet.' : 'No courses match your search.'}
+            </Text>
+          }
         />
       )}
     </View>
@@ -114,6 +132,7 @@ function createStyles(colors: ThemeColors) {
   },
   allCoursesTitle: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.textPrimary },
   allCoursesSubtitle: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary, marginTop: 2 },
+  searchArea: { paddingHorizontal: screenPadding, paddingTop: spacing.md },
   sectionTitle: {
     fontFamily: fontFamily.heading,
     fontSize: fontSize.cardTitle,
