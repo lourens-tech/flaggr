@@ -98,6 +98,12 @@ export function HomeScreen({ navigation }: Props) {
               <Ionicons name="information-circle-outline" size={16} color={colors.clubGreen} />
             </TouchableOpacity>
           </View>
+          {!user.verifiedMember ? (
+            <Text style={styles.unverifiedNote}>
+              Your club hasn't verified your membership yet — you can still earn Flagrr Cash, but tier progress is on
+              hold.
+            </Text>
+          ) : null}
 
           <PillButton
             label="Redeem Flagrr Cash"
@@ -282,6 +288,7 @@ function createStyles(colors: ThemeColors) {
   },
   progressFooterRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   progressFooterText: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: 'rgba(255,255,255,0.7)' },
+  unverifiedNote: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: 'rgba(255,255,255,0.7)', marginTop: -4 },
   streakCard: {
     backgroundColor: colors.clubGreen,
     borderRadius: radius.md,

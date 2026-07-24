@@ -3,6 +3,7 @@ import { sql } from '../_lib/db';
 import { hashPassword } from '../_lib/auth';
 import { HttpError, withErrorHandling } from '../_lib/http';
 import { computeQuarterlyTierInfo } from '../_lib/tiers';
+import { matchesRoster } from '../_lib/memberRoster';
 import { sendEmail } from '../_lib/email';
 import { renderWelcomeEmailHtml, renderWelcomeEmailSubject } from '../_lib/welcomeEmail';
 
@@ -50,6 +51,8 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
   const course = courseRows[0];
 
   const passwordHash = await hashPassword(password);
+  const verifiedMember = await matchesRoster(courseId, firstName, lastName, email);
+  const verifiedAt = verifiedMember ? new Date().toISOString() : null;
 
   let userRows: Array<{
     id: string;
@@ -62,8 +65,8 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
   }>;
   try {
     userRows = (await sql`
-      insert into users (course_id, first_name, last_name, email, phone, date_of_birth, password_hash)
-      values (${courseId}, ${firstName}, ${lastName}, ${email}, ${phone}, ${dateOfBirth}, ${passwordHash})
+      insert into users (course_id, first_name, last_name, email, phone, date_of_birth, password_hash, verified_member, verified_at)
+      values (${courseId}, ${firstName}, ${lastName}, ${email}, ${phone}, ${dateOfBirth}, ${passwordHash}, ${verifiedMember}, ${verifiedAt})
       returning id, course_id, first_name, last_name, email, date_of_birth, member_since
     `) as typeof userRows;
   } catch (err) {
@@ -108,6 +111,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       courseId: user.course_id,
       tier: tierInfo.tier,
       memberSince: user.member_since,
+      verifiedMember,
     },
   });
 });

@@ -16,6 +16,8 @@ import type {
   DashboardReport,
   EnquiryMessage,
   EnquiryStatus,
+  MemberRosterStatus,
+  MemberRosterUploadResult,
   MemberStats,
   MembersPage,
   SuperAdminCourseSummary,
@@ -211,6 +213,11 @@ export const adminApi = {
   updateCourseCover: (imageBase64: string) =>
     request<{ coverImageUrl: string }>('?action=courseCover', { method: 'POST', body: { imageBase64 } }),
 
+  memberRosterStatus: () => request<MemberRosterStatus>('?action=memberRosterStatus'),
+
+  uploadMemberRoster: (csvContent: string) =>
+    request<MemberRosterUploadResult>('?action=memberRosterUpload', { method: 'POST', body: { csvContent } }),
+
   completeOnboarding: () => request<AdminCourse>('?action=completeOnboarding', { method: 'POST' }),
   completeStaffOnboarding: () => request<AdminCourse>('?action=completeStaffOnboarding', { method: 'POST' }),
 
@@ -317,6 +324,12 @@ export const adminApi = {
 
   reactivateSuperAdminCourseSubscription: (courseId: string) =>
     request<{ ok: boolean }>('?action=superAdminCourseReactivateSubscription', { method: 'POST', body: { courseId } }),
+
+  superAdminMemberRosterStatus: (courseId: string) =>
+    request<MemberRosterStatus>(`?action=superAdminMemberRosterStatus&courseId=${encodeURIComponent(courseId)}`),
+
+  uploadSuperAdminMemberRoster: (courseId: string, csvContent: string) =>
+    request<MemberRosterUploadResult>('?action=superAdminMemberRosterUpload', { method: 'POST', body: { courseId, csvContent } }),
 
   // --- Support Centre: requester side (course_admin/staff logging a ticket
   // to the Flagrr team — separate from the per-club 'enquiries' actions

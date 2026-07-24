@@ -19,6 +19,10 @@ export interface User {
   memberSince: string; // ISO date
   avatarUrl?: string;
   themePreference: 'system' | 'light' | 'dark';
+  // False when the member's club hasn't matched them against its uploaded
+  // roster (or hasn't uploaded one at all) — they can still use the app
+  // fully, but stay capped at Bronze tier until their club verifies them.
+  verifiedMember: boolean;
 }
 
 export interface PointsAccount {

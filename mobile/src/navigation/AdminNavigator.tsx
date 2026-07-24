@@ -13,6 +13,7 @@ import { AdminStaffEditScreen } from '../screens/admin/AdminStaffEditScreen';
 import { AdminSupportTicketsScreen } from '../screens/admin/AdminSupportTicketsScreen';
 import { AdminSupportTicketCreateScreen } from '../screens/admin/AdminSupportTicketCreateScreen';
 import { AdminSupportTicketChatScreen } from '../screens/admin/AdminSupportTicketChatScreen';
+import { AdminMemberListScreen } from '../screens/admin/AdminMemberListScreen';
 import { AdminOnboardingWizard } from '../components/admin/AdminOnboardingWizard';
 import { AdminStaffOnboardingWizard } from '../components/admin/AdminStaffOnboardingWizard';
 import { useAdmin } from '../context/AdminContext';
@@ -36,6 +37,7 @@ export function AdminNavigator() {
         <Stack.Screen name="AdminSupportTickets" component={AdminSupportTicketsScreen} />
         <Stack.Screen name="AdminSupportTicketCreate" component={AdminSupportTicketCreateScreen} />
         <Stack.Screen name="AdminSupportTicketChat" component={AdminSupportTicketChatScreen} />
+        <Stack.Screen name="AdminMemberList" component={AdminMemberListScreen} />
       </Stack.Navigator>
       {showOnboardingWizard ? <AdminOnboardingWizard /> : null}
       {showStaffOnboardingWizard ? <AdminStaffOnboardingWizard /> : null}

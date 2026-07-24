@@ -52,11 +52,21 @@ function tierIndexForPoints(points: number): number {
 // anyone) — not a lifetime or current-balance figure. To stop a single
 // quiet quarter from wiping out a member's status, this quarter's tier can
 // never land more than one step below last quarter's final tier.
-export function computeQuarterlyTierInfo(currentQuarterEarned: number, previousQuarterEarned: number): TierInfo {
+//
+// `verifiedMember` gates tier climbing entirely: a member whose home club
+// hasn't confirmed them against its uploaded roster (see
+// api/_lib/memberRoster.ts) can still scan receipts and earn/redeem Flagrr
+// Cash, but stays capped at Bronze — same multiplier, no perks — until
+// their club verifies them.
+export function computeQuarterlyTierInfo(
+  currentQuarterEarned: number,
+  previousQuarterEarned: number,
+  verifiedMember: boolean = true,
+): TierInfo {
   const rawIndex = tierIndexForPoints(currentQuarterEarned);
   const previousIndex = tierIndexForPoints(previousQuarterEarned);
   const floorIndex = Math.max(0, previousIndex - 1);
-  const tierIndex = Math.max(rawIndex, floorIndex);
+  const tierIndex = verifiedMember ? Math.max(rawIndex, floorIndex) : 0;
 
   const current = TIERS[tierIndex];
   const next = TIERS[tierIndex + 1] ?? null;

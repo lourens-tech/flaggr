@@ -297,6 +297,16 @@ export interface SupportAgent {
   createdAt: string;
 }
 
+export interface MemberRosterStatus {
+  count: number;
+  lastUploadedAt: string | null;
+}
+
+export interface MemberRosterUploadResult {
+  rosterCount: number;
+  verifiedCount: number;
+}
+
 export interface AdminVoucherLookup {
   id: string;
   code: string;

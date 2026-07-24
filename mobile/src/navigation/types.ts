@@ -40,6 +40,7 @@ export type AdminStackParamList = {
   AdminSupportTickets: undefined;
   AdminSupportTicketCreate: undefined;
   AdminSupportTicketChat: { ticketId: string };
+  AdminMemberList: undefined;
 };
 
 export type SuperAdminTabParamList = {
@@ -61,6 +62,7 @@ export type SuperAdminStackParamList = {
   SuperAdminSupportTicketChat: { ticketId: string };
   SuperAdminAgents: undefined;
   SuperAdminAgentCreate: undefined;
+  SuperAdminCourseMemberList: { courseId: string; courseName: string };
 };
 
 export type MainTabParamList = {

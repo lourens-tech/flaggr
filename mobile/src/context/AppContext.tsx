@@ -36,6 +36,7 @@ const EMPTY_USER: User = {
   tier: 'Bronze',
   memberSince: '',
   themePreference: 'system',
+  verifiedMember: true,
 };
 const EMPTY_POINTS: PointsAccount = {
   balance: 0,

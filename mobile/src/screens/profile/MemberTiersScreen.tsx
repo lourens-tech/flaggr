@@ -59,6 +59,16 @@ export function MemberTiersScreen({ navigation }: Props) {
           </Text>
         </View>
 
+        {!user.verifiedMember ? (
+          <View style={styles.unverifiedBanner}>
+            <Ionicons name="alert-circle-outline" size={18} color={colors.darkGreen} />
+            <Text style={styles.unverifiedBannerText}>
+              Your club hasn't verified your membership yet, so tier progress is on hold — you can still earn and
+              redeem Flagrr Cash as normal. Ask your golf club to add you to their member list.
+            </Text>
+          </View>
+        ) : null}
+
         <View style={styles.howToSection}>
           <Text style={styles.howToTitle}>How to Reach the Next Tier</Text>
           <View style={styles.stepsRow}>
@@ -140,6 +150,17 @@ function createStyles(colors: ThemeColors) {
   },
   tierBadgeText: { fontFamily: fontFamily.heading, fontSize: 11, color: colors.white, textTransform: 'uppercase' },
   progressFooterText: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary },
+  unverifiedBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+    backgroundColor: colors.mintBg,
+    borderRadius: radius.md,
+    padding: spacing.sm + 4,
+    marginHorizontal: screenPadding,
+    marginTop: spacing.md,
+  },
+  unverifiedBannerText: { flex: 1, fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.darkGreen },
   howToSection: { paddingHorizontal: screenPadding, paddingTop: spacing.xl },
   howToTitle: { fontFamily: fontFamily.heading, fontSize: fontSize.cardTitle, color: colors.lime, marginBottom: spacing.lg },
   stepsRow: { flexDirection: 'row', justifyContent: 'space-between' },

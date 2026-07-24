@@ -22,6 +22,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
   const rows = (await sql`
     select
       u.id, u.first_name, u.last_name, u.email, u.phone, u.date_of_birth, u.member_since, u.avatar_url, u.theme_preference,
+      u.verified_member,
       c.name as course_name,
       p.balance, p.total_earned, p.total_redeemed
     from users u
@@ -38,6 +39,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     member_since: string;
     avatar_url: string | null;
     theme_preference: 'system' | 'light' | 'dark';
+    verified_member: boolean;
     course_name: string;
     balance: number;
     total_earned: number;
@@ -131,6 +133,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       memberSince: r.member_since,
       avatarUrl: r.avatar_url,
       themePreference: r.theme_preference,
+      verifiedMember: r.verified_member,
     },
     points: {
       balance: r.balance,

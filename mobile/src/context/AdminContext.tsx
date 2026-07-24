@@ -30,6 +30,8 @@ import type {
   DashboardReport,
   EnquiryMessage,
   EnquiryStatus,
+  MemberRosterStatus,
+  MemberRosterUploadResult,
   MemberStats,
   MembersPage,
   SuperAdminCourseSummary,
@@ -112,6 +114,11 @@ interface AdminContextValue {
   replyToEnquiry: (enquiryId: string, message: string) => Promise<EnquiryMessage[]>;
   setEnquiryStatus: (enquiryId: string, status: EnquiryStatus) => Promise<void>;
   updateCourseProfile: (payload: CourseProfilePayload) => Promise<void>;
+  // Member roster (course_admin side) — used to validate signups are
+  // actually members of this club. See tiers.ts for the effect on tier
+  // progress when a member never matches.
+  getMemberRosterStatus: () => Promise<MemberRosterStatus>;
+  uploadMemberRoster: (csvContent: string) => Promise<MemberRosterUploadResult>;
   updateCourseLogo: (imageBase64: string) => Promise<void>;
   updateCourseCover: (imageBase64: string) => Promise<void>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
@@ -160,6 +167,10 @@ interface AdminContextValue {
   deleteSuperAdminReward: (courseId: string, id: string) => Promise<void>;
   cancelSuperAdminCourseSubscription: (courseId: string) => Promise<void>;
   reactivateSuperAdminCourseSubscription: (courseId: string) => Promise<void>;
+  // A super_admin can upload a club's member roster on its behalf, same
+  // effect as the course_admin action above but with an explicit courseId.
+  getSuperAdminMemberRosterStatus: (courseId: string) => Promise<MemberRosterStatus>;
+  uploadSuperAdminMemberRoster: (courseId: string, csvContent: string) => Promise<MemberRosterUploadResult>;
   getSuperAdminDashboard: (period: DashboardPeriod) => Promise<SuperAdminDashboardReport>;
   getSuperAdminAdPerformance: () => Promise<AdPerformanceRow[]>;
   getSuperAdminStatBreakdown: (metric: StatBreakdownMetric, period: DashboardPeriod) => Promise<StatBreakdownRow[]>;
@@ -355,6 +366,9 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     setCourse(updated);
   };
 
+  const getMemberRosterStatus = async () => adminApi.memberRosterStatus();
+  const uploadMemberRoster = async (csvContent: string) => adminApi.uploadMemberRoster(csvContent);
+
   const updateCourseLogo = async (imageBase64: string) => {
     const res = await adminApi.updateCourseLogo(imageBase64);
     setCourse((prev) => ({ ...prev, logoUrl: res.logoUrl }));
@@ -479,6 +493,10 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     await loadSuperAdminCourses();
   };
 
+  const getSuperAdminMemberRosterStatus = async (courseId: string) => adminApi.superAdminMemberRosterStatus(courseId);
+  const uploadSuperAdminMemberRoster = async (courseId: string, csvContent: string) =>
+    adminApi.uploadSuperAdminMemberRoster(courseId, csvContent);
+
   const getSuperAdminDashboard = async (period: DashboardPeriod) => adminApi.superAdminDashboard(period);
   const getSuperAdminAdPerformance = async () => adminApi.superAdminAdPerformance();
 
@@ -560,6 +578,8 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     replyToEnquiry,
     setEnquiryStatus,
     updateCourseProfile,
+    getMemberRosterStatus,
+    uploadMemberRoster,
     updateCourseLogo,
     updateCourseCover,
     updateThemePreference,
@@ -592,6 +612,8 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     deleteSuperAdminReward,
     cancelSuperAdminCourseSubscription,
     reactivateSuperAdminCourseSubscription,
+    getSuperAdminMemberRosterStatus,
+    uploadSuperAdminMemberRoster,
     getSuperAdminDashboard,
     getSuperAdminAdPerformance,
     getSuperAdminStatBreakdown,

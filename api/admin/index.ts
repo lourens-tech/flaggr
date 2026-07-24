@@ -32,6 +32,7 @@ import {
   SUPPORT_TICKET_STATUSES,
   type SupportTicketStatus,
 } from '../_lib/supportTickets';
+import { getRosterStatus, parseMemberRosterCsv, replaceMemberRoster } from '../_lib/memberRoster';
 
 // Every action for the course-admin side of the app lives in this one file,
 // dispatched by ?action= (same pattern as api/profile/index.ts and
@@ -42,6 +43,7 @@ import {
 
 const DATA_URI_PATTERN = /^data:image\/(jpeg|jpg|png|webp);base64,/;
 const MAX_IMAGE_BASE64_LENGTH = 2_000_000;
+const MAX_CSV_LENGTH = 2_000_000;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const CONTACT_EMAIL = process.env.CONTACT_EMAIL || 'lourens@ewosolutions.com';
 
@@ -109,6 +111,16 @@ interface SuperAdminRewardDeleteBody extends RewardDeleteBody {
 }
 
 interface SubscriptionActionBody {
+  courseId?: string;
+}
+
+interface MemberRosterUploadBody {
+  csvContent?: string;
+}
+
+// A super_admin isn't scoped to one course, so its roster action carries the
+// target courseId explicitly instead of it coming from the session.
+interface SuperAdminMemberRosterUploadBody extends MemberRosterUploadBody {
   courseId?: string;
 }
 
@@ -244,6 +256,8 @@ const SUPER_ADMIN_ALLOWED_ACTIONS = new Set([
   'superAdminStatBreakdown',
   'superAdminCourseCancelSubscription',
   'superAdminCourseReactivateSubscription',
+  'superAdminMemberRosterStatus',
+  'superAdminMemberRosterUpload',
   'supportInbox',
   'supportInboxThread',
   'supportAgentReply',
@@ -1034,6 +1048,33 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         return;
       }
 
+      // --- Member roster (verify membership at signup) — a super_admin can
+      // upload a club's list on its behalf, same as the course_admin action
+      // further below but with an explicit courseId instead of session scope. ---
+      if (action === 'superAdminMemberRosterStatus' && req.method === 'GET') {
+        const targetCourseId = typeof req.query.courseId === 'string' ? req.query.courseId : undefined;
+        if (!targetCourseId) throw new HttpError(400, 'courseId is required');
+        res.status(200).json(await getRosterStatus(targetCourseId));
+        return;
+      }
+
+      if (action === 'superAdminMemberRosterUpload') {
+        const body = req.body as SuperAdminMemberRosterUploadBody;
+        if (!body.courseId) throw new HttpError(400, 'courseId is required');
+        const { csvContent } = body;
+        if (!csvContent || csvContent.length > MAX_CSV_LENGTH) {
+          throw new HttpError(400, 'A member list file (CSV) is required and must be under 2MB');
+        }
+        let parsedRows;
+        try {
+          parsedRows = parseMemberRosterCsv(csvContent);
+        } catch (err) {
+          throw new HttpError(400, err instanceof Error ? err.message : 'Could not parse the member list file');
+        }
+        res.status(200).json(await replaceMemberRoster(body.courseId, parsedRows));
+        return;
+      }
+
       if (action === 'superAdminAds' && req.method === 'GET') {
         const targetCourseId = resolveAdCourseId(typeof req.query.courseId === 'string' ? req.query.courseId : undefined);
         res.status(200).json(await listAdsForCourse(targetCourseId));
@@ -1494,6 +1535,29 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     `;
 
     res.status(200).json(await fetchCourse(courseId));
+    return;
+  }
+
+  // Member roster — used to validate a new signup is actually a member of
+  // this club (see api/auth/signup.ts). A member who never matches stays
+  // fully usable but capped at Bronze tier (see api/_lib/tiers.ts).
+  if (action === 'memberRosterStatus' && req.method === 'GET') {
+    res.status(200).json(await getRosterStatus(courseId));
+    return;
+  }
+
+  if (action === 'memberRosterUpload') {
+    const { csvContent } = req.body as MemberRosterUploadBody;
+    if (!csvContent || csvContent.length > MAX_CSV_LENGTH) {
+      throw new HttpError(400, 'A member list file (CSV) is required and must be under 2MB');
+    }
+    let parsedRows;
+    try {
+      parsedRows = parseMemberRosterCsv(csvContent);
+    } catch (err) {
+      throw new HttpError(400, err instanceof Error ? err.message : 'Could not parse the member list file');
+    }
+    res.status(200).json(await replaceMemberRoster(courseId, parsedRows));
     return;
   }
 

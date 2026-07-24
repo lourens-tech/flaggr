@@ -23,13 +23,14 @@ export async function getCurrentTierStatus(userId: string): Promise<TierStatus> 
   const qw = quarterWindow();
   const rows = (await sql`
     select
+      (select verified_member from users where id = ${userId}) as verified_member,
       coalesce(sum(amount) filter (where type = 'earn' and date >= ${qw.currentStart} and date < ${qw.currentEnd}), 0)::int as current_quarter_earned,
       coalesce(sum(amount) filter (where type = 'earn' and date >= ${qw.previousStart} and date < ${qw.previousEnd}), 0)::int as previous_quarter_earned
     from activity
     where user_id = ${userId}
-  `) as Array<{ current_quarter_earned: number; previous_quarter_earned: number }>;
-  const { current_quarter_earned, previous_quarter_earned } = rows[0];
-  const info = computeQuarterlyTierInfo(current_quarter_earned, previous_quarter_earned);
+  `) as Array<{ verified_member: boolean; current_quarter_earned: number; previous_quarter_earned: number }>;
+  const { verified_member, current_quarter_earned, previous_quarter_earned } = rows[0];
+  const info = computeQuarterlyTierInfo(current_quarter_earned, previous_quarter_earned, verified_member);
 
   // Persist the live tier onto users.tier so admin reporting can read tier
   // distribution with a plain query instead of re-running this quarterly

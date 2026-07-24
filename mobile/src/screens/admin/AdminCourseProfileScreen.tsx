@@ -233,6 +233,19 @@ export function AdminCourseProfileScreen({ navigation }: Props) {
         <View style={{ height: spacing.sm }} />
         <PillButton label="Manage Staff" icon="people-outline" variant="outline" onPress={() => navigation.navigate('AdminStaffList')} />
 
+        <Text style={styles.sectionTitle}>Member List</Text>
+        <Text style={styles.helpText}>
+          Upload your club's membership list so new signups can be confirmed as actual members. Members who don't
+          match stay capped at Bronze tier until verified.
+        </Text>
+        <View style={{ height: spacing.sm }} />
+        <PillButton
+          label="Manage Member List"
+          icon="cloud-upload-outline"
+          variant="outline"
+          onPress={() => navigation.navigate('AdminMemberList')}
+        />
+
         <Text style={styles.sectionTitle}>Appearance</Text>
         <ThemeToggleRow onChange={handleThemeChange} disabled={savingTheme} />
 

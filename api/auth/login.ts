@@ -24,7 +24,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
 
   const rows = (await sql`
     select u.id, u.first_name, u.last_name, u.email, u.phone, u.password_hash,
-           u.member_since, u.course_id, c.name as course_name
+           u.member_since, u.course_id, u.verified_member, c.name as course_name
     from users u
     join courses c on c.id = u.course_id
     where u.email = ${email}
@@ -37,6 +37,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     password_hash: string;
     member_since: string;
     course_id: string;
+    verified_member: boolean;
     course_name: string;
   }>;
 
@@ -67,6 +68,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       courseId: user.course_id,
       tier: tierInfo.tier,
       memberSince: user.member_since,
+      verifiedMember: user.verified_member,
     },
   });
 });
