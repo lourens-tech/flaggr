@@ -58,7 +58,7 @@ export async function requireAuthedUser(req: VercelRequest): Promise<AuthedUser>
 
 export interface AuthedAdmin {
   id: string;
-  courseId: string | null; // null only for a super_admin, which isn't built yet
+  courseId: string | null; // null only for a super_admin, which isn't scoped to one club
   role: 'super_admin' | 'course_admin' | 'staff';
   firstName: string;
   lastName: string;
@@ -115,9 +115,9 @@ export async function getAuthedAdmin(req: VercelRequest): Promise<AuthedAdmin | 
   };
 }
 
-/** Requires a logged-in admin who is a course_admin (i.e. has a course_id) —
- * the only admin role this build supports UI for. A super_admin token is
- * valid but gets a 403 here until that side is built. Staff accounts (see
+/** Requires a logged-in admin who is a course_admin (i.e. has a course_id).
+ * A super_admin token is valid but gets a 403 here — cross-club actions go
+ * through requireAuthedSuperAdmin instead. Staff accounts (see
  * requireAuthedCourseStaffOrAdmin) are also rejected — staff management
  * itself is a course_admin-only action. */
 export async function requireAuthedCourseAdmin(
@@ -145,4 +145,19 @@ export async function requireAuthedCourseStaffOrAdmin(
     throw new HttpError(403, 'This account type is not supported yet');
   }
   return admin as AuthedAdmin & { courseId: string };
+}
+
+/** Requires a logged-in super_admin — the platform-level role that isn't
+ * scoped to any single course (courseId is always null for this role).
+ * Used for cross-club actions: creating new courses/course_admins, ad
+ * management across clubs, and cross-club reporting. */
+export async function requireAuthedSuperAdmin(
+  req: VercelRequest,
+): Promise<AuthedAdmin & { courseId: null }> {
+  const admin = await getAuthedAdmin(req);
+  if (!admin) throw new HttpError(401, 'Not authenticated');
+  if (admin.role !== 'super_admin') {
+    throw new HttpError(403, 'Not authorized for this action');
+  }
+  return admin as AuthedAdmin & { courseId: null };
 }

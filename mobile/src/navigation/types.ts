@@ -38,6 +38,16 @@ export type AdminStackParamList = {
   AdminStaffEdit: { staffId?: string } | undefined;
 };
 
+export type SuperAdminTabParamList = {
+  SuperAdminCourses: undefined;
+  SuperAdminProfile: undefined;
+};
+
+export type SuperAdminStackParamList = {
+  SuperAdminTabs: undefined;
+  SuperAdminCourseCreate: undefined;
+};
+
 export type MainTabParamList = {
   Home: undefined;
   Rewards: undefined;
@@ -49,6 +59,7 @@ export type RootStackParamList = {
   Auth: undefined;
   Main: undefined;
   AdminMain: undefined;
+  SuperAdminMain: undefined;
   AdminForceChangePassword: undefined;
   AdminStaffWelcome: undefined;
   Voucher: { voucherId: string };

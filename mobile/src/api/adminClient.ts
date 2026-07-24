@@ -18,6 +18,7 @@ import type {
   EnquiryStatus,
   MemberStats,
   MembersPage,
+  SuperAdminCourseSummary,
 } from '../data/adminTypes';
 
 // Deliberately separate from api/client.ts's token/base logic — a
@@ -140,6 +141,19 @@ export interface StaffUpdatePayload {
   password?: string;
 }
 
+export interface SuperAdminCourseCreatePayload {
+  courseName: string;
+  contactEmail?: string;
+  adminFirstName: string;
+  adminLastName: string;
+  adminEmail: string;
+}
+
+export interface SuperAdminCourseCreateResponse {
+  course: SuperAdminCourseSummary;
+  admin: { id: string; firstName: string; lastName: string; email: string };
+}
+
 export const adminApi = {
   // `identifier` is a course_admin/super_admin's email, or a staff
   // account's generated username — one login screen serves both, and the
@@ -242,6 +256,11 @@ export const adminApi = {
 
   redeemVoucher: (code: string) =>
     request<AdminVoucherLookup>('?action=voucherRedeem', { method: 'POST', body: { code } }),
+
+  superAdminCourses: () => request<SuperAdminCourseSummary[]>('?action=superAdminCourses'),
+
+  createSuperAdminCourse: (payload: SuperAdminCourseCreatePayload) =>
+    request<SuperAdminCourseCreateResponse>('?action=superAdminCourseCreate', { method: 'POST', body: payload }),
 };
 
 /** Downloads a CSV report. Only works on the web build (the only build that

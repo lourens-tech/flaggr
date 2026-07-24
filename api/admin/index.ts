@@ -1,7 +1,7 @@
 import crypto from 'node:crypto';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { sql } from '../_lib/db';
-import { requireAuthedCourseStaffOrAdmin, hashPassword, verifyPassword } from '../_lib/auth';
+import { getAuthedAdmin, hashPassword, verifyPassword, type AuthedAdmin } from '../_lib/auth';
 import { HttpError, withErrorHandling } from '../_lib/http';
 import { deltaPct, isStatsPeriod, periodWindow, type StatsPeriod } from '../_lib/periods';
 import { fillMonthlyByNumber } from '../_lib/monthly';
@@ -129,6 +129,14 @@ interface StaffIdBody {
   id?: string;
 }
 
+interface CourseCreateBody {
+  courseName?: string;
+  contactEmail?: string;
+  adminFirstName?: string;
+  adminLastName?: string;
+  adminEmail?: string;
+}
+
 const REWARD_CATEGORIES = ['rounds', 'experiences', 'pro-shop', 'practice', 'dining'];
 const AD_PLACEMENTS = ['home', 'rewards_shop'];
 const BROADCAST_TARGETS = ['all', 'Bronze', 'Silver', 'Gold', 'Platinum'];
@@ -137,6 +145,10 @@ const BROADCAST_TARGETS = ['all', 'Bronze', 'Silver', 'Gold', 'Platinum'];
 // and their own basic profile — every other action stays course_admin-only,
 // enforced right after auth below rather than scattered per-action.
 const STAFF_ALLOWED_ACTIONS = new Set(['logout', 'me', 'changePassword', 'voucherLookup', 'voucherRedeem', 'themePreference']);
+
+// Cross-club actions a super_admin can perform — not scoped to any single
+// course_id, unlike everything else in this file.
+const SUPER_ADMIN_ALLOWED_ACTIONS = new Set(['logout', 'me', 'themePreference', 'superAdminCourses', 'superAdminCourseCreate']);
 
 function isDuplicateKeyError(err: unknown): boolean {
   return err instanceof Error && /duplicate key value/i.test(err.message);
@@ -190,6 +202,48 @@ async function insertStaffWithUniqueUsername(params: {
   throw new HttpError(500, 'Could not generate a unique username — try again');
 }
 
+const MAX_SLUG_ATTEMPTS = 20;
+
+function slugifyCourseName(s: string): string {
+  return s.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'club';
+}
+
+/** Mirrors insertStaffWithUniqueUsername's retry-on-collision approach —
+ * courses.slug is unique, and a super_admin naming a new club could collide
+ * with an existing one (e.g. two "Riverside Golf Club"s in different towns). */
+async function insertCourseWithUniqueSlug(params: { name: string; contactEmail: string | null }) {
+  const base = slugifyCourseName(params.name);
+  for (let attempt = 0; attempt < MAX_SLUG_ATTEMPTS; attempt++) {
+    const slug = attempt === 0 ? base : `${base}-${attempt + 1}`;
+    try {
+      return (await sql`
+        insert into courses (name, slug, contact_email)
+        values (${params.name}, ${slug}, ${params.contactEmail})
+        returning id, name, slug, logo_url, cover_image_url, contact_email, contact_phone, address, fb_per_rand,
+          onboarding_completed_at, staff_onboarding_completed_at, subscription_status, created_at
+      `) as Array<{
+        id: string;
+        name: string;
+        slug: string;
+        logo_url: string | null;
+        cover_image_url: string | null;
+        contact_email: string | null;
+        contact_phone: string | null;
+        address: string | null;
+        fb_per_rand: number;
+        onboarding_completed_at: string | null;
+        staff_onboarding_completed_at: string | null;
+        subscription_status: string | null;
+        created_at: string;
+      }>;
+    } catch (err) {
+      if (isDuplicateKeyError(err) && attempt < MAX_SLUG_ATTEMPTS - 1) continue;
+      throw err;
+    }
+  }
+  throw new HttpError(500, 'Could not generate a unique course slug — try again');
+}
+
 function staffDto(row: {
   id: string;
   first_name: string;
@@ -237,6 +291,50 @@ function courseDto(row: {
     fbPerRand: Number(row.fb_per_rand),
     onboardingCompletedAt: row.onboarding_completed_at,
     staffOnboardingCompletedAt: row.staff_onboarding_completed_at,
+  };
+}
+
+// A super_admin isn't scoped to any single course, so `me`/`login` return
+// this placeholder in the `course` field instead of null — keeps the wire
+// shape (and every mobile type that assumes AdminCourse is non-null)
+// unchanged. Super-admin screens never read from `course`.
+const EMPTY_COURSE_DTO = {
+  id: '',
+  name: '',
+  slug: '',
+  logoUrl: null,
+  coverImageUrl: null,
+  contactEmail: null,
+  contactPhone: null,
+  address: null,
+  fbPerRand: 0,
+  onboardingCompletedAt: null,
+  staffOnboardingCompletedAt: null,
+};
+
+function superAdminCourseDto(row: {
+  id: string;
+  name: string;
+  slug: string;
+  contact_email: string | null;
+  subscription_status: string | null;
+  onboarding_completed_at: string | null;
+  staff_onboarding_completed_at: string | null;
+  created_at: string;
+  admin_count: number | string;
+  member_count: number | string;
+}) {
+  return {
+    id: row.id,
+    name: row.name,
+    slug: row.slug,
+    contactEmail: row.contact_email,
+    subscriptionStatus: row.subscription_status,
+    onboardingCompletedAt: row.onboarding_completed_at,
+    staffOnboardingCompletedAt: row.staff_onboarding_completed_at,
+    createdAt: row.created_at,
+    adminCount: Number(row.admin_count),
+    memberCount: Number(row.member_count),
   };
 }
 
@@ -310,7 +408,9 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     if (admin.revoked_at) {
       throw new HttpError(403, 'Your access has been revoked. Contact your course administrator.');
     }
-    if ((admin.role !== 'course_admin' && admin.role !== 'staff') || !admin.course_id) {
+    if (admin.role === 'course_admin' || admin.role === 'staff') {
+      if (!admin.course_id) throw new HttpError(403, 'This account type is not supported yet');
+    } else if (admin.role !== 'super_admin') {
       throw new HttpError(403, 'This account type is not supported yet');
     }
 
@@ -318,7 +418,9 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       insert into admin_sessions (admin_id) values (${admin.id}) returning token
     `) as Array<{ token: string }>;
 
-    const course = await fetchCourse(admin.course_id);
+    // A super_admin has no course_id — return the placeholder shape instead
+    // of querying a course that doesn't exist.
+    const course = admin.role === 'super_admin' ? EMPTY_COURSE_DTO : await fetchCourse(admin.course_id as string);
     res.status(200).json({
       token: sessionRows[0].token,
       admin: {
@@ -336,14 +438,12 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     return;
   }
 
-  // --- Everything below requires a logged-in course_admin or staff account ---
-  const authed = await requireAuthedCourseStaffOrAdmin(req);
-  const courseId = authed.courseId;
+  // --- Everything below requires a logged-in admin account of some kind ---
+  const authedAdmin = await getAuthedAdmin(req);
+  if (!authedAdmin) throw new HttpError(401, 'Not authenticated');
 
-  if (authed.role === 'staff' && !STAFF_ALLOWED_ACTIONS.has(String(action))) {
-    throw new HttpError(403, 'Not authorized for this action');
-  }
-
+  // logout and themePreference apply identically to every admin role,
+  // including super_admin, so they're handled before role-narrowing below.
   if (action === 'logout') {
     const header = req.headers.authorization;
     const token = header?.slice('Bearer '.length).trim();
@@ -359,9 +459,113 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     if (preference !== 'system' && preference !== 'light' && preference !== 'dark') {
       throw new HttpError(400, 'preference must be system, light, or dark');
     }
-    await sql`update admins set theme_preference = ${preference} where id = ${authed.id}`;
+    await sql`update admins set theme_preference = ${preference} where id = ${authedAdmin.id}`;
     res.status(200).json({ themePreference: preference });
     return;
+  }
+
+  // --- Super-admin: cross-club actions, not scoped to any single course ---
+  if (authedAdmin.role === 'super_admin') {
+    if (!SUPER_ADMIN_ALLOWED_ACTIONS.has(String(action))) {
+      throw new HttpError(403, 'Not authorized for this action');
+    }
+
+    if (action === 'me' && req.method === 'GET') {
+      res.status(200).json({
+        admin: {
+          id: authedAdmin.id,
+          firstName: authedAdmin.firstName,
+          lastName: authedAdmin.lastName,
+          email: authedAdmin.email,
+          username: authedAdmin.username,
+          role: authedAdmin.role,
+          mustChangePassword: authedAdmin.mustChangePassword,
+          themePreference: authedAdmin.themePreference,
+        },
+        course: EMPTY_COURSE_DTO,
+      });
+      return;
+    }
+
+    if (action === 'superAdminCourses' && req.method === 'GET') {
+      const rows = (await sql`
+        select c.id, c.name, c.slug, c.contact_email, c.subscription_status, c.created_at,
+          c.onboarding_completed_at, c.staff_onboarding_completed_at,
+          (select count(*) from admins a where a.course_id = c.id and a.role = 'course_admin' and a.revoked_at is null) as admin_count,
+          (select count(*) from users u where u.course_id = c.id) as member_count
+        from courses c
+        order by c.created_at desc
+      `) as Array<Parameters<typeof superAdminCourseDto>[0]>;
+      res.status(200).json(rows.map(superAdminCourseDto));
+      return;
+    }
+
+    if (action === 'superAdminCourseCreate' && req.method === 'POST') {
+      const body = req.body as CourseCreateBody;
+      const courseName = body.courseName?.trim();
+      const contactEmail = body.contactEmail?.trim().toLowerCase() || null;
+      const adminFirstName = body.adminFirstName?.trim();
+      const adminLastName = body.adminLastName?.trim() || '';
+      const adminEmail = body.adminEmail?.trim().toLowerCase();
+      if (!courseName || !adminFirstName || !adminEmail) {
+        throw new HttpError(400, 'Course name, admin first name, and admin email are required');
+      }
+      if (!EMAIL_PATTERN.test(adminEmail)) throw new HttpError(400, 'Enter a valid admin email address');
+      if (contactEmail && !EMAIL_PATTERN.test(contactEmail)) throw new HttpError(400, 'Enter a valid contact email address');
+
+      const newCourse = (await insertCourseWithUniqueSlug({ name: courseName, contactEmail }))[0];
+
+      const tempPassword = generateTempPassword();
+      const passwordHash = await hashPassword(tempPassword);
+      let createdAdmin: Array<{ id: string; first_name: string; last_name: string; email: string }>;
+      try {
+        createdAdmin = (await sql`
+          insert into admins (course_id, role, first_name, last_name, email, password_hash, must_change_password, activated_at)
+          values (${newCourse.id}, 'course_admin', ${adminFirstName}, ${adminLastName}, ${adminEmail}, ${passwordHash}, true, now())
+          returning id, first_name, last_name, email
+        `) as typeof createdAdmin;
+      } catch (err) {
+        if (isDuplicateKeyError(err)) throw new HttpError(409, 'A course admin with that email already exists');
+        throw err;
+      }
+
+      await sendEmail({
+        to: adminEmail,
+        subject: `You've been set up as a course admin for ${courseName} on Flagrr`,
+        html: `
+          <p>Hi ${escapeHtml(adminFirstName)},</p>
+          <p>${escapeHtml(authedAdmin.firstName)} ${escapeHtml(authedAdmin.lastName)} has set you up as the course admin for ${escapeHtml(courseName)} on Flagrr.</p>
+          <p><strong>Login link:</strong> <a href="https://flagrr-loyalty.vercel.app">https://flagrr-loyalty.vercel.app</a></p>
+          <p><strong>Email:</strong> ${escapeHtml(adminEmail)}<br/>
+          <strong>Temporary password:</strong> ${escapeHtml(tempPassword)}</p>
+          <p>You'll be asked to choose your own password the first time you log in.</p>
+        `,
+      });
+
+      res.status(200).json({
+        course: superAdminCourseDto({ ...newCourse, admin_count: 1, member_count: 0 }),
+        admin: {
+          id: createdAdmin[0].id,
+          firstName: createdAdmin[0].first_name,
+          lastName: createdAdmin[0].last_name,
+          email: createdAdmin[0].email,
+        },
+      });
+      return;
+    }
+
+    throw new HttpError(404, 'Unknown action');
+  }
+
+  // --- Everything below requires a logged-in course_admin or staff account ---
+  if ((authedAdmin.role !== 'course_admin' && authedAdmin.role !== 'staff') || !authedAdmin.courseId) {
+    throw new HttpError(403, 'This account type is not supported yet');
+  }
+  const authed = authedAdmin as AuthedAdmin & { courseId: string };
+  const courseId = authed.courseId;
+
+  if (authed.role === 'staff' && !STAFF_ALLOWED_ACTIONS.has(String(action))) {
+    throw new HttpError(403, 'Not authorized for this action');
   }
 
   if (action === 'me' && req.method === 'GET') {

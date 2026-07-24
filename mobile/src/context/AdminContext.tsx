@@ -8,6 +8,8 @@ import {
   type RewardSavePayload,
   type StaffCreatePayload,
   type StaffUpdatePayload,
+  type SuperAdminCourseCreatePayload,
+  type SuperAdminCourseCreateResponse,
 } from '../api/adminClient';
 import type {
   AdminAd,
@@ -27,6 +29,7 @@ import type {
   EnquiryStatus,
   MemberStats,
   MembersPage,
+  SuperAdminCourseSummary,
 } from '../data/adminTypes';
 import { useTheme, type ThemePreference } from './ThemeContext';
 
@@ -128,6 +131,11 @@ interface AdminContextValue {
   revokeStaff: (id: string) => Promise<void>;
   reactivateStaff: (id: string) => Promise<void>;
   deleteStaff: (id: string) => Promise<void>;
+  // super_admin only — cross-club course/course-admin management. Not scoped
+  // to `course`, since a super_admin has no single course of its own.
+  superAdminCourses: SuperAdminCourseSummary[];
+  loadSuperAdminCourses: () => Promise<void>;
+  createSuperAdminCourse: (payload: SuperAdminCourseCreatePayload) => Promise<SuperAdminCourseCreateResponse>;
 }
 
 const AdminContext = createContext<AdminContextValue | undefined>(undefined);
@@ -149,6 +157,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
   const [onboardingDismissed, setOnboardingDismissed] = useState(false);
   const [staffWelcomePending, setStaffWelcomePending] = useState(false);
   const [staffOnboardingDismissed, setStaffOnboardingDismissed] = useState(false);
+  const [superAdminCourses, setSuperAdminCourses] = useState<SuperAdminCourseSummary[]>([]);
 
   const refreshDashboard = useCallback(async () => {
     setDashboardLoading(true);
@@ -214,6 +223,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     setOnboardingDismissed(false);
     setStaffWelcomePending(false);
     setStaffOnboardingDismissed(false);
+    setSuperAdminCourses([]);
   };
 
   const markNotificationRead = async (id: string) => {
@@ -395,6 +405,16 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     setStaff((prev) => prev.filter((s) => s.id !== id));
   };
 
+  const loadSuperAdminCourses = useCallback(async () => {
+    setSuperAdminCourses(await adminApi.superAdminCourses());
+  }, []);
+
+  const createSuperAdminCourse = async (payload: SuperAdminCourseCreatePayload) => {
+    const created = await adminApi.createSuperAdminCourse(payload);
+    await loadSuperAdminCourses();
+    return created;
+  };
+
   const value: AdminContextValue = {
     isAdminAuthenticated,
     isInitializing,
@@ -455,6 +475,9 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     reactivateStaff,
     deleteStaff,
     changePassword,
+    superAdminCourses,
+    loadSuperAdminCourses,
+    createSuperAdminCourse,
   };
 
   return <AdminContext.Provider value={value}>{children}</AdminContext.Provider>;

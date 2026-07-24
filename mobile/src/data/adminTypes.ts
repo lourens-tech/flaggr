@@ -36,6 +36,22 @@ export interface AdminCourse {
   staffOnboardingCompletedAt: string | null;
 }
 
+// A super_admin isn't scoped to any single course, so it works with a list
+// of these summaries rather than the single AdminCourse a course_admin/staff
+// account gets.
+export interface SuperAdminCourseSummary {
+  id: string;
+  name: string;
+  slug: string;
+  contactEmail: string | null;
+  subscriptionStatus: 'trialing' | 'active' | 'past_due' | 'canceled' | null;
+  onboardingCompletedAt: string | null;
+  staffOnboardingCompletedAt: string | null;
+  createdAt: string;
+  adminCount: number;
+  memberCount: number;
+}
+
 export interface DashboardTotals {
   members: number;
   newMembers: number;

@@ -17,6 +17,7 @@ import { TermsPrivacyScreen } from '../screens/profile/TermsPrivacyScreen';
 import { MyEnquiriesScreen } from '../screens/profile/MyEnquiriesScreen';
 import { EnquiryChatScreen } from '../screens/profile/EnquiryChatScreen';
 import { AdminNavigator } from './AdminNavigator';
+import { SuperAdminNavigator } from './SuperAdminNavigator';
 import { AdminForceChangePasswordScreen } from '../screens/admin/AdminForceChangePasswordScreen';
 import { AdminStaffWelcomeScreen } from '../screens/admin/AdminStaffWelcomeScreen';
 import { useApp } from '../context/AppContext';
@@ -53,6 +54,8 @@ export function RootNavigator() {
           <Stack.Screen name="AdminForceChangePassword" component={AdminForceChangePasswordScreen} />
         ) : staffWelcomePending ? (
           <Stack.Screen name="AdminStaffWelcome" component={AdminStaffWelcomeScreen} />
+        ) : admin.role === 'super_admin' ? (
+          <Stack.Screen name="SuperAdminMain" component={SuperAdminNavigator} />
         ) : (
           <Stack.Screen name="AdminMain" component={AdminNavigator} />
         )

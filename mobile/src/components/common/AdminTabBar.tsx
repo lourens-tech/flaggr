@@ -13,6 +13,8 @@ const ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   AdminVouchers: 'qr-code-outline',
   AdminCourseProfile: 'business-outline',
   AdminStaffProfile: 'person-circle-outline',
+  SuperAdminCourses: 'business-outline',
+  SuperAdminProfile: 'person-circle-outline',
 };
 
 const LABELS: Record<string, string> = {
@@ -23,6 +25,8 @@ const LABELS: Record<string, string> = {
   AdminVouchers: 'Vouchers',
   AdminCourseProfile: 'Course',
   AdminStaffProfile: 'Profile',
+  SuperAdminCourses: 'Courses',
+  SuperAdminProfile: 'Profile',
 };
 
 // A plain (non-floating) bottom tab bar for the course-admin side — the
