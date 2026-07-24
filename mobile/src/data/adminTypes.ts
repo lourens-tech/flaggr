@@ -88,6 +88,22 @@ export interface DashboardReport {
   signupsByMonth: MonthlyCount[];
 }
 
+// Same shape as DashboardReport, plus a clubs total — a super_admin's
+// dashboard is aggregated across every club instead of just one.
+export interface SuperAdminDashboardReport extends DashboardReport {
+  totals: DashboardTotals & { clubs: number };
+}
+
+export interface AdPerformanceRow {
+  adId: string;
+  courseId: string;
+  courseName: string;
+  title: string;
+  placement: 'home' | 'rewards_shop';
+  active: boolean;
+  clicks: number;
+}
+
 export interface AdminRewardVariant {
   id: string;
   label: string;

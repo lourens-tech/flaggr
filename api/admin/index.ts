@@ -5,7 +5,7 @@ import { getAuthedAdmin, hashPassword, verifyPassword, type AuthedAdmin } from '
 import { HttpError, withErrorHandling } from '../_lib/http';
 import { deltaPct, isStatsPeriod, periodWindow, type StatsPeriod } from '../_lib/periods';
 import { fillMonthlyByNumber } from '../_lib/monthly';
-import { getDashboardReport } from '../_lib/adminReports';
+import { getDashboardReport, getSuperAdminDashboardReport, getAdPerformanceReport } from '../_lib/adminReports';
 import { toCsv } from '../_lib/csv';
 import {
   addAdminMessage,
@@ -167,6 +167,8 @@ const SUPER_ADMIN_ALLOWED_ACTIONS = new Set([
   'superAdminAds',
   'superAdminAdSave',
   'superAdminAdDelete',
+  'superAdminDashboard',
+  'superAdminAdPerformance',
 ]);
 
 function isDuplicateKeyError(err: unknown): boolean {
@@ -669,6 +671,17 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       if (!body.courseId || !body.id) throw new HttpError(400, 'courseId and id are required');
       await deleteAdForCourse(body.courseId, body.id);
       res.status(200).json({ ok: true });
+      return;
+    }
+
+    if (action === 'superAdminDashboard' && req.method === 'GET') {
+      const period: StatsPeriod = isStatsPeriod(req.query.period) ? req.query.period : 'month';
+      res.status(200).json(await getSuperAdminDashboardReport(period));
+      return;
+    }
+
+    if (action === 'superAdminAdPerformance' && req.method === 'GET') {
+      res.status(200).json(await getAdPerformanceReport());
       return;
     }
 

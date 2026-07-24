@@ -31,6 +31,8 @@ import type {
   MemberStats,
   MembersPage,
   SuperAdminCourseSummary,
+  SuperAdminDashboardReport,
+  AdPerformanceRow,
 } from '../data/adminTypes';
 import { useTheme, type ThemePreference } from './ThemeContext';
 
@@ -143,6 +145,8 @@ interface AdminContextValue {
   getSuperAdminAds: (courseId: string) => Promise<AdminAd[]>;
   saveSuperAdminAd: (payload: SuperAdminAdSavePayload) => Promise<{ id: string }>;
   deleteSuperAdminAd: (courseId: string, id: string) => Promise<void>;
+  getSuperAdminDashboard: (period: DashboardPeriod) => Promise<SuperAdminDashboardReport>;
+  getSuperAdminAdPerformance: () => Promise<AdPerformanceRow[]>;
 }
 
 const AdminContext = createContext<AdminContextValue | undefined>(undefined);
@@ -428,6 +432,9 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     await adminApi.deleteSuperAdminAd(courseId, id);
   };
 
+  const getSuperAdminDashboard = async (period: DashboardPeriod) => adminApi.superAdminDashboard(period);
+  const getSuperAdminAdPerformance = async () => adminApi.superAdminAdPerformance();
+
   const value: AdminContextValue = {
     isAdminAuthenticated,
     isInitializing,
@@ -494,6 +501,8 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     getSuperAdminAds,
     saveSuperAdminAd,
     deleteSuperAdminAd,
+    getSuperAdminDashboard,
+    getSuperAdminAdPerformance,
   };
 
   return <AdminContext.Provider value={value}>{children}</AdminContext.Provider>;

@@ -14,6 +14,7 @@ const ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   AdminCourseProfile: 'business-outline',
   AdminStaffProfile: 'person-circle-outline',
   SuperAdminCourses: 'business-outline',
+  SuperAdminReports: 'bar-chart-outline',
   SuperAdminProfile: 'person-circle-outline',
 };
 
@@ -26,6 +27,7 @@ const LABELS: Record<string, string> = {
   AdminCourseProfile: 'Course',
   AdminStaffProfile: 'Profile',
   SuperAdminCourses: 'Courses',
+  SuperAdminReports: 'Reports',
   SuperAdminProfile: 'Profile',
 };
 
