@@ -96,7 +96,7 @@ export interface SuperAdminDashboardReport extends DashboardReport {
 
 export interface AdPerformanceRow {
   adId: string;
-  courseId: string;
+  courseId: string | null;
   courseName: string;
   title: string;
   placement: 'home' | 'rewards_shop';

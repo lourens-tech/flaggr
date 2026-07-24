@@ -197,7 +197,7 @@ export async function getSuperAdminDashboardReport(period: StatsPeriod): Promise
 
 export interface AdPerformanceRow {
   adId: string;
-  courseId: string;
+  courseId: string | null;
   courseName: string;
   title: string;
   placement: string;
@@ -207,20 +207,21 @@ export interface AdPerformanceRow {
 
 // Ad performance was deliberately excluded from the course-admin dashboard
 // (see the note above) — only a super_admin sees how ads perform across
-// every club that's running them.
+// every club that's running them. course_id null means a global ad (shown
+// to every club), hence the left join instead of an inner one.
 export async function getAdPerformanceReport(): Promise<AdPerformanceRow[]> {
   const rows = (await sql`
-    select a.id as ad_id, a.course_id, c.name as course_name, a.title, a.placement, a.active,
+    select a.id as ad_id, a.course_id, coalesce(c.name, 'All Courses') as course_name, a.title, a.placement, a.active,
            count(k.id)::int as clicks
     from ads a
-    join courses c on c.id = a.course_id
+    left join courses c on c.id = a.course_id
     left join ad_clicks k on k.ad_id = a.id
     group by a.id, c.name
     order by clicks desc
     limit 50
   `) as Array<{
     ad_id: string;
-    course_id: string;
+    course_id: string | null;
     course_name: string;
     title: string;
     placement: string;

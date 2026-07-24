@@ -40,6 +40,7 @@ export type AdminStackParamList = {
 
 export type SuperAdminTabParamList = {
   SuperAdminCourses: undefined;
+  SuperAdminAds: undefined;
   SuperAdminReports: undefined;
   SuperAdminProfile: undefined;
 };

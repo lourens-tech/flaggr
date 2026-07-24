@@ -384,13 +384,13 @@ async function fetchCourse(courseId: string) {
 // Shared by the course_admin path (implicit courseId from the session) and
 // the super_admin path (explicit courseId — a super_admin isn't scoped to
 // one club) so the actual query logic isn't duplicated per role.
-async function listAdsForCourse(courseId: string) {
+async function listAdsForCourse(courseId: string | null) {
   const rows = (await sql`
     select a.id, a.placement, a.title, a.image_url, a.target_url, a.sort_order, a.active,
            a.starts_at, a.ends_at, count(c.id)::int as clicks
     from ads a
     left join ad_clicks c on c.ad_id = a.id
-    where a.course_id = ${courseId}
+    where a.course_id is not distinct from ${courseId}
     group by a.id
     order by a.placement, a.sort_order
   `) as Array<{
@@ -419,7 +419,7 @@ async function listAdsForCourse(courseId: string) {
   }));
 }
 
-async function saveAdForCourse(courseId: string, body: AdSaveBody): Promise<{ id: string }> {
+async function saveAdForCourse(courseId: string | null, body: AdSaveBody): Promise<{ id: string }> {
   const title = body.title?.trim();
   const placement = body.placement;
   if (!title || !placement || !AD_PLACEMENTS.includes(placement)) {
@@ -435,7 +435,7 @@ async function saveAdForCourse(courseId: string, body: AdSaveBody): Promise<{ id
   const active = body.active ?? true;
 
   if (body.id) {
-    const owned = (await sql`select id from ads where id = ${body.id} and course_id = ${courseId}`) as Array<{ id: string }>;
+    const owned = (await sql`select id from ads where id = ${body.id} and course_id is not distinct from ${courseId}`) as Array<{ id: string }>;
     if (owned.length === 0) throw new HttpError(404, 'Ad not found');
     await sql`
       update ads
@@ -454,8 +454,19 @@ async function saveAdForCourse(courseId: string, body: AdSaveBody): Promise<{ id
   return { id: inserted[0].id };
 }
 
-async function deleteAdForCourse(courseId: string, id: string) {
-  await sql`delete from ads where id = ${id} and course_id = ${courseId}`;
+async function deleteAdForCourse(courseId: string | null, id: string) {
+  await sql`delete from ads where id = ${id} and course_id is not distinct from ${courseId}`;
+}
+
+// A super_admin's ad actions carry a courseId that's either a real course
+// id or the literal string 'global' (a course id can never collide with
+// that, since courses.id is a uuid) — 'global' maps to a null course_id,
+// meaning the ad shows to every course's members.
+const GLOBAL_COURSE_SENTINEL = 'global';
+
+function resolveAdCourseId(value: string | undefined): string | null {
+  if (!value) throw new HttpError(400, 'courseId is required');
+  return value === GLOBAL_COURSE_SENTINEL ? null : value;
 }
 
 export default withErrorHandling(async (req: VercelRequest, res: VercelResponse) => {
@@ -668,23 +679,23 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     }
 
     if (action === 'superAdminAds' && req.method === 'GET') {
-      const targetCourseId = typeof req.query.courseId === 'string' ? req.query.courseId : '';
-      if (!targetCourseId) throw new HttpError(400, 'courseId is required');
+      const targetCourseId = resolveAdCourseId(typeof req.query.courseId === 'string' ? req.query.courseId : undefined);
       res.status(200).json(await listAdsForCourse(targetCourseId));
       return;
     }
 
     if (action === 'superAdminAdSave') {
       const body = req.body as SuperAdminAdSaveBody;
-      if (!body.courseId) throw new HttpError(400, 'courseId is required');
-      res.status(200).json(await saveAdForCourse(body.courseId, body));
+      const targetCourseId = resolveAdCourseId(body.courseId);
+      res.status(200).json(await saveAdForCourse(targetCourseId, body));
       return;
     }
 
     if (action === 'superAdminAdDelete') {
       const body = req.body as SuperAdminAdDeleteBody;
-      if (!body.courseId || !body.id) throw new HttpError(400, 'courseId and id are required');
-      await deleteAdForCourse(body.courseId, body.id);
+      const targetCourseId = resolveAdCourseId(body.courseId);
+      if (!body.id) throw new HttpError(400, 'id is required');
+      await deleteAdForCourse(targetCourseId, body.id);
       res.status(200).json({ ok: true });
       return;
     }

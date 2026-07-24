@@ -13,13 +13,13 @@ export interface AdDto {
 const PLACEMENT_APP: Record<string, AdPlacement> = { home: 'home', rewards_shop: 'rewardsShop' };
 
 /** Active ads for a course, across all placements, ordered for display.
- * Super-admin CRUD over the `ads` table is future work — this is the read
- * path the member app needs today. */
+ * Includes both the course's own ads and global ads (course_id null) a
+ * super_admin set to show across every club. */
 export async function getActiveAdsForCourse(courseId: string): Promise<AdDto[]> {
   const rows = (await sql`
     select id, placement, title, image_url, target_url
     from ads
-    where course_id = ${courseId}
+    where (course_id = ${courseId} or course_id is null)
       and active
       and (starts_at is null or starts_at <= now())
       and (ends_at is null or ends_at >= now())
@@ -36,11 +36,12 @@ export async function getActiveAdsForCourse(courseId: string): Promise<AdDto[]> 
 }
 
 /** Logs a member tapping an ad, for admin ad-performance reporting. Requires
- * the ad to belong to the member's own course — otherwise a member could
- * inflate another club's click counts by posting an arbitrary adId. */
+ * the ad to belong to the member's own course or be a global ad (course_id
+ * null) — otherwise a member could inflate another club's click counts by
+ * posting an arbitrary adId. */
 export async function logAdClick(adId: string, userId: string, courseId: string): Promise<void> {
   await sql`
     insert into ad_clicks (ad_id, user_id)
-    select id, ${userId} from ads where id = ${adId} and course_id = ${courseId}
+    select id, ${userId} from ads where id = ${adId} and (course_id = ${courseId} or course_id is null)
   `;
 }
