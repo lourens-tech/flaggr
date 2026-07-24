@@ -413,6 +413,9 @@ export const adminApi = {
   createSupportAgent: (payload: SupportAgentCreatePayload) =>
     request<SupportAgent>('?action=supportAgentCreate', { method: 'POST', body: payload }),
 
+  resetSupportAgentPassword: (id: string) =>
+    request<{ ok: boolean }>('?action=supportAgentResetPassword', { method: 'POST', body: { id } }),
+
   revokeSupportAgent: (id: string) => request<{ ok: boolean }>('?action=supportAgentRevoke', { method: 'POST', body: { id } }),
 
   reactivateSupportAgent: (id: string) =>

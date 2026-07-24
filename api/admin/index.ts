@@ -326,6 +326,7 @@ const SUPER_ADMIN_ALLOWED_ACTIONS = new Set([
   'supportTicketStatus',
   'supportAgents',
   'supportAgentCreate',
+  'supportAgentResetPassword',
   'supportAgentRevoke',
   'supportAgentReactivate',
   'supportAgentDelete',
@@ -1698,6 +1699,33 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
           revoked: false,
           createdAt: created[0].created_at,
         });
+        return;
+      }
+
+      if (action === 'supportAgentResetPassword') {
+        const id = (req.body as SupportAgentIdBody).id;
+        if (!id) throw new HttpError(400, 'id is required');
+        const rows = (await sql`
+          select email, first_name from admins where id = ${id} and role = 'support_agent'
+        `) as Array<{ email: string; first_name: string }>;
+        if (rows.length === 0) throw new HttpError(404, 'Support agent not found');
+        const target = rows[0];
+
+        const tempPassword = generateTempPassword();
+        const passwordHash = await hashPassword(tempPassword);
+        await sql`update admins set password_hash = ${passwordHash}, must_change_password = true where id = ${id}`;
+
+        await sendEmail({
+          to: target.email,
+          subject: `Your Flagrr password has been reset`,
+          html: `
+            <p>Hi ${escapeHtml(target.first_name)},</p>
+            <p>Your Flagrr support agent password has been reset.</p>
+            <p><strong>Temporary password:</strong> ${escapeHtml(tempPassword)}</p>
+            <p>You'll be asked to choose your own password the next time you log in.</p>
+          `,
+        });
+        res.status(200).json({ ok: true });
         return;
       }
 

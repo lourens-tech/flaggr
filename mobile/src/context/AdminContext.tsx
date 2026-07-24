@@ -221,6 +221,7 @@ interface AdminContextValue {
   supportAgents: SupportAgent[];
   loadSupportAgents: () => Promise<void>;
   createSupportAgent: (payload: SupportAgentCreatePayload) => Promise<SupportAgent>;
+  resetSupportAgentPassword: (id: string) => Promise<void>;
   revokeSupportAgent: (id: string) => Promise<void>;
   reactivateSupportAgent: (id: string) => Promise<void>;
   deleteSupportAgent: (id: string) => Promise<void>;
@@ -614,6 +615,9 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     await loadSupportAgents();
     return created;
   };
+  const resetSupportAgentPassword = async (id: string) => {
+    await adminApi.resetSupportAgentPassword(id);
+  };
   const revokeSupportAgent = async (id: string) => {
     await adminApi.revokeSupportAgent(id);
     await loadSupportAgents();
@@ -730,6 +734,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     supportAgents,
     loadSupportAgents,
     createSupportAgent,
+    resetSupportAgentPassword,
     revokeSupportAgent,
     reactivateSupportAgent,
     deleteSupportAgent,

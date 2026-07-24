@@ -19,7 +19,7 @@ type Props = NativeStackScreenProps<SuperAdminStackParamList, 'SuperAdminAgents'
 export function SuperAdminAgentsScreen({ navigation }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const { supportAgents, loadSupportAgents, revokeSupportAgent, reactivateSupportAgent, deleteSupportAgent } = useAdmin();
+  const { supportAgents, loadSupportAgents, resetSupportAgentPassword, revokeSupportAgent, reactivateSupportAgent, deleteSupportAgent } = useAdmin();
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
@@ -49,6 +49,31 @@ export function SuperAdminAgentsScreen({ navigation }: Props) {
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []),
   );
+
+  const handleResetPassword = (item: SupportAgent) => {
+    showAlert(
+      'Reset this password?',
+      `A new temporary password will be emailed to ${item.email}, and they'll be asked to choose their own on next login.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reset',
+          onPress: async () => {
+            setBusyId(item.id);
+            try {
+              await resetSupportAgentPassword(item.id);
+              showAlert('Password reset', `A new temporary password has been emailed to ${item.email}.`);
+            } catch (err) {
+              const message = err instanceof AdminApiError ? err.message : 'Something went wrong. Please try again.';
+              showAlert('Couldn’t reset password', message);
+            } finally {
+              setBusyId(null);
+            }
+          },
+        },
+      ],
+    );
+  };
 
   const handleToggleAccess = (item: SupportAgent) => {
     const isRevoked = item.revoked;
@@ -114,6 +139,10 @@ export function SuperAdminAgentsScreen({ navigation }: Props) {
       {item.mustChangePassword ? <Text style={styles.pendingText}>Hasn't logged in yet</Text> : null}
 
       <View style={styles.cardActions}>
+        <TouchableOpacity style={styles.actionButton} onPress={() => handleResetPassword(item)} disabled={busyId === item.id}>
+          <Ionicons name="key-outline" size={15} color={colors.clubGreen} />
+          <Text style={styles.actionButtonText}>Reset Password</Text>
+        </TouchableOpacity>
         <TouchableOpacity style={styles.actionButton} onPress={() => handleToggleAccess(item)} disabled={busyId === item.id}>
           {busyId === item.id ? (
             <ActivityIndicator color={colors.clubGreen} size="small" />
@@ -197,7 +226,7 @@ function createStyles(colors: ThemeColors) {
   statusBadgeTextRevoked: { color: colors.negative },
   cardEmail: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary },
   pendingText: { fontFamily: fontFamily.body, fontSize: 10, color: colors.textSecondary, fontStyle: 'italic' },
-  cardActions: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.xs },
+  cardActions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md, rowGap: spacing.xs, marginTop: spacing.xs },
   actionButton: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 4 },
   actionButtonText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.tiny, color: colors.clubGreen },
   emptyText: {
