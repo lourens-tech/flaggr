@@ -86,6 +86,14 @@ export function SuperAdminProfileScreen({ navigation }: Props) {
               variant="outline"
               onPress={() => navigation.navigate('SuperAdminAgents')}
             />
+
+            <Text style={styles.sectionTitle}>Accountability</Text>
+            <PillButton
+              label="View Audit Log"
+              icon="document-text-outline"
+              variant="outline"
+              onPress={() => navigation.navigate('SuperAdminAuditLog')}
+            />
           </>
         ) : null}
 

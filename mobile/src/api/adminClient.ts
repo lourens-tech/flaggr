@@ -14,6 +14,7 @@ import type {
   CourseAdminAccount,
   AdminUser,
   AdminVoucherLookup,
+  AuditLogEntry,
   BroadcastTarget,
   DashboardReport,
   EnquiryMessage,
@@ -422,6 +423,9 @@ export const adminApi = {
     request<{ ok: boolean }>('?action=supportAgentReactivate', { method: 'POST', body: { id } }),
 
   deleteSupportAgent: (id: string) => request<{ ok: boolean }>('?action=supportAgentDelete', { method: 'POST', body: { id } }),
+
+  // --- Audit log (super_admin only) ---
+  auditLog: () => request<AuditLogEntry[]>('?action=auditLog'),
 };
 
 /** Downloads a CSV report. Only works on the web build (the only build that

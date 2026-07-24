@@ -34,6 +34,7 @@ import {
 } from '../_lib/supportTickets';
 import { getRosterStatus, replaceMemberRoster } from '../_lib/memberRoster';
 import { parseMemberRosterFile } from '../_lib/memberRosterFileParsing';
+import { logAudit } from '../_lib/auditLog';
 
 // Every action for the course-admin side of the app lives in this one file,
 // dispatched by ?action= (same pattern as api/profile/index.ts and
@@ -320,6 +321,7 @@ const SUPER_ADMIN_ALLOWED_ACTIONS = new Set([
   'superAdminCourseAdminRevoke',
   'superAdminCourseAdminReactivate',
   'superAdminCourseAdminDelete',
+  'auditLog',
   'supportInbox',
   'supportInboxThread',
   'supportAgentReply',
@@ -1099,6 +1101,16 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
           `,
         });
 
+        await logAudit({
+          adminId: authedAdmin.id,
+          adminName: `${authedAdmin.firstName} ${authedAdmin.lastName}`,
+          adminRole: authedAdmin.role,
+          action: 'superAdminCourseCreate',
+          targetType: 'course',
+          targetId: newCourse.id,
+          targetLabel: courseName,
+        });
+
         res.status(200).json({
           course: superAdminCourseDto({ ...newCourse, admin_count: 1, member_count: 0 }),
           admin: {
@@ -1118,7 +1130,18 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       if (action === 'superAdminCourseCancelSubscription') {
         const { courseId } = req.body as SubscriptionActionBody;
         if (!courseId) throw new HttpError(400, 'courseId is required');
-        await sql`update courses set subscription_status = 'canceled' where id = ${courseId}`;
+        const updated = (await sql`
+          update courses set subscription_status = 'canceled' where id = ${courseId} returning name
+        `) as Array<{ name: string }>;
+        await logAudit({
+          adminId: authedAdmin.id,
+          adminName: `${authedAdmin.firstName} ${authedAdmin.lastName}`,
+          adminRole: authedAdmin.role,
+          action: 'superAdminCourseCancelSubscription',
+          targetType: 'course',
+          targetId: courseId,
+          targetLabel: updated[0]?.name,
+        });
         res.status(200).json({ ok: true });
         return;
       }
@@ -1126,7 +1149,18 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       if (action === 'superAdminCourseReactivateSubscription') {
         const { courseId } = req.body as SubscriptionActionBody;
         if (!courseId) throw new HttpError(400, 'courseId is required');
-        await sql`update courses set subscription_status = 'active' where id = ${courseId}`;
+        const updated = (await sql`
+          update courses set subscription_status = 'active' where id = ${courseId} returning name
+        `) as Array<{ name: string }>;
+        await logAudit({
+          adminId: authedAdmin.id,
+          adminName: `${authedAdmin.firstName} ${authedAdmin.lastName}`,
+          adminRole: authedAdmin.role,
+          action: 'superAdminCourseReactivateSubscription',
+          targetType: 'course',
+          targetId: courseId,
+          targetLabel: updated[0]?.name,
+        });
         res.status(200).json({ ok: true });
         return;
       }
@@ -1154,7 +1188,17 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         } catch (err) {
           throw new HttpError(400, err instanceof Error ? err.message : 'Could not parse the member list file');
         }
-        res.status(200).json(await replaceMemberRoster(body.courseId, parsedRows));
+        const rosterResult = await replaceMemberRoster(body.courseId, parsedRows);
+        await logAudit({
+          adminId: authedAdmin.id,
+          adminName: `${authedAdmin.firstName} ${authedAdmin.lastName}`,
+          adminRole: authedAdmin.role,
+          action: 'superAdminMemberRosterUpload',
+          targetType: 'course',
+          targetId: body.courseId,
+          targetLabel: `${rosterResult.rosterCount} members`,
+        });
+        res.status(200).json(rosterResult);
         return;
       }
 
@@ -1413,6 +1457,15 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
           course_name: string | null;
         }>;
         const b = inserted[0];
+        await logAudit({
+          adminId: authedAdmin.id,
+          adminName: `${authedAdmin.firstName} ${authedAdmin.lastName}`,
+          adminRole: authedAdmin.role,
+          action: 'superAdminBroadcastSend',
+          targetType: 'broadcast',
+          targetId: b.id,
+          targetLabel: b.title,
+        });
         res.status(200).json({
           id: b.id,
           title: b.title,
@@ -1429,7 +1482,16 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       if (action === 'superAdminBroadcastDelete') {
         const id = (req.body as SuperAdminBroadcastDeleteBody).id;
         if (!id) throw new HttpError(400, 'id is required');
-        await sql`delete from super_admin_broadcasts where id = ${id}`;
+        const deleted = (await sql`delete from super_admin_broadcasts where id = ${id} returning title`) as Array<{ title: string }>;
+        await logAudit({
+          adminId: authedAdmin.id,
+          adminName: `${authedAdmin.firstName} ${authedAdmin.lastName}`,
+          adminRole: authedAdmin.role,
+          action: 'superAdminBroadcastDelete',
+          targetType: 'broadcast',
+          targetId: id,
+          targetLabel: deleted[0]?.title,
+        });
         res.status(200).json({ ok: true });
         return;
       }
@@ -1504,6 +1566,15 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
           `,
         });
 
+        await logAudit({
+          adminId: authedAdmin.id,
+          adminName: `${authedAdmin.firstName} ${authedAdmin.lastName}`,
+          adminRole: authedAdmin.role,
+          action: 'superAdminCourseAdminCreate',
+          targetType: 'course_admin',
+          targetId: created[0].id,
+          targetLabel: `${email} (${targetCourse.name})`,
+        });
         res.status(200).json(courseAdminAccountDto(created[0]));
         return;
       }
@@ -1532,6 +1603,15 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
             <p>You'll be asked to choose your own password the next time you log in.</p>
           `,
         });
+        await logAudit({
+          adminId: authedAdmin.id,
+          adminName: `${authedAdmin.firstName} ${authedAdmin.lastName}`,
+          adminRole: authedAdmin.role,
+          action: 'superAdminCourseAdminResetPassword',
+          targetType: 'course_admin',
+          targetId: id,
+          targetLabel: target.email,
+        });
         res.status(200).json({ ok: true });
         return;
       }
@@ -1539,7 +1619,18 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       if (action === 'superAdminCourseAdminRevoke') {
         const id = (req.body as SuperAdminCourseAdminIdBody).id;
         if (!id) throw new HttpError(400, 'id is required');
-        await sql`update admins set revoked_at = now() where id = ${id} and role = 'course_admin'`;
+        const updated = (await sql`
+          update admins set revoked_at = now() where id = ${id} and role = 'course_admin' returning email
+        `) as Array<{ email: string }>;
+        await logAudit({
+          adminId: authedAdmin.id,
+          adminName: `${authedAdmin.firstName} ${authedAdmin.lastName}`,
+          adminRole: authedAdmin.role,
+          action: 'superAdminCourseAdminRevoke',
+          targetType: 'course_admin',
+          targetId: id,
+          targetLabel: updated[0]?.email,
+        });
         res.status(200).json({ ok: true });
         return;
       }
@@ -1547,7 +1638,18 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       if (action === 'superAdminCourseAdminReactivate') {
         const id = (req.body as SuperAdminCourseAdminIdBody).id;
         if (!id) throw new HttpError(400, 'id is required');
-        await sql`update admins set revoked_at = null where id = ${id} and role = 'course_admin'`;
+        const updated = (await sql`
+          update admins set revoked_at = null where id = ${id} and role = 'course_admin' returning email
+        `) as Array<{ email: string }>;
+        await logAudit({
+          adminId: authedAdmin.id,
+          adminName: `${authedAdmin.firstName} ${authedAdmin.lastName}`,
+          adminRole: authedAdmin.role,
+          action: 'superAdminCourseAdminReactivate',
+          targetType: 'course_admin',
+          targetId: id,
+          targetLabel: updated[0]?.email,
+        });
         res.status(200).json({ ok: true });
         return;
       }
@@ -1555,7 +1657,18 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       if (action === 'superAdminCourseAdminDelete') {
         const id = (req.body as SuperAdminCourseAdminIdBody).id;
         if (!id) throw new HttpError(400, 'id is required');
-        await sql`delete from admins where id = ${id} and role = 'course_admin'`;
+        const deleted = (await sql`
+          delete from admins where id = ${id} and role = 'course_admin' returning email
+        `) as Array<{ email: string }>;
+        await logAudit({
+          adminId: authedAdmin.id,
+          adminName: `${authedAdmin.firstName} ${authedAdmin.lastName}`,
+          adminRole: authedAdmin.role,
+          action: 'superAdminCourseAdminDelete',
+          targetType: 'course_admin',
+          targetId: id,
+          targetLabel: deleted[0]?.email,
+        });
         res.status(200).json({ ok: true });
         return;
       }
@@ -1569,7 +1682,17 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       if (action === 'superAdminAdSave') {
         const body = req.body as SuperAdminAdSaveBody;
         const targetCourseId = resolveAdCourseId(body.courseId);
-        res.status(200).json(await saveAdForCourse(targetCourseId, body));
+        const saved = await saveAdForCourse(targetCourseId, body);
+        await logAudit({
+          adminId: authedAdmin.id,
+          adminName: `${authedAdmin.firstName} ${authedAdmin.lastName}`,
+          adminRole: authedAdmin.role,
+          action: 'superAdminAdSave',
+          targetType: 'ad',
+          targetId: saved.id,
+          targetLabel: body.title,
+        });
+        res.status(200).json(saved);
         return;
       }
 
@@ -1578,6 +1701,14 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         const targetCourseId = resolveAdCourseId(body.courseId);
         if (!body.id) throw new HttpError(400, 'id is required');
         await deleteAdForCourse(targetCourseId, body.id);
+        await logAudit({
+          adminId: authedAdmin.id,
+          adminName: `${authedAdmin.firstName} ${authedAdmin.lastName}`,
+          adminRole: authedAdmin.role,
+          action: 'superAdminAdDelete',
+          targetType: 'ad',
+          targetId: body.id,
+        });
         res.status(200).json({ ok: true });
         return;
       }
@@ -1592,7 +1723,17 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       if (action === 'superAdminRewardSave') {
         const body = req.body as SuperAdminRewardSaveBody;
         if (!body.courseId) throw new HttpError(400, 'courseId is required');
-        res.status(200).json(await saveRewardForCourse(body.courseId, body));
+        const saved = await saveRewardForCourse(body.courseId, body);
+        await logAudit({
+          adminId: authedAdmin.id,
+          adminName: `${authedAdmin.firstName} ${authedAdmin.lastName}`,
+          adminRole: authedAdmin.role,
+          action: 'superAdminRewardSave',
+          targetType: 'reward',
+          targetId: saved.id,
+          targetLabel: body.title,
+        });
+        res.status(200).json(saved);
         return;
       }
 
@@ -1601,6 +1742,14 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         if (!body.courseId) throw new HttpError(400, 'courseId is required');
         if (!body.id) throw new HttpError(400, 'id is required');
         await deleteRewardForCourse(body.courseId, body.id);
+        await logAudit({
+          adminId: authedAdmin.id,
+          adminName: `${authedAdmin.firstName} ${authedAdmin.lastName}`,
+          adminRole: authedAdmin.role,
+          action: 'superAdminRewardDelete',
+          targetType: 'reward',
+          targetId: body.id,
+        });
         res.status(200).json({ ok: true });
         return;
       }
@@ -1623,6 +1772,43 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
           throw new HttpError(400, 'metric must be one of members, newMembers, fcEarned, fcRedeemed, receiptsScanned');
         }
         res.status(200).json(await getSuperAdminStatBreakdown(period, metric as StatBreakdownMetric));
+        return;
+      }
+
+      // --- Audit log — read-only record of the super_admin mutating actions
+      // above (course/subscription/roster/broadcast/course-admin/ad/reward/
+      // support-agent changes), for accountability once more than one person
+      // has super_admin access. ---
+      if (action === 'auditLog' && req.method === 'GET') {
+        const rows = (await sql`
+          select id, admin_id, admin_name, admin_role, action, target_type, target_id, target_label, created_at
+          from audit_log
+          order by created_at desc
+          limit 200
+        `) as Array<{
+          id: string;
+          admin_id: string | null;
+          admin_name: string;
+          admin_role: string;
+          action: string;
+          target_type: string | null;
+          target_id: string | null;
+          target_label: string | null;
+          created_at: string;
+        }>;
+        res.status(200).json(
+          rows.map((r) => ({
+            id: r.id,
+            adminId: r.admin_id,
+            adminName: r.admin_name,
+            adminRole: r.admin_role,
+            action: r.action,
+            targetType: r.target_type,
+            targetId: r.target_id,
+            targetLabel: r.target_label,
+            createdAt: r.created_at,
+          })),
+        );
         return;
       }
 
@@ -1690,6 +1876,15 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
           `,
         });
 
+        await logAudit({
+          adminId: authedAdmin.id,
+          adminName: `${authedAdmin.firstName} ${authedAdmin.lastName}`,
+          adminRole: authedAdmin.role,
+          action: 'supportAgentCreate',
+          targetType: 'support_agent',
+          targetId: created[0].id,
+          targetLabel: email,
+        });
         res.status(200).json({
           id: created[0].id,
           firstName: created[0].first_name,
@@ -1725,6 +1920,15 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
             <p>You'll be asked to choose your own password the next time you log in.</p>
           `,
         });
+        await logAudit({
+          adminId: authedAdmin.id,
+          adminName: `${authedAdmin.firstName} ${authedAdmin.lastName}`,
+          adminRole: authedAdmin.role,
+          action: 'supportAgentResetPassword',
+          targetType: 'support_agent',
+          targetId: id,
+          targetLabel: target.email,
+        });
         res.status(200).json({ ok: true });
         return;
       }
@@ -1732,7 +1936,18 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       if (action === 'supportAgentRevoke') {
         const id = (req.body as SupportAgentIdBody).id;
         if (!id) throw new HttpError(400, 'id is required');
-        await sql`update admins set revoked_at = now() where id = ${id} and role = 'support_agent'`;
+        const updated = (await sql`
+          update admins set revoked_at = now() where id = ${id} and role = 'support_agent' returning email
+        `) as Array<{ email: string }>;
+        await logAudit({
+          adminId: authedAdmin.id,
+          adminName: `${authedAdmin.firstName} ${authedAdmin.lastName}`,
+          adminRole: authedAdmin.role,
+          action: 'supportAgentRevoke',
+          targetType: 'support_agent',
+          targetId: id,
+          targetLabel: updated[0]?.email,
+        });
         res.status(200).json({ ok: true });
         return;
       }
@@ -1740,7 +1955,18 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       if (action === 'supportAgentReactivate') {
         const id = (req.body as SupportAgentIdBody).id;
         if (!id) throw new HttpError(400, 'id is required');
-        await sql`update admins set revoked_at = null where id = ${id} and role = 'support_agent'`;
+        const updated = (await sql`
+          update admins set revoked_at = null where id = ${id} and role = 'support_agent' returning email
+        `) as Array<{ email: string }>;
+        await logAudit({
+          adminId: authedAdmin.id,
+          adminName: `${authedAdmin.firstName} ${authedAdmin.lastName}`,
+          adminRole: authedAdmin.role,
+          action: 'supportAgentReactivate',
+          targetType: 'support_agent',
+          targetId: id,
+          targetLabel: updated[0]?.email,
+        });
         res.status(200).json({ ok: true });
         return;
       }
@@ -1748,7 +1974,18 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       if (action === 'supportAgentDelete') {
         const id = (req.body as SupportAgentIdBody).id;
         if (!id) throw new HttpError(400, 'id is required');
-        await sql`delete from admins where id = ${id} and role = 'support_agent'`;
+        const deleted = (await sql`
+          delete from admins where id = ${id} and role = 'support_agent' returning email
+        `) as Array<{ email: string }>;
+        await logAudit({
+          adminId: authedAdmin.id,
+          adminName: `${authedAdmin.firstName} ${authedAdmin.lastName}`,
+          adminRole: authedAdmin.role,
+          action: 'supportAgentDelete',
+          targetType: 'support_agent',
+          targetId: id,
+          targetLabel: deleted[0]?.email,
+        });
         res.status(200).json({ ok: true });
         return;
       }

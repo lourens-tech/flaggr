@@ -69,6 +69,7 @@ export type SuperAdminStackParamList = {
   SuperAdminCourseAdmins: { courseId: string; courseName: string };
   SuperAdminCourseAdminCreate: { courseId: string; courseName: string };
   SuperAdminMemberStats: { memberId: string };
+  SuperAdminAuditLog: undefined;
 };
 
 export type MainTabParamList = {

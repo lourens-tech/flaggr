@@ -366,6 +366,18 @@ export interface MemberRosterUploadResult {
   verifiedCount: number;
 }
 
+export interface AuditLogEntry {
+  id: string;
+  adminId: string | null;
+  adminName: string;
+  adminRole: string;
+  action: string;
+  targetType: string | null;
+  targetId: string | null;
+  targetLabel: string | null;
+  createdAt: string;
+}
+
 export interface AdminVoucherLookup {
   id: string;
   code: string;

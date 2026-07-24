@@ -29,6 +29,7 @@ import type {
   AdminStaff,
   AdminUser,
   AdminVoucherLookup,
+  AuditLogEntry,
   BroadcastTarget,
   DashboardReport,
   EnquiryMessage,
@@ -225,6 +226,9 @@ interface AdminContextValue {
   revokeSupportAgent: (id: string) => Promise<void>;
   reactivateSupportAgent: (id: string) => Promise<void>;
   deleteSupportAgent: (id: string) => Promise<void>;
+  // Audit log (super_admin only) — thin passthrough, same as getClubAdmins/
+  // getSuperAdminCourseAdmins; the caller owns the resulting list.
+  getAuditLog: () => Promise<AuditLogEntry[]>;
 }
 
 const AdminContext = createContext<AdminContextValue | undefined>(undefined);
@@ -631,6 +635,8 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     setSupportAgents((prev) => prev.filter((a) => a.id !== id));
   };
 
+  const getAuditLog = async (): Promise<AuditLogEntry[]> => adminApi.auditLog();
+
   const value: AdminContextValue = {
     isAdminAuthenticated,
     isInitializing,
@@ -738,6 +744,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     revokeSupportAgent,
     reactivateSupportAgent,
     deleteSupportAgent,
+    getAuditLog,
   };
 
   return <AdminContext.Provider value={value}>{children}</AdminContext.Provider>;
