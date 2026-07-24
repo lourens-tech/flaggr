@@ -20,6 +20,8 @@ import type {
   MemberRosterUploadResult,
   MemberStats,
   MembersPage,
+  SuperAdminBroadcast,
+  SuperAdminBroadcastTarget,
   SuperAdminCourseSummary,
   SuperAdminDashboardReport,
   AdPerformanceRow,
@@ -266,6 +268,9 @@ export const adminApi = {
   deleteBroadcast: (id: string) =>
     request<{ ok: boolean }>('?action=broadcastDelete', { method: 'POST', body: { id } }),
 
+  registerPushToken: (token: string, platform: 'ios' | 'android') =>
+    request<{ ok: boolean }>('?action=registerPushToken', { method: 'POST', body: { token, platform } }),
+
   notifications: () => request<AdminNotification[]>('?action=notifications'),
 
   markNotificationRead: (id: string) =>
@@ -333,6 +338,14 @@ export const adminApi = {
       method: 'POST',
       body: { courseId, fileName, fileBase64 },
     }),
+
+  superAdminBroadcasts: () => request<SuperAdminBroadcast[]>('?action=superAdminBroadcasts'),
+
+  sendSuperAdminBroadcast: (payload: { title: string; body: string; target: SuperAdminBroadcastTarget }) =>
+    request<SuperAdminBroadcast>('?action=superAdminBroadcastSend', { method: 'POST', body: payload }),
+
+  deleteSuperAdminBroadcast: (id: string) =>
+    request<{ ok: boolean }>('?action=superAdminBroadcastDelete', { method: 'POST', body: { id } }),
 
   // --- Support Centre: requester side (course_admin/staff logging a ticket
   // to the Flagrr team — separate from the per-club 'enquiries' actions

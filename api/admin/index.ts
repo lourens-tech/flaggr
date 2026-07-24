@@ -20,7 +20,7 @@ import {
   markThreadReadByAdmin,
   type EnquiryStatus,
 } from '../_lib/enquiries';
-import { sendPushToUser } from '../_lib/pushNotifications';
+import { registerAdminPushToken, sendPushToAdmin, sendPushToUser, type PushPlatform } from '../_lib/pushNotifications';
 import { sendEmail } from '../_lib/email';
 import {
   addAgentMessage,
@@ -193,6 +193,21 @@ interface BroadcastDeleteBody {
   id?: string;
 }
 
+interface AdminRegisterPushTokenBody {
+  token?: string;
+  platform?: PushPlatform;
+}
+
+interface SuperAdminBroadcastSendBody {
+  title?: string;
+  body?: string;
+  target?: string;
+}
+
+interface SuperAdminBroadcastDeleteBody {
+  id?: string;
+}
+
 interface StaffCreateBody {
   firstName?: string;
   lastName?: string;
@@ -224,6 +239,11 @@ const REWARD_CATEGORIES = ['rounds', 'experiences', 'pro-shop', 'practice', 'din
 const STAT_BREAKDOWN_METRICS = new Set(['members', 'newMembers', 'fcEarned', 'fcRedeemed', 'receiptsScanned']);
 const AD_PLACEMENTS = ['home', 'rewards_shop'];
 const BROADCAST_TARGETS = ['all', 'Bronze', 'Silver', 'Gold', 'Platinum'];
+// Same tier targets as a club's own broadcast, plus 'course_admins' — a
+// super_admin isn't scoped to one course, so 'all'/tier targets here reach
+// every member across every club, and 'course_admins' reaches every
+// course_admin account platform-wide instead of members at all.
+const SUPER_ADMIN_BROADCAST_TARGETS = ['all', 'Bronze', 'Silver', 'Gold', 'Platinum', 'course_admins'];
 
 // Staff accounts only get a course-admin-created login for the Vouchers tab
 // and their own basic profile — every other action stays course_admin-only,
@@ -262,6 +282,9 @@ const SUPER_ADMIN_ALLOWED_ACTIONS = new Set([
   'superAdminCourseReactivateSubscription',
   'superAdminMemberRosterStatus',
   'superAdminMemberRosterUpload',
+  'superAdminBroadcasts',
+  'superAdminBroadcastSend',
+  'superAdminBroadcastDelete',
   'supportInbox',
   'supportInboxThread',
   'supportAgentReply',
@@ -1067,7 +1090,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         if (!body.courseId) throw new HttpError(400, 'courseId is required');
         const { fileName, fileBase64 } = body;
         if (!fileName || !fileBase64 || fileBase64.length > MAX_ROSTER_FILE_BASE64_LENGTH) {
-          throw new HttpError(400, 'A member list file (CSV, Excel, or PDF) is required and must be under 3MB');
+          throw new HttpError(400, 'A member list file (CSV or Excel) is required and must be under 3MB');
         }
         let parsedRows;
         try {
@@ -1076,6 +1099,114 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
           throw new HttpError(400, err instanceof Error ? err.message : 'Could not parse the member list file');
         }
         res.status(200).json(await replaceMemberRoster(body.courseId, parsedRows));
+        return;
+      }
+
+      // --- Push notifications — platform-wide, unlike a club's own
+      // broadcast (see 'broadcastSend' further below, course-scoped). ---
+      if (action === 'superAdminBroadcasts' && req.method === 'GET') {
+        const rows = (await sql`
+          select id, title, body, target, recipient_count, sent_at
+          from super_admin_broadcasts
+          order by sent_at desc
+          limit 100
+        `) as Array<{
+          id: string;
+          title: string;
+          body: string;
+          target: string;
+          recipient_count: number;
+          sent_at: string;
+        }>;
+        res.status(200).json(
+          rows.map((r) => ({
+            id: r.id,
+            title: r.title,
+            body: r.body,
+            target: r.target,
+            recipientCount: r.recipient_count,
+            sentAt: r.sent_at,
+          })),
+        );
+        return;
+      }
+
+      if (action === 'superAdminBroadcastSend') {
+        const body = req.body as SuperAdminBroadcastSendBody;
+        const title = body.title?.trim();
+        const message = body.body?.trim();
+        const target = body.target?.trim();
+        if (!title) throw new HttpError(400, 'title is required');
+        if (!message) throw new HttpError(400, 'body is required');
+        if (!target || !SUPER_ADMIN_BROADCAST_TARGETS.includes(target)) {
+          throw new HttpError(400, 'a valid target is required');
+        }
+
+        let recipientCount: number;
+        if (target === 'course_admins') {
+          const recipients = (await sql`
+            select id from admins where role = 'course_admin' and revoked_at is null
+          `) as Array<{ id: string }>;
+          recipientCount = recipients.length;
+
+          if (recipients.length > 0) {
+            // One row per distinct club — every course_admin at that club
+            // already reads admin_notifications scoped by their own course_id
+            // (see the 'notifications' action further below), so this shows
+            // up in their existing bell without any new per-recipient plumbing.
+            await sql`
+              insert into admin_notifications (course_id, title, body)
+              select distinct course_id, ${title}, ${message} from admins
+              where role = 'course_admin' and revoked_at is null
+            `;
+            await Promise.allSettled(recipients.map((r) => sendPushToAdmin(r.id, { title, body: message })));
+          }
+        } else {
+          const recipients = (await sql`
+            select id from users
+            where ${target !== 'all' ? sql`tier = ${target}` : sql`true`}
+          `) as Array<{ id: string }>;
+          recipientCount = recipients.length;
+
+          if (recipients.length > 0) {
+            await sql`
+              insert into notifications (user_id, title, body)
+              select id, ${title}, ${message} from users
+              where ${target !== 'all' ? sql`tier = ${target}` : sql`true`}
+            `;
+            await Promise.allSettled(recipients.map((r) => sendPushToUser(r.id, { title, body: message })));
+          }
+        }
+
+        const inserted = (await sql`
+          insert into super_admin_broadcasts (admin_id, title, body, target, recipient_count)
+          values (${authedAdmin.id}, ${title}, ${message}, ${target}, ${recipientCount})
+          returning id, title, body, target, recipient_count, sent_at
+        `) as Array<{
+          id: string;
+          title: string;
+          body: string;
+          target: string;
+          recipient_count: number;
+          sent_at: string;
+        }>;
+        const b = inserted[0];
+        res.status(200).json({
+          id: b.id,
+          title: b.title,
+          body: b.body,
+          target: b.target,
+          recipientCount: b.recipient_count,
+          sentAt: b.sent_at,
+        });
+        return;
+      }
+
+      if (action === 'superAdminBroadcastDelete') {
+        const id = (req.body as SuperAdminBroadcastDeleteBody).id;
+        if (!id) throw new HttpError(400, 'id is required');
+        await sql`delete from super_admin_broadcasts where id = ${id}`;
+        res.status(200).json({ ok: true });
         return;
       }
 
@@ -1282,6 +1413,19 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     const period: StatsPeriod = isStatsPeriod(req.query.period) ? req.query.period : 'month';
     const report = await getDashboardReport(courseId, period);
     res.status(200).json(report);
+    return;
+  }
+
+  // course_admin-only (not in STAFF_ALLOWED_ACTIONS) — lets a super_admin's
+  // platform-wide broadcast (see superAdminBroadcastSend below) reach this
+  // device, the same way a member broadcast already does for members.
+  if (action === 'registerPushToken') {
+    const { token, platform } = req.body as AdminRegisterPushTokenBody;
+    if (!token || (platform !== 'ios' && platform !== 'android')) {
+      throw new HttpError(400, 'token and a valid platform are required');
+    }
+    await registerAdminPushToken(authed.id, token, platform);
+    res.status(200).json({ ok: true });
     return;
   }
 
@@ -1553,7 +1697,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
   if (action === 'memberRosterUpload') {
     const { fileName, fileBase64 } = req.body as MemberRosterUploadBody;
     if (!fileName || !fileBase64 || fileBase64.length > MAX_ROSTER_FILE_BASE64_LENGTH) {
-      throw new HttpError(400, 'A member list file (CSV, Excel, or PDF) is required and must be under 3MB');
+      throw new HttpError(400, 'A member list file (CSV or Excel) is required and must be under 3MB');
     }
     let parsedRows;
     try {

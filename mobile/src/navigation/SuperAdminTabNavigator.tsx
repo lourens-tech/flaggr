@@ -4,6 +4,7 @@ import type { SuperAdminTabParamList } from './types';
 import { SuperAdminCoursesScreen } from '../screens/superadmin/SuperAdminCoursesScreen';
 import { SuperAdminAdsScreen } from '../screens/superadmin/SuperAdminAdsScreen';
 import { SuperAdminReportsScreen } from '../screens/superadmin/SuperAdminReportsScreen';
+import { SuperAdminPushScreen } from '../screens/superadmin/SuperAdminPushScreen';
 import { SuperAdminSupportInboxScreen } from '../screens/superadmin/SuperAdminSupportInboxScreen';
 import { SuperAdminProfileScreen } from '../screens/superadmin/SuperAdminProfileScreen';
 import { AdminTabBar } from '../components/common/AdminTabBar';
@@ -32,6 +33,7 @@ export function SuperAdminTabNavigator() {
       <Tab.Screen name="SuperAdminCourses" component={SuperAdminCoursesScreen} />
       <Tab.Screen name="SuperAdminAds" component={SuperAdminAdsScreen} />
       <Tab.Screen name="SuperAdminReports" component={SuperAdminReportsScreen} />
+      <Tab.Screen name="SuperAdminPush" component={SuperAdminPushScreen} />
       <Tab.Screen name="SuperAdminSupport" component={SuperAdminSupportInboxScreen} />
       <Tab.Screen name="SuperAdminProfile" component={SuperAdminProfileScreen} />
     </Tab.Navigator>

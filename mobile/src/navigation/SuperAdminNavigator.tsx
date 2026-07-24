@@ -12,6 +12,7 @@ import { SuperAdminSupportTicketChatScreen } from '../screens/superadmin/SuperAd
 import { SuperAdminAgentsScreen } from '../screens/superadmin/SuperAdminAgentsScreen';
 import { SuperAdminAgentCreateScreen } from '../screens/superadmin/SuperAdminAgentCreateScreen';
 import { SuperAdminCourseMemberListScreen } from '../screens/superadmin/SuperAdminCourseMemberListScreen';
+import { SuperAdminBroadcastComposeScreen } from '../screens/superadmin/SuperAdminBroadcastComposeScreen';
 
 const Stack = createNativeStackNavigator<SuperAdminStackParamList>();
 
@@ -32,6 +33,7 @@ export function SuperAdminNavigator() {
       <Stack.Screen name="SuperAdminAgents" component={SuperAdminAgentsScreen} />
       <Stack.Screen name="SuperAdminAgentCreate" component={SuperAdminAgentCreateScreen} />
       <Stack.Screen name="SuperAdminCourseMemberList" component={SuperAdminCourseMemberListScreen} />
+      <Stack.Screen name="SuperAdminBroadcastCompose" component={SuperAdminBroadcastComposeScreen} />
     </Stack.Navigator>
   );
 }

@@ -213,6 +213,21 @@ export interface AdminBroadcast {
   sentAt: string;
 }
 
+// Same tier targets as a club's own broadcast, plus 'course_admins' — a
+// super_admin isn't scoped to one course, so member/tier targets reach
+// every club platform-wide, and 'course_admins' reaches every course_admin
+// account instead of members at all.
+export type SuperAdminBroadcastTarget = 'all' | 'Bronze' | 'Silver' | 'Gold' | 'Platinum' | 'course_admins';
+
+export interface SuperAdminBroadcast {
+  id: string;
+  title: string;
+  body: string;
+  target: SuperAdminBroadcastTarget;
+  recipientCount: number;
+  sentAt: string;
+}
+
 export type EnquiryStatus = 'pending' | 'in_progress' | 'resolved';
 
 export interface EnquiryMessage {

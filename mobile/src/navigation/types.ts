@@ -47,6 +47,7 @@ export type SuperAdminTabParamList = {
   SuperAdminCourses: undefined;
   SuperAdminAds: undefined;
   SuperAdminReports: undefined;
+  SuperAdminPush: undefined;
   SuperAdminSupport: undefined;
   SuperAdminProfile: undefined;
 };
@@ -62,6 +63,7 @@ export type SuperAdminStackParamList = {
   SuperAdminSupportTicketChat: { ticketId: string };
   SuperAdminAgents: undefined;
   SuperAdminAgentCreate: undefined;
+  SuperAdminBroadcastCompose: { title?: string; body?: string; target?: string } | undefined;
   SuperAdminCourseMemberList: { courseId: string; courseName: string };
 };
 

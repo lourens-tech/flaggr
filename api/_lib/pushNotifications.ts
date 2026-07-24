@@ -11,7 +11,18 @@ export async function registerPushToken(userId: string, token: string, platform:
   await sql`
     insert into push_tokens (user_id, token, platform)
     values (${userId}, ${token}, ${platform})
-    on conflict (token) do update set user_id = excluded.user_id, platform = excluded.platform, last_used_at = now()
+    on conflict (token) do update set user_id = excluded.user_id, admin_id = null, platform = excluded.platform, last_used_at = now()
+  `;
+}
+
+// Same idea, for a course_admin account — lets a super_admin's platform-wide
+// broadcast (see superAdminBroadcastSend in api/admin/index.ts) reach an
+// admin's device, the same way a member broadcast already does.
+export async function registerAdminPushToken(adminId: string, token: string, platform: PushPlatform): Promise<void> {
+  await sql`
+    insert into push_tokens (admin_id, token, platform)
+    values (${adminId}, ${token}, ${platform})
+    on conflict (token) do update set admin_id = excluded.admin_id, user_id = null, platform = excluded.platform, last_used_at = now()
   `;
 }
 
@@ -21,16 +32,11 @@ interface ExpoPushResult {
   details?: { error?: string };
 }
 
-// Best-effort — this is purely "also ping their phone" on top of the
-// in-app notification the caller has already written, so a push failure
-// must never fail the action that triggered it (a bonus grant, a
-// redemption, a receipt scan). No API key is required for Expo's push
-// service to accept sends.
-export async function sendPushToUser(userId: string, message: { title: string; body: string }): Promise<void> {
+// Shared by sendPushToUser/sendPushToAdmin — sends to every given token and
+// cleans up any Expo reports as no-longer-registered on the device.
+async function deliverPush(tokens: Array<{ token: string }>, message: { title: string; body: string }): Promise<void> {
+  if (tokens.length === 0) return;
   try {
-    const tokens = (await sql`select token from push_tokens where user_id = ${userId}`) as Array<{ token: string }>;
-    if (tokens.length === 0) return;
-
     const headers: Record<string, string> = { 'Content-Type': 'application/json', Accept: 'application/json' };
     if (EXPO_ACCESS_TOKEN) headers.Authorization = `Bearer ${EXPO_ACCESS_TOKEN}`;
 
@@ -53,4 +59,20 @@ export async function sendPushToUser(userId: string, message: { title: string; b
   } catch {
     // Network/parse failure — never let a push-send problem fail the caller.
   }
+}
+
+// Best-effort — this is purely "also ping their phone" on top of the
+// in-app notification the caller has already written, so a push failure
+// must never fail the action that triggered it (a bonus grant, a
+// redemption, a receipt scan). No API key is required for Expo's push
+// service to accept sends.
+export async function sendPushToUser(userId: string, message: { title: string; body: string }): Promise<void> {
+  const tokens = (await sql`select token from push_tokens where user_id = ${userId}`) as Array<{ token: string }>;
+  await deliverPush(tokens, message);
+}
+
+// Same idea, for a course_admin account (see registerAdminPushToken above).
+export async function sendPushToAdmin(adminId: string, message: { title: string; body: string }): Promise<void> {
+  const tokens = (await sql`select token from push_tokens where admin_id = ${adminId}`) as Array<{ token: string }>;
+  await deliverPush(tokens, message);
 }

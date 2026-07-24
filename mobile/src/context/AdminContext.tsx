@@ -14,6 +14,7 @@ import {
   type SuperAdminRewardSavePayload,
   type SupportAgentCreatePayload,
 } from '../api/adminClient';
+import { registerForPushNotificationsAsync } from '../utils/pushNotifications';
 import type {
   AdminAd,
   AdminBroadcast,
@@ -34,6 +35,8 @@ import type {
   MemberRosterUploadResult,
   MemberStats,
   MembersPage,
+  SuperAdminBroadcast,
+  SuperAdminBroadcastTarget,
   SuperAdminCourseSummary,
   SuperAdminDashboardReport,
   AdPerformanceRow,
@@ -94,6 +97,7 @@ interface AdminContextValue {
   loadBroadcasts: () => Promise<void>;
   sendBroadcast: (payload: { title: string; body: string; target: BroadcastTarget }) => Promise<void>;
   deleteBroadcast: (id: string) => Promise<void>;
+  registerPushToken: (token: string, platform: 'ios' | 'android') => Promise<void>;
   login: (identifier: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   setDashboardPeriod: (period: DashboardPeriod) => Promise<void>;
@@ -171,6 +175,13 @@ interface AdminContextValue {
   // effect as the course_admin action above but with an explicit courseId.
   getSuperAdminMemberRosterStatus: (courseId: string) => Promise<MemberRosterStatus>;
   uploadSuperAdminMemberRoster: (courseId: string, fileName: string, fileBase64: string) => Promise<MemberRosterUploadResult>;
+  // Push notifications — same idea as broadcasts above, but platform-wide
+  // (member/tier targets reach every club, 'course_admins' reaches every
+  // course_admin account) rather than scoped to one club's own members.
+  superAdminBroadcasts: SuperAdminBroadcast[];
+  loadSuperAdminBroadcasts: () => Promise<void>;
+  sendSuperAdminBroadcast: (payload: { title: string; body: string; target: SuperAdminBroadcastTarget }) => Promise<void>;
+  deleteSuperAdminBroadcast: (id: string) => Promise<void>;
   getSuperAdminDashboard: (period: DashboardPeriod) => Promise<SuperAdminDashboardReport>;
   getSuperAdminAdPerformance: () => Promise<AdPerformanceRow[]>;
   getSuperAdminStatBreakdown: (metric: StatBreakdownMetric, period: DashboardPeriod) => Promise<StatBreakdownRow[]>;
@@ -215,6 +226,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
   const [staffWelcomePending, setStaffWelcomePending] = useState(false);
   const [staffOnboardingDismissed, setStaffOnboardingDismissed] = useState(false);
   const [superAdminCourses, setSuperAdminCourses] = useState<SuperAdminCourseSummary[]>([]);
+  const [superAdminBroadcasts, setSuperAdminBroadcasts] = useState<SuperAdminBroadcast[]>([]);
 
   const refreshDashboard = useCallback(async () => {
     setDashboardLoading(true);
@@ -242,6 +254,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
           setIsAdminAuthenticated(true);
           theme.hydrateFromAccount(me.admin.themePreference);
           loadNotifications().catch(() => {});
+          registerPushTokenIfCourseAdmin(me.admin.role);
         }
       } catch {
         await setAdminToken(null);
@@ -251,6 +264,21 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     })();
   }, [loadNotifications]);
 
+  const registerPushToken = async (token: string, platform: 'ios' | 'android') => {
+    await adminApi.registerPushToken(token, platform);
+  };
+
+  // Only a course_admin can currently be targeted by a super_admin broadcast
+  // (see superAdminBroadcastSend in api/admin/index.ts) — fire-and-forget,
+  // same as the member app's own registration, and a silent no-op until a
+  // native build with an EAS project exists.
+  const registerPushTokenIfCourseAdmin = (role: string) => {
+    if (role !== 'course_admin') return;
+    registerForPushNotificationsAsync().then((result) => {
+      if (result) registerPushToken(result.token, result.platform).catch(() => {});
+    });
+  };
+
   const login = async (identifier: string, password: string) => {
     const res = await adminApi.login(identifier, password);
     await setAdminToken(res.token);
@@ -259,6 +287,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     setIsAdminAuthenticated(true);
     theme.hydrateFromAccount(res.admin.themePreference);
     loadNotifications().catch(() => {});
+    registerPushTokenIfCourseAdmin(res.admin.role);
   };
 
   const logout = async () => {
@@ -276,6 +305,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     setAds([]);
     setNotifications([]);
     setBroadcasts([]);
+    setSuperAdminBroadcasts([]);
     setStaff([]);
     setOnboardingDismissed(false);
     setStaffWelcomePending(false);
@@ -497,6 +527,20 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
   const uploadSuperAdminMemberRoster = async (courseId: string, fileName: string, fileBase64: string) =>
     adminApi.uploadSuperAdminMemberRoster(courseId, fileName, fileBase64);
 
+  const loadSuperAdminBroadcasts = useCallback(async () => {
+    setSuperAdminBroadcasts(await adminApi.superAdminBroadcasts());
+  }, []);
+
+  const sendSuperAdminBroadcast = async (payload: { title: string; body: string; target: SuperAdminBroadcastTarget }) => {
+    await adminApi.sendSuperAdminBroadcast(payload);
+    await loadSuperAdminBroadcasts();
+  };
+
+  const deleteSuperAdminBroadcast = async (id: string) => {
+    await adminApi.deleteSuperAdminBroadcast(id);
+    setSuperAdminBroadcasts((prev) => prev.filter((b) => b.id !== id));
+  };
+
   const getSuperAdminDashboard = async (period: DashboardPeriod) => adminApi.superAdminDashboard(period);
   const getSuperAdminAdPerformance = async () => adminApi.superAdminAdPerformance();
 
@@ -558,6 +602,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     loadBroadcasts,
     sendBroadcast,
     deleteBroadcast,
+    registerPushToken,
     login,
     logout,
     setDashboardPeriod,
@@ -614,6 +659,10 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     reactivateSuperAdminCourseSubscription,
     getSuperAdminMemberRosterStatus,
     uploadSuperAdminMemberRoster,
+    superAdminBroadcasts,
+    loadSuperAdminBroadcasts,
+    sendSuperAdminBroadcast,
+    deleteSuperAdminBroadcast,
     getSuperAdminDashboard,
     getSuperAdminAdPerformance,
     getSuperAdminStatBreakdown,
