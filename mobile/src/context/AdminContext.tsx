@@ -185,6 +185,8 @@ interface AdminContextValue {
   deleteSuperAdminReward: (courseId: string, id: string) => Promise<void>;
   cancelSuperAdminCourseSubscription: (courseId: string) => Promise<void>;
   reactivateSuperAdminCourseSubscription: (courseId: string) => Promise<void>;
+  archiveSuperAdminCourse: (courseId: string) => Promise<void>;
+  unarchiveSuperAdminCourse: (courseId: string) => Promise<void>;
   // A super_admin can upload a club's member roster on its behalf, same
   // effect as the course_admin action above but with an explicit courseId.
   getSuperAdminMemberRosterStatus: (courseId: string) => Promise<MemberRosterStatus>;
@@ -555,6 +557,16 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     await loadSuperAdminCourses();
   };
 
+  const archiveSuperAdminCourse = async (courseId: string) => {
+    await adminApi.archiveSuperAdminCourse(courseId);
+    await loadSuperAdminCourses();
+  };
+
+  const unarchiveSuperAdminCourse = async (courseId: string) => {
+    await adminApi.unarchiveSuperAdminCourse(courseId);
+    await loadSuperAdminCourses();
+  };
+
   const getSuperAdminMemberRosterStatus = async (courseId: string) => adminApi.superAdminMemberRosterStatus(courseId);
   const uploadSuperAdminMemberRoster = async (courseId: string, fileName: string, fileBase64: string) =>
     adminApi.uploadSuperAdminMemberRoster(courseId, fileName, fileBase64);
@@ -714,6 +726,8 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     deleteSuperAdminReward,
     cancelSuperAdminCourseSubscription,
     reactivateSuperAdminCourseSubscription,
+    archiveSuperAdminCourse,
+    unarchiveSuperAdminCourse,
     getSuperAdminMemberRosterStatus,
     uploadSuperAdminMemberRoster,
     superAdminBroadcasts,

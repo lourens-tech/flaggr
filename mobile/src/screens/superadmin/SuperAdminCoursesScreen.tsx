@@ -29,18 +29,27 @@ const SUBSCRIPTION_LABELS: Record<string, string> = {
 export function SuperAdminCoursesScreen({ navigation }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const { superAdminCourses, loadSuperAdminCourses, cancelSuperAdminCourseSubscription, reactivateSuperAdminCourseSubscription } = useAdmin();
+  const {
+    superAdminCourses,
+    loadSuperAdminCourses,
+    cancelSuperAdminCourseSubscription,
+    reactivateSuperAdminCourseSubscription,
+    archiveSuperAdminCourse,
+    unarchiveSuperAdminCourse,
+  } = useAdmin();
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [showArchived, setShowArchived] = useState(false);
   const [pendingCourseId, setPendingCourseId] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
-    if (!query) return superAdminCourses;
-    return superAdminCourses.filter(
-      (c) => c.name.toLowerCase().includes(query) || c.slug.toLowerCase().includes(query),
-    );
-  }, [superAdminCourses, search]);
+    return superAdminCourses.filter((c) => {
+      if (!showArchived && c.archivedAt) return false;
+      if (!query) return true;
+      return c.name.toLowerCase().includes(query) || c.slug.toLowerCase().includes(query);
+    });
+  }, [superAdminCourses, search, showArchived]);
 
   useFocusEffect(
     useCallback(() => {
@@ -97,15 +106,58 @@ export function SuperAdminCoursesScreen({ navigation }: Props) {
     }
   };
 
+  const handleArchive = (course: SuperAdminCourseSummary) => {
+    showAlert(
+      'Archive this club?',
+      `${course.name} will be hidden from the active club list. Nothing is deleted, and you can unarchive it again at any time.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Archive',
+          onPress: async () => {
+            setPendingCourseId(course.id);
+            try {
+              await archiveSuperAdminCourse(course.id);
+            } catch (err) {
+              const message = err instanceof AdminApiError ? err.message : 'Something went wrong. Please try again.';
+              showAlert('Couldn’t archive club', message);
+            } finally {
+              setPendingCourseId(null);
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  const handleUnarchive = async (course: SuperAdminCourseSummary) => {
+    setPendingCourseId(course.id);
+    try {
+      await unarchiveSuperAdminCourse(course.id);
+    } catch (err) {
+      const message = err instanceof AdminApiError ? err.message : 'Something went wrong. Please try again.';
+      showAlert('Couldn’t unarchive club', message);
+    } finally {
+      setPendingCourseId(null);
+    }
+  };
+
   const renderItem = ({ item }: { item: SuperAdminCourseSummary }) => (
     <View style={styles.card}>
       <View style={styles.cardTopRow}>
         <Text style={styles.cardTitle} numberOfLines={1}>{item.name}</Text>
-        {item.subscriptionStatus ? (
-          <View style={styles.statusBadge}>
-            <Text style={styles.statusBadgeText}>{SUBSCRIPTION_LABELS[item.subscriptionStatus] ?? item.subscriptionStatus}</Text>
-          </View>
-        ) : null}
+        <View style={{ flexDirection: 'row', gap: 6 }}>
+          {item.archivedAt ? (
+            <View style={styles.archivedBadge}>
+              <Text style={styles.archivedBadgeText}>Archived</Text>
+            </View>
+          ) : null}
+          {item.subscriptionStatus ? (
+            <View style={styles.statusBadge}>
+              <Text style={styles.statusBadgeText}>{SUBSCRIPTION_LABELS[item.subscriptionStatus] ?? item.subscriptionStatus}</Text>
+            </View>
+          ) : null}
+        </View>
       </View>
       <Text style={styles.cardSlug} numberOfLines={1}>{item.slug}</Text>
       <View style={styles.cardStatsRow}>
@@ -173,6 +225,25 @@ export function SuperAdminCoursesScreen({ navigation }: Props) {
             <Text style={[styles.actionButtonText, { color: colors.negative }]}>Cancel Subscription</Text>
           </TouchableOpacity>
         )}
+        {item.archivedAt ? (
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={() => handleUnarchive(item)}
+            disabled={pendingCourseId === item.id}
+          >
+            <Ionicons name="archive-outline" size={14} color={colors.clubGreen} />
+            <Text style={styles.actionButtonText}>Unarchive</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={() => handleArchive(item)}
+            disabled={pendingCourseId === item.id}
+          >
+            <Ionicons name="archive-outline" size={14} color={colors.textSecondary} />
+            <Text style={[styles.actionButtonText, { color: colors.textSecondary }]}>Archive</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );
@@ -201,6 +272,19 @@ export function SuperAdminCoursesScreen({ navigation }: Props) {
 
       <View style={styles.searchArea}>
         <TextField placeholder="Search courses" variant="onLight" icon="search" value={search} onChangeText={setSearch} />
+        <TouchableOpacity
+          style={styles.showArchivedRow}
+          onPress={() => setShowArchived((prev) => !prev)}
+          accessibilityRole="button"
+          accessibilityLabel="Toggle showing archived clubs"
+        >
+          <Ionicons
+            name={showArchived ? 'checkbox' : 'square-outline'}
+            size={16}
+            color={colors.clubGreen}
+          />
+          <Text style={styles.showArchivedText}>Show archived clubs</Text>
+        </TouchableOpacity>
       </View>
 
       {loading ? (
@@ -235,7 +319,9 @@ function createStyles(colors: ThemeColors) {
   },
   headerTitle: { fontFamily: fontFamily.headingDisplay, fontSize: fontSize.title, color: colors.white },
   headerSubtitle: { fontFamily: fontFamily.body, fontSize: 12, color: 'rgba(255,255,255,0.75)' },
-  searchArea: { paddingHorizontal: screenPadding, paddingTop: spacing.md },
+  searchArea: { paddingHorizontal: screenPadding, paddingTop: spacing.md, gap: spacing.xs },
+  showArchivedRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 4 },
+  showArchivedText: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary },
   listContent: { padding: screenPadding, gap: spacing.sm },
   card: {
     backgroundColor: colors.mintBg,
@@ -254,6 +340,8 @@ function createStyles(colors: ThemeColors) {
   cardStatText: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary },
   statusBadge: { backgroundColor: colors.background, borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 3 },
   statusBadgeText: { fontFamily: fontFamily.bodySemiBold, fontSize: 10, color: colors.textPrimary },
+  archivedBadge: { backgroundColor: 'rgba(120,120,120,0.2)', borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 3 },
+  archivedBadgeText: { fontFamily: fontFamily.bodySemiBold, fontSize: 10, color: colors.textSecondary },
   pendingText: { fontFamily: fontFamily.body, fontSize: 10, color: colors.textSecondary, fontStyle: 'italic' },
   actionsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, rowGap: spacing.xs, marginTop: spacing.xs },
   actionButton: { flexDirection: 'row', alignItems: 'center', gap: 4 },

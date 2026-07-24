@@ -346,6 +346,12 @@ export const adminApi = {
   reactivateSuperAdminCourseSubscription: (courseId: string) =>
     request<{ ok: boolean }>('?action=superAdminCourseReactivateSubscription', { method: 'POST', body: { courseId } }),
 
+  archiveSuperAdminCourse: (courseId: string) =>
+    request<{ ok: boolean }>('?action=superAdminCourseArchive', { method: 'POST', body: { courseId } }),
+
+  unarchiveSuperAdminCourse: (courseId: string) =>
+    request<{ ok: boolean }>('?action=superAdminCourseUnarchive', { method: 'POST', body: { courseId } }),
+
   superAdminMemberRosterStatus: (courseId: string) =>
     request<MemberRosterStatus>(`?action=superAdminMemberRosterStatus&courseId=${encodeURIComponent(courseId)}`),
 

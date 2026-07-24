@@ -57,6 +57,7 @@ export interface SuperAdminCourseSummary {
   subscriptionStatus: 'trialing' | 'active' | 'past_due' | 'canceled' | null;
   onboardingCompletedAt: string | null;
   staffOnboardingCompletedAt: string | null;
+  archivedAt: string | null;
   createdAt: string;
   adminCount: number;
   memberCount: number;

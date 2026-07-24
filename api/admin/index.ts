@@ -308,6 +308,8 @@ const SUPER_ADMIN_ALLOWED_ACTIONS = new Set([
   'superAdminStatBreakdown',
   'superAdminCourseCancelSubscription',
   'superAdminCourseReactivateSubscription',
+  'superAdminCourseArchive',
+  'superAdminCourseUnarchive',
   'superAdminMemberRosterStatus',
   'superAdminMemberRosterUpload',
   'superAdminMembers',
@@ -419,7 +421,7 @@ async function insertCourseWithUniqueSlug(params: { name: string; contactEmail: 
         insert into courses (name, slug, contact_email)
         values (${params.name}, ${slug}, ${params.contactEmail})
         returning id, name, slug, logo_url, cover_image_url, contact_email, contact_phone, address, fb_per_rand,
-          onboarding_completed_at, staff_onboarding_completed_at, subscription_status, created_at
+          onboarding_completed_at, staff_onboarding_completed_at, subscription_status, archived_at, created_at
       `) as Array<{
         id: string;
         name: string;
@@ -433,6 +435,7 @@ async function insertCourseWithUniqueSlug(params: { name: string; contactEmail: 
         onboarding_completed_at: string | null;
         staff_onboarding_completed_at: string | null;
         subscription_status: string | null;
+        archived_at: string | null;
         created_at: string;
       }>;
     } catch (err) {
@@ -539,6 +542,7 @@ function superAdminCourseDto(row: {
   subscription_status: string | null;
   onboarding_completed_at: string | null;
   staff_onboarding_completed_at: string | null;
+  archived_at?: string | null;
   created_at: string;
   admin_count: number | string;
   member_count: number | string;
@@ -552,6 +556,7 @@ function superAdminCourseDto(row: {
     subscriptionStatus: row.subscription_status,
     onboardingCompletedAt: row.onboarding_completed_at,
     staffOnboardingCompletedAt: row.staff_onboarding_completed_at,
+    archivedAt: row.archived_at ?? null,
     createdAt: row.created_at,
     adminCount: Number(row.admin_count),
     memberCount: Number(row.member_count),
@@ -1048,12 +1053,12 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     if (authedAdmin.role === 'super_admin') {
       if (action === 'superAdminCourses' && req.method === 'GET') {
         const rows = (await sql`
-          select c.id, c.name, c.slug, c.contact_email, c.subscription_status, c.created_at, c.fb_per_rand,
+          select c.id, c.name, c.slug, c.contact_email, c.subscription_status, c.archived_at, c.created_at, c.fb_per_rand,
             c.onboarding_completed_at, c.staff_onboarding_completed_at,
             (select count(*) from admins a where a.course_id = c.id and a.role = 'course_admin' and a.revoked_at is null) as admin_count,
             (select count(*) from users u where u.course_id = c.id) as member_count
           from courses c
-          order by c.created_at desc
+          order by c.archived_at is not null, c.created_at desc
         `) as Array<Parameters<typeof superAdminCourseDto>[0]>;
         res.status(200).json(rows.map(superAdminCourseDto));
         return;
@@ -1157,6 +1162,49 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
           adminName: `${authedAdmin.firstName} ${authedAdmin.lastName}`,
           adminRole: authedAdmin.role,
           action: 'superAdminCourseReactivateSubscription',
+          targetType: 'course',
+          targetId: courseId,
+          targetLabel: updated[0]?.name,
+        });
+        res.status(200).json({ ok: true });
+        return;
+      }
+
+      // --- Archive/unarchive a club — hides it from the default Courses
+      // list without touching any of its data (members, receipts, rewards,
+      // ads, roster). Fully reversible, unlike a real delete. ---
+      if (action === 'superAdminCourseArchive') {
+        const { courseId } = req.body as SubscriptionActionBody;
+        if (!courseId) throw new HttpError(400, 'courseId is required');
+        const updated = (await sql`
+          update courses set archived_at = now() where id = ${courseId} returning name
+        `) as Array<{ name: string }>;
+        if (updated.length === 0) throw new HttpError(404, 'Course not found');
+        await logAudit({
+          adminId: authedAdmin.id,
+          adminName: `${authedAdmin.firstName} ${authedAdmin.lastName}`,
+          adminRole: authedAdmin.role,
+          action: 'superAdminCourseArchive',
+          targetType: 'course',
+          targetId: courseId,
+          targetLabel: updated[0]?.name,
+        });
+        res.status(200).json({ ok: true });
+        return;
+      }
+
+      if (action === 'superAdminCourseUnarchive') {
+        const { courseId } = req.body as SubscriptionActionBody;
+        if (!courseId) throw new HttpError(400, 'courseId is required');
+        const updated = (await sql`
+          update courses set archived_at = null where id = ${courseId} returning name
+        `) as Array<{ name: string }>;
+        if (updated.length === 0) throw new HttpError(404, 'Course not found');
+        await logAudit({
+          adminId: authedAdmin.id,
+          adminName: `${authedAdmin.firstName} ${authedAdmin.lastName}`,
+          adminRole: authedAdmin.role,
+          action: 'superAdminCourseUnarchive',
           targetType: 'course',
           targetId: courseId,
           targetLabel: updated[0]?.name,

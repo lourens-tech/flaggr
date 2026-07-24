@@ -17,6 +17,8 @@ const ACTION_LABELS: Record<string, string> = {
   superAdminCourseCreate: 'Created club',
   superAdminCourseCancelSubscription: "Cancelled club's subscription",
   superAdminCourseReactivateSubscription: "Reactivated club's subscription",
+  superAdminCourseArchive: 'Archived club',
+  superAdminCourseUnarchive: 'Unarchived club',
   superAdminMemberRosterUpload: 'Uploaded member roster',
   superAdminBroadcastSend: 'Sent push notification',
   superAdminBroadcastDelete: 'Deleted push notification',
