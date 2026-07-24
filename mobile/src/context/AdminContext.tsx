@@ -114,7 +114,6 @@ interface AdminContextValue {
   updateCourseProfile: (payload: CourseProfilePayload) => Promise<void>;
   updateCourseLogo: (imageBase64: string) => Promise<void>;
   updateCourseCover: (imageBase64: string) => Promise<void>;
-  contactSupport: () => Promise<void>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   updateThemePreference: (preference: ThemePreference) => Promise<void>;
   // First-login setup wizard for a course_admin (course details, logo, cover
@@ -366,10 +365,6 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     setCourse((prev) => ({ ...prev, coverImageUrl: res.coverImageUrl }));
   };
 
-  const contactSupport = async () => {
-    await adminApi.contactSupport();
-  };
-
   const showOnboardingWizard =
     isAdminAuthenticated && admin.role === 'course_admin' && !admin.mustChangePassword && !onboardingDismissed && course.onboardingCompletedAt === null;
 
@@ -567,7 +562,6 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     updateCourseProfile,
     updateCourseLogo,
     updateCourseCover,
-    contactSupport,
     updateThemePreference,
     showOnboardingWizard,
     dismissOnboardingWizard,

@@ -1484,7 +1484,9 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
 
     // Flagrr Cash per Rand is deliberately not editable here — changing it
     // reprices every existing reward variant, so it now requires the
-    // Flagrr team's direct involvement (see the contactSupport action).
+    // Flagrr team's direct involvement (via the Support Centre, since the
+    // course_admin can now message them directly instead of a one-shot
+    // "request a change" email with no reply capability).
     await sql`
       update courses
       set name = ${name}, contact_email = ${contactEmail}, contact_phone = ${contactPhone}, address = ${address}
@@ -1492,22 +1494,6 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     `;
 
     res.status(200).json(await fetchCourse(courseId));
-    return;
-  }
-
-  if (action === 'contactSupport') {
-    const course = await fetchCourse(courseId);
-    await sendEmail({
-      to: CONTACT_EMAIL,
-      subject: `Flagrr Cash rate change request — ${course.name}`,
-      html: `
-        <p><strong>Course:</strong> ${escapeHtml(course.name)}</p>
-        <p><strong>Requested by:</strong> ${escapeHtml(authed.firstName)} ${escapeHtml(authed.lastName)} (${escapeHtml(authed.email)})</p>
-        <p><strong>Current Flagrr Cash per Rand:</strong> ${course.fbPerRand}</p>
-        <p>This course admin would like to change their Flagrr Cash per Rand denomination and needs the Flagrr team's assistance.</p>
-      `,
-    });
-    res.status(200).json({ ok: true });
     return;
   }
 

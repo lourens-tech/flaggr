@@ -214,7 +214,6 @@ export const adminApi = {
   completeOnboarding: () => request<AdminCourse>('?action=completeOnboarding', { method: 'POST' }),
   completeStaffOnboarding: () => request<AdminCourse>('?action=completeStaffOnboarding', { method: 'POST' }),
 
-  contactSupport: () => request<{ ok: boolean }>('?action=contactSupport', { method: 'POST' }),
 
   staffList: () => request<AdminStaff[]>('?action=staffList'),
 

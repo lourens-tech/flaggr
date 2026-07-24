@@ -33,7 +33,6 @@ export function AdminCourseProfileScreen({ navigation }: Props) {
     updateCourseProfile,
     updateCourseLogo,
     updateCourseCover,
-    contactSupport,
     updateThemePreference,
     reopenOnboardingWizard,
     changePassword,
@@ -47,7 +46,6 @@ export function AdminCourseProfileScreen({ navigation }: Props) {
   const [savingProfile, setSavingProfile] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
-  const [contactingSupport, setContactingSupport] = useState(false);
   const [savingTheme, setSavingTheme] = useState(false);
 
   const [currentPassword, setCurrentPassword] = useState('');
@@ -101,19 +99,6 @@ export function AdminCourseProfileScreen({ navigation }: Props) {
       showAlert('Couldn’t save', message);
     } finally {
       setSavingProfile(false);
-    }
-  };
-
-  const handleContactSupport = async () => {
-    setContactingSupport(true);
-    try {
-      await contactSupport();
-      showAlert('Request sent', 'The Flagrr team has been notified and will be in touch about changing your Flagrr Cash denomination.');
-    } catch (err) {
-      const message = err instanceof AdminApiError ? err.message : 'Something went wrong. Please try again.';
-      showAlert('Couldn’t send request', message);
-    } finally {
-      setContactingSupport(false);
     }
   };
 
@@ -228,15 +213,14 @@ export function AdminCourseProfileScreen({ navigation }: Props) {
           />
         </View>
         <Text style={styles.helpText}>
-          Your Flagrr Cash denomination can only be changed by the Flagrr team. Contact us if you'd like to request a change.
+          Your Flagrr Cash denomination can only be changed by the Flagrr team. Contact support if you'd like to request a change.
         </Text>
         <View style={{ height: spacing.sm }} />
         <PillButton
-          label="Contact Us"
-          icon="mail-outline"
+          label="Contact Support"
+          icon="headset-outline"
           variant="outline"
-          onPress={handleContactSupport}
-          loading={contactingSupport}
+          onPress={() => navigation.navigate('AdminSupportTickets')}
         />
 
         <View style={{ height: spacing.md }} />
@@ -248,18 +232,6 @@ export function AdminCourseProfileScreen({ navigation }: Props) {
         </Text>
         <View style={{ height: spacing.sm }} />
         <PillButton label="Manage Staff" icon="people-outline" variant="outline" onPress={() => navigation.navigate('AdminStaffList')} />
-
-        <Text style={styles.sectionTitle}>Support Centre</Text>
-        <Text style={styles.helpText}>
-          Log a ticket with the Flagrr team and chat with our support staff.
-        </Text>
-        <View style={{ height: spacing.sm }} />
-        <PillButton
-          label="Support Centre"
-          icon="headset-outline"
-          variant="outline"
-          onPress={() => navigation.navigate('AdminSupportTickets')}
-        />
 
         <Text style={styles.sectionTitle}>Appearance</Text>
         <ThemeToggleRow onChange={handleThemeChange} disabled={savingTheme} />
