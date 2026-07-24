@@ -151,6 +151,8 @@ interface AdminContextValue {
   getSuperAdminRewards: (courseId: string) => Promise<AdminReward[]>;
   saveSuperAdminReward: (payload: SuperAdminRewardSavePayload) => Promise<{ id: string }>;
   deleteSuperAdminReward: (courseId: string, id: string) => Promise<void>;
+  cancelSuperAdminCourseSubscription: (courseId: string) => Promise<void>;
+  reactivateSuperAdminCourseSubscription: (courseId: string) => Promise<void>;
   getSuperAdminDashboard: (period: DashboardPeriod) => Promise<SuperAdminDashboardReport>;
   getSuperAdminAdPerformance: () => Promise<AdPerformanceRow[]>;
   getSuperAdminStatBreakdown: (metric: StatBreakdownMetric, period: DashboardPeriod) => Promise<StatBreakdownRow[]>;
@@ -445,6 +447,16 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     await adminApi.deleteSuperAdminReward(courseId, id);
   };
 
+  const cancelSuperAdminCourseSubscription = async (courseId: string) => {
+    await adminApi.cancelSuperAdminCourseSubscription(courseId);
+    await loadSuperAdminCourses();
+  };
+
+  const reactivateSuperAdminCourseSubscription = async (courseId: string) => {
+    await adminApi.reactivateSuperAdminCourseSubscription(courseId);
+    await loadSuperAdminCourses();
+  };
+
   const getSuperAdminDashboard = async (period: DashboardPeriod) => adminApi.superAdminDashboard(period);
   const getSuperAdminAdPerformance = async () => adminApi.superAdminAdPerformance();
 
@@ -520,6 +532,8 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     getSuperAdminRewards,
     saveSuperAdminReward,
     deleteSuperAdminReward,
+    cancelSuperAdminCourseSubscription,
+    reactivateSuperAdminCourseSubscription,
     getSuperAdminDashboard,
     getSuperAdminAdPerformance,
     getSuperAdminStatBreakdown,

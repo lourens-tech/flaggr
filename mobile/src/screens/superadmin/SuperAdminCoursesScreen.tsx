@@ -8,6 +8,8 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SuperAdminStackParamList, SuperAdminTabParamList } from '../../navigation/types';
 import { TextField } from '../../components/common/TextField';
 import { useAdmin } from '../../context/AdminContext';
+import { AdminApiError } from '../../api/adminClient';
+import { showAlert } from '../../utils/alert';
 import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
 import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 import type { SuperAdminCourseSummary } from '../../data/adminTypes';
@@ -27,9 +29,10 @@ const SUBSCRIPTION_LABELS: Record<string, string> = {
 export function SuperAdminCoursesScreen({ navigation }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const { superAdminCourses, loadSuperAdminCourses } = useAdmin();
+  const { superAdminCourses, loadSuperAdminCourses, cancelSuperAdminCourseSubscription, reactivateSuperAdminCourseSubscription } = useAdmin();
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [pendingCourseId, setPendingCourseId] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -56,6 +59,43 @@ export function SuperAdminCoursesScreen({ navigation }: Props) {
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []),
   );
+
+  const handleCancelSubscription = (course: SuperAdminCourseSummary) => {
+    showAlert(
+      'Cancel this subscription?',
+      `${course.name} will be marked as canceled. You can reactivate it again at any time.`,
+      [
+        { text: 'Back', style: 'cancel' },
+        {
+          text: 'Cancel Subscription',
+          style: 'destructive',
+          onPress: async () => {
+            setPendingCourseId(course.id);
+            try {
+              await cancelSuperAdminCourseSubscription(course.id);
+            } catch (err) {
+              const message = err instanceof AdminApiError ? err.message : 'Something went wrong. Please try again.';
+              showAlert('Couldn’t cancel subscription', message);
+            } finally {
+              setPendingCourseId(null);
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  const handleReactivateSubscription = async (course: SuperAdminCourseSummary) => {
+    setPendingCourseId(course.id);
+    try {
+      await reactivateSuperAdminCourseSubscription(course.id);
+    } catch (err) {
+      const message = err instanceof AdminApiError ? err.message : 'Something went wrong. Please try again.';
+      showAlert('Couldn’t reactivate subscription', message);
+    } finally {
+      setPendingCourseId(null);
+    }
+  };
 
   const renderItem = ({ item }: { item: SuperAdminCourseSummary }) => (
     <View style={styles.card}>
@@ -100,6 +140,25 @@ export function SuperAdminCoursesScreen({ navigation }: Props) {
           <Ionicons name="gift-outline" size={14} color={colors.clubGreen} />
           <Text style={styles.actionButtonText}>Manage Rewards</Text>
         </TouchableOpacity>
+        {item.subscriptionStatus === 'canceled' ? (
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={() => handleReactivateSubscription(item)}
+            disabled={pendingCourseId === item.id}
+          >
+            <Ionicons name="refresh-outline" size={14} color={colors.clubGreen} />
+            <Text style={styles.actionButtonText}>Reactivate</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={() => handleCancelSubscription(item)}
+            disabled={pendingCourseId === item.id}
+          >
+            <Ionicons name="close-circle-outline" size={14} color={colors.negative} />
+            <Text style={[styles.actionButtonText, { color: colors.negative }]}>Cancel Subscription</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );
@@ -182,7 +241,7 @@ function createStyles(colors: ThemeColors) {
   statusBadge: { backgroundColor: colors.background, borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 3 },
   statusBadgeText: { fontFamily: fontFamily.bodySemiBold, fontSize: 10, color: colors.textPrimary },
   pendingText: { fontFamily: fontFamily.body, fontSize: 10, color: colors.textSecondary, fontStyle: 'italic' },
-  actionsRow: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.xs },
+  actionsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, rowGap: spacing.xs, marginTop: spacing.xs },
   actionButton: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   actionButtonText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.tiny, color: colors.clubGreen },
   emptyText: {

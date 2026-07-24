@@ -98,6 +98,10 @@ interface SuperAdminRewardDeleteBody extends RewardDeleteBody {
   courseId?: string;
 }
 
+interface SubscriptionActionBody {
+  courseId?: string;
+}
+
 interface AdSaveBody {
   id?: string;
   placement?: string;
@@ -192,6 +196,8 @@ const SUPER_ADMIN_ALLOWED_ACTIONS = new Set([
   'superAdminRewardSave',
   'superAdminRewardDelete',
   'superAdminStatBreakdown',
+  'superAdminCourseCancelSubscription',
+  'superAdminCourseReactivateSubscription',
 ]);
 
 function isDuplicateKeyError(err: unknown): boolean {
@@ -835,6 +841,26 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
           email: createdAdmin[0].email,
         },
       });
+      return;
+    }
+
+    // No live billing/Stripe wiring yet — these just flip the same
+    // subscription_status column the Courses list already reads for its
+    // badge, so a super_admin can manually stop (or resume) a club's access
+    // ahead of that integration existing.
+    if (action === 'superAdminCourseCancelSubscription') {
+      const { courseId } = req.body as SubscriptionActionBody;
+      if (!courseId) throw new HttpError(400, 'courseId is required');
+      await sql`update courses set subscription_status = 'canceled' where id = ${courseId}`;
+      res.status(200).json({ ok: true });
+      return;
+    }
+
+    if (action === 'superAdminCourseReactivateSubscription') {
+      const { courseId } = req.body as SubscriptionActionBody;
+      if (!courseId) throw new HttpError(400, 'courseId is required');
+      await sql`update courses set subscription_status = 'active' where id = ${courseId}`;
+      res.status(200).json({ ok: true });
       return;
     }
 

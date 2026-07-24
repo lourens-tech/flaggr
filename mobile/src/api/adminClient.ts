@@ -299,6 +299,12 @@ export const adminApi = {
 
   superAdminStatBreakdown: (metric: StatBreakdownMetric, period: 'month' | 'year' | 'all') =>
     request<StatBreakdownRow[]>(`?action=superAdminStatBreakdown&metric=${metric}&period=${period}`),
+
+  cancelSuperAdminCourseSubscription: (courseId: string) =>
+    request<{ ok: boolean }>('?action=superAdminCourseCancelSubscription', { method: 'POST', body: { courseId } }),
+
+  reactivateSuperAdminCourseSubscription: (courseId: string) =>
+    request<{ ok: boolean }>('?action=superAdminCourseReactivateSubscription', { method: 'POST', body: { courseId } }),
 };
 
 /** Downloads a CSV report. Only works on the web build (the only build that
