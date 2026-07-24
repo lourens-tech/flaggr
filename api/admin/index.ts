@@ -32,7 +32,8 @@ import {
   SUPPORT_TICKET_STATUSES,
   type SupportTicketStatus,
 } from '../_lib/supportTickets';
-import { getRosterStatus, parseMemberRosterCsv, replaceMemberRoster } from '../_lib/memberRoster';
+import { getRosterStatus, replaceMemberRoster } from '../_lib/memberRoster';
+import { parseMemberRosterFile } from '../_lib/memberRosterFileParsing';
 
 // Every action for the course-admin side of the app lives in this one file,
 // dispatched by ?action= (same pattern as api/profile/index.ts and
@@ -43,7 +44,9 @@ import { getRosterStatus, parseMemberRosterCsv, replaceMemberRoster } from '../_
 
 const DATA_URI_PATTERN = /^data:image\/(jpeg|jpg|png|webp);base64,/;
 const MAX_IMAGE_BASE64_LENGTH = 2_000_000;
-const MAX_CSV_LENGTH = 2_000_000;
+// Base64 length, not raw file bytes (base64 inflates size ~4/3) — keeps the
+// request comfortably under Vercel's serverless function body size ceiling.
+const MAX_ROSTER_FILE_BASE64_LENGTH = 4_000_000;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const CONTACT_EMAIL = process.env.CONTACT_EMAIL || 'lourens@ewosolutions.com';
 
@@ -115,7 +118,8 @@ interface SubscriptionActionBody {
 }
 
 interface MemberRosterUploadBody {
-  csvContent?: string;
+  fileName?: string;
+  fileBase64?: string;
 }
 
 // A super_admin isn't scoped to one course, so its roster action carries the
@@ -1061,13 +1065,13 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       if (action === 'superAdminMemberRosterUpload') {
         const body = req.body as SuperAdminMemberRosterUploadBody;
         if (!body.courseId) throw new HttpError(400, 'courseId is required');
-        const { csvContent } = body;
-        if (!csvContent || csvContent.length > MAX_CSV_LENGTH) {
-          throw new HttpError(400, 'A member list file (CSV) is required and must be under 2MB');
+        const { fileName, fileBase64 } = body;
+        if (!fileName || !fileBase64 || fileBase64.length > MAX_ROSTER_FILE_BASE64_LENGTH) {
+          throw new HttpError(400, 'A member list file (CSV, Excel, or PDF) is required and must be under 3MB');
         }
         let parsedRows;
         try {
-          parsedRows = parseMemberRosterCsv(csvContent);
+          parsedRows = await parseMemberRosterFile(fileName, fileBase64);
         } catch (err) {
           throw new HttpError(400, err instanceof Error ? err.message : 'Could not parse the member list file');
         }
@@ -1547,13 +1551,13 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
   }
 
   if (action === 'memberRosterUpload') {
-    const { csvContent } = req.body as MemberRosterUploadBody;
-    if (!csvContent || csvContent.length > MAX_CSV_LENGTH) {
-      throw new HttpError(400, 'A member list file (CSV) is required and must be under 2MB');
+    const { fileName, fileBase64 } = req.body as MemberRosterUploadBody;
+    if (!fileName || !fileBase64 || fileBase64.length > MAX_ROSTER_FILE_BASE64_LENGTH) {
+      throw new HttpError(400, 'A member list file (CSV, Excel, or PDF) is required and must be under 3MB');
     }
     let parsedRows;
     try {
-      parsedRows = parseMemberRosterCsv(csvContent);
+      parsedRows = await parseMemberRosterFile(fileName, fileBase64);
     } catch (err) {
       throw new HttpError(400, err instanceof Error ? err.message : 'Could not parse the member list file');
     }

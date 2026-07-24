@@ -215,8 +215,8 @@ export const adminApi = {
 
   memberRosterStatus: () => request<MemberRosterStatus>('?action=memberRosterStatus'),
 
-  uploadMemberRoster: (csvContent: string) =>
-    request<MemberRosterUploadResult>('?action=memberRosterUpload', { method: 'POST', body: { csvContent } }),
+  uploadMemberRoster: (fileName: string, fileBase64: string) =>
+    request<MemberRosterUploadResult>('?action=memberRosterUpload', { method: 'POST', body: { fileName, fileBase64 } }),
 
   completeOnboarding: () => request<AdminCourse>('?action=completeOnboarding', { method: 'POST' }),
   completeStaffOnboarding: () => request<AdminCourse>('?action=completeStaffOnboarding', { method: 'POST' }),
@@ -328,8 +328,11 @@ export const adminApi = {
   superAdminMemberRosterStatus: (courseId: string) =>
     request<MemberRosterStatus>(`?action=superAdminMemberRosterStatus&courseId=${encodeURIComponent(courseId)}`),
 
-  uploadSuperAdminMemberRoster: (courseId: string, csvContent: string) =>
-    request<MemberRosterUploadResult>('?action=superAdminMemberRosterUpload', { method: 'POST', body: { courseId, csvContent } }),
+  uploadSuperAdminMemberRoster: (courseId: string, fileName: string, fileBase64: string) =>
+    request<MemberRosterUploadResult>('?action=superAdminMemberRosterUpload', {
+      method: 'POST',
+      body: { courseId, fileName, fileBase64 },
+    }),
 
   // --- Support Centre: requester side (course_admin/staff logging a ticket
   // to the Flagrr team — separate from the per-club 'enquiries' actions

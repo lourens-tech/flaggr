@@ -9,7 +9,7 @@ import { ScreenHeader } from '../../components/common/ScreenHeader';
 import { PillButton } from '../../components/common/PillButton';
 import { useAdmin } from '../../context/AdminContext';
 import { AdminApiError } from '../../api/adminClient';
-import { pickMemberRosterCsv, MemberRosterFileError } from '../../utils/pickMemberRosterCsv';
+import { pickMemberRosterFile, MemberRosterFileError } from '../../utils/pickMemberRosterFile';
 import { showAlert } from '../../utils/alert';
 import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
 import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
@@ -54,7 +54,7 @@ export function AdminMemberListScreen({ navigation }: Props) {
   const handleUpload = async () => {
     let picked;
     try {
-      picked = await pickMemberRosterCsv();
+      picked = await pickMemberRosterFile();
     } catch (err) {
       const message = err instanceof MemberRosterFileError ? err.message : 'Could not open that file.';
       showAlert('Couldn’t read file', message);
@@ -64,7 +64,7 @@ export function AdminMemberListScreen({ navigation }: Props) {
 
     setUploading(true);
     try {
-      const result = await uploadMemberRoster(picked.content);
+      const result = await uploadMemberRoster(picked.fileName, picked.base64);
       setStatus(await getMemberRosterStatus());
       showAlert(
         'Member list uploaded',
@@ -86,9 +86,13 @@ export function AdminMemberListScreen({ navigation }: Props) {
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.helpText}>
-          Upload your club's membership list so Flagrr can confirm that new signups are actual members. A CSV with First
-          Name, Last Name, and Email columns (Member Number optional) is all that's needed. Re-uploading replaces the
-          previous list entirely.
+          Upload your club's membership list so Flagrr can confirm that new signups are actual members. CSV, Excel
+          (.xlsx), and PDF files are all supported — First Name, Last Name, and Email columns are needed (Member
+          Number optional). Re-uploading replaces the previous list entirely.
+        </Text>
+        <Text style={styles.helpText}>
+          For a PDF, either a table with visible borders or comma-separated text works best — a plain text layout
+          without commas may not be readable. If in doubt, CSV or Excel is the most reliable format.
         </Text>
         <Text style={styles.helpText}>
           A member who doesn't match your list can still use the app fully, but stays capped at Bronze tier until

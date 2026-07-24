@@ -4,7 +4,9 @@
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",
     "bcryptjs": "^3.0.3",
-    "tesseract.js": "^7.0.0"
+    "pdf-parse": "^2.4.5",
+    "tesseract.js": "^7.0.0",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",

@@ -118,7 +118,7 @@ interface AdminContextValue {
   // actually members of this club. See tiers.ts for the effect on tier
   // progress when a member never matches.
   getMemberRosterStatus: () => Promise<MemberRosterStatus>;
-  uploadMemberRoster: (csvContent: string) => Promise<MemberRosterUploadResult>;
+  uploadMemberRoster: (fileName: string, fileBase64: string) => Promise<MemberRosterUploadResult>;
   updateCourseLogo: (imageBase64: string) => Promise<void>;
   updateCourseCover: (imageBase64: string) => Promise<void>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
@@ -170,7 +170,7 @@ interface AdminContextValue {
   // A super_admin can upload a club's member roster on its behalf, same
   // effect as the course_admin action above but with an explicit courseId.
   getSuperAdminMemberRosterStatus: (courseId: string) => Promise<MemberRosterStatus>;
-  uploadSuperAdminMemberRoster: (courseId: string, csvContent: string) => Promise<MemberRosterUploadResult>;
+  uploadSuperAdminMemberRoster: (courseId: string, fileName: string, fileBase64: string) => Promise<MemberRosterUploadResult>;
   getSuperAdminDashboard: (period: DashboardPeriod) => Promise<SuperAdminDashboardReport>;
   getSuperAdminAdPerformance: () => Promise<AdPerformanceRow[]>;
   getSuperAdminStatBreakdown: (metric: StatBreakdownMetric, period: DashboardPeriod) => Promise<StatBreakdownRow[]>;
@@ -367,7 +367,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
   };
 
   const getMemberRosterStatus = async () => adminApi.memberRosterStatus();
-  const uploadMemberRoster = async (csvContent: string) => adminApi.uploadMemberRoster(csvContent);
+  const uploadMemberRoster = async (fileName: string, fileBase64: string) => adminApi.uploadMemberRoster(fileName, fileBase64);
 
   const updateCourseLogo = async (imageBase64: string) => {
     const res = await adminApi.updateCourseLogo(imageBase64);
@@ -494,8 +494,8 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
   };
 
   const getSuperAdminMemberRosterStatus = async (courseId: string) => adminApi.superAdminMemberRosterStatus(courseId);
-  const uploadSuperAdminMemberRoster = async (courseId: string, csvContent: string) =>
-    adminApi.uploadSuperAdminMemberRoster(courseId, csvContent);
+  const uploadSuperAdminMemberRoster = async (courseId: string, fileName: string, fileBase64: string) =>
+    adminApi.uploadSuperAdminMemberRoster(courseId, fileName, fileBase64);
 
   const getSuperAdminDashboard = async (period: DashboardPeriod) => adminApi.superAdminDashboard(period);
   const getSuperAdminAdPerformance = async () => adminApi.superAdminAdPerformance();

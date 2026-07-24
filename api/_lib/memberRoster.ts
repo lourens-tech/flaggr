@@ -62,11 +62,24 @@ function splitCsvLine(line: string): string[] {
   return cells;
 }
 
-export function parseMemberRosterCsv(csvContent: string): MemberRosterRow[] {
-  const lines = csvContent.split(/\r\n|\r|\n/).filter((l) => l.trim().length > 0);
-  if (lines.length === 0) throw new Error('The file is empty');
+// Splits raw CSV (or comma-delimited PDF-extracted text — see
+// memberRosterFileParsing.ts) into a 2D array of trimmed cell strings, one
+// row per non-empty line.
+export function csvToTable(csvContent: string): string[][] {
+  return csvContent
+    .split(/\r\n|\r|\n/)
+    .filter((l) => l.trim().length > 0)
+    .map((line) => splitCsvLine(line).map((c) => c.trim()));
+}
 
-  const headerCells = splitCsvLine(lines[0]).map((c) => c.trim().toLowerCase());
+// Shared by every source format (CSV, Excel, PDF — see
+// memberRosterFileParsing.ts) once it's been reduced to a plain 2D table:
+// the first row is the header, matched tolerantly against HEADER_ALIASES,
+// everything after is data.
+export function parseMemberRosterTable(table: string[][]): MemberRosterRow[] {
+  if (table.length === 0) throw new Error('The file is empty');
+
+  const headerCells = table[0].map((c) => c.toLowerCase());
   const findColumn = (aliases: string[]): number => headerCells.findIndex((h) => aliases.includes(h));
 
   const columns: Record<ColumnKey, number> = {
@@ -80,8 +93,8 @@ export function parseMemberRosterCsv(csvContent: string): MemberRosterRow[] {
   }
 
   const rows: MemberRosterRow[] = [];
-  for (let i = 1; i < lines.length; i++) {
-    const cells = splitCsvLine(lines[i]);
+  for (let i = 1; i < table.length; i++) {
+    const cells = table[i];
     const firstName = cells[columns.firstName]?.trim();
     const lastName = cells[columns.lastName]?.trim();
     const email = cells[columns.email]?.trim();
