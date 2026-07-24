@@ -1,7 +1,10 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect } from '@react-navigation/native';
+import { type CompositeScreenProps, useFocusEffect } from '@react-navigation/native';
+import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import type { SuperAdminStackParamList, SuperAdminTabParamList } from '../../navigation/types';
 import { StatCard } from '../../components/common/StatCard';
 import { BarChart } from '../../components/common/BarChart';
 import { useAdmin } from '../../context/AdminContext';
@@ -10,6 +13,11 @@ import { showAlert } from '../../utils/alert';
 import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
 import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 import type { AdPerformanceRow, SuperAdminDashboardReport } from '../../data/adminTypes';
+
+type Props = CompositeScreenProps<
+  BottomTabScreenProps<SuperAdminTabParamList, 'SuperAdminReports'>,
+  NativeStackScreenProps<SuperAdminStackParamList>
+>;
 
 type Period = 'month' | 'year' | 'all';
 const PERIOD_LABELS: Record<Period, string> = { month: 'Month', year: 'Year', all: 'All' };
@@ -20,7 +28,7 @@ const PLACEMENT_LABELS: Record<string, string> = { home: 'Home', rewards_shop: '
 // Same shape/look as AdminDashboardScreen, aggregated across every club
 // instead of just one — plus an Ad Performance section, deliberately
 // excluded from the course-admin dashboard and reserved for this screen.
-export function SuperAdminReportsScreen() {
+export function SuperAdminReportsScreen({ navigation }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { getSuperAdminDashboard, getSuperAdminAdPerformance } = useAdmin();
@@ -106,8 +114,24 @@ export function SuperAdminReportsScreen() {
             <View style={styles.statsGrid}>
               <StatCard label="Clubs" value={dashboard.totals.clubs} deltaPct={0} showDelta={false} width="100%" backgroundColor={colors.mintBg} />
               <View style={styles.statsRow}>
-                <StatCard label="Members" value={dashboard.totals.members} deltaPct={0} showDelta={false} fill backgroundColor={colors.mintBg} />
-                <StatCard label="New Members" value={dashboard.totals.newMembers} deltaPct={0} showDelta={false} fill backgroundColor={colors.mintBg} />
+                <StatCard
+                  label="Members"
+                  value={dashboard.totals.members}
+                  deltaPct={0}
+                  showDelta={false}
+                  fill
+                  backgroundColor={colors.mintBg}
+                  onPress={() => navigation.navigate('SuperAdminStatBreakdown', { metric: 'members', label: 'Members', period })}
+                />
+                <StatCard
+                  label="New Members"
+                  value={dashboard.totals.newMembers}
+                  deltaPct={0}
+                  showDelta={false}
+                  fill
+                  backgroundColor={colors.mintBg}
+                  onPress={() => navigation.navigate('SuperAdminStatBreakdown', { metric: 'newMembers', label: 'New Members', period })}
+                />
               </View>
               <View style={styles.statsRow}>
                 <StatCard
@@ -118,6 +142,7 @@ export function SuperAdminReportsScreen() {
                   showDelta={period !== 'all'}
                   fill
                   backgroundColor={colors.mintBg}
+                  onPress={() => navigation.navigate('SuperAdminStatBreakdown', { metric: 'fcEarned', label: 'Flagrr Cash Earned', period })}
                 />
                 <StatCard
                   label="Flagrr Cash Redeemed"
@@ -127,6 +152,7 @@ export function SuperAdminReportsScreen() {
                   showDelta={period !== 'all'}
                   fill
                   backgroundColor={colors.mintBg}
+                  onPress={() => navigation.navigate('SuperAdminStatBreakdown', { metric: 'fcRedeemed', label: 'Flagrr Cash Redeemed', period })}
                 />
               </View>
               <StatCard
@@ -137,6 +163,7 @@ export function SuperAdminReportsScreen() {
                 showDelta={period !== 'all'}
                 width="100%"
                 backgroundColor={colors.mintBg}
+                onPress={() => navigation.navigate('SuperAdminStatBreakdown', { metric: 'receiptsScanned', label: 'Receipts Scanned', period })}
               />
             </View>
 

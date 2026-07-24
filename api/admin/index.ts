@@ -5,7 +5,13 @@ import { getAuthedAdmin, hashPassword, verifyPassword, type AuthedAdmin } from '
 import { HttpError, withErrorHandling } from '../_lib/http';
 import { deltaPct, isStatsPeriod, periodWindow, type StatsPeriod } from '../_lib/periods';
 import { fillMonthlyByNumber } from '../_lib/monthly';
-import { getDashboardReport, getSuperAdminDashboardReport, getAdPerformanceReport } from '../_lib/adminReports';
+import {
+  getDashboardReport,
+  getSuperAdminDashboardReport,
+  getAdPerformanceReport,
+  getSuperAdminStatBreakdown,
+  type StatBreakdownMetric,
+} from '../_lib/adminReports';
 import { toCsv } from '../_lib/csv';
 import {
   addAdminMessage,
@@ -159,6 +165,8 @@ interface CourseCreateBody {
 }
 
 const REWARD_CATEGORIES = ['rounds', 'experiences', 'pro-shop', 'practice', 'dining'];
+
+const STAT_BREAKDOWN_METRICS = new Set(['members', 'newMembers', 'fcEarned', 'fcRedeemed', 'receiptsScanned']);
 const AD_PLACEMENTS = ['home', 'rewards_shop'];
 const BROADCAST_TARGETS = ['all', 'Bronze', 'Silver', 'Gold', 'Platinum'];
 
@@ -183,6 +191,7 @@ const SUPER_ADMIN_ALLOWED_ACTIONS = new Set([
   'superAdminRewards',
   'superAdminRewardSave',
   'superAdminRewardDelete',
+  'superAdminStatBreakdown',
 ]);
 
 function isDuplicateKeyError(err: unknown): boolean {
@@ -882,6 +891,16 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
 
     if (action === 'superAdminAdPerformance' && req.method === 'GET') {
       res.status(200).json(await getAdPerformanceReport());
+      return;
+    }
+
+    if (action === 'superAdminStatBreakdown' && req.method === 'GET') {
+      const period: StatsPeriod = isStatsPeriod(req.query.period) ? req.query.period : 'month';
+      const metric = req.query.metric;
+      if (!STAT_BREAKDOWN_METRICS.has(String(metric))) {
+        throw new HttpError(400, 'metric must be one of members, newMembers, fcEarned, fcRedeemed, receiptsScanned');
+      }
+      res.status(200).json(await getSuperAdminStatBreakdown(period, metric as StatBreakdownMetric));
       return;
     }
 

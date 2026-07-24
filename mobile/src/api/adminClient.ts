@@ -21,6 +21,8 @@ import type {
   SuperAdminCourseSummary,
   SuperAdminDashboardReport,
   AdPerformanceRow,
+  StatBreakdownMetric,
+  StatBreakdownRow,
 } from '../data/adminTypes';
 
 // Deliberately separate from api/client.ts's token/base logic — a
@@ -294,6 +296,9 @@ export const adminApi = {
 
   deleteSuperAdminReward: (courseId: string, id: string) =>
     request<{ ok: boolean }>('?action=superAdminRewardDelete', { method: 'POST', body: { courseId, id } }),
+
+  superAdminStatBreakdown: (metric: StatBreakdownMetric, period: 'month' | 'year' | 'all') =>
+    request<StatBreakdownRow[]>(`?action=superAdminStatBreakdown&metric=${metric}&period=${period}`),
 };
 
 /** Downloads a CSV report. Only works on the web build (the only build that

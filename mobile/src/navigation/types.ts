@@ -1,4 +1,5 @@
 import type { ScanResult } from '../data/types';
+import type { StatBreakdownMetric } from '../data/adminTypes';
 
 export type AuthStackParamList = {
   Landing: undefined;
@@ -52,6 +53,7 @@ export type SuperAdminStackParamList = {
   SuperAdminAdEdit: { courseId: string; adId?: string };
   SuperAdminCourseRewards: { courseId: string; courseName: string; fbPerRand: number };
   SuperAdminRewardEdit: { courseId: string; fbPerRand: number; rewardId?: string };
+  SuperAdminStatBreakdown: { metric: StatBreakdownMetric; label: string; period: 'month' | 'year' | 'all' };
 };
 
 export type MainTabParamList = {

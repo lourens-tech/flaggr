@@ -238,3 +238,69 @@ export async function getAdPerformanceReport(): Promise<AdPerformanceRow[]> {
     clicks: r.clicks,
   }));
 }
+
+export type StatBreakdownMetric = 'members' | 'newMembers' | 'fcEarned' | 'fcRedeemed' | 'receiptsScanned';
+
+export interface StatBreakdownRow {
+  courseId: string;
+  courseName: string;
+  value: number;
+}
+
+// Per-club breakdown for a single stat card on the super-admin Reports
+// screen — every club is listed (0 if it has no activity in the period),
+// sorted highest first, so a super_admin can see which clubs are driving
+// (or dragging down) the aggregate number shown on that card.
+export async function getSuperAdminStatBreakdown(
+  period: StatsPeriod,
+  metric: StatBreakdownMetric,
+): Promise<StatBreakdownRow[]> {
+  const { currentStart } = periodWindow(period);
+
+  let rows: Array<{ course_id: string; course_name: string; value: number }>;
+  if (metric === 'members') {
+    rows = (await sql`
+      select c.id as course_id, c.name as course_name, count(u.id)::int as value
+      from courses c
+      left join users u on u.course_id = c.id
+      group by c.id, c.name
+    `) as typeof rows;
+  } else if (metric === 'newMembers') {
+    rows = (await sql`
+      select c.id as course_id, c.name as course_name, count(u.id)::int as value
+      from courses c
+      left join users u on u.course_id = c.id and u.member_since >= ${currentStart}
+      group by c.id, c.name
+    `) as typeof rows;
+  } else if (metric === 'fcEarned') {
+    rows = (await sql`
+      select c.id as course_id, c.name as course_name,
+        coalesce(sum(a.amount) filter (where a.type = 'earn' and a.date >= ${currentStart}), 0)::int as value
+      from courses c
+      left join users u on u.course_id = c.id
+      left join activity a on a.user_id = u.id
+      group by c.id, c.name
+    `) as typeof rows;
+  } else if (metric === 'fcRedeemed') {
+    rows = (await sql`
+      select c.id as course_id, c.name as course_name,
+        coalesce(sum(-a.amount) filter (where a.type = 'redeem' and a.date >= ${currentStart}), 0)::int as value
+      from courses c
+      left join users u on u.course_id = c.id
+      left join activity a on a.user_id = u.id
+      group by c.id, c.name
+    `) as typeof rows;
+  } else {
+    rows = (await sql`
+      select c.id as course_id, c.name as course_name,
+        count(r.id) filter (where r.submitted_at >= ${currentStart})::int as value
+      from courses c
+      left join receipts r on r.course_id = c.id
+      group by c.id, c.name
+    `) as typeof rows;
+  }
+
+  return rows
+    .map((r) => ({ courseId: r.course_id, courseName: r.course_name, value: Number(r.value) }))
+    .sort((a, b) => b.value - a.value);
+}

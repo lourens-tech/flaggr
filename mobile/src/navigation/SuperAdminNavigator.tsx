@@ -7,6 +7,7 @@ import { SuperAdminCourseAdsScreen } from '../screens/superadmin/SuperAdminCours
 import { SuperAdminAdEditScreen } from '../screens/superadmin/SuperAdminAdEditScreen';
 import { SuperAdminCourseRewardsScreen } from '../screens/superadmin/SuperAdminCourseRewardsScreen';
 import { SuperAdminRewardEditScreen } from '../screens/superadmin/SuperAdminRewardEditScreen';
+import { SuperAdminStatBreakdownScreen } from '../screens/superadmin/SuperAdminStatBreakdownScreen';
 
 const Stack = createNativeStackNavigator<SuperAdminStackParamList>();
 
@@ -19,6 +20,7 @@ export function SuperAdminNavigator() {
       <Stack.Screen name="SuperAdminAdEdit" component={SuperAdminAdEditScreen} />
       <Stack.Screen name="SuperAdminCourseRewards" component={SuperAdminCourseRewardsScreen} />
       <Stack.Screen name="SuperAdminRewardEdit" component={SuperAdminRewardEditScreen} />
+      <Stack.Screen name="SuperAdminStatBreakdown" component={SuperAdminStatBreakdownScreen} />
     </Stack.Navigator>
   );
 }

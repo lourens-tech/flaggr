@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { StyleSheet, Text, View, type DimensionValue } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View, type DimensionValue } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { fontFamily, fontSize, radius, spacing } from '../../theme';
 import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
@@ -23,6 +23,10 @@ interface Props {
   // (or overshoot) the row's true width once the gap is accounted for.
   fill?: boolean;
   backgroundColor?: string;
+  // Optional — when set, the whole card becomes tappable (e.g. the
+  // super-admin Reports screen drilling into a per-club breakdown). Plain
+  // stat cards elsewhere (course-admin dashboard, member stats) omit this.
+  onPress?: () => void;
 }
 
 export function StatCard({
@@ -34,12 +38,17 @@ export function StatCard({
   width = '47%',
   fill = false,
   backgroundColor,
+  onPress,
 }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const positive = deltaPct >= 0;
+  const Wrapper = onPress ? TouchableOpacity : View;
   return (
-    <View style={[styles.card, fill ? styles.fill : { width }, backgroundColor ? { backgroundColor } : null]}>
+    <Wrapper
+      style={[styles.card, fill ? styles.fill : { width }, backgroundColor ? { backgroundColor } : null]}
+      {...(onPress ? { onPress, activeOpacity: 0.7 } : null)}
+    >
       <Text style={styles.label}>{label}</Text>
       <Text style={styles.value}>{value}</Text>
       {showDelta ? (
@@ -54,7 +63,7 @@ export function StatCard({
           </Text>
         </View>
       ) : null}
-    </View>
+    </Wrapper>
   );
 }
 

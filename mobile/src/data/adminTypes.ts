@@ -105,6 +105,16 @@ export interface AdPerformanceRow {
   clicks: number;
 }
 
+export type StatBreakdownMetric = 'members' | 'newMembers' | 'fcEarned' | 'fcRedeemed' | 'receiptsScanned';
+
+// Per-club breakdown behind a single stat card on the super-admin Reports
+// screen (e.g. tapping "Members" shows every club's own member count).
+export interface StatBreakdownRow {
+  courseId: string;
+  courseName: string;
+  value: number;
+}
+
 export interface AdminRewardVariant {
   id: string;
   label: string;
