@@ -26,6 +26,8 @@ import type {
   SuperAdminBroadcastTarget,
   SuperAdminCourseSummary,
   SuperAdminDashboardReport,
+  SuperAdminMemberSearchResult,
+  SuperAdminMemberStats,
   AdPerformanceRow,
   StatBreakdownMetric,
   StatBreakdownRow,
@@ -266,6 +268,12 @@ export const adminApi = {
 
   memberStats: (id: string, period: 'month' | 'year' | 'all') =>
     request<MemberStats>(`?action=memberStats&id=${id}&period=${period}`),
+
+  superAdminMembers: (search: string) =>
+    request<SuperAdminMemberSearchResult[]>(`?action=superAdminMembers&search=${encodeURIComponent(search)}`),
+
+  superAdminMemberStats: (id: string, period: 'month' | 'year' | 'all') =>
+    request<SuperAdminMemberStats>(`?action=superAdminMemberStats&id=${encodeURIComponent(id)}&period=${period}`),
 
   broadcasts: () => request<AdminBroadcast[]>('?action=broadcasts'),
 

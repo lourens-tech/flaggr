@@ -309,6 +309,8 @@ const SUPER_ADMIN_ALLOWED_ACTIONS = new Set([
   'superAdminCourseReactivateSubscription',
   'superAdminMemberRosterStatus',
   'superAdminMemberRosterUpload',
+  'superAdminMembers',
+  'superAdminMemberStats',
   'superAdminBroadcasts',
   'superAdminBroadcastSend',
   'superAdminBroadcastDelete',
@@ -1152,6 +1154,152 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
           throw new HttpError(400, err instanceof Error ? err.message : 'Could not parse the member list file');
         }
         res.status(200).json(await replaceMemberRoster(body.courseId, parsedRows));
+        return;
+      }
+
+      // --- Cross-club member lookup — same idea as a course_admin's own
+      // 'members'/'memberStats' actions further below, but not scoped to any
+      // single course_id, so a search or a stats lookup can find any member
+      // platform-wide instead of only within one club. Every result includes
+      // which club the member belongs to, since that's no longer implicit. ---
+      if (action === 'superAdminMembers' && req.method === 'GET') {
+        const query = typeof req.query.search === 'string' ? req.query.search.trim() : '';
+        if (!query) throw new HttpError(400, 'Enter a search term');
+        const search = `%${query}%`;
+        const rows = (await sql`
+          select u.id, u.first_name, u.last_name, u.email, u.tier, u.member_since, p.balance, c.id as course_id, c.name as course_name
+          from users u
+          join points_accounts p on p.user_id = u.id
+          join courses c on c.id = u.course_id
+          where u.first_name || ' ' || u.last_name ilike ${search} or u.email ilike ${search}
+          order by u.first_name, u.last_name
+          limit 100
+        `) as Array<{
+          id: string;
+          first_name: string;
+          last_name: string;
+          email: string;
+          tier: string;
+          member_since: string;
+          balance: number;
+          course_id: string;
+          course_name: string;
+        }>;
+        res.status(200).json(
+          rows.map((r) => ({
+            id: r.id,
+            firstName: r.first_name,
+            lastName: r.last_name,
+            email: r.email,
+            tier: r.tier,
+            memberSince: r.member_since,
+            balance: r.balance,
+            courseId: r.course_id,
+            courseName: r.course_name,
+          })),
+        );
+        return;
+      }
+
+      if (action === 'superAdminMemberStats' && req.method === 'GET') {
+        const memberId = typeof req.query.id === 'string' ? req.query.id : '';
+        if (!memberId) throw new HttpError(400, 'id is required');
+        const period: StatsPeriod = isStatsPeriod(req.query.period) ? req.query.period : 'month';
+        const { currentStart, previousStart, previousEnd, hasComparison } = periodWindow(period);
+
+        const memberRows = (await sql`
+          select u.id, u.first_name, u.last_name, u.email, u.tier, u.member_since, p.balance, p.total_earned, p.total_redeemed,
+                 c.name as course_name
+          from users u
+          join points_accounts p on p.user_id = u.id
+          join courses c on c.id = u.course_id
+          where u.id = ${memberId}
+        `) as Array<{
+          id: string;
+          first_name: string;
+          last_name: string;
+          email: string;
+          tier: string;
+          member_since: string;
+          balance: number;
+          total_earned: number;
+          total_redeemed: number;
+          course_name: string;
+        }>;
+        if (memberRows.length === 0) throw new HttpError(404, 'Member not found');
+        const m = memberRows[0];
+
+        const [bucksRows, roundsRows, receiptRows, monthlyRows] = await Promise.all([
+          sql`
+            select
+              coalesce(sum(amount) filter (where type = 'earn' and date >= ${currentStart}), 0)::int as earned_current,
+              coalesce(sum(amount) filter (where type = 'earn' and date >= ${previousStart} and date < ${previousEnd}), 0)::int as earned_previous,
+              coalesce(sum(-amount) filter (where type = 'redeem' and date >= ${currentStart}), 0)::int as redeemed_current,
+              coalesce(sum(-amount) filter (where type = 'redeem' and date >= ${previousStart} and date < ${previousEnd}), 0)::int as redeemed_previous
+            from activity where user_id = ${memberId}
+          `,
+          sql`
+            select
+              coalesce(sum(ri.quantity) filter (where ga.name = '9 Hole Round' and r.submitted_at >= ${currentStart}), 0)::int as r9_current,
+              coalesce(sum(ri.quantity) filter (where ga.name = '9 Hole Round' and r.submitted_at >= ${previousStart} and r.submitted_at < ${previousEnd}), 0)::int as r9_previous,
+              coalesce(sum(ri.quantity) filter (where ga.name = '18 Hole Round' and r.submitted_at >= ${currentStart}), 0)::int as r18_current,
+              coalesce(sum(ri.quantity) filter (where ga.name = '18 Hole Round' and r.submitted_at >= ${previousStart} and r.submitted_at < ${previousEnd}), 0)::int as r18_previous
+            from receipts r
+            join receipt_items ri on ri.receipt_id = r.id
+            join golf_activities ga on ga.id = ri.matched_activity_id
+            where r.user_id = ${memberId}
+          `,
+          sql`
+            select
+              count(*) filter (where submitted_at >= ${currentStart})::int as current,
+              count(*) filter (where submitted_at >= ${previousStart} and submitted_at < ${previousEnd})::int as previous
+            from receipts where user_id = ${memberId}
+          `,
+          sql`select month, value from monthly_points where user_id = ${memberId} and year = extract(year from now())::int`,
+        ]);
+
+        const bucks = (bucksRows as Array<{
+          earned_current: number;
+          earned_previous: number;
+          redeemed_current: number;
+          redeemed_previous: number;
+        }>)[0];
+        const rounds = (roundsRows as Array<{
+          r9_current: number;
+          r9_previous: number;
+          r18_current: number;
+          r18_previous: number;
+        }>)[0];
+        const receipts = (receiptRows as Array<{ current: number; previous: number }>)[0];
+
+        res.status(200).json({
+          member: {
+            id: m.id,
+            firstName: m.first_name,
+            lastName: m.last_name,
+            email: m.email,
+            tier: m.tier,
+            memberSince: m.member_since,
+            balance: m.balance,
+            totalEarned: m.total_earned,
+            totalRedeemed: m.total_redeemed,
+            courseName: m.course_name,
+          },
+          stats: {
+            period,
+            roundsPlayed9: rounds.r9_current,
+            roundsPlayed9DeltaPct: deltaPct(rounds.r9_current, rounds.r9_previous, hasComparison),
+            roundsPlayed18: rounds.r18_current,
+            roundsPlayed18DeltaPct: deltaPct(rounds.r18_current, rounds.r18_previous, hasComparison),
+            bucksEarned: bucks.earned_current,
+            bucksEarnedDeltaPct: deltaPct(bucks.earned_current, bucks.earned_previous, hasComparison),
+            bucksRedeemed: bucks.redeemed_current,
+            bucksRedeemedDeltaPct: deltaPct(bucks.redeemed_current, bucks.redeemed_previous, hasComparison),
+            receiptsScanned: receipts.current,
+            receiptsScannedDeltaPct: deltaPct(receipts.current, receipts.previous, hasComparison),
+            monthly: fillMonthlyByNumber(monthlyRows as Array<{ month: number; value: number }>),
+          },
+        });
         return;
       }
 

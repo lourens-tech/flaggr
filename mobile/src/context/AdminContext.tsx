@@ -41,6 +41,8 @@ import type {
   SuperAdminBroadcastTarget,
   SuperAdminCourseSummary,
   SuperAdminDashboardReport,
+  SuperAdminMemberSearchResult,
+  SuperAdminMemberStats,
   AdPerformanceRow,
   StatBreakdownMetric,
   StatBreakdownRow,
@@ -113,6 +115,10 @@ interface AdminContextValue {
   searchMembers: (query: string) => Promise<AdminMember[]>;
   listAllMembers: (page: number, pageSize: number) => Promise<MembersPage>;
   getMemberStats: (id: string, period: DashboardPeriod) => Promise<MemberStats>;
+  // super_admin only — cross-club member lookup (see comments near
+  // getSuperAdminMemberRosterStatus for the general pattern this follows).
+  searchSuperAdminMembers: (search: string) => Promise<SuperAdminMemberSearchResult[]>;
+  getSuperAdminMemberStats: (id: string, period: DashboardPeriod) => Promise<SuperAdminMemberStats>;
   lookupVoucher: (code: string) => Promise<AdminVoucherLookup>;
   redeemVoucher: (code: string) => Promise<AdminVoucherLookup>;
   listEnquiries: (status?: EnquiryStatus) => Promise<AdminEnquirySummary[]>;
@@ -395,6 +401,8 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
   const searchMembers = async (query: string) => adminApi.members(query);
   const listAllMembers = async (page: number, pageSize: number) => adminApi.membersList(page, pageSize);
   const getMemberStats = async (id: string, period: DashboardPeriod) => adminApi.memberStats(id, period);
+  const searchSuperAdminMembers = async (search: string) => adminApi.superAdminMembers(search);
+  const getSuperAdminMemberStats = async (id: string, period: DashboardPeriod) => adminApi.superAdminMemberStats(id, period);
 
   const lookupVoucher = async (code: string) => adminApi.lookupVoucher(code);
   const redeemVoucher = async (code: string) => adminApi.redeemVoucher(code);
@@ -651,6 +659,8 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     searchMembers,
     listAllMembers,
     getMemberStats,
+    searchSuperAdminMembers,
+    getSuperAdminMemberStats,
     lookupVoucher,
     redeemVoucher,
     listEnquiries,

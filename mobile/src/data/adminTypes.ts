@@ -202,6 +202,26 @@ export interface MemberStats {
   };
 }
 
+// Cross-club version of AdminMember/MemberStats — a super_admin isn't
+// scoped to one course, so every result carries which club the member
+// belongs to (implicit for a course_admin's own search, but not here).
+export interface SuperAdminMemberSearchResult {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  tier: string;
+  memberSince: string;
+  balance: number;
+  courseId: string;
+  courseName: string;
+}
+
+export interface SuperAdminMemberStats {
+  member: MemberStats['member'] & { courseName: string };
+  stats: MemberStats['stats'];
+}
+
 export interface AdminNotification {
   id: string;
   title: string;

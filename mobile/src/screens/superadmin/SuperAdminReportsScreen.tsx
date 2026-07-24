@@ -5,14 +5,17 @@ import { type CompositeScreenProps, useFocusEffect } from '@react-navigation/nat
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SuperAdminStackParamList, SuperAdminTabParamList } from '../../navigation/types';
+import { Ionicons } from '@expo/vector-icons';
 import { StatCard } from '../../components/common/StatCard';
 import { BarChart } from '../../components/common/BarChart';
+import { TextField } from '../../components/common/TextField';
+import { PillButton } from '../../components/common/PillButton';
 import { useAdmin } from '../../context/AdminContext';
 import { AdminApiError } from '../../api/adminClient';
 import { showAlert } from '../../utils/alert';
 import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
 import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
-import type { AdPerformanceRow, SuperAdminDashboardReport } from '../../data/adminTypes';
+import type { AdPerformanceRow, SuperAdminDashboardReport, SuperAdminMemberSearchResult } from '../../data/adminTypes';
 
 type Props = CompositeScreenProps<
   BottomTabScreenProps<SuperAdminTabParamList, 'SuperAdminReports'>,
@@ -31,13 +34,17 @@ const PLACEMENT_LABELS: Record<string, string> = { home: 'Home', rewards_shop: '
 export function SuperAdminReportsScreen({ navigation }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const { getSuperAdminDashboard, getSuperAdminAdPerformance } = useAdmin();
+  const { getSuperAdminDashboard, getSuperAdminAdPerformance, searchSuperAdminMembers } = useAdmin();
 
   const [period, setPeriod] = useState<Period>('month');
   const [dashboard, setDashboard] = useState<SuperAdminDashboardReport | null>(null);
   const [dashboardLoading, setDashboardLoading] = useState(true);
   const [adPerformance, setAdPerformance] = useState<AdPerformanceRow[]>([]);
   const [adsLoading, setAdsLoading] = useState(true);
+  const [memberSearch, setMemberSearch] = useState('');
+  const [memberResults, setMemberResults] = useState<SuperAdminMemberSearchResult[]>([]);
+  const [searchingMembers, setSearchingMembers] = useState(false);
+  const [searchedOnce, setSearchedOnce] = useState(false);
 
   const loadDashboard = useCallback(async (p: Period) => {
     setDashboardLoading(true);
@@ -79,6 +86,21 @@ export function SuperAdminReportsScreen({ navigation }: Props) {
   const handlePeriodChange = (p: Period) => {
     setPeriod(p);
     loadDashboard(p);
+  };
+
+  const handleSearchMembers = async () => {
+    if (!memberSearch.trim()) return;
+    setSearchingMembers(true);
+    try {
+      setMemberResults(await searchSuperAdminMembers(memberSearch.trim()));
+      setSearchedOnce(true);
+    } catch (err) {
+      const message = err instanceof AdminApiError ? err.message : 'Something went wrong. Please try again.';
+      showAlert('Couldn’t search members', message);
+      setMemberResults([]);
+    } finally {
+      setSearchingMembers(false);
+    }
   };
 
   return (
@@ -222,6 +244,40 @@ export function SuperAdminReportsScreen({ navigation }: Props) {
             ))
           )}
         </View>
+
+        <Text style={styles.sectionTitle}>Look Up a Member</Text>
+        <View style={styles.card}>
+          <TextField
+            placeholder="Search by name or email, any club"
+            variant="onLight"
+            value={memberSearch}
+            onChangeText={setMemberSearch}
+            onSubmitEditing={handleSearchMembers}
+            returnKeyType="search"
+          />
+          <PillButton label="Search" icon="search" variant="outline" onPress={handleSearchMembers} loading={searchingMembers} />
+          {searchedOnce && memberResults.length === 0 ? (
+            <Text style={styles.emptyText}>No members match that search.</Text>
+          ) : (
+            memberResults.map((m) => (
+              <TouchableOpacity
+                key={m.id}
+                style={styles.memberRow}
+                onPress={() => navigation.navigate('SuperAdminMemberStats', { memberId: m.id })}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.memberName}>{m.firstName} {m.lastName}</Text>
+                  <Text style={styles.memberEmail}>{m.email} · {m.courseName}</Text>
+                </View>
+                <View style={{ alignItems: 'flex-end' }}>
+                  <Text style={styles.memberTier}>{m.tier}</Text>
+                  <Text style={styles.memberBalance}>{m.balance.toLocaleString()} FC</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={colors.clubGreen} />
+              </TouchableOpacity>
+            ))
+          )}
+        </View>
       </ScrollView>
     </View>
   );
@@ -268,5 +324,17 @@ function createStyles(colors: ThemeColors) {
   rowValue: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.textPrimary },
   adRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: spacing.sm },
   adSubtext: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary, marginTop: 2 },
+  memberRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.background,
+    borderRadius: radius.md,
+    padding: spacing.sm,
+  },
+  memberName: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.textPrimary },
+  memberEmail: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary },
+  memberTier: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.tiny, color: colors.textPrimary },
+  memberBalance: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary },
 });
 }
