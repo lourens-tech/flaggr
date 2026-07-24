@@ -180,7 +180,7 @@ interface AdminContextValue {
   // course_admin account) rather than scoped to one club's own members.
   superAdminBroadcasts: SuperAdminBroadcast[];
   loadSuperAdminBroadcasts: () => Promise<void>;
-  sendSuperAdminBroadcast: (payload: { title: string; body: string; target: SuperAdminBroadcastTarget }) => Promise<void>;
+  sendSuperAdminBroadcast: (payload: { title: string; body: string; target: SuperAdminBroadcastTarget; courseId?: string | null }) => Promise<void>;
   deleteSuperAdminBroadcast: (id: string) => Promise<void>;
   getSuperAdminDashboard: (period: DashboardPeriod) => Promise<SuperAdminDashboardReport>;
   getSuperAdminAdPerformance: () => Promise<AdPerformanceRow[]>;
@@ -531,7 +531,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     setSuperAdminBroadcasts(await adminApi.superAdminBroadcasts());
   }, []);
 
-  const sendSuperAdminBroadcast = async (payload: { title: string; body: string; target: SuperAdminBroadcastTarget }) => {
+  const sendSuperAdminBroadcast = async (payload: { title: string; body: string; target: SuperAdminBroadcastTarget; courseId?: string | null }) => {
     await adminApi.sendSuperAdminBroadcast(payload);
     await loadSuperAdminBroadcasts();
   };

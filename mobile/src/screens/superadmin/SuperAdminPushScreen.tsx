@@ -42,10 +42,9 @@ function formatSentAt(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 }
 
-function targetLabel(target: string): string {
-  if (target === 'all') return 'All Members';
-  if (target === 'course_admins') return 'Course Admins';
-  return `${target} Tier`;
+function targetLabel(target: string, courseName?: string | null): string {
+  const base = target === 'all' ? 'All Members' : target === 'course_admins' ? 'Course Admins' : `${target} Tier`;
+  return courseName ? `${base} — ${courseName}` : base;
 }
 
 export function SuperAdminPushScreen({ navigation }: Props) {
@@ -87,7 +86,7 @@ export function SuperAdminPushScreen({ navigation }: Props) {
   const handleSendAgain = (item: SuperAdminBroadcast) => {
     showAlert(
       'Send this again?',
-      `This will send "${item.title}" to ${targetLabel(item.target)} again right now.`,
+      `This will send "${item.title}" to ${targetLabel(item.target, item.courseName)} again right now.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -95,7 +94,7 @@ export function SuperAdminPushScreen({ navigation }: Props) {
           onPress: async () => {
             setResendingId(item.id);
             try {
-              await sendSuperAdminBroadcast({ title: item.title, body: item.body, target: item.target });
+              await sendSuperAdminBroadcast({ title: item.title, body: item.body, target: item.target, courseId: item.courseId });
             } catch (err) {
               const message = err instanceof AdminApiError ? err.message : 'Something went wrong. Please try again.';
               showAlert('Couldn’t send', message);
@@ -131,7 +130,7 @@ export function SuperAdminPushScreen({ navigation }: Props) {
       <View style={styles.cardTopRow}>
         <Text style={styles.cardTitle} numberOfLines={1}>{item.title}</Text>
         <View style={styles.targetBadge}>
-          <Text style={styles.targetBadgeText}>{targetLabel(item.target)}</Text>
+          <Text style={styles.targetBadgeText}>{targetLabel(item.target, item.courseName)}</Text>
         </View>
       </View>
       <Text style={styles.cardBody} numberOfLines={2}>{item.body}</Text>

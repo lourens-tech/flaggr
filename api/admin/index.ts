@@ -202,6 +202,10 @@ interface SuperAdminBroadcastSendBody {
   title?: string;
   body?: string;
   target?: string;
+  // Scopes the broadcast to one specific club instead of platform-wide —
+  // omit for every club (member/tier targets) or every course_admin
+  // ('course_admins' target).
+  courseId?: string;
 }
 
 interface SuperAdminBroadcastDeleteBody {
@@ -1106,9 +1110,10 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       // broadcast (see 'broadcastSend' further below, course-scoped). ---
       if (action === 'superAdminBroadcasts' && req.method === 'GET') {
         const rows = (await sql`
-          select id, title, body, target, recipient_count, sent_at
-          from super_admin_broadcasts
-          order by sent_at desc
+          select b.id, b.title, b.body, b.target, b.recipient_count, b.sent_at, b.course_id, c.name as course_name
+          from super_admin_broadcasts b
+          left join courses c on c.id = b.course_id
+          order by b.sent_at desc
           limit 100
         `) as Array<{
           id: string;
@@ -1117,6 +1122,8 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
           target: string;
           recipient_count: number;
           sent_at: string;
+          course_id: string | null;
+          course_name: string | null;
         }>;
         res.status(200).json(
           rows.map((r) => ({
@@ -1126,6 +1133,8 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
             target: r.target,
             recipientCount: r.recipient_count,
             sentAt: r.sent_at,
+            courseId: r.course_id,
+            courseName: r.course_name,
           })),
         );
         return;
@@ -1136,16 +1145,23 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         const title = body.title?.trim();
         const message = body.body?.trim();
         const target = body.target?.trim();
+        const courseId = body.courseId?.trim() || null;
         if (!title) throw new HttpError(400, 'title is required');
         if (!message) throw new HttpError(400, 'body is required');
         if (!target || !SUPER_ADMIN_BROADCAST_TARGETS.includes(target)) {
           throw new HttpError(400, 'a valid target is required');
         }
+        if (courseId) {
+          const courseExists = (await sql`select 1 from courses where id = ${courseId}`) as Array<{ '?column?': number }>;
+          if (courseExists.length === 0) throw new HttpError(400, 'Unknown course');
+        }
 
         let recipientCount: number;
         if (target === 'course_admins') {
           const recipients = (await sql`
-            select id from admins where role = 'course_admin' and revoked_at is null
+            select id from admins
+            where role = 'course_admin' and revoked_at is null
+              ${courseId ? sql`and course_id = ${courseId}` : sql``}
           `) as Array<{ id: string }>;
           recipientCount = recipients.length;
 
@@ -1158,6 +1174,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
               insert into admin_notifications (course_id, title, body)
               select distinct course_id, ${title}, ${message} from admins
               where role = 'course_admin' and revoked_at is null
+                ${courseId ? sql`and course_id = ${courseId}` : sql``}
             `;
             await Promise.allSettled(recipients.map((r) => sendPushToAdmin(r.id, { title, body: message })));
           }
@@ -1165,6 +1182,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
           const recipients = (await sql`
             select id from users
             where ${target !== 'all' ? sql`tier = ${target}` : sql`true`}
+              ${courseId ? sql`and course_id = ${courseId}` : sql``}
           `) as Array<{ id: string }>;
           recipientCount = recipients.length;
 
@@ -1173,15 +1191,19 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
               insert into notifications (user_id, title, body)
               select id, ${title}, ${message} from users
               where ${target !== 'all' ? sql`tier = ${target}` : sql`true`}
+                ${courseId ? sql`and course_id = ${courseId}` : sql``}
             `;
             await Promise.allSettled(recipients.map((r) => sendPushToUser(r.id, { title, body: message })));
           }
         }
 
         const inserted = (await sql`
-          insert into super_admin_broadcasts (admin_id, title, body, target, recipient_count)
-          values (${authedAdmin.id}, ${title}, ${message}, ${target}, ${recipientCount})
-          returning id, title, body, target, recipient_count, sent_at
+          with inserted as (
+            insert into super_admin_broadcasts (admin_id, title, body, target, recipient_count, course_id)
+            values (${authedAdmin.id}, ${title}, ${message}, ${target}, ${recipientCount}, ${courseId})
+            returning id, title, body, target, recipient_count, sent_at, course_id
+          )
+          select i.*, c.name as course_name from inserted i left join courses c on c.id = i.course_id
         `) as Array<{
           id: string;
           title: string;
@@ -1189,6 +1211,8 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
           target: string;
           recipient_count: number;
           sent_at: string;
+          course_id: string | null;
+          course_name: string | null;
         }>;
         const b = inserted[0];
         res.status(200).json({
@@ -1198,6 +1222,8 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
           target: b.target,
           recipientCount: b.recipient_count,
           sentAt: b.sent_at,
+          courseId: b.course_id,
+          courseName: b.course_name,
         });
         return;
       }

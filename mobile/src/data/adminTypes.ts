@@ -226,6 +226,10 @@ export interface SuperAdminBroadcast {
   target: SuperAdminBroadcastTarget;
   recipientCount: number;
   sentAt: string;
+  // Null means platform-wide (every club) — set when this broadcast was
+  // scoped to one specific club instead.
+  courseId: string | null;
+  courseName: string | null;
 }
 
 export type EnquiryStatus = 'pending' | 'in_progress' | 'resolved';

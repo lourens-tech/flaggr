@@ -1,6 +1,7 @@
-import React, { useState, useMemo } from 'react';
+import React, { useCallback, useState, useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SuperAdminStackParamList } from '../../navigation/types';
 import { ScreenHeader } from '../../components/common/ScreenHeader';
@@ -16,23 +17,38 @@ import type { SuperAdminBroadcastTarget } from '../../data/adminTypes';
 
 type Props = NativeStackScreenProps<SuperAdminStackParamList, 'SuperAdminBroadcastCompose'>;
 
+const ALL_CLUBS_VALUE = 'all';
+
 const TARGET_OPTIONS = [
-  { label: 'All Members (every club)', value: 'all' },
-  { label: 'Bronze Tier (every club)', value: 'Bronze' },
-  { label: 'Silver Tier (every club)', value: 'Silver' },
-  { label: 'Gold Tier (every club)', value: 'Gold' },
-  { label: 'Platinum Tier (every club)', value: 'Platinum' },
+  { label: 'All Members', value: 'all' },
+  { label: 'Bronze Tier', value: 'Bronze' },
+  { label: 'Silver Tier', value: 'Silver' },
+  { label: 'Gold Tier', value: 'Gold' },
+  { label: 'Platinum Tier', value: 'Platinum' },
   { label: 'Course Admins', value: 'course_admins' },
 ];
 
 export function SuperAdminBroadcastComposeScreen({ navigation, route }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const { sendSuperAdminBroadcast } = useAdmin();
+  const { superAdminCourses, loadSuperAdminCourses, sendSuperAdminBroadcast } = useAdmin();
   const [title, setTitle] = useState(route.params?.title ?? '');
   const [body, setBody] = useState(route.params?.body ?? '');
   const [target, setTarget] = useState<string | null>(route.params?.target ?? null);
+  const [courseId, setCourseId] = useState<string>(ALL_CLUBS_VALUE);
   const [sending, setSending] = useState(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadSuperAdminCourses().catch(() => {});
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []),
+  );
+
+  const clubOptions = useMemo(
+    () => [{ label: 'All Clubs', value: ALL_CLUBS_VALUE }, ...superAdminCourses.map((c) => ({ label: c.name, value: c.id }))],
+    [superAdminCourses],
+  );
 
   const handleSend = async () => {
     if (!title.trim() || !body.trim()) {
@@ -45,7 +61,12 @@ export function SuperAdminBroadcastComposeScreen({ navigation, route }: Props) {
     }
     setSending(true);
     try {
-      await sendSuperAdminBroadcast({ title: title.trim(), body: body.trim(), target: target as SuperAdminBroadcastTarget });
+      await sendSuperAdminBroadcast({
+        title: title.trim(),
+        body: body.trim(),
+        target: target as SuperAdminBroadcastTarget,
+        courseId: courseId === ALL_CLUBS_VALUE ? null : courseId,
+      });
       navigation.goBack();
     } catch (err) {
       const message = err instanceof AdminApiError ? err.message : 'Something went wrong. Please try again.';
@@ -67,9 +88,12 @@ export function SuperAdminBroadcastComposeScreen({ navigation, route }: Props) {
         <TextField placeholder="Message" variant="onLight" value={body} onChangeText={setBody} multiline />
         <View style={{ height: spacing.md }} />
         <SelectField placeholder="Send to" variant="onLight" options={TARGET_OPTIONS} value={target} onChange={setTarget} />
+        <View style={{ height: spacing.md }} />
+        <SelectField placeholder="Club" variant="onLight" options={clubOptions} value={courseId} onChange={setCourseId} />
         <Text style={styles.helpText}>
-          Member and tier targets reach every club platform-wide. Course Admins sends an in-app notification (and a
-          push, where enabled) to every course_admin account instead of members.
+          Choose a specific club to scope this notification to just that club's members (or its course admin) instead
+          of every club platform-wide. Course Admins sends an in-app notification (and a push, where enabled) to the
+          course_admin account(s) instead of members.
         </Text>
 
         <View style={{ height: spacing.lg }} />

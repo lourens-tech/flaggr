@@ -341,7 +341,7 @@ export const adminApi = {
 
   superAdminBroadcasts: () => request<SuperAdminBroadcast[]>('?action=superAdminBroadcasts'),
 
-  sendSuperAdminBroadcast: (payload: { title: string; body: string; target: SuperAdminBroadcastTarget }) =>
+  sendSuperAdminBroadcast: (payload: { title: string; body: string; target: SuperAdminBroadcastTarget; courseId?: string | null }) =>
     request<SuperAdminBroadcast>('?action=superAdminBroadcastSend', { method: 'POST', body: payload }),
 
   deleteSuperAdminBroadcast: (id: string) =>
