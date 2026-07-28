@@ -38,6 +38,7 @@ import type {
   SupportInboxTicket,
   SupportInboxTicketThread,
   SupportTicketMessage,
+  SupportTicketPriority,
   SupportTicketStatus,
   SupportTicketSummary,
   SupportTicketThread,
@@ -421,8 +422,10 @@ export const adminApi = {
     request<SupportTicketMessage[]>('?action=supportTicketReply', { method: 'POST', body: { ticketId, message } }),
 
   // --- Support Centre: agent side (super_admin or support_agent) ---
-  supportInbox: (status?: SupportTicketStatus) =>
-    request<SupportInboxTicket[]>(`?action=supportInbox${status ? `&status=${status}` : ''}`),
+  supportInbox: (status?: SupportTicketStatus, priority?: SupportTicketPriority) =>
+    request<SupportInboxTicket[]>(
+      `?action=supportInbox${status ? `&status=${status}` : ''}${priority ? `&priority=${priority}` : ''}`,
+    ),
 
   supportInboxThread: (id: string) => request<SupportInboxTicketThread>(`?action=supportInboxThread&id=${id}`),
 
@@ -431,6 +434,9 @@ export const adminApi = {
 
   setSupportTicketStatus: (ticketId: string, status: SupportTicketStatus) =>
     request<{ ok: boolean }>('?action=supportTicketStatus', { method: 'POST', body: { ticketId, status } }),
+
+  setSupportTicketPriority: (ticketId: string, priority: SupportTicketPriority) =>
+    request<{ ok: boolean }>('?action=supportTicketPriority', { method: 'POST', body: { ticketId, priority } }),
 
   // --- Support agent account management (super_admin only) ---
   supportAgents: () => request<SupportAgent[]>('?action=supportAgents'),

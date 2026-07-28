@@ -2,6 +2,8 @@ import { sql } from './db';
 
 export type SupportTicketStatus = 'open' | 'in_progress' | 'resolved';
 export const SUPPORT_TICKET_STATUSES: SupportTicketStatus[] = ['open', 'in_progress', 'resolved'];
+export type SupportTicketPriority = 'low' | 'normal' | 'high' | 'urgent';
+export const SUPPORT_TICKET_PRIORITIES: SupportTicketPriority[] = ['low', 'normal', 'high', 'urgent'];
 export type SupportRequesterType = 'member' | 'course_admin' | 'staff';
 
 export interface SupportTicketMessageDto {

@@ -294,6 +294,7 @@ export interface AdminEnquiryThread {
 }
 
 export type SupportTicketStatus = 'open' | 'in_progress' | 'resolved';
+export type SupportTicketPriority = 'low' | 'normal' | 'high' | 'urgent';
 export type SupportRequesterType = 'member' | 'course_admin' | 'staff';
 
 export interface SupportTicketMessage {
@@ -329,12 +330,14 @@ export interface SupportInboxTicket extends SupportTicketSummary {
   requesterType: SupportRequesterType;
   requesterName: string;
   requesterEmail: string;
+  priority: SupportTicketPriority;
 }
 
 export interface SupportInboxTicketThread extends SupportTicketThread {
   requesterType: SupportRequesterType;
   requesterName: string;
   requesterEmail: string;
+  priority: SupportTicketPriority;
 }
 
 export interface SupportAgent {

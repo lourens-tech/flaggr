@@ -22,7 +22,7 @@ import { AdminApiError } from '../../api/adminClient';
 import { showAlert } from '../../utils/alert';
 import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
 import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
-import type { SupportInboxTicketThread, SupportTicketStatus } from '../../data/adminTypes';
+import type { SupportInboxTicketThread, SupportTicketPriority, SupportTicketStatus } from '../../data/adminTypes';
 
 type Props = NativeStackScreenProps<SuperAdminStackParamList, 'SuperAdminSupportTicketChat'>;
 
@@ -30,6 +30,13 @@ const STATUS_OPTIONS: Array<{ label: string; value: SupportTicketStatus }> = [
   { label: 'Open', value: 'open' },
   { label: 'In Progress', value: 'in_progress' },
   { label: 'Resolved', value: 'resolved' },
+];
+
+const PRIORITY_OPTIONS: Array<{ label: string; value: SupportTicketPriority }> = [
+  { label: 'Low', value: 'low' },
+  { label: 'Normal', value: 'normal' },
+  { label: 'High', value: 'high' },
+  { label: 'Urgent', value: 'urgent' },
 ];
 
 const REQUESTER_LABEL: Record<string, string> = {
@@ -46,12 +53,13 @@ export function SuperAdminSupportTicketChatScreen({ route }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { ticketId } = route.params;
-  const { getSupportInboxThread, replyToSupportInboxTicket, setSupportTicketStatus } = useAdmin();
+  const { getSupportInboxThread, replyToSupportInboxTicket, setSupportTicketStatus, setSupportTicketPriority } = useAdmin();
   const [thread, setThread] = useState<SupportInboxTicketThread | null>(null);
   const [loading, setLoading] = useState(true);
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [updatingPriority, setUpdatingPriority] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
 
   const load = useCallback(async () => {
@@ -108,6 +116,20 @@ export function SuperAdminSupportTicketChatScreen({ route }: Props) {
     }
   };
 
+  const handlePriorityChange = async (priority: SupportTicketPriority) => {
+    if (!thread || thread.priority === priority) return;
+    setUpdatingPriority(true);
+    try {
+      await setSupportTicketPriority(ticketId, priority);
+      setThread((prev) => (prev ? { ...prev, priority } : prev));
+    } catch (err) {
+      const message = err instanceof AdminApiError ? err.message : 'Something went wrong. Please try again.';
+      showAlert('Couldn’t update priority', message);
+    } finally {
+      setUpdatingPriority(false);
+    }
+  };
+
   return (
     <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <StatusBar barStyle="light-content" />
@@ -134,6 +156,20 @@ export function SuperAdminSupportTicketChatScreen({ route }: Props) {
                 style={[styles.statusPill, thread.status === s.value && styles.statusPillActive]}
               >
                 <Text style={[styles.statusText, thread.status === s.value && styles.statusTextActive]}>{s.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <Text style={styles.priorityLabel}>Priority</Text>
+          <View style={styles.statusRow}>
+            {PRIORITY_OPTIONS.map((p) => (
+              <TouchableOpacity
+                key={p.value}
+                onPress={() => handlePriorityChange(p.value)}
+                disabled={updatingPriority}
+                style={[styles.statusPill, thread.priority === p.value && styles.statusPillActive]}
+              >
+                <Text style={[styles.statusText, thread.priority === p.value && styles.statusTextActive]}>{p.label}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -184,6 +220,12 @@ function createStyles(colors: ThemeColors) {
   requesterName: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.textPrimary },
   requesterEmail: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary, marginTop: 2 },
   requesterType: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.tiny, color: colors.clubGreen, marginTop: 2 },
+  priorityLabel: {
+    fontFamily: fontFamily.bodySemiBold,
+    fontSize: fontSize.tiny,
+    color: colors.textSecondary,
+    paddingHorizontal: screenPadding,
+  },
   statusRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, padding: screenPadding, paddingBottom: spacing.sm },
   statusPill: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: radius.pill, backgroundColor: colors.mintBgAlt },
   statusPillActive: { backgroundColor: colors.darkGreen },

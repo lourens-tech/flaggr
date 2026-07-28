@@ -9,7 +9,7 @@ import type { SuperAdminStackParamList, SuperAdminTabParamList } from '../../nav
 import { useAdmin } from '../../context/AdminContext';
 import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
 import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
-import type { SupportInboxTicket, SupportTicketStatus } from '../../data/adminTypes';
+import type { SupportInboxTicket, SupportTicketPriority, SupportTicketStatus } from '../../data/adminTypes';
 
 type Props = CompositeScreenProps<
   BottomTabScreenProps<SuperAdminTabParamList, 'SuperAdminSupport'>,
@@ -27,6 +27,21 @@ const STATUS_BADGE: Record<SupportTicketStatus, { label: string; bg: string; fg:
   open: { label: 'Open', bg: '#FDE9C8', fg: '#8A5A00' },
   in_progress: { label: 'In Progress', bg: '#CCF2E6', fg: '#00805A' },
   resolved: { label: 'Resolved', bg: '#E5E7EB', fg: '#4B5563' },
+};
+
+const PRIORITY_FILTERS: Array<{ label: string; value: SupportTicketPriority | 'all' }> = [
+  { label: 'Any Priority', value: 'all' },
+  { label: 'Urgent', value: 'urgent' },
+  { label: 'High', value: 'high' },
+  { label: 'Normal', value: 'normal' },
+  { label: 'Low', value: 'low' },
+];
+
+const PRIORITY_BADGE: Record<SupportTicketPriority, { label: string; bg: string; fg: string }> = {
+  urgent: { label: 'Urgent', bg: '#FBD5D5', fg: '#B91C1C' },
+  high: { label: 'High', bg: '#FDE9C8', fg: '#8A5A00' },
+  normal: { label: 'Normal', bg: '#DCEEFB', fg: '#1D4ED8' },
+  low: { label: 'Low', bg: '#E5E7EB', fg: '#4B5563' },
 };
 
 const REQUESTER_LABEL: Record<string, string> = {
@@ -54,14 +69,15 @@ export function SuperAdminSupportInboxScreen({ navigation }: Props) {
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { getSupportInbox } = useAdmin();
   const [filter, setFilter] = useState<SupportTicketStatus | 'all'>('all');
+  const [priorityFilter, setPriorityFilter] = useState<SupportTicketPriority | 'all'>('all');
   const [tickets, setTickets] = useState<SupportInboxTicket[]>([]);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(
-    async (f: SupportTicketStatus | 'all') => {
+    async (f: SupportTicketStatus | 'all', p: SupportTicketPriority | 'all') => {
       setLoading(true);
       try {
-        setTickets(await getSupportInbox(f === 'all' ? undefined : f));
+        setTickets(await getSupportInbox(f === 'all' ? undefined : f, p === 'all' ? undefined : p));
       } finally {
         setLoading(false);
       }
@@ -71,13 +87,14 @@ export function SuperAdminSupportInboxScreen({ navigation }: Props) {
 
   useFocusEffect(
     useCallback(() => {
-      load(filter).catch(() => {});
+      load(filter, priorityFilter).catch(() => {});
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [filter]),
+    }, [filter, priorityFilter]),
   );
 
   const renderItem = ({ item }: { item: SupportInboxTicket }) => {
     const badge = STATUS_BADGE[item.status];
+    const priorityBadge = PRIORITY_BADGE[item.priority];
     return (
       <TouchableOpacity
         style={styles.row}
@@ -95,8 +112,15 @@ export function SuperAdminSupportInboxScreen({ navigation }: Props) {
           <Text style={styles.lastMessage} numberOfLines={1}>{item.lastMessage ?? '—'}</Text>
           <Text style={styles.meta}>{relativeTime(item.updatedAt)}</Text>
         </View>
-        <View style={[styles.badge, { backgroundColor: badge.bg }]}>
-          <Text style={[styles.badgeText, { color: badge.fg }]}>{badge.label}</Text>
+        <View style={{ gap: 4, alignItems: 'flex-end' }}>
+          {item.priority !== 'normal' ? (
+            <View style={[styles.badge, { backgroundColor: priorityBadge.bg }]}>
+              <Text style={[styles.badgeText, { color: priorityBadge.fg }]}>{priorityBadge.label}</Text>
+            </View>
+          ) : null}
+          <View style={[styles.badge, { backgroundColor: badge.bg }]}>
+            <Text style={[styles.badgeText, { color: badge.fg }]}>{badge.label}</Text>
+          </View>
         </View>
         <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
       </TouchableOpacity>
@@ -120,6 +144,18 @@ export function SuperAdminSupportInboxScreen({ navigation }: Props) {
             style={[styles.filterPill, filter === f.value && styles.filterPillActive]}
           >
             <Text style={[styles.filterText, filter === f.value && styles.filterTextActive]}>{f.label}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      <View style={styles.filterRow}>
+        {PRIORITY_FILTERS.map((f) => (
+          <TouchableOpacity
+            key={f.value}
+            onPress={() => setPriorityFilter(f.value)}
+            style={[styles.filterPill, priorityFilter === f.value && styles.filterPillActive]}
+          >
+            <Text style={[styles.filterText, priorityFilter === f.value && styles.filterTextActive]}>{f.label}</Text>
           </TouchableOpacity>
         ))}
       </View>

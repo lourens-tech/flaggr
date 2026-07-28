@@ -29,7 +29,9 @@ import {
   listSupportTicketMessages,
   markThreadReadByAgent,
   markThreadReadByRequester,
+  SUPPORT_TICKET_PRIORITIES,
   SUPPORT_TICKET_STATUSES,
+  type SupportTicketPriority,
   type SupportTicketStatus,
 } from '../_lib/supportTickets';
 import { getRosterStatus, replaceMemberRoster } from '../_lib/memberRoster';
@@ -139,6 +141,11 @@ interface SupportTicketCreateBody {
 interface SupportTicketReplyBody {
   ticketId?: string;
   message?: string;
+}
+
+interface SupportTicketPriorityBody {
+  ticketId?: string;
+  priority?: SupportTicketPriority;
 }
 
 interface SupportTicketStatusBody {
@@ -335,6 +342,7 @@ const SUPER_ADMIN_ALLOWED_ACTIONS = new Set([
   'supportInboxThread',
   'supportAgentReply',
   'supportTicketStatus',
+  'supportTicketPriority',
   'supportAgents',
   'supportAgentCreate',
   'supportAgentResetPassword',
@@ -356,6 +364,7 @@ const SUPPORT_AGENT_ALLOWED_ACTIONS = new Set([
   'supportInboxThread',
   'supportAgentReply',
   'supportTicketStatus',
+  'supportTicketPriority',
 ]);
 
 function isDuplicateKeyError(err: unknown): boolean {
@@ -1043,14 +1052,18 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     // per-club enquiries inbox already uses). ---
     if (action === 'supportInbox' && req.method === 'GET') {
       const statusFilter = typeof req.query.status === 'string' ? req.query.status : null;
+      const priorityFilter = typeof req.query.priority === 'string' ? req.query.priority : null;
       const rows = (await sql`
-        select t.id, t.requester_type, t.requester_name, t.requester_email, t.subject, t.status,
+        select t.id, t.requester_type, t.requester_name, t.requester_email, t.subject, t.status, t.priority,
                t.created_at, t.updated_at,
                (select body from support_ticket_messages m where m.ticket_id = t.id order by m.created_at desc limit 1) as last_message,
                exists(select 1 from support_ticket_messages m where m.ticket_id = t.id and m.read_by_agent = false) as has_unread
         from support_tickets t
         where (${statusFilter}::text is null or t.status = ${statusFilter})
-        order by t.updated_at desc
+          and (${priorityFilter}::text is null or t.priority = ${priorityFilter})
+        order by
+          case t.priority when 'urgent' then 0 when 'high' then 1 when 'normal' then 2 else 3 end,
+          t.updated_at desc
       `) as Array<{
         id: string;
         requester_type: string;
@@ -1058,6 +1071,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         requester_email: string;
         subject: string;
         status: string;
+        priority: string;
         created_at: string;
         updated_at: string;
         last_message: string | null;
@@ -1071,6 +1085,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
           requesterEmail: r.requester_email,
           subject: r.subject,
           status: r.status,
+          priority: r.priority,
           createdAt: r.created_at,
           updatedAt: r.updated_at,
           lastMessage: r.last_message,
@@ -1083,7 +1098,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     if (action === 'supportInboxThread' && req.method === 'GET') {
       const id = typeof req.query.id === 'string' ? req.query.id : '';
       const rows = (await sql`
-        select id, requester_type, requester_name, requester_email, subject, status
+        select id, requester_type, requester_name, requester_email, subject, status, priority
         from support_tickets where id = ${id}
       `) as Array<{
         id: string;
@@ -1092,6 +1107,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         requester_email: string;
         subject: string;
         status: string;
+        priority: string;
       }>;
       if (rows.length === 0) throw new HttpError(404, 'Ticket not found');
       await markThreadReadByAgent(id);
@@ -1103,6 +1119,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         requesterEmail: t.requester_email,
         subject: t.subject,
         status: t.status,
+        priority: t.priority,
         messages: await listSupportTicketMessages(id),
       });
       return;
@@ -1125,6 +1142,19 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         throw new HttpError(400, 'ticketId and a valid status are required');
       }
       await sql`update support_tickets set status = ${status}, updated_at = now() where id = ${ticketId}`;
+      res.status(200).json({ ok: true });
+      return;
+    }
+
+    // Internal triage only — never surfaced to the requester (same as
+    // supportTicketStatus, this doesn't touch updated_at as "activity" the
+    // requester would notice, just re-sorts the agent's own queue).
+    if (action === 'supportTicketPriority') {
+      const { ticketId, priority } = req.body as SupportTicketPriorityBody;
+      if (!ticketId || !priority || !SUPPORT_TICKET_PRIORITIES.includes(priority)) {
+        throw new HttpError(400, 'ticketId and a valid priority are required');
+      }
+      await sql`update support_tickets set priority = ${priority} where id = ${ticketId}`;
       res.status(200).json({ ok: true });
       return;
     }

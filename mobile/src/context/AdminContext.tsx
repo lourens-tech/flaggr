@@ -53,6 +53,7 @@ import type {
   SupportInboxTicket,
   SupportInboxTicketThread,
   SupportTicketMessage,
+  SupportTicketPriority,
   SupportTicketStatus,
   SupportTicketSummary,
   SupportTicketThread,
@@ -218,10 +219,11 @@ interface AdminContextValue {
   getSupportTicketThread: (id: string) => Promise<SupportTicketThread>;
   replyToSupportTicket: (ticketId: string, message: string) => Promise<SupportTicketMessage[]>;
   // Support Centre (super_admin/support_agent inbox side)
-  getSupportInbox: (status?: SupportTicketStatus) => Promise<SupportInboxTicket[]>;
+  getSupportInbox: (status?: SupportTicketStatus, priority?: SupportTicketPriority) => Promise<SupportInboxTicket[]>;
   getSupportInboxThread: (id: string) => Promise<SupportInboxTicketThread>;
   replyToSupportInboxTicket: (ticketId: string, message: string) => Promise<SupportTicketMessage[]>;
   setSupportTicketStatus: (ticketId: string, status: SupportTicketStatus) => Promise<void>;
+  setSupportTicketPriority: (ticketId: string, priority: SupportTicketPriority) => Promise<void>;
   // Support agent account management (super_admin only)
   supportAgents: SupportAgent[];
   loadSupportAgents: () => Promise<void>;
@@ -628,12 +630,16 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
   const getSupportTicketThread = async (id: string) => adminApi.supportTicketThread(id);
   const replyToSupportTicket = async (ticketId: string, message: string) => adminApi.replyToSupportTicket(ticketId, message);
 
-  const getSupportInbox = async (status?: SupportTicketStatus) => adminApi.supportInbox(status);
+  const getSupportInbox = async (status?: SupportTicketStatus, priority?: SupportTicketPriority) =>
+    adminApi.supportInbox(status, priority);
   const getSupportInboxThread = async (id: string) => adminApi.supportInboxThread(id);
   const replyToSupportInboxTicket = async (ticketId: string, message: string) =>
     adminApi.replyToSupportInboxTicket(ticketId, message);
   const setSupportTicketStatus = async (ticketId: string, status: SupportTicketStatus) => {
     await adminApi.setSupportTicketStatus(ticketId, status);
+  };
+  const setSupportTicketPriority = async (ticketId: string, priority: SupportTicketPriority) => {
+    await adminApi.setSupportTicketPriority(ticketId, priority);
   };
 
   const loadSupportAgents = useCallback(async () => {
@@ -784,6 +790,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     getSupportInboxThread,
     replyToSupportInboxTicket,
     setSupportTicketStatus,
+    setSupportTicketPriority,
     supportAgents,
     loadSupportAgents,
     createSupportAgent,
