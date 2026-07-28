@@ -88,10 +88,11 @@ export async function grantDueTierRewards(
             values (${userId}, 'Happy Birthday!', ${`We've added ${amount} Flagrr Cash to your wallet as your birthday reward.`})
           `,
         ]);
-        await sendPushToUser(userId, {
-          title: 'Happy Birthday!',
-          body: `We've added ${amount} Flagrr Cash to your wallet as your birthday reward.`,
-        });
+        await sendPushToUser(
+          userId,
+          { title: 'Happy Birthday!', body: `We've added ${amount} Flagrr Cash to your wallet as your birthday reward.` },
+          'accountActivity',
+        );
       }
     }
   }
@@ -139,8 +140,9 @@ export async function grantDueTierRewards(
       values (${userId}, ${`${tier} tier bonus`}, ${`Your ${variantLabel} bar voucher is ready — show its QR code at the club to claim it.`})
     `,
   ]);
-  await sendPushToUser(userId, {
-    title: `${tier} tier bonus`,
-    body: `Your ${variantLabel} bar voucher is ready — show its QR code at the club to claim it.`,
-  });
+  await sendPushToUser(
+    userId,
+    { title: `${tier} tier bonus`, body: `Your ${variantLabel} bar voucher is ready — show its QR code at the club to claim it.` },
+    'accountActivity',
+  );
 }

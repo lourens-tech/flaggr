@@ -1789,7 +1789,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
               where ${target !== 'all' ? sql`tier = ${target}` : sql`true`}
                 ${courseId ? sql`and course_id = ${courseId}` : sql``}
             `;
-            await Promise.allSettled(recipients.map((r) => sendPushToUser(r.id, { title, body: message })));
+            await Promise.allSettled(recipients.map((r) => sendPushToUser(r.id, { title, body: message }, 'announcements')));
           }
         }
 
@@ -2693,7 +2693,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       insert into notifications (user_id, title, body, enquiry_id)
       values (${owned[0].user_id}, 'Reply to your enquiry', ${notifBody}, ${enquiryId})
     `;
-    await sendPushToUser(owned[0].user_id, { title: 'Reply to your enquiry', body: notifBody });
+    await sendPushToUser(owned[0].user_id, { title: 'Reply to your enquiry', body: notifBody }, 'supportReplies');
 
     res.status(200).json(await listEnquiryMessages(enquiryId));
     return;
@@ -3264,7 +3264,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         where course_id = ${courseId}
           ${target !== 'all' ? sql`and tier = ${target}` : sql``}
       `;
-      await Promise.allSettled(recipients.map((r) => sendPushToUser(r.id, { title, body: message })));
+      await Promise.allSettled(recipients.map((r) => sendPushToUser(r.id, { title, body: message }, 'announcements')));
     }
 
     const inserted = (await sql`
@@ -3329,7 +3329,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       insert into notifications (user_id, title, body)
       values (${voucher.userId}, 'Reward validated', ${notificationBody})
     `;
-    await sendPushToUser(voucher.userId, { title: 'Reward validated', body: notificationBody });
+    await sendPushToUser(voucher.userId, { title: 'Reward validated', body: notificationBody }, 'accountActivity');
 
     res.status(200).json({ ...voucher, status: 'redeemed' });
     return;

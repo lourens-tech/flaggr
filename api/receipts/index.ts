@@ -254,7 +254,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         values (${authed.id}, 'Flagrr Cash earned', ${notificationBody})
       `,
     ]);
-    await sendPushToUser(authed.id, { title: 'Flagrr Cash earned', body: notificationBody });
+    await sendPushToUser(authed.id, { title: 'Flagrr Cash earned', body: notificationBody }, 'accountActivity');
 
     if (fraud.flagged) {
       await notifyCourseAdmins(

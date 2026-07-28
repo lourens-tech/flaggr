@@ -88,6 +88,12 @@ interface DeleteAccountBody {
   password?: string;
 }
 
+interface NotificationPreferencesBody {
+  accountActivity?: boolean;
+  supportReplies?: boolean;
+  announcements?: boolean;
+}
+
 function escapeHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
@@ -324,6 +330,20 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     return;
   }
 
+  if (action === 'notificationPreferences' && req.method === 'GET') {
+    const rows = (await sql`
+      select notify_account_activity, notify_support_replies, notify_announcements
+      from users where id = ${authed.id}
+    `) as Array<{ notify_account_activity: boolean; notify_support_replies: boolean; notify_announcements: boolean }>;
+    const p = rows[0];
+    res.status(200).json({
+      accountActivity: p.notify_account_activity,
+      supportReplies: p.notify_support_replies,
+      announcements: p.notify_announcements,
+    });
+    return;
+  }
+
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'Method not allowed' });
     return;
@@ -481,6 +501,21 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     }
     await sql`delete from users where id = ${authed.id}`;
     res.status(200).json({ ok: true });
+    return;
+  }
+
+  if (action === 'updateNotificationPreferences') {
+    const { accountActivity, supportReplies, announcements } = req.body as NotificationPreferencesBody;
+    if (typeof accountActivity !== 'boolean' || typeof supportReplies !== 'boolean' || typeof announcements !== 'boolean') {
+      throw new HttpError(400, 'accountActivity, supportReplies, and announcements must all be booleans');
+    }
+    await sql`
+      update users
+      set notify_account_activity = ${accountActivity}, notify_support_replies = ${supportReplies},
+          notify_announcements = ${announcements}
+      where id = ${authed.id}
+    `;
+    res.status(200).json({ accountActivity, supportReplies, announcements });
     return;
   }
 

@@ -59,8 +59,9 @@ export async function grantDueStreakReward(userId: string, streak: Pick<StreakIn
       values (${userId}, 'Streak bonus!', ${`You've kept a ${streak.weeks}-week streak going — enjoy ${amount} Flagrr Cash.`})
     `,
   ]);
-  await sendPushToUser(userId, {
-    title: 'Streak bonus!',
-    body: `You've kept a ${streak.weeks}-week streak going — enjoy ${amount} Flagrr Cash.`,
-  });
+  await sendPushToUser(
+    userId,
+    { title: 'Streak bonus!', body: `You've kept a ${streak.weeks}-week streak going — enjoy ${amount} Flagrr Cash.` },
+    'accountActivity',
+  );
 }

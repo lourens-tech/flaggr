@@ -106,6 +106,7 @@ export type RootStackParamList = {
   SupportTickets: undefined;
   SupportTicketCreate: undefined;
   SupportTicketChat: { ticketId: string };
+  NotificationPreferences: undefined;
 };
 
 declare global {

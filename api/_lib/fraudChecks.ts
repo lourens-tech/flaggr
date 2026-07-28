@@ -173,5 +173,5 @@ export async function applyFraudConfirmationEffects(receipt: ResolvedFlaggedRece
     `A receipt you submitted${receipt.courseName ? ` at ${receipt.courseName}` : ''} was confirmed as fraudulent.` +
     (points > 0 ? ` ${points} Flagrr Cash awarded for it has been reversed from your balance.` : '');
   await sql`insert into notifications (user_id, title, body) values (${receipt.userId}, 'Receipt rejected', ${body})`;
-  await sendPushToUser(receipt.userId, { title: 'Receipt rejected', body });
+  await sendPushToUser(receipt.userId, { title: 'Receipt rejected', body }, 'accountActivity');
 }

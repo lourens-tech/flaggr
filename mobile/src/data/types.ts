@@ -206,6 +206,12 @@ export interface AppNotification {
   enquiryId: string | null;
 }
 
+export interface NotificationPreferences {
+  accountActivity: boolean;
+  supportReplies: boolean;
+  announcements: boolean;
+}
+
 export type EnquiryStatus = 'pending' | 'in_progress' | 'resolved';
 
 export interface EnquiryMessage {

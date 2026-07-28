@@ -17,6 +17,7 @@ import type {
   EnquiryMessage,
   MyEnquirySummary,
   MyEnquiryThread,
+  NotificationPreferences,
   PointsAccount,
   Receipt,
   Reward,
@@ -94,6 +95,8 @@ interface AppContextValue extends AppState {
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   deleteAccount: (password: string) => Promise<void>;
   exportMyData: () => Promise<boolean>;
+  getNotificationPreferences: () => Promise<NotificationPreferences>;
+  updateNotificationPreferences: (preferences: NotificationPreferences) => Promise<void>;
   changeHomeClub: (courseId: string) => Promise<void>;
   sendContactEnquiry: (payload: ContactEnquiryPayload) => Promise<string>;
   listMyEnquiries: () => Promise<MyEnquirySummary[]>;
@@ -271,6 +274,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const exportMyData = async (): Promise<boolean> => downloadMyDataExport();
 
+  const getNotificationPreferences = async (): Promise<NotificationPreferences> => api.notificationPreferences();
+
+  const updateNotificationPreferences = async (preferences: NotificationPreferences) => {
+    await api.updateNotificationPreferences(preferences);
+  };
+
   const sendContactEnquiry = async (payload: ContactEnquiryPayload): Promise<string> => {
     const res = await api.sendContactEnquiry(payload);
     return res.enquiryId;
@@ -353,6 +362,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     changePassword,
     deleteAccount,
     exportMyData,
+    getNotificationPreferences,
+    updateNotificationPreferences,
     changeHomeClub,
     sendContactEnquiry,
     listMyEnquiries,

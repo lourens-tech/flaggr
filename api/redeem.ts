@@ -87,7 +87,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
   ];
 
   const voucher = results[0][0];
-  await sendPushToUser(authed.id, { title: 'Reward redeemed', body: notificationBody });
+  await sendPushToUser(authed.id, { title: 'Reward redeemed', body: notificationBody }, 'accountActivity');
   res.status(201).json({
     id: voucher.id,
     rewardId: voucher.reward_id,

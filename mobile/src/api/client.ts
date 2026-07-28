@@ -7,6 +7,7 @@ import type {
   EnquiryMessage,
   MyEnquirySummary,
   MyEnquiryThread,
+  NotificationPreferences,
   PointsAccount,
   Receipt,
   Reward,
@@ -234,6 +235,14 @@ export const api = {
     request<{ themePreference: 'system' | 'light' | 'dark' }>('/profile?action=themePreference', {
       method: 'POST',
       body: { preference },
+    }),
+
+  notificationPreferences: () => request<NotificationPreferences>('/profile?action=notificationPreferences'),
+
+  updateNotificationPreferences: (preferences: NotificationPreferences) =>
+    request<NotificationPreferences>('/profile?action=updateNotificationPreferences', {
+      method: 'POST',
+      body: preferences,
     }),
 
   changePassword: (currentPassword: string, newPassword: string) =>
