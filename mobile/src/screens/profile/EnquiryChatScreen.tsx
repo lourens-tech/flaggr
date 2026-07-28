@@ -20,7 +20,7 @@ import { TextField } from '../../components/common/TextField';
 import { useApp } from '../../context/AppContext';
 import { ApiError } from '../../api/client';
 import { showAlert } from '../../utils/alert';
-import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
+import { enquiryStatusBadges, fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
 import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 import type { EnquiryStatus, MyEnquiryThread } from '../../data/types';
 
@@ -28,12 +28,6 @@ type Props = NativeStackScreenProps<RootStackParamList, 'EnquiryChat'>;
 
 // A fixed, theme-invariant palette — these are small self-contained status
 // chips (own bg + fg pair), not surfaces that should flip with dark mode.
-const STATUS_BADGE: Record<EnquiryStatus, { label: string; bg: string; fg: string }> = {
-  pending: { label: 'Pending', bg: '#FDE9C8', fg: '#8A5A00' },
-  in_progress: { label: 'Chat in Progress', bg: '#CCF2E6', fg: '#00805A' },
-  resolved: { label: 'Resolved', bg: '#E5E7EB', fg: '#4B5563' },
-};
-
 function formatTime(iso: string): string {
   return new Date(iso).toLocaleString('en-ZA', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
@@ -89,7 +83,7 @@ export function EnquiryChatScreen({ route }: Props) {
     }
   };
 
-  const badge = thread ? STATUS_BADGE[thread.status] : null;
+  const badge = thread ? enquiryStatusBadges(colors)[thread.status] : null;
 
   return (
     <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>

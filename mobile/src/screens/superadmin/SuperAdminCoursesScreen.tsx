@@ -340,7 +340,7 @@ function createStyles(colors: ThemeColors) {
   cardStatText: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary },
   statusBadge: { backgroundColor: colors.background, borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 3 },
   statusBadgeText: { fontFamily: fontFamily.bodySemiBold, fontSize: 10, color: colors.textPrimary },
-  archivedBadge: { backgroundColor: 'rgba(120,120,120,0.2)', borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 3 },
+  archivedBadge: { backgroundColor: colors.inputBorder, borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 3 },
   archivedBadgeText: { fontFamily: fontFamily.bodySemiBold, fontSize: 10, color: colors.textSecondary },
   pendingText: { fontFamily: fontFamily.body, fontSize: 10, color: colors.textSecondary, fontStyle: 'italic' },
   actionsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, rowGap: spacing.xs, marginTop: spacing.xs },

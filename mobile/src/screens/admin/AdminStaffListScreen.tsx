@@ -257,7 +257,7 @@ function createStyles(colors: ThemeColors) {
   cardTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
   cardTitle: { flex: 1, fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.textPrimary },
   statusBadge: { backgroundColor: colors.background, borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 3 },
-  statusBadgeRevoked: { backgroundColor: 'rgba(222,92,92,0.15)' },
+  statusBadgeRevoked: { backgroundColor: colors.dangerBg },
   statusBadgeText: { fontFamily: fontFamily.bodySemiBold, fontSize: 10, color: colors.textPrimary },
   statusBadgeTextRevoked: { color: colors.negative },
   cardEmail: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary },

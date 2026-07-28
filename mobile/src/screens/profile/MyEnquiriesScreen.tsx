@@ -7,7 +7,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/types';
 import { ScreenHeader } from '../../components/common/ScreenHeader';
 import { useApp } from '../../context/AppContext';
-import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
+import { enquiryStatusBadges, fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
 import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 import type { EnquiryStatus, MyEnquirySummary } from '../../data/types';
 
@@ -15,12 +15,6 @@ type Props = NativeStackScreenProps<RootStackParamList, 'MyEnquiries'>;
 
 // A fixed, theme-invariant palette — these are small self-contained status
 // chips (own bg + fg pair), not surfaces that should flip with dark mode.
-const STATUS_BADGE: Record<EnquiryStatus, { label: string; bg: string; fg: string }> = {
-  pending: { label: 'Pending', bg: '#FDE9C8', fg: '#8A5A00' },
-  in_progress: { label: 'Chat in Progress', bg: '#CCF2E6', fg: '#00805A' },
-  resolved: { label: 'Resolved', bg: '#E5E7EB', fg: '#4B5563' },
-};
-
 function relativeTime(iso: string): string {
   const diffMs = Date.now() - new Date(iso).getTime();
   const mins = Math.floor(diffMs / 60000);
@@ -59,7 +53,7 @@ export function MyEnquiriesScreen({ navigation }: Props) {
   );
 
   const renderItem = ({ item }: { item: MyEnquirySummary }) => {
-    const badge = STATUS_BADGE[item.status];
+    const badge = enquiryStatusBadges(colors)[item.status];
     return (
       <TouchableOpacity
         style={styles.row}

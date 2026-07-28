@@ -7,7 +7,7 @@ import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SuperAdminStackParamList, SuperAdminTabParamList } from '../../navigation/types';
 import { useAdmin } from '../../context/AdminContext';
-import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
+import { fontFamily, fontSize, priorityBadges, radius, screenPadding, spacing, ticketStatusBadges } from '../../theme';
 import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 import type { SupportInboxTicket, SupportTicketPriority, SupportTicketStatus } from '../../data/adminTypes';
 
@@ -23,12 +23,6 @@ const FILTERS: Array<{ label: string; value: SupportTicketStatus | 'all' }> = [
   { label: 'Resolved', value: 'resolved' },
 ];
 
-const STATUS_BADGE: Record<SupportTicketStatus, { label: string; bg: string; fg: string }> = {
-  open: { label: 'Open', bg: '#FDE9C8', fg: '#8A5A00' },
-  in_progress: { label: 'In Progress', bg: '#CCF2E6', fg: '#00805A' },
-  resolved: { label: 'Resolved', bg: '#E5E7EB', fg: '#4B5563' },
-};
-
 const PRIORITY_FILTERS: Array<{ label: string; value: SupportTicketPriority | 'all' }> = [
   { label: 'Any Priority', value: 'all' },
   { label: 'Urgent', value: 'urgent' },
@@ -36,13 +30,6 @@ const PRIORITY_FILTERS: Array<{ label: string; value: SupportTicketPriority | 'a
   { label: 'Normal', value: 'normal' },
   { label: 'Low', value: 'low' },
 ];
-
-const PRIORITY_BADGE: Record<SupportTicketPriority, { label: string; bg: string; fg: string }> = {
-  urgent: { label: 'Urgent', bg: '#FBD5D5', fg: '#B91C1C' },
-  high: { label: 'High', bg: '#FDE9C8', fg: '#8A5A00' },
-  normal: { label: 'Normal', bg: '#DCEEFB', fg: '#1D4ED8' },
-  low: { label: 'Low', bg: '#E5E7EB', fg: '#4B5563' },
-};
 
 const REQUESTER_LABEL: Record<string, string> = {
   member: 'Member',
@@ -93,8 +80,8 @@ export function SuperAdminSupportInboxScreen({ navigation }: Props) {
   );
 
   const renderItem = ({ item }: { item: SupportInboxTicket }) => {
-    const badge = STATUS_BADGE[item.status];
-    const priorityBadge = PRIORITY_BADGE[item.priority];
+    const badge = ticketStatusBadges(colors)[item.status];
+    const priorityBadge = priorityBadges(colors)[item.priority];
     return (
       <TouchableOpacity
         style={styles.row}

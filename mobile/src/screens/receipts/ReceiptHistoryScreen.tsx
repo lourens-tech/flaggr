@@ -52,7 +52,7 @@ export function ReceiptHistoryScreen({ navigation }: Props) {
       </View>
       {item.flagged ? (
         <View style={styles.reviewBadge}>
-          <Ionicons name="alert-circle-outline" size={12} color="#8a6100" />
+          <Ionicons name="alert-circle-outline" size={12} color={colors.warning} />
           <Text style={styles.reviewBadgeText}>Under review</Text>
         </View>
       ) : null}
@@ -147,12 +147,12 @@ function createStyles(colors: ThemeColors) {
     alignItems: 'center',
     gap: 4,
     alignSelf: 'flex-start',
-    backgroundColor: 'rgba(230,168,55,0.2)',
+    backgroundColor: colors.warningBg,
     borderRadius: radius.pill,
     paddingHorizontal: 8,
     paddingVertical: 2,
   },
-  reviewBadgeText: { fontFamily: fontFamily.bodySemiBold, fontSize: 10, color: '#8a6100' },
+  reviewBadgeText: { fontFamily: fontFamily.bodySemiBold, fontSize: 10, color: colors.warning },
   reviewNote: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary, fontStyle: 'italic' },
   viewPhotoButton: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: spacing.xs, alignSelf: 'flex-start' },
   viewPhotoText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.tiny, color: colors.clubGreen },

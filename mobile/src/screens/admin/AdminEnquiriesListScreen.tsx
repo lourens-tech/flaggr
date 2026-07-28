@@ -8,7 +8,7 @@ import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AdminStackParamList, AdminTabParamList } from '../../navigation/types';
 import { useAdmin } from '../../context/AdminContext';
-import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
+import { enquiryStatusBadges, fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
 import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 import type { AdminEnquirySummary, EnquiryStatus } from '../../data/adminTypes';
 
@@ -26,12 +26,6 @@ const FILTERS: Array<{ label: string; value: EnquiryStatus | 'all' }> = [
 
 // A fixed, theme-invariant palette — these are small self-contained status
 // chips (own bg + fg pair), not surfaces that should flip with dark mode.
-const STATUS_BADGE: Record<EnquiryStatus, { label: string; bg: string; fg: string }> = {
-  pending: { label: 'Pending', bg: '#FDE9C8', fg: '#8A5A00' },
-  in_progress: { label: 'Chat in Progress', bg: '#CCF2E6', fg: '#00805A' },
-  resolved: { label: 'Resolved', bg: '#E5E7EB', fg: '#4B5563' },
-};
-
 function relativeTime(iso: string): string {
   const diffMs = Date.now() - new Date(iso).getTime();
   const mins = Math.floor(diffMs / 60000);
@@ -71,7 +65,7 @@ export function AdminEnquiriesListScreen({ navigation }: Props) {
   );
 
   const renderItem = ({ item }: { item: AdminEnquirySummary }) => {
-    const badge = STATUS_BADGE[item.status];
+    const badge = enquiryStatusBadges(colors)[item.status];
     return (
       <TouchableOpacity
         style={styles.row}

@@ -171,7 +171,7 @@ function createStyles(colors: ThemeColors) {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 8,
-    backgroundColor: '#FDECEC',
+    backgroundColor: colors.dangerBg,
     borderRadius: radius.md,
     padding: spacing.sm + 2,
     marginTop: spacing.md,

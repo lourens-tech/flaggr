@@ -20,17 +20,11 @@ import { TextField } from '../../components/common/TextField';
 import { useAdmin } from '../../context/AdminContext';
 import { AdminApiError } from '../../api/adminClient';
 import { showAlert } from '../../utils/alert';
-import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
+import { fontFamily, fontSize, radius, screenPadding, spacing, ticketStatusBadges } from '../../theme';
 import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 import type { SupportTicketStatus, SupportTicketThread } from '../../data/adminTypes';
 
 type Props = NativeStackScreenProps<AdminStackParamList, 'AdminSupportTicketChat'>;
-
-const STATUS_BADGE: Record<SupportTicketStatus, { label: string; bg: string; fg: string }> = {
-  open: { label: 'Open', bg: '#FDE9C8', fg: '#8A5A00' },
-  in_progress: { label: 'In Progress', bg: '#CCF2E6', fg: '#00805A' },
-  resolved: { label: 'Resolved', bg: '#E5E7EB', fg: '#4B5563' },
-};
 
 function formatTime(iso: string): string {
   return new Date(iso).toLocaleString('en-ZA', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -87,7 +81,7 @@ export function AdminSupportTicketChatScreen({ route }: Props) {
     }
   };
 
-  const badge = thread ? STATUS_BADGE[thread.status] : null;
+  const badge = thread ? ticketStatusBadges(colors)[thread.status] : null;
 
   return (
     <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>

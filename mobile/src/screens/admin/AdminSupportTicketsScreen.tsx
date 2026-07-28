@@ -7,17 +7,11 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AdminStackParamList } from '../../navigation/types';
 import { ScreenHeader } from '../../components/common/ScreenHeader';
 import { useAdmin } from '../../context/AdminContext';
-import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
+import { fontFamily, fontSize, radius, screenPadding, spacing, ticketStatusBadges } from '../../theme';
 import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 import type { SupportTicketStatus, SupportTicketSummary } from '../../data/adminTypes';
 
 type Props = NativeStackScreenProps<AdminStackParamList, 'AdminSupportTickets'>;
-
-const STATUS_BADGE: Record<SupportTicketStatus, { label: string; bg: string; fg: string }> = {
-  open: { label: 'Open', bg: '#FDE9C8', fg: '#8A5A00' },
-  in_progress: { label: 'In Progress', bg: '#CCF2E6', fg: '#00805A' },
-  resolved: { label: 'Resolved', bg: '#E5E7EB', fg: '#4B5563' },
-};
 
 function relativeTime(iso: string): string {
   const diffMs = Date.now() - new Date(iso).getTime();
@@ -59,7 +53,7 @@ export function AdminSupportTicketsScreen({ navigation }: Props) {
   );
 
   const renderItem = ({ item }: { item: SupportTicketSummary }) => {
-    const badge = STATUS_BADGE[item.status];
+    const badge = ticketStatusBadges(colors)[item.status];
     return (
       <TouchableOpacity
         style={styles.row}

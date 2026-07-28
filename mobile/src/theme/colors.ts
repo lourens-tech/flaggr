@@ -20,6 +20,7 @@ const shared = {
 
   positive: '#CDDE5C',
   negative: '#DE5C5C',
+  warning: '#8A5A00', // amber accent — foreground text/icon on a warning-style badge (Open/Pending status, High priority, flagged-for-review)
 };
 
 export const lightColors = {
@@ -39,6 +40,13 @@ export const lightColors = {
   mintBg: '#CCF2E6',
   mintBgAlt: '#F0FFFB',
   imagePlaceholder: '#F7F8FC',
+
+  // Tinted badge backgrounds — pair with the constant `warning`/`negative`
+  // accent text above. Unlike those accents, these flip with the theme
+  // (same as mintBg) since a pastel-on-white chip reads as a stray light-mode
+  // artifact once the surrounding page goes dark.
+  warningBg: '#FDE9C8',
+  dangerBg: 'rgba(222, 92, 92, 0.15)',
 
   overlayDarkGreen: 'rgba(31, 66, 52, 0.75)',
 } as const;
@@ -60,6 +68,9 @@ export const darkColors = {
   mintBg: '#173C31',
   mintBgAlt: '#132920',
   imagePlaceholder: '#1E2A24',
+
+  warningBg: '#4A3616',
+  dangerBg: 'rgba(222, 92, 92, 0.25)',
 
   overlayDarkGreen: 'rgba(31, 66, 52, 0.85)',
 } as const;
