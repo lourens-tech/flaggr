@@ -40,6 +40,7 @@ export type AdminStackParamList = {
   AdminStaffList: undefined;
   AdminClubAdmins: undefined;
   AdminStaffEdit: { staffId?: string } | undefined;
+  AdminStaffActivity: undefined;
   AdminSupportTickets: undefined;
   AdminSupportTicketCreate: undefined;
   AdminSupportTicketChat: { ticketId: string };

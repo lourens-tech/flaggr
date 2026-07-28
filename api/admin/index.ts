@@ -475,6 +475,7 @@ function staffDto(row: {
   must_change_password: boolean;
   revoked_at: string | null;
   created_at: string;
+  redemption_count: number | string;
 }) {
   return {
     id: row.id,
@@ -485,6 +486,7 @@ function staffDto(row: {
     mustChangePassword: row.must_change_password,
     revoked: row.revoked_at !== null,
     createdAt: row.created_at,
+    redemptionCount: Number(row.redemption_count),
   };
 }
 
@@ -2878,10 +2880,11 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
 
   if (action === 'staffList' && req.method === 'GET') {
     const rows = (await sql`
-      select id, first_name, last_name, email, username, must_change_password, revoked_at, created_at
-      from admins
-      where course_id = ${courseId} and role = 'staff'
-      order by created_at desc
+      select a.id, a.first_name, a.last_name, a.email, a.username, a.must_change_password, a.revoked_at, a.created_at,
+        (select count(*) from vouchers v where v.redeemed_by_admin_id = a.id) as redemption_count
+      from admins a
+      where a.course_id = ${courseId} and a.role = 'staff'
+      order by a.created_at desc
     `) as Array<{
       id: string;
       first_name: string;
@@ -2891,8 +2894,54 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       must_change_password: boolean;
       revoked_at: string | null;
       created_at: string;
+      redemption_count: number | string;
     }>;
     res.status(200).json(rows.map(staffDto));
+    return;
+  }
+
+  // course_admin-only (not in STAFF_ALLOWED_ACTIONS) — audit trail for
+  // who validated which reward, since staff share a "no per-ticket
+  // ownership" model at the till the same way support agents do with
+  // tickets: any staff member can redeem any voucher, so this is the only
+  // way to see who actually did. Includes redemptions by the course_admin
+  // themselves (redeemed_by_admin_id isn't staff-only), not just staff.
+  if (action === 'staffRedemptions' && req.method === 'GET') {
+    const rows = (await sql`
+      select v.code, v.redeemed_at, v.variant_label, v.cost, r.title as reward_title,
+        u.first_name as member_first_name, u.last_name as member_last_name,
+        a.first_name as staff_first_name, a.last_name as staff_last_name, a.role as staff_role
+      from vouchers v
+      join rewards r on r.id = v.reward_id
+      join users u on u.id = v.user_id
+      left join admins a on a.id = v.redeemed_by_admin_id
+      where r.course_id = ${courseId} and v.status = 'redeemed'
+      order by v.redeemed_at desc
+      limit 200
+    `) as Array<{
+      code: string;
+      redeemed_at: string;
+      variant_label: string;
+      cost: number;
+      reward_title: string;
+      member_first_name: string;
+      member_last_name: string;
+      staff_first_name: string | null;
+      staff_last_name: string | null;
+      staff_role: string | null;
+    }>;
+    res.status(200).json(
+      rows.map((r) => ({
+        code: r.code,
+        redeemedAt: r.redeemed_at,
+        rewardTitle: r.reward_title,
+        variantLabel: r.variant_label,
+        cost: r.cost,
+        memberName: `${r.member_first_name} ${r.member_last_name}`,
+        staffName: r.staff_first_name ? `${r.staff_first_name} ${r.staff_last_name}` : 'Unknown',
+        staffRole: r.staff_role,
+      })),
+    );
     return;
   }
 
@@ -2933,7 +2982,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       `,
     });
 
-    res.status(200).json(staffDto(created[0]));
+    res.status(200).json(staffDto({ ...created[0], redemption_count: 0 }));
     return;
   }
 
@@ -2967,6 +3016,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       must_change_password: boolean;
       revoked_at: string | null;
       created_at: string;
+      redemption_count: number | string;
     }>;
     if (newPassword) {
       const passwordHash = await hashPassword(newPassword);
@@ -2975,14 +3025,16 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         set first_name = ${firstName}, last_name = ${lastName}, email = ${email},
             password_hash = ${passwordHash}, must_change_password = false
         where id = ${id}
-        returning id, first_name, last_name, email, username, must_change_password, revoked_at, created_at
+        returning id, first_name, last_name, email, username, must_change_password, revoked_at, created_at,
+          (select count(*) from vouchers v where v.redeemed_by_admin_id = admins.id) as redemption_count
       `) as typeof updated;
     } else {
       updated = (await sql`
         update admins
         set first_name = ${firstName}, last_name = ${lastName}, email = ${email}
         where id = ${id}
-        returning id, first_name, last_name, email, username, must_change_password, revoked_at, created_at
+        returning id, first_name, last_name, email, username, must_change_password, revoked_at, created_at,
+          (select count(*) from vouchers v where v.redeemed_by_admin_id = admins.id) as redemption_count
       `) as typeof updated;
     }
 

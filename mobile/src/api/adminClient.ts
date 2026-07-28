@@ -34,6 +34,7 @@ import type {
   AdPerformanceRow,
   StatBreakdownMetric,
   StatBreakdownRow,
+  StaffRedemption,
   SupportAgent,
   SupportInboxTicket,
   SupportInboxTicketThread,
@@ -266,6 +267,8 @@ export const adminApi = {
   reactivateStaff: (id: string) => request<{ ok: boolean }>('?action=staffReactivate', { method: 'POST', body: { id } }),
 
   deleteStaff: (id: string) => request<{ ok: boolean }>('?action=staffDelete', { method: 'POST', body: { id } }),
+
+  staffRedemptions: () => request<StaffRedemption[]>('?action=staffRedemptions'),
 
   rewards: () => request<AdminReward[]>('?action=rewards'),
 

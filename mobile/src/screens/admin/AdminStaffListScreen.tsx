@@ -131,6 +131,9 @@ export function AdminStaffListScreen({ navigation }: Props) {
       </View>
       <Text style={styles.cardEmail} numberOfLines={1}>Username: {item.username}</Text>
       <Text style={styles.cardEmail} numberOfLines={1}>{item.email}</Text>
+      <Text style={styles.cardEmail} numberOfLines={1}>
+        {item.redemptionCount} redemption{item.redemptionCount === 1 ? '' : 's'}
+      </Text>
       {item.mustChangePassword ? <Text style={styles.pendingText}>Hasn't logged in yet</Text> : null}
 
       <View style={styles.cardActions}>
@@ -167,14 +170,24 @@ export function AdminStaffListScreen({ navigation }: Props) {
           title="Staff"
           onBack={() => navigation.goBack()}
           right={
-            <TouchableOpacity
-              onPress={() => navigation.navigate('AdminStaffEdit', undefined)}
-              hitSlop={8}
-              accessibilityLabel="Add Staff Member"
-              accessibilityRole="button"
-            >
-              <Ionicons name="add-circle" size={26} color={colors.white} />
-            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+              <TouchableOpacity
+                onPress={() => navigation.navigate('AdminStaffActivity')}
+                hitSlop={8}
+                accessibilityLabel="Redemption Activity"
+                accessibilityRole="button"
+              >
+                <Ionicons name="time-outline" size={24} color={colors.white} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => navigation.navigate('AdminStaffEdit', undefined)}
+                hitSlop={8}
+                accessibilityLabel="Add Staff Member"
+                accessibilityRole="button"
+              >
+                <Ionicons name="add-circle" size={26} color={colors.white} />
+              </TouchableOpacity>
+            </View>
           }
         />
       </SafeAreaView>

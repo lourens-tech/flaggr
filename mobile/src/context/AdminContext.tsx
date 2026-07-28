@@ -49,6 +49,7 @@ import type {
   AdPerformanceRow,
   StatBreakdownMetric,
   StatBreakdownRow,
+  StaffRedemption,
   SupportAgent,
   SupportInboxTicket,
   SupportInboxTicketThread,
@@ -168,6 +169,7 @@ interface AdminContextValue {
   revokeStaff: (id: string) => Promise<void>;
   reactivateStaff: (id: string) => Promise<void>;
   deleteStaff: (id: string) => Promise<void>;
+  getStaffRedemptions: () => Promise<StaffRedemption[]>;
   // course_admin's own read-only view of who administers their club, plus
   // the ability to add exactly one more themselves (capped server-side at
   // MAX_COURSE_ADMINS_PER_CLUB) — no reset/revoke/delete (super_admin only).
@@ -547,6 +549,8 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     setStaff((prev) => prev.filter((s) => s.id !== id));
   };
 
+  const getStaffRedemptions = async (): Promise<StaffRedemption[]> => adminApi.staffRedemptions();
+
   const loadSuperAdminCourses = useCallback(async () => {
     setSuperAdminCourses(await adminApi.superAdminCourses());
   }, []);
@@ -769,6 +773,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     revokeStaff,
     reactivateStaff,
     deleteStaff,
+    getStaffRedemptions,
     changePassword,
     superAdminCourses,
     loadSuperAdminCourses,

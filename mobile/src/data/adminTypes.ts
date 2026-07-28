@@ -20,6 +20,22 @@ export interface AdminStaff {
   mustChangePassword: boolean;
   revoked: boolean;
   createdAt: string;
+  redemptionCount: number;
+}
+
+// One row per redeemed voucher — who (which staff member, or the
+// course_admin themselves) validated it, for whom, and when. Any staff
+// member can redeem any voucher (no per-till ownership), so this is the
+// only way to see who actually did.
+export interface StaffRedemption {
+  code: string;
+  redeemedAt: string;
+  rewardTitle: string;
+  variantLabel: string;
+  cost: number;
+  memberName: string;
+  staffName: string;
+  staffRole: 'course_admin' | 'staff' | null;
 }
 
 // A course_admin's own view of who else administers their club — read-only,
