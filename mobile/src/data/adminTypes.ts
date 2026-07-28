@@ -379,6 +379,36 @@ export interface AuditLogEntry {
   createdAt: string;
 }
 
+export interface FlaggedReceipt {
+  id: string;
+  courseId: string;
+  courseName: string;
+  memberId: string;
+  memberName: string;
+  memberEmail: string;
+  merchantName: string;
+  total: number;
+  pointsAwarded: number | null;
+  submittedAt: string;
+  flagReason: string | null;
+  memberFlagCount: number;
+}
+
+export interface DuplicateReceiptAttempt {
+  id: string;
+  attemptedAt: string;
+  matchType: 'receipt_number' | 'image_hash';
+  memberId: string;
+  memberName: string;
+  memberEmail: string;
+  attemptedCourseId: string;
+  attemptedCourseName: string;
+  originalCourseId: string | null;
+  originalCourseName: string | null;
+  originalSubmittedAt: string | null;
+  crossClub: boolean;
+}
+
 export interface AdminVoucherLookup {
   id: string;
   code: string;

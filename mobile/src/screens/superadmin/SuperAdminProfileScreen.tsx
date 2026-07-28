@@ -94,6 +94,14 @@ export function SuperAdminProfileScreen({ navigation }: Props) {
               variant="outline"
               onPress={() => navigation.navigate('SuperAdminAuditLog')}
             />
+            <View style={{ marginTop: spacing.sm }}>
+              <PillButton
+                label="Fraud Oversight"
+                icon="shield-outline"
+                variant="outline"
+                onPress={() => navigation.navigate('SuperAdminFraudOversight')}
+              />
+            </View>
           </>
         ) : null}
 

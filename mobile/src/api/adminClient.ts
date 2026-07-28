@@ -17,8 +17,10 @@ import type {
   AuditLogEntry,
   BroadcastTarget,
   DashboardReport,
+  DuplicateReceiptAttempt,
   EnquiryMessage,
   EnquiryStatus,
+  FlaggedReceipt,
   MemberRosterStatus,
   MemberRosterUploadResult,
   MemberStats,
@@ -432,6 +434,10 @@ export const adminApi = {
 
   // --- Audit log (super_admin only) ---
   auditLog: () => request<AuditLogEntry[]>('?action=auditLog'),
+
+  // --- Cross-club fraud oversight (super_admin only) ---
+  superAdminFlaggedReceipts: () => request<FlaggedReceipt[]>('?action=superAdminFlaggedReceipts'),
+  superAdminDuplicateAttempts: () => request<DuplicateReceiptAttempt[]>('?action=superAdminDuplicateAttempts'),
 };
 
 /** Downloads a CSV report. Only works on the web build (the only build that

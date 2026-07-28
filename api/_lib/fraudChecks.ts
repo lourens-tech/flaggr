@@ -10,24 +10,49 @@ export interface DuplicateCheckResult {
   reason?: string;
 }
 
+// Best-effort — recording the attempt should never block the duplicate
+// rejection itself from working.
+async function logDuplicateAttempt(
+  userId: string,
+  courseId: string,
+  matchType: 'receipt_number' | 'image_hash',
+  matchedReceiptId: string,
+): Promise<void> {
+  try {
+    await sql`
+      insert into receipt_duplicate_attempts (user_id, course_id, match_type, matched_receipt_id)
+      values (${userId}, ${courseId}, ${matchType}, ${matchedReceiptId})
+    `;
+  } catch {
+    // best-effort
+  }
+}
+
 // A receipt number, once redeemed, can never be redeemed again — by anyone.
 // The image hash catches an identical image resubmitted even without (or
-// with a different) receipt number.
+// with a different) receipt number. Every rejection is also logged to
+// receipt_duplicate_attempts — the same receipt or image showing up at a
+// *different* club is the clearest cross-club fraud signal the app has, and
+// it used to be discarded the moment it was caught.
 export async function checkDuplicateReceipt(
   receiptNumber: string | null,
   imageHash: string,
+  userId: string,
+  courseId: string,
 ): Promise<DuplicateCheckResult> {
   if (receiptNumber) {
     const byNumber = (await sql`
       select id from receipts where receipt_number = ${receiptNumber} limit 1
     `) as Array<{ id: string }>;
     if (byNumber.length > 0) {
+      await logDuplicateAttempt(userId, courseId, 'receipt_number', byNumber[0].id);
       return { isDuplicate: true, reason: 'This receipt has already been redeemed.' };
     }
   }
 
   const byHash = (await sql`select id from receipts where image_hash = ${imageHash} limit 1`) as Array<{ id: string }>;
   if (byHash.length > 0) {
+    await logDuplicateAttempt(userId, courseId, 'image_hash', byHash[0].id);
     return { isDuplicate: true, reason: 'This receipt has already been redeemed.' };
   }
 

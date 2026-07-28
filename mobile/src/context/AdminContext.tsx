@@ -32,8 +32,10 @@ import type {
   AuditLogEntry,
   BroadcastTarget,
   DashboardReport,
+  DuplicateReceiptAttempt,
   EnquiryMessage,
   EnquiryStatus,
+  FlaggedReceipt,
   MemberRosterStatus,
   MemberRosterUploadResult,
   MemberStats,
@@ -231,6 +233,9 @@ interface AdminContextValue {
   // Audit log (super_admin only) — thin passthrough, same as getClubAdmins/
   // getSuperAdminCourseAdmins; the caller owns the resulting list.
   getAuditLog: () => Promise<AuditLogEntry[]>;
+  // Cross-club fraud oversight (super_admin only) — same thin-passthrough pattern.
+  getSuperAdminFlaggedReceipts: () => Promise<FlaggedReceipt[]>;
+  getSuperAdminDuplicateAttempts: () => Promise<DuplicateReceiptAttempt[]>;
 }
 
 const AdminContext = createContext<AdminContextValue | undefined>(undefined);
@@ -649,6 +654,9 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
 
   const getAuditLog = async (): Promise<AuditLogEntry[]> => adminApi.auditLog();
 
+  const getSuperAdminFlaggedReceipts = async (): Promise<FlaggedReceipt[]> => adminApi.superAdminFlaggedReceipts();
+  const getSuperAdminDuplicateAttempts = async (): Promise<DuplicateReceiptAttempt[]> => adminApi.superAdminDuplicateAttempts();
+
   const value: AdminContextValue = {
     isAdminAuthenticated,
     isInitializing,
@@ -759,6 +767,8 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     reactivateSupportAgent,
     deleteSupportAgent,
     getAuditLog,
+    getSuperAdminFlaggedReceipts,
+    getSuperAdminDuplicateAttempts,
   };
 
   return <AdminContext.Provider value={value}>{children}</AdminContext.Provider>;

@@ -97,7 +97,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     if (req.query.action === 'scan') {
       const { ocrConfidence, parsed, scored } = await runScanPipeline(imageBase64);
       const previewHash = hashImageDataUri(imageBase64);
-      const duplicate = await checkDuplicateReceipt(parsed.receiptNumber, previewHash);
+      const duplicate = await checkDuplicateReceipt(parsed.receiptNumber, previewHash, authed.id, authed.courseId);
       if (duplicate.isDuplicate) {
         res.status(200).json({ isDuplicate: true, reason: duplicate.reason });
         return;
@@ -137,7 +137,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     // the scan preview is a UI convenience, not the source of truth.
     const { imageHash, ocrConfidence, parsed, scored } = await runScanPipeline(imageBase64);
 
-    const duplicate = await checkDuplicateReceipt(parsed.receiptNumber, imageHash);
+    const duplicate = await checkDuplicateReceipt(parsed.receiptNumber, imageHash, authed.id, authed.courseId);
     if (duplicate.isDuplicate) {
       throw new HttpError(409, duplicate.reason ?? 'This receipt has already been redeemed.');
     }

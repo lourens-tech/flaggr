@@ -70,6 +70,7 @@ export type SuperAdminStackParamList = {
   SuperAdminCourseAdminCreate: { courseId: string; courseName: string };
   SuperAdminMemberStats: { memberId: string };
   SuperAdminAuditLog: undefined;
+  SuperAdminFraudOversight: undefined;
 };
 
 export type MainTabParamList = {

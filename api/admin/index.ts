@@ -35,6 +35,7 @@ import {
 import { getRosterStatus, replaceMemberRoster } from '../_lib/memberRoster';
 import { parseMemberRosterFile } from '../_lib/memberRosterFileParsing';
 import { logAudit } from '../_lib/auditLog';
+import { describeFraudReasons } from '../_lib/fraudChecks';
 
 // Every action for the course-admin side of the app lives in this one file,
 // dispatched by ?action= (same pattern as api/profile/index.ts and
@@ -314,6 +315,8 @@ const SUPER_ADMIN_ALLOWED_ACTIONS = new Set([
   'superAdminMemberRosterUpload',
   'superAdminMembers',
   'superAdminMemberStats',
+  'superAdminFlaggedReceipts',
+  'superAdminDuplicateAttempts',
   'superAdminBroadcasts',
   'superAdminBroadcastSend',
   'superAdminBroadcastDelete',
@@ -1393,6 +1396,104 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
             monthly: fillMonthlyByNumber(monthlyRows as Array<{ month: number; value: number }>),
           },
         });
+        return;
+      }
+
+      // --- Cross-club fraud oversight — a course_admin only ever sees
+      // flagged receipts (and duplicate rejections) for their own club; this
+      // is the platform-wide equivalent, plus the one signal no single club
+      // could ever piece together on its own: the same member's receipt
+      // being flagged, or the same receipt/image reused, at a *different*
+      // club. ---
+      if (action === 'superAdminFlaggedReceipts' && req.method === 'GET') {
+        const rows = (await sql`
+          select r.id, r.course_id, c.name as course_name, r.user_id, u.first_name, u.last_name, u.email,
+            r.course_name as merchant_name, r.total, r.points_awarded, r.submitted_at, r.flag_reason,
+            (select count(*) from receipts r2 where r2.flagged = true and r2.user_id = r.user_id) as member_flag_count
+          from receipts r
+          join users u on u.id = r.user_id
+          join courses c on c.id = r.course_id
+          where r.flagged = true
+          order by r.submitted_at desc
+          limit 200
+        `) as Array<{
+          id: string;
+          course_id: string;
+          course_name: string;
+          user_id: string;
+          first_name: string;
+          last_name: string;
+          email: string;
+          merchant_name: string;
+          total: string;
+          points_awarded: number | null;
+          submitted_at: string;
+          flag_reason: string | null;
+          member_flag_count: number | string;
+        }>;
+        res.status(200).json(
+          rows.map((r) => ({
+            id: r.id,
+            courseId: r.course_id,
+            courseName: r.course_name,
+            memberId: r.user_id,
+            memberName: `${r.first_name} ${r.last_name}`,
+            memberEmail: r.email,
+            merchantName: r.merchant_name,
+            total: Number(r.total),
+            pointsAwarded: r.points_awarded,
+            submittedAt: r.submitted_at,
+            flagReason: r.flag_reason ? describeFraudReasons(r.flag_reason.split(', ')) : null,
+            memberFlagCount: Number(r.member_flag_count),
+          })),
+        );
+        return;
+      }
+
+      if (action === 'superAdminDuplicateAttempts' && req.method === 'GET') {
+        const rows = (await sql`
+          select d.id, d.attempted_at, d.match_type,
+            d.user_id, u.first_name, u.last_name, u.email,
+            d.course_id as attempted_course_id, ac.name as attempted_course_name,
+            r.course_id as original_course_id, oc.name as original_course_name,
+            r.submitted_at as original_submitted_at
+          from receipt_duplicate_attempts d
+          join users u on u.id = d.user_id
+          join courses ac on ac.id = d.course_id
+          left join receipts r on r.id = d.matched_receipt_id
+          left join courses oc on oc.id = r.course_id
+          order by d.attempted_at desc
+          limit 200
+        `) as Array<{
+          id: string;
+          attempted_at: string;
+          match_type: string;
+          user_id: string;
+          first_name: string;
+          last_name: string;
+          email: string;
+          attempted_course_id: string;
+          attempted_course_name: string;
+          original_course_id: string | null;
+          original_course_name: string | null;
+          original_submitted_at: string | null;
+        }>;
+        res.status(200).json(
+          rows.map((r) => ({
+            id: r.id,
+            attemptedAt: r.attempted_at,
+            matchType: r.match_type,
+            memberId: r.user_id,
+            memberName: `${r.first_name} ${r.last_name}`,
+            memberEmail: r.email,
+            attemptedCourseId: r.attempted_course_id,
+            attemptedCourseName: r.attempted_course_name,
+            originalCourseId: r.original_course_id,
+            originalCourseName: r.original_course_name,
+            originalSubmittedAt: r.original_submitted_at,
+            crossClub: r.original_course_id !== null && r.original_course_id !== r.attempted_course_id,
+          })),
+        );
         return;
       }
 
