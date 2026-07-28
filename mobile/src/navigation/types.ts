@@ -5,6 +5,8 @@ export type AuthStackParamList = {
   Landing: undefined;
   Login: undefined;
   AdminLogin: undefined;
+  ForgotPassword: undefined;
+  AdminForgotPassword: undefined;
   SignUpStep1: undefined;
   SignUpStep2: {
     firstName: string;

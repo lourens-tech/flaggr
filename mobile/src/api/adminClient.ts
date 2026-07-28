@@ -197,6 +197,16 @@ export const adminApi = {
   login: (identifier: string, password: string) =>
     request<AdminLoginResponse>('?action=login', { method: 'POST', body: { identifier, password }, auth: false }),
 
+  forgotPassword: (identifier: string) =>
+    request<{ ok: boolean }>('?action=adminForgotPassword', { method: 'POST', body: { identifier }, auth: false }),
+
+  resetPassword: (identifier: string, code: string, newPassword: string) =>
+    request<{ ok: boolean }>('?action=adminResetPassword', {
+      method: 'POST',
+      body: { identifier, code, newPassword },
+      auth: false,
+    }),
+
   logout: () => request<{ ok: boolean }>('?action=logout', { method: 'POST' }),
 
   me: () => request<{ admin: AdminUser; course: AdminCourse }>('?action=me'),

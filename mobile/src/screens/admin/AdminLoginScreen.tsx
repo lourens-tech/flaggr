@@ -93,6 +93,12 @@ export function AdminLoginScreen({ navigation }: Props) {
 
           <View style={{ height: spacing.lg }} />
           <PillButton label="Login" icon="arrow-forward" onPress={handleLogin} loading={submitting} disabled={!identifier || !password} />
+
+          <TouchableOpacity style={styles.forgotRow} onPress={() => navigation.navigate('AdminForgotPassword')}>
+            <Text style={styles.forgotText}>
+              Forgot Password? <Text style={styles.forgotBold}>Recover here.</Text>
+            </Text>
+          </TouchableOpacity>
         </View>
 
         <Text style={styles.footerText}>
@@ -111,6 +117,9 @@ function createStyles(colors: ThemeColors) {
   logoRow: { alignItems: 'center', marginTop: spacing.sm, gap: 8 },
   subtitle: { fontFamily: fontFamily.heading, fontSize: 16, color: colors.lime },
   form: { marginTop: spacing.xl },
+  forgotRow: { alignItems: 'center', marginTop: spacing.lg },
+  forgotText: { fontFamily: fontFamily.body, fontSize: 13, color: colors.white },
+  forgotBold: { fontFamily: fontFamily.bodySemiBold, color: colors.lime },
   footerText: {
     fontFamily: fontFamily.body,
     fontSize: 12,

@@ -56,10 +56,7 @@ export function LoginScreen({ navigation }: Props) {
   };
 
   const handleForgotPassword = () => {
-    showAlert(
-      'Reset your password',
-      'Password reset isn’t available in the app yet — please contact your club for help getting back into your account.',
-    );
+    navigation.navigate('ForgotPassword');
   };
 
   return (

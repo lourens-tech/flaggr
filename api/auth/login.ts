@@ -1,17 +1,83 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { sql } from '../_lib/db';
-import { verifyPassword } from '../_lib/auth';
+import { hashPassword, verifyPassword } from '../_lib/auth';
 import { HttpError, withErrorHandling } from '../_lib/http';
 import { getCurrentTierStatus } from '../_lib/tierRewards';
+import { sendEmail } from '../_lib/email';
+import { consumePasswordResetCode, issuePasswordResetCode } from '../_lib/passwordReset';
 
 interface LoginBody {
   email?: string;
   password?: string;
 }
 
+interface ForgotPasswordBody {
+  email?: string;
+}
+
+interface ResetPasswordBody {
+  email?: string;
+  code?: string;
+  newPassword?: string;
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string);
+}
+
 export default withErrorHandling(async (req: VercelRequest, res: VercelResponse) => {
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'Method not allowed' });
+    return;
+  }
+
+  // --- Self-service password reset — no session required. The response is
+  // identical whether or not the email matches an account, so this can't be
+  // used to discover which emails are registered. Folded into this file
+  // (rather than new route files) to stay within Vercel Hobby's
+  // 12-serverless-function cap. ---
+  if (req.query.action === 'forgotPassword') {
+    const email = (req.body as ForgotPasswordBody).email?.trim().toLowerCase();
+    if (!email) throw new HttpError(400, 'email is required');
+
+    const rows = (await sql`select id, first_name from users where email = ${email}`) as Array<{
+      id: string;
+      first_name: string;
+    }>;
+    if (rows.length > 0) {
+      const code = await issuePasswordResetCode({ userId: rows[0].id });
+      await sendEmail({
+        to: email,
+        subject: 'Your Flagrr password reset code',
+        html: `
+          <p>Hi ${escapeHtml(rows[0].first_name)},</p>
+          <p>Use this code to reset your Flagrr password. It expires in 30 minutes.</p>
+          <p style="font-size:28px;font-weight:bold;letter-spacing:4px;">${escapeHtml(code)}</p>
+          <p>If you didn't request this, you can safely ignore this email — your password won't change unless this code is used.</p>
+        `,
+      });
+    }
+    res.status(200).json({ ok: true });
+    return;
+  }
+
+  if (req.query.action === 'resetPassword') {
+    const body = req.body as ResetPasswordBody;
+    const email = body.email?.trim().toLowerCase();
+    const code = body.code?.trim();
+    const newPassword = body.newPassword;
+    if (!email || !code || !newPassword || newPassword.length < 8) {
+      throw new HttpError(400, 'Email, code, and a new password (min. 8 characters) are required');
+    }
+
+    const rows = (await sql`select id from users where email = ${email}`) as Array<{ id: string }>;
+    if (rows.length === 0 || !(await consumePasswordResetCode({ userId: rows[0].id }, code))) {
+      throw new HttpError(400, 'That code is invalid or has expired');
+    }
+
+    const passwordHash = await hashPassword(newPassword);
+    await sql`update users set password_hash = ${passwordHash} where id = ${rows[0].id}`;
+    res.status(200).json({ ok: true });
     return;
   }
 

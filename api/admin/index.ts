@@ -36,6 +36,7 @@ import { getRosterStatus, replaceMemberRoster } from '../_lib/memberRoster';
 import { parseMemberRosterFile } from '../_lib/memberRosterFileParsing';
 import { logAudit } from '../_lib/auditLog';
 import { describeFraudReasons } from '../_lib/fraudChecks';
+import { consumePasswordResetCode, issuePasswordResetCode } from '../_lib/passwordReset';
 
 // Every action for the course-admin side of the app lives in this one file,
 // dispatched by ?action= (same pattern as api/profile/index.ts and
@@ -890,6 +891,74 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       },
       course,
     });
+    return;
+  }
+
+  // --- Self-service password reset — no session required. Mirrors the
+  // member-side actions in api/auth/login.ts: the response is identical
+  // whether or not the identifier matches an account, and a code must be
+  // submitted before the password actually changes (unlike the existing
+  // super_admin-triggered "reset password" actions further below, which
+  // immediately overwrite the password since those are performed by a
+  // trusted admin acting deliberately, not a public unauthenticated caller).
+  if (action === 'adminForgotPassword') {
+    if (req.method !== 'POST') {
+      res.status(405).json({ error: 'Method not allowed' });
+      return;
+    }
+    const identifier = (req.body as { identifier?: string }).identifier?.trim().toLowerCase();
+    if (!identifier) throw new HttpError(400, 'identifier is required');
+
+    const rows = (await sql`
+      select id, first_name, email from admins
+      where ((role = 'staff' and username = ${identifier}) or (role <> 'staff' and email = ${identifier}))
+        and activated_at is not null and revoked_at is null
+    `) as Array<{ id: string; first_name: string; email: string }>;
+
+    if (rows.length > 0) {
+      const found = rows[0];
+      const code = await issuePasswordResetCode({ adminId: found.id });
+      await sendEmail({
+        to: found.email,
+        subject: 'Your Flagrr password reset code',
+        html: `
+          <p>Hi ${escapeHtml(found.first_name)},</p>
+          <p>Use this code to reset your Flagrr password. It expires in 30 minutes.</p>
+          <p style="font-size:28px;font-weight:bold;letter-spacing:4px;">${escapeHtml(code)}</p>
+          <p>If you didn't request this, you can safely ignore this email — your password won't change unless this code is used.</p>
+        `,
+      });
+    }
+    res.status(200).json({ ok: true });
+    return;
+  }
+
+  if (action === 'adminResetPassword') {
+    if (req.method !== 'POST') {
+      res.status(405).json({ error: 'Method not allowed' });
+      return;
+    }
+    const body = req.body as { identifier?: string; code?: string; newPassword?: string };
+    const identifier = body.identifier?.trim().toLowerCase();
+    const code = body.code?.trim();
+    const newPassword = body.newPassword;
+    if (!identifier || !code || !newPassword || newPassword.length < 8) {
+      throw new HttpError(400, 'Email/username, code, and a new password (min. 8 characters) are required');
+    }
+
+    const rows = (await sql`
+      select id from admins
+      where ((role = 'staff' and username = ${identifier}) or (role <> 'staff' and email = ${identifier}))
+        and activated_at is not null and revoked_at is null
+    `) as Array<{ id: string }>;
+
+    if (rows.length === 0 || !(await consumePasswordResetCode({ adminId: rows[0].id }, code))) {
+      throw new HttpError(400, 'That code is invalid or has expired');
+    }
+
+    const passwordHash = await hashPassword(newPassword);
+    await sql`update admins set password_hash = ${passwordHash}, must_change_password = false where id = ${rows[0].id}`;
+    res.status(200).json({ ok: true });
     return;
   }
 

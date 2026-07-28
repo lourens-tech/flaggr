@@ -149,6 +149,16 @@ export const api = {
   login: (email: string, password: string) =>
     request<AuthResponse>('/auth/login', { method: 'POST', body: { email, password }, auth: false }),
 
+  forgotPassword: (email: string) =>
+    request<{ ok: boolean }>('/auth/login?action=forgotPassword', { method: 'POST', body: { email }, auth: false }),
+
+  resetPassword: (email: string, code: string, newPassword: string) =>
+    request<{ ok: boolean }>('/auth/login?action=resetPassword', {
+      method: 'POST',
+      body: { email, code, newPassword },
+      auth: false,
+    }),
+
   me: (period: StatsPeriod = 'year') => request<MeResponse>(`/me?period=${period}`),
 
   rewards: () => request<Reward[]>('/rewards'),
