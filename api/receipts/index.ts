@@ -68,6 +68,21 @@ function isUniqueViolation(err: unknown): boolean {
 export default withErrorHandling(async (req: VercelRequest, res: VercelResponse) => {
   const authed = await requireAuthedUser(req);
 
+  if (req.method === 'GET' && req.query.action === 'image') {
+    // Lazy-loaded on demand (not included in the list below) so browsing
+    // past receipts stays light — only fetched when a member actually taps
+    // to view one receipt's photo. Scoped to the requesting member's own
+    // receipt, unlike the equivalent super_admin action.
+    const receiptId = typeof req.query.id === 'string' ? req.query.id : undefined;
+    if (!receiptId) throw new HttpError(400, 'id is required');
+    const rows = (await sql`
+      select image_data from receipts where id = ${receiptId} and user_id = ${authed.id}
+    `) as Array<{ image_data: string | null }>;
+    if (rows.length === 0) throw new HttpError(404, 'Receipt not found');
+    res.status(200).json({ imageData: rows[0].image_data });
+    return;
+  }
+
   if (req.method === 'GET') {
     const rows = (await sql`
       select id, image_uri, status, course_name, items, subtotal, tax, total, submitted_at, points_awarded,

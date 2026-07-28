@@ -274,6 +274,11 @@ export function MemberProfileScreen({ navigation }: Props) {
           </View>
         </View>
 
+        <Text style={styles.sectionLabel}>Activity</Text>
+        <View style={styles.linksCard}>
+          <LinkRow icon="receipt-outline" label="Receipt History" onPress={() => navigation.navigate('ReceiptHistory')} />
+        </View>
+
         <Text style={styles.sectionLabel}>Support</Text>
         <View style={styles.linksCard}>
           <LinkRow icon="help-circle-outline" label="Help Center" onPress={() => navigation.navigate('HelpCenter')} />

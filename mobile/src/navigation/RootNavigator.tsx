@@ -8,6 +8,7 @@ import { VoucherScreen } from '../screens/rewards/VoucherScreen';
 import { ScanReceiptScreen } from '../screens/receipts/ScanReceiptScreen';
 import { ReviewReceiptScreen } from '../screens/receipts/ReviewReceiptScreen';
 import { ReceiptSuccessScreen } from '../screens/receipts/ReceiptSuccessScreen';
+import { ReceiptHistoryScreen } from '../screens/receipts/ReceiptHistoryScreen';
 import { MemberTiersScreen } from '../screens/profile/MemberTiersScreen';
 import { NotificationsScreen } from '../screens/profile/NotificationsScreen';
 import { HelpCenterScreen } from '../screens/profile/HelpCenterScreen';
@@ -69,6 +70,7 @@ export function RootNavigator() {
           <Stack.Screen name="ScanReceipt" component={ScanReceiptScreen} />
           <Stack.Screen name="ReviewReceipt" component={ReviewReceiptScreen} />
           <Stack.Screen name="ReceiptSuccess" component={ReceiptSuccessScreen} />
+          <Stack.Screen name="ReceiptHistory" component={ReceiptHistoryScreen} />
           <Stack.Screen name="MemberTiers" component={MemberTiersScreen} />
           <Stack.Screen name="Notifications" component={NotificationsScreen} />
           <Stack.Screen name="HelpCenter" component={HelpCenterScreen} />

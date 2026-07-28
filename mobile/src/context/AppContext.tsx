@@ -92,6 +92,7 @@ interface AppContextValue extends AppState {
   replyToEnquiry: (enquiryId: string, message: string) => Promise<EnquiryMessage[]>;
   createSupportTicket: (subject: string, message: string) => Promise<string>;
   listMySupportTickets: () => Promise<SupportTicketSummary[]>;
+  getReceiptImage: (id: string) => Promise<string | null>;
   getSupportTicketThread: (id: string) => Promise<SupportTicketThread>;
   replyToSupportTicket: (ticketId: string, message: string) => Promise<SupportTicketMessage[]>;
   logAdClick: (adId: string) => void;
@@ -268,6 +269,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return res.ticketId;
   };
   const listMySupportTickets = async () => api.supportTickets();
+
+  const getReceiptImage = async (id: string): Promise<string | null> => (await api.receiptImage(id)).imageData;
   const getSupportTicketThread = async (id: string) => api.supportTicketThread(id);
   const replyToSupportTicket = async (ticketId: string, message: string) => api.replyToSupportTicket(ticketId, message);
 
@@ -339,6 +342,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     replyToEnquiry,
     createSupportTicket,
     listMySupportTickets,
+    getReceiptImage,
     getSupportTicketThread,
     replyToSupportTicket,
     logAdClick,

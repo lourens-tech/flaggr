@@ -177,6 +177,8 @@ export const api = {
 
   receipts: () => request<Receipt[]>('/receipts'),
 
+  receiptImage: (id: string) => request<{ imageData: string | null }>(`/receipts?action=image&id=${encodeURIComponent(id)}`),
+
   scanReceipt: (imageBase64: string) =>
     request<ScanResult>('/receipts?action=scan', { method: 'POST', body: { imageBase64 } }),
 
