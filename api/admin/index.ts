@@ -318,6 +318,7 @@ const SUPER_ADMIN_ALLOWED_ACTIONS = new Set([
   'superAdminMemberStats',
   'superAdminFlaggedReceipts',
   'superAdminDuplicateAttempts',
+  'superAdminReceiptImage',
   'superAdminBroadcasts',
   'superAdminBroadcastSend',
   'superAdminBroadcastDelete',
@@ -1572,6 +1573,20 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
             crossClub: r.original_course_id !== null && r.original_course_id !== r.attempted_course_id,
           })),
         );
+        return;
+      }
+
+      // Lazy-loaded on demand (not included in superAdminFlaggedReceipts'
+      // list payload) so browsing the flagged list stays light — only
+      // fetched when a super_admin actually taps to view one receipt's photo.
+      if (action === 'superAdminReceiptImage' && req.method === 'GET') {
+        const receiptId = typeof req.query.id === 'string' ? req.query.id : undefined;
+        if (!receiptId) throw new HttpError(400, 'id is required');
+        const rows = (await sql`select image_data from receipts where id = ${receiptId}`) as Array<{
+          image_data: string | null;
+        }>;
+        if (rows.length === 0) throw new HttpError(404, 'Receipt not found');
+        res.status(200).json({ imageData: rows[0].image_data });
         return;
       }
 

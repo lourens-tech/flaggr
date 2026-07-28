@@ -236,6 +236,7 @@ interface AdminContextValue {
   // Cross-club fraud oversight (super_admin only) — same thin-passthrough pattern.
   getSuperAdminFlaggedReceipts: () => Promise<FlaggedReceipt[]>;
   getSuperAdminDuplicateAttempts: () => Promise<DuplicateReceiptAttempt[]>;
+  getSuperAdminReceiptImage: (id: string) => Promise<string | null>;
 }
 
 const AdminContext = createContext<AdminContextValue | undefined>(undefined);
@@ -656,6 +657,8 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
 
   const getSuperAdminFlaggedReceipts = async (): Promise<FlaggedReceipt[]> => adminApi.superAdminFlaggedReceipts();
   const getSuperAdminDuplicateAttempts = async (): Promise<DuplicateReceiptAttempt[]> => adminApi.superAdminDuplicateAttempts();
+  const getSuperAdminReceiptImage = async (id: string): Promise<string | null> =>
+    (await adminApi.superAdminReceiptImage(id)).imageData;
 
   const value: AdminContextValue = {
     isAdminAuthenticated,
@@ -769,6 +772,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     getAuditLog,
     getSuperAdminFlaggedReceipts,
     getSuperAdminDuplicateAttempts,
+    getSuperAdminReceiptImage,
   };
 
   return <AdminContext.Provider value={value}>{children}</AdminContext.Provider>;

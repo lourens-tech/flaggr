@@ -183,12 +183,12 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     try {
       insertedRows = (await sql`
         insert into receipts (
-          id, user_id, course_id, course_name, image_uri, status, items, subtotal, tax, total, points_awarded,
+          id, user_id, course_id, course_name, image_uri, image_data, status, items, subtotal, tax, total, points_awarded,
           receipt_number, merchant_id, transaction_number, till_number, receipt_time, image_hash, ocr_confidence,
           flagged, flag_reason
         )
         values (
-          ${receiptId}, ${authed.id}, ${authed.courseId}, ${courseName}, ${body.imageUri ?? null}, 'approved',
+          ${receiptId}, ${authed.id}, ${authed.courseId}, ${courseName}, ${body.imageUri ?? null}, ${imageBase64}, 'approved',
           ${JSON.stringify(itemsSnapshot)}::jsonb,
           ${parsed.subtotal ?? 0}, ${parsed.vat ?? 0}, ${parsed.grandTotal ?? 0}, ${finalPointsAwarded},
           ${parsed.receiptNumber}, ${scored.merchant?.id ?? null}, ${parsed.transactionNumber}, ${parsed.tillNumber},

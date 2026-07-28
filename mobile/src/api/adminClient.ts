@@ -448,6 +448,8 @@ export const adminApi = {
   // --- Cross-club fraud oversight (super_admin only) ---
   superAdminFlaggedReceipts: () => request<FlaggedReceipt[]>('?action=superAdminFlaggedReceipts'),
   superAdminDuplicateAttempts: () => request<DuplicateReceiptAttempt[]>('?action=superAdminDuplicateAttempts'),
+  superAdminReceiptImage: (id: string) =>
+    request<{ imageData: string | null }>(`?action=superAdminReceiptImage&id=${encodeURIComponent(id)}`),
 };
 
 /** Downloads a CSV report. Only works on the web build (the only build that

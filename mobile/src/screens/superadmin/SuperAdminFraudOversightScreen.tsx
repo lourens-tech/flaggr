@@ -1,12 +1,14 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, FlatList, Image, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SuperAdminStackParamList } from '../../navigation/types';
 import { ScreenHeader } from '../../components/common/ScreenHeader';
 import { TextField } from '../../components/common/TextField';
 import { useAdmin } from '../../context/AdminContext';
+import { showAlert } from '../../utils/alert';
 import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
 import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 import type { DuplicateReceiptAttempt, FlaggedReceipt } from '../../data/adminTypes';
@@ -27,12 +29,14 @@ const MATCH_TYPE_LABELS: Record<string, string> = {
 export function SuperAdminFraudOversightScreen({ navigation }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const { getSuperAdminFlaggedReceipts, getSuperAdminDuplicateAttempts } = useAdmin();
+  const { getSuperAdminFlaggedReceipts, getSuperAdminDuplicateAttempts, getSuperAdminReceiptImage } = useAdmin();
   const [tab, setTab] = useState<Tab>('flagged');
   const [flagged, setFlagged] = useState<FlaggedReceipt[]>([]);
   const [duplicates, setDuplicates] = useState<DuplicateReceiptAttempt[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [photoLoadingId, setPhotoLoadingId] = useState<string | null>(null);
+  const [photoModal, setPhotoModal] = useState<{ imageData: string | null } | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -79,6 +83,18 @@ export function SuperAdminFraudOversightScreen({ navigation }: Props) {
     );
   }, [duplicates, search]);
 
+  const handleViewPhoto = async (item: FlaggedReceipt) => {
+    setPhotoLoadingId(item.id);
+    try {
+      const imageData = await getSuperAdminReceiptImage(item.id);
+      setPhotoModal({ imageData });
+    } catch {
+      showAlert('Couldn’t load photo', 'Something went wrong. Please try again.');
+    } finally {
+      setPhotoLoadingId(null);
+    }
+  };
+
   const renderFlagged = ({ item }: { item: FlaggedReceipt }) => (
     <View style={styles.card}>
       <View style={styles.cardTopRow}>
@@ -93,6 +109,20 @@ export function SuperAdminFraudOversightScreen({ navigation }: Props) {
       <Text style={styles.cardBody} numberOfLines={1}>{item.merchantName || 'Unknown merchant'} — R{item.total.toFixed(2)}{item.pointsAwarded !== null ? ` · ${item.pointsAwarded} FC` : ''}</Text>
       {item.flagReason ? <Text style={styles.reasonText}>{item.flagReason}</Text> : null}
       <Text style={styles.cardTime}>{formatDate(item.submittedAt)}</Text>
+      <TouchableOpacity
+        style={styles.viewPhotoButton}
+        onPress={() => handleViewPhoto(item)}
+        disabled={photoLoadingId === item.id}
+      >
+        {photoLoadingId === item.id ? (
+          <ActivityIndicator color={colors.clubGreen} size="small" />
+        ) : (
+          <>
+            <Ionicons name="image-outline" size={15} color={colors.clubGreen} />
+            <Text style={styles.viewPhotoText}>View Photo</Text>
+          </>
+        )}
+      </TouchableOpacity>
     </View>
   );
 
@@ -176,6 +206,24 @@ export function SuperAdminFraudOversightScreen({ navigation }: Props) {
           ListEmptyComponent={<Text style={styles.emptyText}>{emptyText}</Text>}
         />
       )}
+
+      <Modal visible={photoModal !== null} transparent animationType="fade" onRequestClose={() => setPhotoModal(null)}>
+        <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={() => setPhotoModal(null)}>
+          <View style={styles.photoSheet}>
+            <View style={styles.photoSheetHeader}>
+              <Text style={styles.photoSheetTitle}>Receipt Photo</Text>
+              <TouchableOpacity onPress={() => setPhotoModal(null)} hitSlop={8}>
+                <Ionicons name="close" size={22} color={colors.textPrimary} />
+              </TouchableOpacity>
+            </View>
+            {photoModal?.imageData ? (
+              <Image source={{ uri: photoModal.imageData }} style={styles.photoImage} resizeMode="contain" />
+            ) : (
+              <Text style={styles.emptyText}>No photo was saved for this receipt.</Text>
+            )}
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
@@ -211,6 +259,20 @@ function createStyles(colors: ThemeColors) {
   warnBadgeText: { fontFamily: fontFamily.bodySemiBold, fontSize: 10, color: '#8a6100' },
   dangerBadge: { backgroundColor: 'rgba(222,92,92,0.15)', borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 3 },
   dangerBadgeText: { fontFamily: fontFamily.bodySemiBold, fontSize: 10, color: colors.negative },
+  viewPhotoButton: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: spacing.xs, alignSelf: 'flex-start' },
+  viewPhotoText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.tiny, color: colors.clubGreen },
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center', padding: screenPadding },
+  photoSheet: {
+    backgroundColor: colors.background,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    width: '100%',
+    maxWidth: 480,
+    maxHeight: '80%',
+  },
+  photoSheetHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.sm },
+  photoSheetTitle: { fontFamily: fontFamily.heading, fontSize: fontSize.cardTitle, color: colors.textPrimary },
+  photoImage: { width: '100%', height: 420, borderRadius: radius.sm },
   emptyText: {
     fontFamily: fontFamily.body,
     fontSize: fontSize.body,
