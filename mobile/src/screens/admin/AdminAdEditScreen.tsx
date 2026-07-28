@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { Image, ScrollView, StatusBar, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StatusBar, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AdminStackParamList } from '../../navigation/types';
 import { ScreenHeader } from '../../components/common/ScreenHeader';
@@ -9,17 +8,19 @@ import { TextField } from '../../components/common/TextField';
 import { SelectField } from '../../components/common/SelectField';
 import { DateField } from '../../components/common/DateField';
 import { PillButton } from '../../components/common/PillButton';
+import { AdMediaField } from '../../components/common/AdMediaField';
 import { useAdmin } from '../../context/AdminContext';
 import { AdminApiError } from '../../api/adminClient';
-import { pickAndResizeAvatar, AvatarPermissionError } from '../../utils/pickAvatar';
 import { showAlert } from '../../utils/alert';
-import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
+import { fontFamily, fontSize, screenPadding, spacing } from '../../theme';
 import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
+import type { AdMediaType } from '../../data/types';
 
 type Props = NativeStackScreenProps<AdminStackParamList, 'AdminAdEdit'>;
 
 const PLACEMENT_OPTIONS = [
   { label: 'Home Screen', value: 'home' },
+  { label: 'Home (Top Banner)', value: 'home_top' },
   { label: 'Rewards Shop', value: 'rewards_shop' },
 ];
 
@@ -37,30 +38,13 @@ export function AdminAdEditScreen({ navigation, route }: Props) {
   const [endsAt, setEndsAt] = useState<string | null>(existing?.endsAt ? existing.endsAt.slice(0, 10) : null);
   const [imageBase64, setImageBase64] = useState<string | undefined>(undefined);
   const [previewUrl, setPreviewUrl] = useState<string | null>(existing?.imageUrl ?? null);
+  const [mediaType, setMediaType] = useState<AdMediaType>(existing?.mediaType ?? 'image');
   const [saving, setSaving] = useState(false);
-  const [uploadingImage, setUploadingImage] = useState(false);
 
   useEffect(() => {
     navigation.setOptions({ title: existing ? 'Edit Ad' : 'New Ad' });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  const handlePickImage = async () => {
-    setUploadingImage(true);
-    try {
-      const result = await pickAndResizeAvatar();
-      if (result) {
-        setImageBase64(result);
-        setPreviewUrl(result);
-      }
-    } catch (err) {
-      if (err instanceof AvatarPermissionError) {
-        showAlert('Permission needed', err.message);
-      }
-    } finally {
-      setUploadingImage(false);
-    }
-  };
 
   const handleSave = async () => {
     if (!title.trim() || !placement) {
@@ -71,9 +55,10 @@ export function AdminAdEditScreen({ navigation, route }: Props) {
     try {
       await saveAd({
         id: existing?.id,
-        placement: placement as 'home' | 'rewards_shop',
+        placement: placement as 'home' | 'home_top' | 'rewards_shop',
         title: title.trim(),
         imageBase64,
+        mediaType,
         targetUrl: targetUrl.trim() || null,
         sortOrder: existing?.sortOrder ?? 0,
         active,
@@ -120,16 +105,16 @@ export function AdminAdEditScreen({ navigation, route }: Props) {
       </SafeAreaView>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <TouchableOpacity style={styles.imagePicker} onPress={handlePickImage} disabled={uploadingImage}>
-          {previewUrl ? (
-            <Image source={{ uri: previewUrl }} style={styles.imagePreview} />
-          ) : (
-            <View style={styles.imagePlaceholder}>
-              <Ionicons name="image-outline" size={24} color={colors.clubGreen} />
-              <Text style={styles.imagePlaceholderText}>Add creative</Text>
-            </View>
-          )}
-        </TouchableOpacity>
+        <AdMediaField
+          mediaType={mediaType}
+          previewUrl={previewUrl}
+          onPicked={(result) => {
+            setImageBase64(result.dataUri);
+            setPreviewUrl(result.dataUri);
+            setMediaType(result.mediaType);
+          }}
+        />
+        <View style={{ height: spacing.lg }} />
 
         <TextField placeholder="Title (internal label)" variant="onLight" value={title} onChangeText={setTitle} />
         <View style={{ height: spacing.md }} />
@@ -177,18 +162,6 @@ function createStyles(colors: ThemeColors) {
   screen: { flex: 1, backgroundColor: colors.background },
   headerSafeArea: { backgroundColor: colors.clubGreen },
   content: { padding: screenPadding, paddingBottom: spacing.xl * 2 },
-  imagePicker: { alignSelf: 'center', marginBottom: spacing.lg },
-  imagePreview: { width: 160, height: 90, borderRadius: radius.md },
-  imagePlaceholder: {
-    width: 160,
-    height: 90,
-    borderRadius: radius.md,
-    backgroundColor: colors.imagePlaceholder,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-  },
-  imagePlaceholderText: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.clubGreen },
   dateRow: { flexDirection: 'row', marginTop: spacing.md },
   activeRow: {
     flexDirection: 'row',

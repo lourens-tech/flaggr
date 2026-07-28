@@ -18,10 +18,15 @@ type Props = NativeStackScreenProps<SuperAdminStackParamList, 'SuperAdminCourseA
 
 const PLACEMENTS: Array<{ label: string; value: AdminAd['placement'] }> = [
   { label: 'Home', value: 'home' },
+  { label: 'Home (Top Banner)', value: 'home_top' },
   { label: 'Rewards Shop', value: 'rewards_shop' },
 ];
 
-const PLACEMENT_LABELS: Record<AdminAd['placement'], string> = { home: 'Home', rewards_shop: 'Rewards Shop' };
+const PLACEMENT_LABELS: Record<AdminAd['placement'], string> = {
+  home: 'Home',
+  home_top: 'Home (Top Banner)',
+  rewards_shop: 'Rewards Shop',
+};
 
 // Same list/edit shape as the course-admin AdminAdsListScreen/AdminAdEditScreen
 // (currently unreachable — the Ads tab was removed from the course-admin nav

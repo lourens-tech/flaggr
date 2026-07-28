@@ -23,7 +23,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     select
       u.id, u.first_name, u.last_name, u.email, u.phone, u.date_of_birth, u.member_since, u.avatar_url, u.theme_preference,
       u.verified_member,
-      c.name as course_name,
+      c.name as course_name, c.logo_url as course_logo_url,
       p.balance, p.total_earned, p.total_redeemed
     from users u
     join courses c on c.id = u.course_id
@@ -41,6 +41,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     theme_preference: 'system' | 'light' | 'dark';
     verified_member: boolean;
     course_name: string;
+    course_logo_url: string | null;
     balance: number;
     total_earned: number;
     total_redeemed: number;
@@ -128,6 +129,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       phone: r.phone,
       dateOfBirth: r.date_of_birth,
       homeClub: r.course_name,
+      courseLogoUrl: r.course_logo_url,
       courseId: authed.courseId,
       tier: tierInfo.tier,
       memberSince: r.member_since,

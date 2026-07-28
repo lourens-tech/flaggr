@@ -130,7 +130,7 @@ export interface AdPerformanceRow {
   courseId: string | null;
   courseName: string;
   title: string;
-  placement: 'home' | 'rewards_shop';
+  placement: 'home' | 'home_top' | 'rewards_shop';
   active: boolean;
   clicks: number;
 }
@@ -166,9 +166,10 @@ export interface AdminReward {
 
 export interface AdminAd {
   id: string;
-  placement: 'home' | 'rewards_shop';
+  placement: 'home' | 'home_top' | 'rewards_shop';
   title: string;
   imageUrl: string | null;
+  mediaType: 'image' | 'gif' | 'video';
   targetUrl: string | null;
   sortOrder: number;
   active: boolean;

@@ -19,6 +19,7 @@ type Props = CompositeScreenProps<
 
 const PLACEMENTS: Array<{ label: string; value: AdminAd['placement'] }> = [
   { label: 'Home', value: 'home' },
+  { label: 'Home (Top Banner)', value: 'home_top' },
   { label: 'Rewards Shop', value: 'rewards_shop' },
 ];
 

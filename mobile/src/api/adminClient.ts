@@ -134,9 +134,10 @@ export interface RewardSavePayload {
 
 export interface AdSavePayload {
   id?: string;
-  placement: 'home' | 'rewards_shop';
+  placement: 'home' | 'home_top' | 'rewards_shop';
   title: string;
   imageBase64?: string;
+  mediaType?: 'image' | 'gif' | 'video';
   targetUrl: string | null;
   sortOrder: number;
   active: boolean;

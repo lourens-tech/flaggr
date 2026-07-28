@@ -14,6 +14,7 @@ export interface User {
   phone?: string;
   dateOfBirth: string | null; // ISO date
   homeClub: string;
+  courseLogoUrl: string | null;
   courseId: string;
   tier: TierName;
   memberSince: string; // ISO date
@@ -173,7 +174,8 @@ export type ScanResult =
       nonParticipatingClub: boolean;
     };
 
-export type AdPlacement = 'home' | 'rewardsShop';
+export type AdPlacement = 'home' | 'homeTop' | 'rewardsShop';
+export type AdMediaType = 'image' | 'gif' | 'video';
 
 // Ad space creative — currently seeded/edited directly in the ads table;
 // a future super-admin panel will manage these via the same shape.
@@ -182,6 +184,7 @@ export interface Ad {
   placement: AdPlacement;
   title: string;
   imageUrl: string | null;
+  mediaType: AdMediaType;
   targetUrl: string | null;
 }
 

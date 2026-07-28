@@ -40,6 +40,7 @@ const EMPTY_USER: User = {
   email: '',
   dateOfBirth: null,
   homeClub: '',
+  courseLogoUrl: null,
   courseId: '',
   tier: 'Bronze',
   memberSince: '',

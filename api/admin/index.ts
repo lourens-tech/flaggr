@@ -168,6 +168,7 @@ interface AdSaveBody {
   placement?: string;
   title?: string;
   imageBase64?: string;
+  mediaType?: string;
   targetUrl?: string | null;
   sortOrder?: number;
   active?: boolean;
@@ -274,7 +275,18 @@ interface SuperAdminCourseAdminIdBody {
 const REWARD_CATEGORIES = ['rounds', 'experiences', 'pro-shop', 'practice', 'dining'];
 
 const STAT_BREAKDOWN_METRICS = new Set(['members', 'newMembers', 'fcEarned', 'fcRedeemed', 'receiptsScanned']);
-const AD_PLACEMENTS = ['home', 'rewards_shop'];
+const AD_PLACEMENTS = ['home', 'home_top', 'rewards_shop'];
+const AD_MEDIA_TYPES = ['image', 'gif', 'video'];
+const AD_MEDIA_DATA_URI_PATTERNS: Record<string, RegExp> = {
+  image: /^data:image\/(jpeg|jpg|png|webp);base64,/,
+  gif: /^data:image\/gif;base64,/,
+  video: /^data:video\/(mp4|quicktime|webm|x-m4v);base64,/,
+};
+// Base64 length, not raw file bytes (base64 inflates size ~4/3) — kept well
+// under Vercel's serverless function request body ceiling, same margin
+// already relied on for roster file uploads (MAX_ROSTER_FILE_BASE64_LENGTH).
+const MAX_GIF_BASE64_LENGTH = 3_000_000;
+const MAX_VIDEO_BASE64_LENGTH = 4_000_000;
 const BROADCAST_TARGETS = ['all', 'Bronze', 'Silver', 'Gold', 'Platinum'];
 // Same tier targets as a club's own broadcast, plus 'course_admins' — a
 // super_admin isn't scoped to one course, so 'all'/tier targets here reach
@@ -622,7 +634,7 @@ async function fetchCourse(courseId: string) {
 // one club) so the actual query logic isn't duplicated per role.
 async function listAdsForCourse(courseId: string | null) {
   const rows = (await sql`
-    select a.id, a.placement, a.title, a.image_url, a.target_url, a.sort_order, a.active,
+    select a.id, a.placement, a.title, a.image_url, a.media_type, a.target_url, a.sort_order, a.active,
            a.starts_at, a.ends_at, count(c.id)::int as clicks
     from ads a
     left join ad_clicks c on c.ad_id = a.id
@@ -634,6 +646,7 @@ async function listAdsForCourse(courseId: string | null) {
     placement: string;
     title: string;
     image_url: string | null;
+    media_type: string;
     target_url: string | null;
     sort_order: number;
     active: boolean;
@@ -646,6 +659,7 @@ async function listAdsForCourse(courseId: string | null) {
     placement: r.placement,
     title: r.title,
     imageUrl: r.image_url,
+    mediaType: r.media_type,
     targetUrl: r.target_url,
     sortOrder: r.sort_order,
     active: r.active,
@@ -661,8 +675,16 @@ async function saveAdForCourse(courseId: string | null, body: AdSaveBody): Promi
   if (!title || !placement || !AD_PLACEMENTS.includes(placement)) {
     throw new HttpError(400, 'title and a valid placement are required');
   }
-  if (body.imageBase64 && (!DATA_URI_PATTERN.test(body.imageBase64) || body.imageBase64.length > MAX_IMAGE_BASE64_LENGTH)) {
-    throw new HttpError(400, 'imageBase64 must be a jpeg/png/webp data URI under the size limit');
+  const mediaType = body.mediaType ?? 'image';
+  if (!AD_MEDIA_TYPES.includes(mediaType)) {
+    throw new HttpError(400, 'mediaType must be image, gif, or video');
+  }
+  if (body.imageBase64) {
+    const pattern = AD_MEDIA_DATA_URI_PATTERNS[mediaType];
+    const maxLength = mediaType === 'video' ? MAX_VIDEO_BASE64_LENGTH : mediaType === 'gif' ? MAX_GIF_BASE64_LENGTH : MAX_IMAGE_BASE64_LENGTH;
+    if (!pattern.test(body.imageBase64) || body.imageBase64.length > maxLength) {
+      throw new HttpError(400, `Creative must be a valid ${mediaType} data URI under the size limit`);
+    }
   }
   const targetUrl = body.targetUrl?.trim() || null;
   const startsAt = body.startsAt || null;
@@ -677,14 +699,14 @@ async function saveAdForCourse(courseId: string | null, body: AdSaveBody): Promi
       update ads
       set title = ${title}, placement = ${placement}, target_url = ${targetUrl}, sort_order = ${sortOrder},
           active = ${active}, starts_at = ${startsAt}, ends_at = ${endsAt}, updated_at = now()
-          ${body.imageBase64 ? sql`, image_url = ${body.imageBase64}` : sql``}
+          ${body.imageBase64 ? sql`, image_url = ${body.imageBase64}, media_type = ${mediaType}` : sql``}
       where id = ${body.id}
     `;
     return { id: body.id };
   }
   const inserted = (await sql`
-    insert into ads (course_id, placement, title, image_url, target_url, sort_order, active, starts_at, ends_at)
-    values (${courseId}, ${placement}, ${title}, ${body.imageBase64 ?? null}, ${targetUrl}, ${sortOrder}, ${active}, ${startsAt}, ${endsAt})
+    insert into ads (course_id, placement, title, image_url, media_type, target_url, sort_order, active, starts_at, ends_at)
+    values (${courseId}, ${placement}, ${title}, ${body.imageBase64 ?? null}, ${mediaType}, ${targetUrl}, ${sortOrder}, ${active}, ${startsAt}, ${endsAt})
     returning id
   `) as Array<{ id: string }>;
   return { id: inserted[0].id };

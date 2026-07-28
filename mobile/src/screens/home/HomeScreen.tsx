@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import {
+  Image,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -22,6 +23,7 @@ import { BarChart } from '../../components/common/BarChart';
 import { RewardCard } from '../../components/common/RewardCard';
 import { HeaderAvatar } from '../../components/common/HeaderAvatar';
 import { AdSpace } from '../../components/common/AdSpace';
+import { FlagrrLogo } from '../../components/common/FlagrrLogo';
 import { useApp } from '../../context/AppContext';
 import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
 import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
@@ -38,6 +40,9 @@ const PERIODS: StatsPeriod[] = ['month', 'year', 'all'];
 // so its deltaPct is always forced to 0 server-side — show no delta at all
 // there rather than a misleading "0%".
 const DELTA_LABELS: Record<StatsPeriod, string> = { month: 'vs Last Month', year: 'vs Last Year', all: '' };
+// Fixed so every card in the horizontal row is the same size regardless of
+// title/description length — RewardCard sizes to its content otherwise.
+const REWARD_CARD_WIDTH = 160;
 
 export function HomeScreen({ navigation }: Props) {
   const colors = useThemeColors();
@@ -49,7 +54,10 @@ export function HomeScreen({ navigation }: Props) {
       <StatusBar barStyle="light-content" />
       <SafeAreaView style={styles.safeArea} edges={['top']}>
         <View style={styles.topBar}>
-          <Text style={styles.topBarTitle}>Home</Text>
+          <View style={styles.topBarLeft}>
+            <FlagrrLogo color="white" size={20} showTagline={false} />
+            <Text style={styles.topBarTitle}>Home</Text>
+          </View>
           <View style={styles.topBarRight}>
             <TouchableOpacity onPress={() => navigation.navigate('Notifications')} style={styles.bellButton}>
               <Ionicons name="notifications" size={20} color={colors.white} />
@@ -139,6 +147,22 @@ export function HomeScreen({ navigation }: Props) {
           </View>
         </View>
 
+        <View style={styles.clubCard}>
+          {user.courseLogoUrl ? (
+            <Image source={{ uri: user.courseLogoUrl }} style={styles.clubLogo} />
+          ) : (
+            <View style={[styles.clubLogo, styles.clubLogoFallback]}>
+              <Ionicons name="golf-outline" size={20} color={colors.clubGreen} />
+            </View>
+          )}
+          <View style={{ flex: 1 }}>
+            <Text style={styles.clubLabel}>Your Club</Text>
+            <Text style={styles.clubName} numberOfLines={1}>{user.homeClub || 'Not specified'}</Text>
+          </View>
+        </View>
+
+        <AdSpace placement="homeTop" style={styles.adSpace} />
+
         <View style={styles.statsHeaderRow}>
           <Text style={styles.sectionTitle}>My Stats</Text>
           <View style={styles.periodToggle}>
@@ -207,10 +231,11 @@ export function HomeScreen({ navigation }: Props) {
         </View>
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rewardsRow}>
-          {rewards.slice(0, 3).map((reward) => (
+          {rewards.slice(0, 5).map((reward) => (
             <RewardCard
               key={reward.id}
               reward={reward}
+              width={REWARD_CARD_WIDTH}
               onPress={() => navigation.navigate('Rewards')}
             />
           ))}
@@ -234,6 +259,7 @@ function createStyles(colors: ThemeColors) {
     justifyContent: 'space-between',
     paddingHorizontal: screenPadding,
   },
+  topBarLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   topBarTitle: { fontFamily: fontFamily.heading, fontSize: fontSize.title, color: colors.white },
   topBarRight: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   bellButton: { width: 23, height: 23, alignItems: 'center', justifyContent: 'center' },
@@ -310,6 +336,22 @@ function createStyles(colors: ThemeColors) {
   streakMilestone: { fontFamily: fontFamily.bodyMedium, fontSize: fontSize.tiny, color: colors.lime, marginTop: 2 },
   streakDots: { flexDirection: 'row', gap: 4, marginTop: spacing.sm },
   streakDot: { width: 9, height: 9, borderRadius: 4.5 },
+  clubCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.mintBg,
+    borderWidth: 0.5,
+    borderColor: colors.clubGreen,
+    borderRadius: radius.md,
+    padding: spacing.sm + 4,
+    marginHorizontal: screenPadding,
+    marginTop: spacing.lg,
+  },
+  clubLogo: { width: 40, height: 40, borderRadius: radius.sm, backgroundColor: colors.imagePlaceholder },
+  clubLogoFallback: { alignItems: 'center', justifyContent: 'center' },
+  clubLabel: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary },
+  clubName: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.textPrimary, marginTop: 1 },
   statsHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',

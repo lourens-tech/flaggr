@@ -26,7 +26,7 @@ type Period = 'month' | 'year' | 'all';
 const PERIOD_LABELS: Record<Period, string> = { month: 'Month', year: 'Year', all: 'All' };
 const PERIODS: Period[] = ['month', 'year', 'all'];
 const DELTA_LABELS: Record<Period, string> = { month: 'vs Last Month', year: 'vs Last Year', all: '' };
-const PLACEMENT_LABELS: Record<string, string> = { home: 'Home', rewards_shop: 'Rewards Shop' };
+const PLACEMENT_LABELS: Record<string, string> = { home: 'Home', home_top: 'Home (Top Banner)', rewards_shop: 'Rewards Shop' };
 
 // Same shape/look as AdminDashboardScreen, aggregated across every club
 // instead of just one — plus an Ad Performance section, deliberately
