@@ -46,6 +46,7 @@ export type AdminStackParamList = {
   AdminSupportTicketChat: { ticketId: string };
   AdminMemberList: undefined;
   AdminFraudOversight: undefined;
+  TermsPrivacy: undefined;
 };
 
 export type SuperAdminTabParamList = {
@@ -75,6 +76,7 @@ export type SuperAdminStackParamList = {
   SuperAdminMemberStats: { memberId: string };
   SuperAdminAuditLog: undefined;
   SuperAdminFraudOversight: undefined;
+  TermsPrivacy: undefined;
 };
 
 export type MainTabParamList = {

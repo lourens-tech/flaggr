@@ -18,6 +18,7 @@ import { SuperAdminCourseAdminCreateScreen } from '../screens/superadmin/SuperAd
 import { SuperAdminMemberStatsScreen } from '../screens/superadmin/SuperAdminMemberStatsScreen';
 import { SuperAdminAuditLogScreen } from '../screens/superadmin/SuperAdminAuditLogScreen';
 import { SuperAdminFraudOversightScreen } from '../screens/superadmin/SuperAdminFraudOversightScreen';
+import { TermsPrivacyScreen } from '../screens/profile/TermsPrivacyScreen';
 
 const Stack = createNativeStackNavigator<SuperAdminStackParamList>();
 
@@ -44,6 +45,7 @@ export function SuperAdminNavigator() {
       <Stack.Screen name="SuperAdminMemberStats" component={SuperAdminMemberStatsScreen} />
       <Stack.Screen name="SuperAdminAuditLog" component={SuperAdminAuditLogScreen} />
       <Stack.Screen name="SuperAdminFraudOversight" component={SuperAdminFraudOversightScreen} />
+      <Stack.Screen name="TermsPrivacy" component={TermsPrivacyScreen} />
     </Stack.Navigator>
   );
 }

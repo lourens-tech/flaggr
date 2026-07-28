@@ -17,6 +17,7 @@ import { AdminSupportTicketChatScreen } from '../screens/admin/AdminSupportTicke
 import { AdminMemberListScreen } from '../screens/admin/AdminMemberListScreen';
 import { AdminFraudOversightScreen } from '../screens/admin/AdminFraudOversightScreen';
 import { AdminStaffActivityScreen } from '../screens/admin/AdminStaffActivityScreen';
+import { TermsPrivacyScreen } from '../screens/profile/TermsPrivacyScreen';
 import { AdminOnboardingWizard } from '../components/admin/AdminOnboardingWizard';
 import { AdminStaffOnboardingWizard } from '../components/admin/AdminStaffOnboardingWizard';
 import { useAdmin } from '../context/AdminContext';
@@ -44,6 +45,7 @@ export function AdminNavigator() {
         <Stack.Screen name="AdminSupportTicketChat" component={AdminSupportTicketChatScreen} />
         <Stack.Screen name="AdminMemberList" component={AdminMemberListScreen} />
         <Stack.Screen name="AdminFraudOversight" component={AdminFraudOversightScreen} />
+        <Stack.Screen name="TermsPrivacy" component={TermsPrivacyScreen} />
       </Stack.Navigator>
       {showOnboardingWizard ? <AdminOnboardingWizard /> : null}
       {showStaffOnboardingWizard ? <AdminStaffOnboardingWizard /> : null}

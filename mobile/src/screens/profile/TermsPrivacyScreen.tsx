@@ -1,13 +1,16 @@
 import React, { useMemo } from 'react';
 import { ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import type { RootStackParamList } from '../../navigation/types';
 import { ScreenHeader } from '../../components/common/ScreenHeader';
 import { fontFamily, fontSize, screenPadding, spacing } from '../../theme';
 import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'TermsPrivacy'>;
+// Registered under RootStack (member), AdminStack (course_admin/staff), and
+// SuperAdminStack (super_admin/support_agent) alike — only goBack() is used,
+// so the prop type is kept loose instead of tying it to one param list.
+interface Props {
+  navigation: { goBack: () => void };
+}
 
 export function TermsPrivacyScreen({ navigation }: Props) {
   const colors = useThemeColors();

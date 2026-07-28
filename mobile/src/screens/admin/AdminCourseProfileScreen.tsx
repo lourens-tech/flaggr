@@ -318,6 +318,14 @@ export function AdminCourseProfileScreen({ navigation }: Props) {
         <View style={{ height: spacing.md }} />
         <PillButton label="Update Password" variant="outline" onPress={handleChangePassword} loading={changingPassword} />
 
+        <Text style={styles.sectionTitle}>Legal</Text>
+        <PillButton
+          label="Terms & Privacy"
+          icon="shield-checkmark-outline"
+          variant="outline"
+          onPress={() => navigation.navigate('TermsPrivacy')}
+        />
+
         <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
           <Ionicons name="log-out-outline" size={18} color={colors.negative} />
           <Text style={styles.logoutText}>Log Out</Text>

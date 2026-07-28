@@ -87,6 +87,14 @@ export function AdminStaffProfileScreen({ navigation }: Props) {
         <Text style={styles.sectionTitle}>Appearance</Text>
         <ThemeToggleRow onChange={handleThemeChange} disabled={savingTheme} />
 
+        <Text style={styles.sectionTitle}>Legal</Text>
+        <PillButton
+          label="Terms & Privacy"
+          icon="shield-checkmark-outline"
+          variant="outline"
+          onPress={() => navigation.navigate('TermsPrivacy')}
+        />
+
         <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
           <Ionicons name="log-out-outline" size={18} color={colors.negative} />
           <Text style={styles.logoutText}>Log Out</Text>
