@@ -57,7 +57,7 @@ function serializeReceipt(r: ReceiptRow) {
     receiptTime: r.receipt_time,
     ocrConfidence: r.ocr_confidence !== null ? Number(r.ocr_confidence) : null,
     flagged: r.flagged,
-    flagReason: r.flag_reason,
+    flagReason: r.flag_reason ? describeFraudReasons(r.flag_reason.split(', ')) : null,
   };
 }
 

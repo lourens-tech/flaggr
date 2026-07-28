@@ -36,6 +36,16 @@ export function ReceiptSuccessScreen({ route, navigation }: Props) {
           benefits.
         </Text>
 
+        {route.params.flagged ? (
+          <View style={styles.reviewNotice}>
+            <Ionicons name="alert-circle-outline" size={18} color="#8a6100" />
+            <Text style={styles.reviewNoticeText}>
+              This receipt was flagged for manual review. Your Flagrr Cash has already been credited — no action is
+              needed from you. You can check its status anytime under Profile &gt; Receipt History.
+            </Text>
+          </View>
+        ) : null}
+
         <View style={{ height: spacing.xl }} />
         <PillButton label="View Current Balance" onPress={() => navigation.navigate('Main')} />
         <View style={{ height: spacing.md }} />
@@ -84,6 +94,22 @@ function createStyles(colors: ThemeColors) {
     textAlign: 'center',
     marginTop: spacing.md,
     lineHeight: 18,
+  },
+  reviewNotice: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.xs,
+    backgroundColor: 'rgba(230,168,55,0.15)',
+    borderRadius: 12,
+    padding: spacing.sm,
+    marginTop: spacing.md,
+  },
+  reviewNoticeText: {
+    flex: 1,
+    fontFamily: fontFamily.body,
+    fontSize: fontSize.tiny,
+    color: '#8a6100',
+    lineHeight: 17,
   },
 });
 }

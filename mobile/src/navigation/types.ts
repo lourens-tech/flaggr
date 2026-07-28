@@ -92,7 +92,7 @@ export type RootStackParamList = {
   Voucher: { voucherId: string };
   ScanReceipt: undefined;
   ReviewReceipt: { imageUri: string | null; imageBase64: string; scanResult: ScanResult & { isDuplicate: false } };
-  ReceiptSuccess: { pointsAwarded: number };
+  ReceiptSuccess: { pointsAwarded: number; flagged?: boolean };
   ReceiptHistory: undefined;
   MemberTiers: undefined;
   Notifications: undefined;

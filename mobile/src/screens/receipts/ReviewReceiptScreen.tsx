@@ -31,8 +31,8 @@ export function ReviewReceiptScreen({ route, navigation }: Props) {
   const handleSubmit = async () => {
     setSubmitting(true);
     try {
-      await submitReceipt(imageBase64, imageUri);
-      navigation.replace('ReceiptSuccess', { pointsAwarded: scanResult.totalPointsAwarded });
+      const receipt = await submitReceipt(imageBase64, imageUri);
+      navigation.replace('ReceiptSuccess', { pointsAwarded: scanResult.totalPointsAwarded, flagged: receipt.flagged });
     } catch (err) {
       const message = err instanceof ApiError ? err.message : 'Something went wrong. Please try again.';
       showAlert('Couldn’t submit receipt', message);

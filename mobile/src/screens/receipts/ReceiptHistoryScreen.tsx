@@ -50,11 +50,23 @@ export function ReceiptHistoryScreen({ navigation }: Props) {
           <Text style={styles.statusBadgeText}>{STATUS_LABELS[item.status] ?? item.status}</Text>
         </View>
       </View>
+      {item.flagged ? (
+        <View style={styles.reviewBadge}>
+          <Ionicons name="alert-circle-outline" size={12} color="#8a6100" />
+          <Text style={styles.reviewBadgeText}>Under review</Text>
+        </View>
+      ) : null}
       <Text style={styles.cardMeta}>{formatDate(item.submittedAt)}</Text>
       <Text style={styles.cardBody}>
         R{item.total.toFixed(2)}
         {item.pointsAwarded !== null ? ` · ${item.pointsAwarded} FC earned` : ''}
       </Text>
+      {item.flagged ? (
+        <Text style={styles.reviewNote}>
+          Flagged for manual review{item.flagReason ? ` (${item.flagReason})` : ''} — your Flagrr Cash has already
+          been credited, no action is needed.
+        </Text>
+      ) : null}
       <TouchableOpacity
         style={styles.viewPhotoButton}
         onPress={() => handleViewPhoto(item)}
@@ -130,6 +142,18 @@ function createStyles(colors: ThemeColors) {
   cardBody: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textPrimary },
   statusBadge: { backgroundColor: colors.background, borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 3 },
   statusBadgeText: { fontFamily: fontFamily.bodySemiBold, fontSize: 10, color: colors.textPrimary },
+  reviewBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(230,168,55,0.2)',
+    borderRadius: radius.pill,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  reviewBadgeText: { fontFamily: fontFamily.bodySemiBold, fontSize: 10, color: '#8a6100' },
+  reviewNote: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary, fontStyle: 'italic' },
   viewPhotoButton: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: spacing.xs, alignSelf: 'flex-start' },
   viewPhotoText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.tiny, color: colors.clubGreen },
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center', padding: screenPadding },
