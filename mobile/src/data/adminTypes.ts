@@ -392,6 +392,7 @@ export interface FlaggedReceipt {
   submittedAt: string;
   flagReason: string | null;
   memberFlagCount: number;
+  fraudConfirmedCount: number;
 }
 
 export interface DuplicateReceiptAttempt {

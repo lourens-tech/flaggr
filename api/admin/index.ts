@@ -35,7 +35,7 @@ import {
 import { getRosterStatus, replaceMemberRoster } from '../_lib/memberRoster';
 import { parseMemberRosterFile } from '../_lib/memberRosterFileParsing';
 import { logAudit } from '../_lib/auditLog';
-import { describeFraudReasons } from '../_lib/fraudChecks';
+import { applyFraudConfirmationEffects, describeFraudReasons, resolveFlaggedReceipt } from '../_lib/fraudChecks';
 import { consumePasswordResetCode, issuePasswordResetCode } from '../_lib/passwordReset';
 
 // Every action for the course-admin side of the app lives in this one file,
@@ -317,6 +317,8 @@ const SUPER_ADMIN_ALLOWED_ACTIONS = new Set([
   'superAdminMembers',
   'superAdminMemberStats',
   'superAdminFlaggedReceipts',
+  'superAdminConfirmReceiptFraud',
+  'superAdminClearReceiptFlag',
   'superAdminDuplicateAttempts',
   'superAdminReceiptImage',
   'superAdminBroadcasts',
@@ -1487,12 +1489,13 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       if (action === 'superAdminFlaggedReceipts' && req.method === 'GET') {
         const rows = (await sql`
           select r.id, r.course_id, c.name as course_name, r.user_id, u.first_name, u.last_name, u.email,
-            r.course_name as merchant_name, r.total, r.points_awarded, r.submitted_at, r.flag_reason,
+            u.fraud_confirmed_count, r.course_name as merchant_name, r.total, r.points_awarded, r.submitted_at,
+            r.flag_reason,
             (select count(*) from receipts r2 where r2.flagged = true and r2.user_id = r.user_id) as member_flag_count
           from receipts r
           join users u on u.id = r.user_id
           join courses c on c.id = r.course_id
-          where r.flagged = true
+          where r.flagged = true and r.fraud_status = 'pending'
           order by r.submitted_at desc
           limit 200
         `) as Array<{
@@ -1503,6 +1506,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
           first_name: string;
           last_name: string;
           email: string;
+          fraud_confirmed_count: number;
           merchant_name: string;
           total: string;
           points_awarded: number | null;
@@ -1524,8 +1528,31 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
             submittedAt: r.submitted_at,
             flagReason: r.flag_reason ? describeFraudReasons(r.flag_reason.split(', ')) : null,
             memberFlagCount: Number(r.member_flag_count),
+            fraudConfirmedCount: r.fraud_confirmed_count,
           })),
         );
+        return;
+      }
+
+      if (action === 'superAdminConfirmReceiptFraud' || action === 'superAdminClearReceiptFlag') {
+        const { id } = req.body as { id?: string };
+        if (!id) throw new HttpError(400, 'id is required');
+        const resolution = action === 'superAdminConfirmReceiptFraud' ? 'confirmed' : 'cleared';
+        const receipt = await resolveFlaggedReceipt({ receiptId: id, resolution, adminId: authedAdmin.id });
+        if (!receipt) throw new HttpError(404, 'Flagged receipt not found or already resolved');
+        if (resolution === 'confirmed') {
+          await applyFraudConfirmationEffects(receipt);
+        }
+        await logAudit({
+          adminId: authedAdmin.id,
+          adminName: `${authedAdmin.firstName} ${authedAdmin.lastName}`,
+          adminRole: authedAdmin.role,
+          action,
+          targetType: 'receipt',
+          targetId: id,
+          targetLabel: `${receipt.courseName || 'Unknown merchant'} — R${receipt.total.toFixed(2)}`,
+        });
+        res.status(200).json({ ok: true });
         return;
       }
 
@@ -2269,6 +2296,90 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     const period: StatsPeriod = isStatsPeriod(req.query.period) ? req.query.period : 'month';
     const report = await getDashboardReport(courseId, period);
     res.status(200).json(report);
+    return;
+  }
+
+  // course_admin-only (not in STAFF_ALLOWED_ACTIONS) — the club's own view
+  // of the same review queue super_admin sees platform-wide, scoped to this
+  // club's members only.
+  if (action === 'flaggedReceipts' && req.method === 'GET') {
+    const course = await fetchCourse(courseId);
+    const rows = (await sql`
+      select r.id, r.user_id, u.first_name, u.last_name, u.email, u.fraud_confirmed_count,
+        r.course_name as merchant_name, r.total, r.points_awarded, r.submitted_at, r.flag_reason,
+        (select count(*) from receipts r2 where r2.flagged = true and r2.user_id = r.user_id) as member_flag_count
+      from receipts r
+      join users u on u.id = r.user_id
+      where r.flagged = true and r.fraud_status = 'pending' and r.course_id = ${courseId}
+      order by r.submitted_at desc
+      limit 200
+    `) as Array<{
+      id: string;
+      user_id: string;
+      first_name: string;
+      last_name: string;
+      email: string;
+      fraud_confirmed_count: number;
+      merchant_name: string;
+      total: string;
+      points_awarded: number | null;
+      submitted_at: string;
+      flag_reason: string | null;
+      member_flag_count: number | string;
+    }>;
+    res.status(200).json(
+      rows.map((r) => ({
+        id: r.id,
+        courseId,
+        courseName: course.name,
+        memberId: r.user_id,
+        memberName: `${r.first_name} ${r.last_name}`,
+        memberEmail: r.email,
+        merchantName: r.merchant_name,
+        total: Number(r.total),
+        pointsAwarded: r.points_awarded,
+        submittedAt: r.submitted_at,
+        flagReason: r.flag_reason ? describeFraudReasons(r.flag_reason.split(', ')) : null,
+        memberFlagCount: Number(r.member_flag_count),
+        fraudConfirmedCount: r.fraud_confirmed_count,
+      })),
+    );
+    return;
+  }
+
+  if (action === 'confirmReceiptFraud' || action === 'clearReceiptFlag') {
+    const { id } = req.body as { id?: string };
+    if (!id) throw new HttpError(400, 'id is required');
+    const resolution = action === 'confirmReceiptFraud' ? 'confirmed' : 'cleared';
+    const receipt = await resolveFlaggedReceipt({ receiptId: id, courseId, resolution, adminId: authed.id });
+    if (!receipt) throw new HttpError(404, 'Flagged receipt not found or already resolved');
+    if (resolution === 'confirmed') {
+      await applyFraudConfirmationEffects(receipt);
+    }
+    await logAudit({
+      adminId: authed.id,
+      adminName: `${authed.firstName} ${authed.lastName}`,
+      adminRole: authed.role,
+      action,
+      targetType: 'receipt',
+      targetId: id,
+      targetLabel: `${receipt.courseName || 'Unknown merchant'} — R${receipt.total.toFixed(2)}`,
+    });
+    res.status(200).json({ ok: true });
+    return;
+  }
+
+  // Lazy-loaded on demand (not included in flaggedReceipts' list payload),
+  // same convention as superAdminReceiptImage — scoped to this club's own
+  // receipts, unlike the super_admin equivalent.
+  if (action === 'receiptImage' && req.method === 'GET') {
+    const receiptId = typeof req.query.id === 'string' ? req.query.id : undefined;
+    if (!receiptId) throw new HttpError(400, 'id is required');
+    const rows = (await sql`
+      select image_data from receipts where id = ${receiptId} and course_id = ${courseId}
+    `) as Array<{ image_data: string | null }>;
+    if (rows.length === 0) throw new HttpError(404, 'Receipt not found');
+    res.status(200).json({ imageData: rows[0].image_data });
     return;
   }
 

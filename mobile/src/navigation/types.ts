@@ -44,6 +44,7 @@ export type AdminStackParamList = {
   AdminSupportTicketCreate: undefined;
   AdminSupportTicketChat: { ticketId: string };
   AdminMemberList: undefined;
+  AdminFraudOversight: undefined;
 };
 
 export type SuperAdminTabParamList = {

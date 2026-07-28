@@ -214,6 +214,12 @@ export const adminApi = {
   dashboard: (period: 'month' | 'year' | 'all') =>
     request<DashboardReport>(`?action=dashboard&period=${period}`),
 
+  // --- This club's own flagged-receipts review queue (course_admin only) ---
+  flaggedReceipts: () => request<FlaggedReceipt[]>('?action=flaggedReceipts'),
+  confirmReceiptFraud: (id: string) => request<{ ok: boolean }>('?action=confirmReceiptFraud', { method: 'POST', body: { id } }),
+  clearReceiptFlag: (id: string) => request<{ ok: boolean }>('?action=clearReceiptFlag', { method: 'POST', body: { id } }),
+  receiptImage: (id: string) => request<{ imageData: string | null }>(`?action=receiptImage&id=${encodeURIComponent(id)}`),
+
   changePassword: (currentPassword: string, newPassword: string) =>
     request<{ ok: boolean }>('?action=changePassword', { method: 'POST', body: { currentPassword, newPassword } }),
 
@@ -447,6 +453,10 @@ export const adminApi = {
 
   // --- Cross-club fraud oversight (super_admin only) ---
   superAdminFlaggedReceipts: () => request<FlaggedReceipt[]>('?action=superAdminFlaggedReceipts'),
+  superAdminConfirmReceiptFraud: (id: string) =>
+    request<{ ok: boolean }>('?action=superAdminConfirmReceiptFraud', { method: 'POST', body: { id } }),
+  superAdminClearReceiptFlag: (id: string) =>
+    request<{ ok: boolean }>('?action=superAdminClearReceiptFlag', { method: 'POST', body: { id } }),
   superAdminDuplicateAttempts: () => request<DuplicateReceiptAttempt[]>('?action=superAdminDuplicateAttempts'),
   superAdminReceiptImage: (id: string) =>
     request<{ imageData: string | null }>(`?action=superAdminReceiptImage&id=${encodeURIComponent(id)}`),

@@ -235,8 +235,15 @@ interface AdminContextValue {
   getAuditLog: () => Promise<AuditLogEntry[]>;
   // Cross-club fraud oversight (super_admin only) — same thin-passthrough pattern.
   getSuperAdminFlaggedReceipts: () => Promise<FlaggedReceipt[]>;
+  confirmSuperAdminReceiptFraud: (id: string) => Promise<void>;
+  clearSuperAdminReceiptFlag: (id: string) => Promise<void>;
   getSuperAdminDuplicateAttempts: () => Promise<DuplicateReceiptAttempt[]>;
   getSuperAdminReceiptImage: (id: string) => Promise<string | null>;
+  // This club's own flagged-receipts review queue (course_admin only).
+  getFlaggedReceipts: () => Promise<FlaggedReceipt[]>;
+  confirmReceiptFraud: (id: string) => Promise<void>;
+  clearReceiptFlag: (id: string) => Promise<void>;
+  getReceiptImage: (id: string) => Promise<string | null>;
 }
 
 const AdminContext = createContext<AdminContextValue | undefined>(undefined);
@@ -656,9 +663,24 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
   const getAuditLog = async (): Promise<AuditLogEntry[]> => adminApi.auditLog();
 
   const getSuperAdminFlaggedReceipts = async (): Promise<FlaggedReceipt[]> => adminApi.superAdminFlaggedReceipts();
+  const confirmSuperAdminReceiptFraud = async (id: string) => {
+    await adminApi.superAdminConfirmReceiptFraud(id);
+  };
+  const clearSuperAdminReceiptFlag = async (id: string) => {
+    await adminApi.superAdminClearReceiptFlag(id);
+  };
   const getSuperAdminDuplicateAttempts = async (): Promise<DuplicateReceiptAttempt[]> => adminApi.superAdminDuplicateAttempts();
   const getSuperAdminReceiptImage = async (id: string): Promise<string | null> =>
     (await adminApi.superAdminReceiptImage(id)).imageData;
+
+  const getFlaggedReceipts = async (): Promise<FlaggedReceipt[]> => adminApi.flaggedReceipts();
+  const confirmReceiptFraud = async (id: string) => {
+    await adminApi.confirmReceiptFraud(id);
+  };
+  const clearReceiptFlag = async (id: string) => {
+    await adminApi.clearReceiptFlag(id);
+  };
+  const getReceiptImage = async (id: string): Promise<string | null> => (await adminApi.receiptImage(id)).imageData;
 
   const value: AdminContextValue = {
     isAdminAuthenticated,
@@ -771,8 +793,14 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     deleteSupportAgent,
     getAuditLog,
     getSuperAdminFlaggedReceipts,
+    confirmSuperAdminReceiptFraud,
+    clearSuperAdminReceiptFlag,
     getSuperAdminDuplicateAttempts,
     getSuperAdminReceiptImage,
+    getFlaggedReceipts,
+    confirmReceiptFraud,
+    clearReceiptFlag,
+    getReceiptImage,
   };
 
   return <AdminContext.Provider value={value}>{children}</AdminContext.Provider>;

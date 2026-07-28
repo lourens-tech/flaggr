@@ -258,6 +258,19 @@ export function AdminCourseProfileScreen({ navigation }: Props) {
           onPress={() => navigation.navigate('AdminMemberList')}
         />
 
+        <Text style={styles.sectionTitle}>Fraud Review</Text>
+        <Text style={styles.helpText}>
+          Review receipts flagged for your club, confirm genuine fraud (reverses the Flagrr Cash awarded), or clear
+          false positives.
+        </Text>
+        <View style={{ height: spacing.sm }} />
+        <PillButton
+          label="Flagged Receipts"
+          icon="flag-outline"
+          variant="outline"
+          onPress={() => navigation.navigate('AdminFraudOversight')}
+        />
+
         <Text style={styles.sectionTitle}>Appearance</Text>
         <ThemeToggleRow onChange={handleThemeChange} disabled={savingTheme} />
 
