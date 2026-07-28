@@ -19,6 +19,12 @@ import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+const SUBSCRIPTION_LABELS: Record<string, string> = {
+  trialing: 'Trial',
+  active: 'Active',
+  past_due: 'Payment Failed',
+};
+
 type Props = CompositeScreenProps<
   BottomTabScreenProps<AdminTabParamList, 'AdminCourseProfile'>,
   NativeStackScreenProps<AdminStackParamList>
@@ -151,6 +157,15 @@ export function AdminCourseProfileScreen({ navigation }: Props) {
       </SafeAreaView>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        {course.subscriptionStatus === 'past_due' ? (
+          <View style={styles.billingWarningBanner}>
+            <Ionicons name="warning-outline" size={18} color={colors.warning} />
+            <Text style={styles.billingWarningText}>
+              Your last payment failed. Update your billing details or contact Flagrr support to avoid losing access.
+            </Text>
+          </View>
+        ) : null}
+
         {course.onboardingCompletedAt === null ? (
           <TouchableOpacity style={styles.onboardingBanner} onPress={reopenOnboardingWizard} activeOpacity={0.85}>
             <Ionicons name="rocket-outline" size={18} color={colors.darkGreen} />
@@ -271,6 +286,28 @@ export function AdminCourseProfileScreen({ navigation }: Props) {
           onPress={() => navigation.navigate('AdminFraudOversight')}
         />
 
+        <Text style={styles.sectionTitle}>Billing</Text>
+        <View style={styles.disabledField}>
+          <TextField
+            placeholder="Subscription Status"
+            variant="onLight"
+            editable={false}
+            value={SUBSCRIPTION_LABELS[course.subscriptionStatus ?? 'active'] ?? 'Active'}
+          />
+        </View>
+        <Text style={styles.helpText}>
+          {course.subscriptionStatus === 'past_due'
+            ? 'Your last payment failed. Contact Flagrr support to update your billing details before your subscription is cancelled.'
+            : 'Managed by the Flagrr team. Contact support with any billing questions.'}
+        </Text>
+        <View style={{ height: spacing.sm }} />
+        <PillButton
+          label="Contact Support"
+          icon="headset-outline"
+          variant="outline"
+          onPress={() => navigation.navigate('AdminSupportTickets')}
+        />
+
         <Text style={styles.sectionTitle}>Appearance</Text>
         <ThemeToggleRow onChange={handleThemeChange} disabled={savingTheme} />
 
@@ -308,6 +345,16 @@ function createStyles(colors: ThemeColors) {
     marginBottom: spacing.lg,
   },
   onboardingBannerText: { flex: 1, fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.darkGreen },
+  billingWarningBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+    backgroundColor: colors.warningBg,
+    borderRadius: radius.md,
+    padding: spacing.sm + 4,
+    marginBottom: spacing.lg,
+  },
+  billingWarningText: { flex: 1, fontFamily: fontFamily.bodyMedium, fontSize: fontSize.tiny, color: colors.warning },
   logoPicker: { alignSelf: 'center', alignItems: 'center', gap: spacing.xs, marginBottom: spacing.lg },
   logoImage: { width: 88, height: 88, borderRadius: radius.md },
   logoPlaceholder: {

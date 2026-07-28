@@ -520,6 +520,7 @@ function courseDto(row: {
   fb_per_rand: number;
   onboarding_completed_at: string | null;
   staff_onboarding_completed_at: string | null;
+  subscription_status: string | null;
 }) {
   return {
     id: row.id,
@@ -533,6 +534,12 @@ function courseDto(row: {
     fbPerRand: Number(row.fb_per_rand),
     onboardingCompletedAt: row.onboarding_completed_at,
     staffOnboardingCompletedAt: row.staff_onboarding_completed_at,
+    // A course_admin/staff session with a fully 'canceled' subscription
+    // never reaches this DTO — getAuthedAdmin throws first (see
+    // api/_lib/auth.ts) — so in practice this is 'trialing'/'active'/
+    // 'past_due'/null, surfaced so a club can see payment trouble coming
+    // before it locks them out entirely.
+    subscriptionStatus: row.subscription_status,
   };
 }
 
@@ -552,6 +559,7 @@ const EMPTY_COURSE_DTO = {
   fbPerRand: 0,
   onboardingCompletedAt: null,
   staffOnboardingCompletedAt: null,
+  subscriptionStatus: null,
 };
 
 function superAdminCourseDto(row: {
@@ -587,7 +595,7 @@ function superAdminCourseDto(row: {
 async function fetchCourse(courseId: string) {
   const rows = (await sql`
     select id, name, slug, logo_url, cover_image_url, contact_email, contact_phone, address, fb_per_rand,
-      onboarding_completed_at, staff_onboarding_completed_at
+      onboarding_completed_at, staff_onboarding_completed_at, subscription_status
     from courses where id = ${courseId}
   `) as Array<{
     id: string;
@@ -601,6 +609,7 @@ async function fetchCourse(courseId: string) {
     fb_per_rand: number;
     onboarding_completed_at: string | null;
     staff_onboarding_completed_at: string | null;
+    subscription_status: string | null;
   }>;
   if (rows.length === 0) throw new HttpError(404, 'Course not found');
   return courseDto(rows[0]);

@@ -44,6 +44,9 @@ export interface AdminCourse {
   fbPerRand: number;
   onboardingCompletedAt: string | null;
   staffOnboardingCompletedAt: string | null;
+  // Never 'canceled' by the time this reaches a course_admin/staff device —
+  // that state blocks the session entirely server-side (see getAuthedAdmin).
+  subscriptionStatus: 'trialing' | 'active' | 'past_due' | null;
 }
 
 // A super_admin isn't scoped to any single course, so it works with a list

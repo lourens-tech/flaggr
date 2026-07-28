@@ -90,15 +90,16 @@ export async function getAuthedAdmin(req: VercelRequest): Promise<AuthedAdmin | 
     username: string | null;
     must_change_password: boolean;
     theme_preference: 'system' | 'light' | 'dark';
+    subscription_status: string | null;
   }>;
   try {
     rows = (await sql`
-      select a.id, a.course_id, a.role, a.first_name, a.last_name, a.email, a.username, a.must_change_password, a.theme_preference
+      select a.id, a.course_id, a.role, a.first_name, a.last_name, a.email, a.username, a.must_change_password,
+             a.theme_preference, c.subscription_status
       from admin_sessions s
       join admins a on a.id = s.admin_id
       left join courses c on c.id = a.course_id
       where s.token = ${token} and s.expires_at > now() and a.activated_at is not null and a.revoked_at is null
-        and (a.course_id is null or c.subscription_status is distinct from 'canceled')
     `) as typeof rows;
   } catch {
     return null;
@@ -106,6 +107,15 @@ export async function getAuthedAdmin(req: VercelRequest): Promise<AuthedAdmin | 
 
   if (rows.length === 0) return null;
   const r = rows[0];
+
+  // Distinct from an invalid/expired session (which just returns null,
+  // above) so the mobile app can show a specific explanation and log the
+  // admin out cleanly, instead of a bare "Not authenticated" on whatever
+  // request happened to be in flight when the club's subscription lapsed.
+  if (r.course_id && r.subscription_status === 'canceled') {
+    throw new HttpError(403, "This club's subscription has been cancelled. Contact Flagrr support to reactivate.");
+  }
+
   return {
     id: r.id,
     courseId: r.course_id,

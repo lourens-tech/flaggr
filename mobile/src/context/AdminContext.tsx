@@ -85,6 +85,7 @@ const EMPTY_COURSE: AdminCourse = {
   fbPerRand: 2.8,
   onboardingCompletedAt: null,
   staffOnboardingCompletedAt: null,
+  subscriptionStatus: null,
 };
 
 interface AdminContextValue {
