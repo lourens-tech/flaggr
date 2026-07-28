@@ -84,6 +84,10 @@ interface ChangePasswordBody {
   newPassword?: string;
 }
 
+interface DeleteAccountBody {
+  password?: string;
+}
+
 function escapeHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
@@ -183,6 +187,140 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       subject: owned[0].subject,
       messages: await listSupportTicketMessages(id),
     });
+    return;
+  }
+
+  // A member's own copy of everything Flagrr holds on them — profile,
+  // points/streak/stats, receipts, activity, vouchers, notifications, and
+  // every enquiry/support-ticket thread (with messages). Delivered as a
+  // JSON file download, not embedded in the app UI, since this is a
+  // one-off request rather than something browsed. Receipt/avatar photos
+  // are left out (already viewable individually in-app) to keep this from
+  // ballooning into a multi-megabyte response.
+  if (action === 'exportMyData' && req.method === 'GET') {
+    const [profileRows, pointsRows, streakRows, statsRows, receiptRows, activityRows, voucherRows, notificationRows, enquiryRows, ticketRows] =
+      await Promise.all([
+        sql`
+          select first_name, last_name, email, phone, date_of_birth, tier, member_since, verified_member
+          from users where id = ${authed.id}
+        `,
+        sql`select balance, total_earned, total_redeemed from points_accounts where user_id = ${authed.id}`,
+        sql`select weeks, active_since from streaks where user_id = ${authed.id}`,
+        sql`select total_receipts_scanned, last_scan_date from user_stats where user_id = ${authed.id}`,
+        sql`
+          select id, course_name, status, items, subtotal, tax, total, submitted_at, points_awarded,
+                 receipt_number, transaction_number, till_number, receipt_time, flagged, flag_reason
+          from receipts where user_id = ${authed.id} order by submitted_at desc
+        `,
+        sql`select type, title, subtitle, amount, date from activity where user_id = ${authed.id} order by date desc`,
+        sql`
+          select v.code, v.cost, v.status, v.issued_at, v.expires_at, v.redeemed_at, r.title as reward_title, v.variant_label
+          from vouchers v join rewards r on r.id = v.reward_id
+          where v.user_id = ${authed.id} order by v.issued_at desc
+        `,
+        sql`select title, body, date, read from notifications where user_id = ${authed.id} order by date desc`,
+        sql`
+          select e.id, e.enquiry_type, e.status, e.created_at, e.updated_at,
+            (select jsonb_agg(jsonb_build_object('senderType', m.sender_type, 'body', m.body, 'createdAt', m.created_at) order by m.created_at)
+             from enquiry_messages m where m.enquiry_id = e.id) as messages
+          from enquiries e where e.user_id = ${authed.id} order by e.created_at desc
+        `,
+        sql`
+          select t.id, t.subject, t.status, t.created_at, t.updated_at,
+            (select jsonb_agg(jsonb_build_object('senderType', m.sender_type, 'body', m.body, 'createdAt', m.created_at) order by m.created_at)
+             from support_ticket_messages m where m.ticket_id = t.id) as messages
+          from support_tickets t where t.requester_user_id = ${authed.id} order by t.created_at desc
+        `,
+      ]);
+
+    const u = profileRows[0] as {
+      first_name: string;
+      last_name: string;
+      email: string;
+      phone: string | null;
+      date_of_birth: string | null;
+      tier: string;
+      member_since: string;
+      verified_member: boolean;
+    };
+    const p = pointsRows[0] as { balance: number; total_earned: number; total_redeemed: number } | undefined;
+    const s = streakRows[0] as { weeks: number; active_since: string } | undefined;
+    const stats = statsRows[0] as { total_receipts_scanned: number; last_scan_date: string | null } | undefined;
+
+    const exportData = {
+      generatedAt: new Date().toISOString(),
+      profile: {
+        firstName: u.first_name,
+        lastName: u.last_name,
+        email: u.email,
+        phone: u.phone,
+        dateOfBirth: u.date_of_birth,
+        tier: u.tier,
+        memberSince: u.member_since,
+        verifiedMember: u.verified_member,
+      },
+      points: p ? { balance: p.balance, totalEarned: p.total_earned, totalRedeemed: p.total_redeemed } : null,
+      streak: s ? { weeks: s.weeks, activeSince: s.active_since } : null,
+      stats: stats ? { totalReceiptsScanned: stats.total_receipts_scanned, lastScanDate: stats.last_scan_date } : null,
+      receipts: (receiptRows as Array<Record<string, unknown>>).map((r) => ({
+        id: r.id,
+        courseName: r.course_name,
+        status: r.status,
+        items: r.items,
+        subtotal: Number(r.subtotal),
+        tax: Number(r.tax),
+        total: Number(r.total),
+        submittedAt: r.submitted_at,
+        pointsAwarded: r.points_awarded,
+        receiptNumber: r.receipt_number,
+        transactionNumber: r.transaction_number,
+        tillNumber: r.till_number,
+        receiptTime: r.receipt_time,
+        flagged: r.flagged,
+        flagReason: r.flag_reason,
+      })),
+      activity: (activityRows as Array<Record<string, unknown>>).map((a) => ({
+        type: a.type,
+        title: a.title,
+        subtitle: a.subtitle,
+        amount: a.amount,
+        date: a.date,
+      })),
+      vouchers: (voucherRows as Array<Record<string, unknown>>).map((v) => ({
+        code: v.code,
+        rewardTitle: v.reward_title,
+        variantLabel: v.variant_label,
+        cost: v.cost,
+        status: v.status,
+        issuedAt: v.issued_at,
+        expiresAt: v.expires_at,
+        redeemedAt: v.redeemed_at,
+      })),
+      notifications: (notificationRows as Array<Record<string, unknown>>).map((n) => ({
+        title: n.title,
+        body: n.body,
+        date: n.date,
+        read: n.read,
+      })),
+      enquiries: (enquiryRows as Array<Record<string, unknown>>).map((e) => ({
+        subject: e.enquiry_type,
+        status: e.status,
+        createdAt: e.created_at,
+        updatedAt: e.updated_at,
+        messages: e.messages ?? [],
+      })),
+      supportTickets: (ticketRows as Array<Record<string, unknown>>).map((t) => ({
+        subject: t.subject,
+        status: t.status,
+        createdAt: t.created_at,
+        updatedAt: t.updated_at,
+        messages: t.messages ?? [],
+      })),
+    };
+
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="flagrr-my-data.json"');
+    res.status(200).send(JSON.stringify(exportData, null, 2));
     return;
   }
 
@@ -321,6 +459,27 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     }
     const newHash = await hashPassword(newPassword);
     await sql`update users set password_hash = ${newHash} where id = ${authed.id}`;
+    res.status(200).json({ ok: true });
+    return;
+  }
+
+  // Permanent, self-service account deletion — requires the current
+  // password (same verify-then-act shape as changePassword) since this
+  // can't be undone. Every table with member data (receipts, points,
+  // activity, vouchers, enquiries, support tickets, sessions, etc.) already
+  // references users(id) on delete cascade, so a single delete here is
+  // enough for the database to clean up everything; the deleted session's
+  // own token stops authenticating on the very next request.
+  if (action === 'deleteAccount') {
+    const { password } = req.body as DeleteAccountBody;
+    if (!password) {
+      throw new HttpError(400, 'Current password is required');
+    }
+    const rows = (await sql`select password_hash from users where id = ${authed.id}`) as Array<{ password_hash: string }>;
+    if (!rows[0] || !(await verifyPassword(password, rows[0].password_hash))) {
+      throw new HttpError(401, 'Current password is incorrect');
+    }
+    await sql`delete from users where id = ${authed.id}`;
     res.status(200).json({ ok: true });
     return;
   }

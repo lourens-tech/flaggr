@@ -1,5 +1,12 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { api, setToken, type ContactEnquiryPayload, type SignupPayload, type UpdateProfilePayload } from '../api/client';
+import {
+  api,
+  downloadMyDataExport,
+  setToken,
+  type ContactEnquiryPayload,
+  type SignupPayload,
+  type UpdateProfilePayload,
+} from '../api/client';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { registerForPushNotificationsAsync } from '../utils/pushNotifications';
 import { useTheme, type ThemePreference } from './ThemeContext';
@@ -85,6 +92,8 @@ interface AppContextValue extends AppState {
   updateProfile: (payload: UpdateProfilePayload) => Promise<void>;
   updateThemePreference: (preference: ThemePreference) => Promise<void>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
+  deleteAccount: (password: string) => Promise<void>;
+  exportMyData: () => Promise<boolean>;
   changeHomeClub: (courseId: string) => Promise<void>;
   sendContactEnquiry: (payload: ContactEnquiryPayload) => Promise<string>;
   listMyEnquiries: () => Promise<MyEnquirySummary[]>;
@@ -255,6 +264,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     await api.changePassword(currentPassword, newPassword);
   };
 
+  const deleteAccount = async (password: string) => {
+    await api.deleteAccount(password);
+    await logout();
+  };
+
+  const exportMyData = async (): Promise<boolean> => downloadMyDataExport();
+
   const sendContactEnquiry = async (payload: ContactEnquiryPayload): Promise<string> => {
     const res = await api.sendContactEnquiry(payload);
     return res.enquiryId;
@@ -335,6 +351,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     updateProfile,
     updateThemePreference,
     changePassword,
+    deleteAccount,
+    exportMyData,
     changeHomeClub,
     sendContactEnquiry,
     listMyEnquiries,

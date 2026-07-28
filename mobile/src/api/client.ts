@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 import type {
   ActivityEntry,
   Ad,
@@ -237,4 +238,34 @@ export const api = {
 
   changePassword: (currentPassword: string, newPassword: string) =>
     request<{ ok: boolean }>('/profile?action=changePassword', { method: 'POST', body: { currentPassword, newPassword } }),
+
+  deleteAccount: (password: string) =>
+    request<{ ok: boolean }>('/profile?action=deleteAccount', { method: 'POST', body: { password } }),
 };
+
+/** Downloads the member's own data export as a JSON file. Only works on the
+ * web build (the only build that exists today) — triggers a browser file
+ * download via a Blob + temporary anchor, since a plain <a href> can't carry
+ * the Authorization header. Mirrors adminClient.ts's downloadCsvReport. */
+export async function downloadMyDataExport(): Promise<boolean> {
+  if (Platform.OS !== 'web') return false;
+
+  const token = await getToken();
+  const headers: Record<string, string> = {};
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  const res = await fetch(`${API_BASE_URL}/api/profile?action=exportMyData`, { headers, cache: 'no-store' });
+  if (!res.ok) {
+    throw new ApiError(res.status, 'Could not generate your data export');
+  }
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'flagrr-my-data.json';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+  return true;
+}

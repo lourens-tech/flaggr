@@ -72,8 +72,17 @@ function LinkRow({
 export function MemberProfileScreen({ navigation }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const { user, unreadNotificationCount, logout, updateAvatar, changeHomeClub, updateThemePreference, changePassword } =
-    useApp();
+  const {
+    user,
+    unreadNotificationCount,
+    logout,
+    updateAvatar,
+    changeHomeClub,
+    updateThemePreference,
+    changePassword,
+    deleteAccount,
+    exportMyData,
+  } = useApp();
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [savingTheme, setSavingTheme] = useState(false);
   const [clubPickerOpen, setClubPickerOpen] = useState(false);
@@ -83,6 +92,9 @@ export function MemberProfileScreen({ navigation }: Props) {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [changingPassword, setChangingPassword] = useState(false);
+  const [exportingData, setExportingData] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deletingAccount, setDeletingAccount] = useState(false);
 
   const openClubPicker = async () => {
     setClubPickerOpen(true);
@@ -168,6 +180,49 @@ export function MemberProfileScreen({ navigation }: Props) {
     } finally {
       setChangingPassword(false);
     }
+  };
+
+  const handleExportData = async () => {
+    setExportingData(true);
+    try {
+      const downloaded = await exportMyData();
+      if (!downloaded) {
+        showAlert('Not available here', 'Data export is currently only available from the web app.');
+      }
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : 'Something went wrong. Please try again.';
+      showAlert('Couldn’t export your data', message);
+    } finally {
+      setExportingData(false);
+    }
+  };
+
+  const handleDeleteAccount = () => {
+    if (!deletePassword) {
+      showAlert('Missing info', 'Enter your current password to confirm.');
+      return;
+    }
+    showAlert(
+      'Delete your account?',
+      'This permanently removes your profile, points, receipts, vouchers, and message history. This can’t be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete Account',
+          style: 'destructive',
+          onPress: async () => {
+            setDeletingAccount(true);
+            try {
+              await deleteAccount(deletePassword);
+            } catch (err) {
+              const message = err instanceof ApiError ? err.message : 'Something went wrong. Please try again.';
+              showAlert('Couldn’t delete account', message);
+              setDeletingAccount(false);
+            }
+          },
+        },
+      ],
+    );
   };
 
   return (
@@ -304,6 +359,38 @@ export function MemberProfileScreen({ navigation }: Props) {
           <TextField placeholder="New Password" variant="onLight" isPassword value={newPassword} onChangeText={setNewPassword} />
           <View style={{ height: spacing.md }} />
           <PillButton label="Update Password" variant="outline" onPress={handleChangePassword} loading={changingPassword} />
+        </View>
+
+        <Text style={styles.sectionLabel}>Account</Text>
+        <View style={[styles.linksCard, { padding: spacing.md }]}>
+          <PillButton
+            label="Export My Data"
+            icon="download-outline"
+            variant="outline"
+            onPress={handleExportData}
+            loading={exportingData}
+          />
+          <View style={{ height: spacing.md }} />
+          <Text style={styles.helpText}>
+            Deleting your account permanently removes your profile, points, receipts, and reward history. This can’t
+            be undone.
+          </Text>
+          <View style={{ height: spacing.sm }} />
+          <TextField
+            placeholder="Current Password"
+            variant="onLight"
+            isPassword
+            value={deletePassword}
+            onChangeText={setDeletePassword}
+          />
+          <View style={{ height: spacing.md }} />
+          <TouchableOpacity style={styles.deleteAccountButton} onPress={handleDeleteAccount} disabled={deletingAccount}>
+            {deletingAccount ? (
+              <ActivityIndicator color={colors.negative} />
+            ) : (
+              <Text style={styles.deleteAccountText}>Delete Account</Text>
+            )}
+          </TouchableOpacity>
         </View>
 
         <Text style={styles.sectionLabel}>Legal</Text>
@@ -459,6 +546,9 @@ function createStyles(colors: ThemeColors) {
     paddingVertical: spacing.sm + 6,
   },
   linkLabel: { flex: 1, fontFamily: fontFamily.bodyMedium, fontSize: fontSize.small, color: colors.textPrimary },
+  helpText: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary },
+  deleteAccountButton: { alignItems: 'center', justifyContent: 'center', height: 44 },
+  deleteAccountText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.small, color: colors.negative },
   logoutRow: {
     flexDirection: 'row',
     alignItems: 'center',
