@@ -6,7 +6,7 @@ import { HttpError, withErrorHandling } from '../_lib/http';
 import { checkDuplicateReceipt, describeFraudReasons, evaluateFraudSignals } from '../_lib/fraudChecks';
 import { runScanPipeline } from '../_lib/scanPipeline';
 import { hashImageDataUri } from '../_lib/imageHash';
-import { finalizePoints, type MatchedItem } from '../_lib/pointsEngine';
+import { finalizePoints, isClubParticipating, type MatchedItem } from '../_lib/pointsEngine';
 import { getCurrentTierStatus } from '../_lib/tierRewards';
 import { sendPushToUser } from '../_lib/pushNotifications';
 import { notifyCourseAdmins } from '../_lib/adminNotifications';
@@ -102,12 +102,16 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         res.status(200).json({ isDuplicate: true, reason: duplicate.reason });
         return;
       }
-      const tierStatus = await getCurrentTierStatus(authed.id);
-      const { finalPointsAwarded, awayClub } = finalizePoints(
+      const [tierStatus, homeClubParticipating] = await Promise.all([
+        getCurrentTierStatus(authed.id),
+        isClubParticipating(authed.courseId),
+      ]);
+      const { finalPointsAwarded, awayClub, nonParticipatingClub } = finalizePoints(
         scored,
         { subtotal: parsed.subtotal, grandTotal: parsed.grandTotal },
         authed.courseId,
         tierStatus.multiplier,
+        homeClubParticipating,
       );
       res.status(200).json({
         isDuplicate: false,
@@ -128,6 +132,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         tier: tierStatus.tier,
         tierMultiplier: tierStatus.multiplier,
         awayClub,
+        nonParticipatingClub,
       });
       return;
     }
@@ -145,12 +150,16 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     // Tier multiplier uses the tier as of before this receipt (points earned
     // so far this quarter, not including it), so a receipt's own points
     // can't retroactively change the multiplier applied to itself.
-    const tierStatus = await getCurrentTierStatus(authed.id);
-    const { finalPointsAwarded, awayClub } = finalizePoints(
+    const [tierStatus, homeClubParticipating] = await Promise.all([
+      getCurrentTierStatus(authed.id),
+      isClubParticipating(authed.courseId),
+    ]);
+    const { finalPointsAwarded, awayClub, nonParticipatingClub } = finalizePoints(
       scored,
       { subtotal: parsed.subtotal, grandTotal: parsed.grandTotal },
       authed.courseId,
       tierStatus.multiplier,
+      homeClubParticipating,
     );
 
     const fraud = await evaluateFraudSignals({
@@ -164,7 +173,11 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     const receiptId = randomUUID();
     const notificationBody =
       `You earned ${finalPointsAwarded} Flagrr Cash from your receipt${courseName ? ` at ${courseName}` : ''}.` +
-      (awayClub ? ' Earned at the standard away-club rate of R1 = 1 Flagrr Cash.' : '');
+      (nonParticipatingClub
+        ? ' Your club is between subscriptions right now, so this was earned at the standard rate of R1 = 1 Flagrr Cash.'
+        : awayClub
+          ? ' Earned at the standard away-club rate of R1 = 1 Flagrr Cash.'
+          : '');
 
     let insertedRows: ReceiptRow[];
     try {

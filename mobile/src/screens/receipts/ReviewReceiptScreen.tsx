@@ -24,7 +24,9 @@ export function ReviewReceiptScreen({ route, navigation }: Props) {
   const merchantName = scanResult.merchant?.name ?? scanResult.merchantNameGuess ?? 'Unrecognized merchant';
   const isLowConfidence = scanResult.ocrConfidence < 55;
   const isAwayClub = scanResult.awayClub;
-  const hasUnmatchedItems = !isAwayClub && scanResult.items.some((i) => !i.matchedProductId && !i.matchedActivityId);
+  const isNonParticipatingClub = scanResult.nonParticipatingClub;
+  const hasUnmatchedItems =
+    !isAwayClub && !isNonParticipatingClub && scanResult.items.some((i) => !i.matchedProductId && !i.matchedActivityId);
 
   const handleSubmit = async () => {
     setSubmitting(true);
@@ -65,7 +67,14 @@ export function ReviewReceiptScreen({ route, navigation }: Props) {
           </View>
         ) : null}
 
-        {isAwayClub ? (
+        {isNonParticipatingClub ? (
+          <View style={styles.awayClubBanner}>
+            <Ionicons name="information-circle-outline" size={18} color={colors.clubGreen} />
+            <Text style={styles.awayClubText}>
+              Your club is between subscriptions right now — Flagrr Cash earned at the standard rate of R1 = 1 FC.
+            </Text>
+          </View>
+        ) : isAwayClub ? (
           <View style={styles.awayClubBanner}>
             <Ionicons name="information-circle-outline" size={18} color={colors.clubGreen} />
             <Text style={styles.awayClubText}>

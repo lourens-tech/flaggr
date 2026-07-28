@@ -72,7 +72,7 @@ export function SuperAdminCoursesScreen({ navigation }: Props) {
   const handleCancelSubscription = (course: SuperAdminCourseSummary) => {
     showAlert(
       'Cancel this subscription?',
-      `${course.name} will be marked as canceled. You can reactivate it again at any time.`,
+      `${course.name}'s course admin and staff accounts will be blocked from logging in until reactivated. Members can still use the app, but earn Flagrr Cash at the standard rate instead of the club's own rate. You can reactivate at any time.`,
       [
         { text: 'Back', style: 'cancel' },
         {

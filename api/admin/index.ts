@@ -833,9 +833,11 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     // login screen serves every role.
     const loginId = identifier.trim().toLowerCase();
     const rows = (await sql`
-      select id, course_id, role, first_name, last_name, email, username, password_hash, activated_at, must_change_password, revoked_at, theme_preference
-      from admins
-      where (role = 'staff' and username = ${loginId}) or (role <> 'staff' and email = ${loginId})
+      select a.id, a.course_id, a.role, a.first_name, a.last_name, a.email, a.username, a.password_hash,
+        a.activated_at, a.must_change_password, a.revoked_at, a.theme_preference, c.subscription_status
+      from admins a
+      left join courses c on c.id = a.course_id
+      where (a.role = 'staff' and a.username = ${loginId}) or (a.role <> 'staff' and a.email = ${loginId})
     `) as Array<{
       id: string;
       course_id: string | null;
@@ -849,6 +851,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       must_change_password: boolean;
       revoked_at: string | null;
       theme_preference: 'system' | 'light' | 'dark';
+      subscription_status: string | null;
     }>;
 
     const admin = rows[0];
@@ -863,6 +866,9 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     }
     if (admin.role === 'course_admin' || admin.role === 'staff') {
       if (!admin.course_id) throw new HttpError(403, 'This account type is not supported yet');
+      if (admin.subscription_status === 'canceled') {
+        throw new HttpError(403, "This club's subscription has been cancelled. Contact Flagrr support to reactivate.");
+      }
     } else if (admin.role !== 'super_admin' && admin.role !== 'support_agent') {
       throw new HttpError(403, 'This account type is not supported yet');
     }
@@ -1202,8 +1208,11 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
 
       // No live billing/Stripe wiring yet — these just flip the same
       // subscription_status column the Courses list already reads for its
-      // badge, so a super_admin can manually stop (or resume) a club's access
-      // ahead of that integration existing.
+      // badge. That column isn't purely cosmetic though: a 'canceled' club's
+      // own course_admin/staff accounts are blocked from logging in (see
+      // getAuthedAdmin/the login action), and its members fall back to the
+      // standard non-participating-club point rate (see isClubParticipating
+      // in pointsEngine.ts) until it's reactivated.
       if (action === 'superAdminCourseCancelSubscription') {
         const { courseId } = req.body as SubscriptionActionBody;
         if (!courseId) throw new HttpError(400, 'courseId is required');

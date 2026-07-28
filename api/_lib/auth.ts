@@ -72,7 +72,9 @@ export interface AuthedAdmin {
  * tables — course-admin/super-admin/staff identities are deliberately never
  * mixed with member `users`. A revoked staff member's session stops working
  * immediately, even mid-session, since that check lives here rather than
- * only at login. */
+ * only at login. Same for a course_admin/staff account whose club's
+ * subscription gets cancelled while they're logged in — super_admin/
+ * support_agent aren't scoped to a course, so they're never affected. */
 export async function getAuthedAdmin(req: VercelRequest): Promise<AuthedAdmin | null> {
   const header = req.headers.authorization;
   if (!header?.startsWith('Bearer ')) return null;
@@ -94,7 +96,9 @@ export async function getAuthedAdmin(req: VercelRequest): Promise<AuthedAdmin | 
       select a.id, a.course_id, a.role, a.first_name, a.last_name, a.email, a.username, a.must_change_password, a.theme_preference
       from admin_sessions s
       join admins a on a.id = s.admin_id
+      left join courses c on c.id = a.course_id
       where s.token = ${token} and s.expires_at > now() and a.activated_at is not null and a.revoked_at is null
+        and (a.course_id is null or c.subscription_status is distinct from 'canceled')
     `) as typeof rows;
   } catch {
     return null;

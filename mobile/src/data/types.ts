@@ -165,6 +165,12 @@ export type ScanResult =
       // (not the member's home club) — points were earned at the flat
       // standard rate (R1 = 1 FC), not this club's catalog/tier multiplier.
       awayClub: boolean;
+      // true when the member's own home club isn't currently a participating
+      // (paying) club — same flat standard rate as awayClub, but for a
+      // different reason, so it gets its own message rather than the
+      // (misleading, since they may be at their actual home club) "not your
+      // home club" copy.
+      nonParticipatingClub: boolean;
     };
 
 export type AdPlacement = 'home' | 'rewardsShop';

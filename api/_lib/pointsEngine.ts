@@ -118,6 +118,7 @@ export async function matchAndScoreReceipt(
 export interface FinalizedPoints {
   finalPointsAwarded: number;
   awayClub: boolean;
+  nonParticipatingClub: boolean;
 }
 
 // Members play away from their home club all the time. A receipt matched to
@@ -127,16 +128,42 @@ export interface FinalizedPoints {
 // instead earns the flat standard rate of 1 Flagrr Cash per R1 spent.
 // Anything else (home club, or an unaffiliated/generic retailer) keeps the
 // existing catalog + tier-multiplier scoring.
+//
+// The same flat rate also applies, regardless of merchant, whenever the
+// member's own home club isn't a currently-participating (paying) club —
+// its own catalog/tier-multiplier scoring isn't honored for a club that
+// isn't on the platform, but a member shouldn't lose access to what they've
+// already earned just because their club fell behind on billing.
 export function finalizePoints(
   scored: PointsResult,
   spend: { subtotal: number | null; grandTotal: number | null },
   homeCourseId: string,
   tierMultiplier: number,
+  homeClubParticipating: boolean,
 ): FinalizedPoints {
   const awayClub = scored.merchant?.courseId != null && scored.merchant.courseId !== homeCourseId;
+  if (!homeClubParticipating) {
+    const amountSpent = spend.grandTotal ?? spend.subtotal ?? 0;
+    return { finalPointsAwarded: Math.round(amountSpent), awayClub, nonParticipatingClub: true };
+  }
   if (awayClub) {
     const amountSpent = spend.grandTotal ?? spend.subtotal ?? 0;
-    return { finalPointsAwarded: Math.round(amountSpent), awayClub: true };
+    return { finalPointsAwarded: Math.round(amountSpent), awayClub: true, nonParticipatingClub: false };
   }
-  return { finalPointsAwarded: Math.round(scored.totalPointsAwarded * tierMultiplier), awayClub: false };
+  return {
+    finalPointsAwarded: Math.round(scored.totalPointsAwarded * tierMultiplier),
+    awayClub: false,
+    nonParticipatingClub: false,
+  };
+}
+
+/** A club counts as participating unless a super_admin has explicitly
+ * cancelled its subscription — 'trialing'/'active'/'past_due'/null all still
+ * count, since only 'canceled' is ever actually set today (see
+ * superAdminCourseCancelSubscription in api/admin/index.ts). */
+export async function isClubParticipating(courseId: string): Promise<boolean> {
+  const rows = (await sql`select subscription_status from courses where id = ${courseId}`) as Array<{
+    subscription_status: string | null;
+  }>;
+  return rows[0]?.subscription_status !== 'canceled';
 }
