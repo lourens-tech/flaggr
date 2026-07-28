@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { sql } from '../_lib/db';
-import { requireAuthedUser } from '../_lib/auth';
+import { hashPassword, requireAuthedUser, verifyPassword } from '../_lib/auth';
 import { HttpError, withErrorHandling } from '../_lib/http';
 import { sendEmail } from '../_lib/email';
 import { logAdClick } from '../_lib/ads';
@@ -77,6 +77,11 @@ interface SupportTicketReplyBody {
 
 interface ThemePreferenceBody {
   preference?: string;
+}
+
+interface ChangePasswordBody {
+  currentPassword?: string;
+  newPassword?: string;
 }
 
 function escapeHtml(s: string): string {
@@ -301,6 +306,21 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       throw new HttpError(400, 'token and a valid platform are required');
     }
     await registerPushToken(authed.id, token, platform);
+    res.status(200).json({ ok: true });
+    return;
+  }
+
+  if (action === 'changePassword') {
+    const { currentPassword, newPassword } = req.body as ChangePasswordBody;
+    if (!currentPassword || !newPassword || newPassword.length < 8) {
+      throw new HttpError(400, 'Current password and a new password (min. 8 characters) are required');
+    }
+    const rows = (await sql`select password_hash from users where id = ${authed.id}`) as Array<{ password_hash: string }>;
+    if (!rows[0] || !(await verifyPassword(currentPassword, rows[0].password_hash))) {
+      throw new HttpError(401, 'Current password is incorrect');
+    }
+    const newHash = await hashPassword(newPassword);
+    await sql`update users set password_hash = ${newHash} where id = ${authed.id}`;
     res.status(200).json({ ok: true });
     return;
   }

@@ -84,6 +84,7 @@ interface AppContextValue extends AppState {
   updateAvatar: (imageBase64: string) => Promise<void>;
   updateProfile: (payload: UpdateProfilePayload) => Promise<void>;
   updateThemePreference: (preference: ThemePreference) => Promise<void>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   changeHomeClub: (courseId: string) => Promise<void>;
   sendContactEnquiry: (payload: ContactEnquiryPayload) => Promise<string>;
   listMyEnquiries: () => Promise<MyEnquirySummary[]>;
@@ -249,6 +250,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     await theme.setPreference(res.themePreference);
   };
 
+  const changePassword = async (currentPassword: string, newPassword: string) => {
+    await api.changePassword(currentPassword, newPassword);
+  };
+
   const sendContactEnquiry = async (payload: ContactEnquiryPayload): Promise<string> => {
     const res = await api.sendContactEnquiry(payload);
     return res.enquiryId;
@@ -326,6 +331,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     updateAvatar,
     updateProfile,
     updateThemePreference,
+    changePassword,
     changeHomeClub,
     sendContactEnquiry,
     listMyEnquiries,

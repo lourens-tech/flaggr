@@ -24,6 +24,8 @@ import { api, ApiError, type Course } from '../../api/client';
 import { AvatarPermissionError, pickAndResizeAvatar } from '../../utils/pickAvatar';
 import { showAlert } from '../../utils/alert';
 import { ThemeToggleRow } from '../../components/common/ThemeToggleRow';
+import { TextField } from '../../components/common/TextField';
+import { PillButton } from '../../components/common/PillButton';
 import type { ThemePreference } from '../../context/ThemeContext';
 import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
 import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
@@ -70,13 +72,17 @@ function LinkRow({
 export function MemberProfileScreen({ navigation }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const { user, unreadNotificationCount, logout, updateAvatar, changeHomeClub, updateThemePreference } = useApp();
+  const { user, unreadNotificationCount, logout, updateAvatar, changeHomeClub, updateThemePreference, changePassword } =
+    useApp();
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [savingTheme, setSavingTheme] = useState(false);
   const [clubPickerOpen, setClubPickerOpen] = useState(false);
   const [courses, setCourses] = useState<Course[]>([]);
   const [loadingCourses, setLoadingCourses] = useState(false);
   const [changingClub, setChangingClub] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [changingPassword, setChangingPassword] = useState(false);
 
   const openClubPicker = async () => {
     setClubPickerOpen(true);
@@ -142,6 +148,25 @@ export function MemberProfileScreen({ navigation }: Props) {
       showAlert('Couldn’t update appearance', message);
     } finally {
       setSavingTheme(false);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    if (!currentPassword || newPassword.length < 8) {
+      showAlert('Missing info', 'Enter your current password and a new password (min. 8 characters).');
+      return;
+    }
+    setChangingPassword(true);
+    try {
+      await changePassword(currentPassword, newPassword);
+      setCurrentPassword('');
+      setNewPassword('');
+      showAlert('Password changed', 'Use your new password next time you log in.');
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : 'Something went wrong. Please try again.';
+      showAlert('Couldn’t change password', message);
+    } finally {
+      setChangingPassword(false);
     }
   };
 
@@ -259,6 +284,21 @@ export function MemberProfileScreen({ navigation }: Props) {
         <Text style={styles.sectionLabel}>Appearance</Text>
         <View style={[styles.linksCard, { padding: spacing.sm }]}>
           <ThemeToggleRow onChange={handleThemeChange} disabled={savingTheme} />
+        </View>
+
+        <Text style={styles.sectionLabel}>Security</Text>
+        <View style={[styles.linksCard, { padding: spacing.md }]}>
+          <TextField
+            placeholder="Current Password"
+            variant="onLight"
+            isPassword
+            value={currentPassword}
+            onChangeText={setCurrentPassword}
+          />
+          <View style={{ height: spacing.md }} />
+          <TextField placeholder="New Password" variant="onLight" isPassword value={newPassword} onChangeText={setNewPassword} />
+          <View style={{ height: spacing.md }} />
+          <PillButton label="Update Password" variant="outline" onPress={handleChangePassword} loading={changingPassword} />
         </View>
 
         <Text style={styles.sectionLabel}>Legal</Text>

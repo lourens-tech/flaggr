@@ -232,4 +232,7 @@ export const api = {
       method: 'POST',
       body: { preference },
     }),
+
+  changePassword: (currentPassword: string, newPassword: string) =>
+    request<{ ok: boolean }>('/profile?action=changePassword', { method: 'POST', body: { currentPassword, newPassword } }),
 };
