@@ -343,6 +343,8 @@ const SUPER_ADMIN_ALLOWED_ACTIONS = new Set([
   'supportAgentReply',
   'supportTicketStatus',
   'supportTicketPriority',
+  'supportTicketClaim',
+  'supportTicketUnassign',
   'supportAgents',
   'supportAgentCreate',
   'supportAgentResetPassword',
@@ -365,6 +367,8 @@ const SUPPORT_AGENT_ALLOWED_ACTIONS = new Set([
   'supportAgentReply',
   'supportTicketStatus',
   'supportTicketPriority',
+  'supportTicketClaim',
+  'supportTicketUnassign',
 ]);
 
 function isDuplicateKeyError(err: unknown): boolean {
@@ -1047,20 +1051,30 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     }
 
     // --- Support Centre inbox — shared by super_admin and support_agent;
-    // any agent can pick up and reply to any ticket, no per-ticket
-    // assignment (same "anyone on the team can answer" model the existing
-    // per-club enquiries inbox already uses). ---
+    // any agent can pick up and reply to any ticket. A ticket auto-assigns
+    // to whichever agent first replies to it (see addAgentMessage), or can
+    // be explicitly claimed/released, so two agents don't double-work the
+    // same conversation — but assignment is advisory, not an access
+    // restriction: any agent can still see and reply to any ticket. ---
     if (action === 'supportInbox' && req.method === 'GET') {
       const statusFilter = typeof req.query.status === 'string' ? req.query.status : null;
       const priorityFilter = typeof req.query.priority === 'string' ? req.query.priority : null;
+      const assignedFilter = typeof req.query.assigned === 'string' ? req.query.assigned : null;
       const rows = (await sql`
         select t.id, t.requester_type, t.requester_name, t.requester_email, t.subject, t.status, t.priority,
-               t.created_at, t.updated_at,
+               t.created_at, t.updated_at, t.assigned_agent_id,
+               a.first_name as assigned_agent_first_name, a.last_name as assigned_agent_last_name,
                (select body from support_ticket_messages m where m.ticket_id = t.id order by m.created_at desc limit 1) as last_message,
                exists(select 1 from support_ticket_messages m where m.ticket_id = t.id and m.read_by_agent = false) as has_unread
         from support_tickets t
+        left join admins a on a.id = t.assigned_agent_id
         where (${statusFilter}::text is null or t.status = ${statusFilter})
           and (${priorityFilter}::text is null or t.priority = ${priorityFilter})
+          and (
+            ${assignedFilter}::text is null
+            or (${assignedFilter}::text = 'mine' and t.assigned_agent_id = ${authedAdmin.id})
+            or (${assignedFilter}::text = 'unassigned' and t.assigned_agent_id is null)
+          )
         order by
           case t.priority when 'urgent' then 0 when 'high' then 1 when 'normal' then 2 else 3 end,
           t.updated_at desc
@@ -1074,6 +1088,9 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         priority: string;
         created_at: string;
         updated_at: string;
+        assigned_agent_id: string | null;
+        assigned_agent_first_name: string | null;
+        assigned_agent_last_name: string | null;
         last_message: string | null;
         has_unread: boolean;
       }>;
@@ -1090,6 +1107,10 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
           updatedAt: r.updated_at,
           lastMessage: r.last_message,
           hasUnread: r.has_unread,
+          assignedAgentId: r.assigned_agent_id,
+          assignedAgentName: r.assigned_agent_first_name
+            ? `${r.assigned_agent_first_name} ${r.assigned_agent_last_name}`
+            : null,
         })),
       );
       return;
@@ -1098,8 +1119,11 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     if (action === 'supportInboxThread' && req.method === 'GET') {
       const id = typeof req.query.id === 'string' ? req.query.id : '';
       const rows = (await sql`
-        select id, requester_type, requester_name, requester_email, subject, status, priority
-        from support_tickets where id = ${id}
+        select t.id, t.requester_type, t.requester_name, t.requester_email, t.subject, t.status, t.priority,
+               t.assigned_agent_id, a.first_name as assigned_agent_first_name, a.last_name as assigned_agent_last_name
+        from support_tickets t
+        left join admins a on a.id = t.assigned_agent_id
+        where t.id = ${id}
       `) as Array<{
         id: string;
         requester_type: string;
@@ -1108,6 +1132,9 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         subject: string;
         status: string;
         priority: string;
+        assigned_agent_id: string | null;
+        assigned_agent_first_name: string | null;
+        assigned_agent_last_name: string | null;
       }>;
       if (rows.length === 0) throw new HttpError(404, 'Ticket not found');
       await markThreadReadByAgent(id);
@@ -1120,6 +1147,8 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         subject: t.subject,
         status: t.status,
         priority: t.priority,
+        assignedAgentId: t.assigned_agent_id,
+        assignedAgentName: t.assigned_agent_first_name ? `${t.assigned_agent_first_name} ${t.assigned_agent_last_name}` : null,
         messages: await listSupportTicketMessages(id),
       });
       return;
@@ -1155,6 +1184,32 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         throw new HttpError(400, 'ticketId and a valid priority are required');
       }
       await sql`update support_tickets set priority = ${priority} where id = ${ticketId}`;
+      res.status(200).json({ ok: true });
+      return;
+    }
+
+    // Explicit claim — lets an agent pick up a ticket before replying (so
+    // teammates see it's being worked on right away), on top of the
+    // implicit claim-by-replying in addAgentMessage. Only takes an
+    // unassigned ticket — use supportTicketUnassign first to reassign one
+    // that's already claimed by someone else.
+    if (action === 'supportTicketClaim') {
+      const { ticketId } = req.body as { ticketId?: string };
+      if (!ticketId) throw new HttpError(400, 'ticketId is required');
+      const claimed = (await sql`
+        update support_tickets set assigned_agent_id = ${authedAdmin.id}
+        where id = ${ticketId} and assigned_agent_id is null
+        returning id
+      `) as Array<{ id: string }>;
+      if (claimed.length === 0) throw new HttpError(409, 'This ticket is already assigned to someone else');
+      res.status(200).json({ ok: true });
+      return;
+    }
+
+    if (action === 'supportTicketUnassign') {
+      const { ticketId } = req.body as { ticketId?: string };
+      if (!ticketId) throw new HttpError(400, 'ticketId is required');
+      await sql`update support_tickets set assigned_agent_id = null where id = ${ticketId}`;
       res.status(200).json({ ok: true });
       return;
     }

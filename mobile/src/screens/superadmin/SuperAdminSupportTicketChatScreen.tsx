@@ -53,13 +53,22 @@ export function SuperAdminSupportTicketChatScreen({ route }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { ticketId } = route.params;
-  const { getSupportInboxThread, replyToSupportInboxTicket, setSupportTicketStatus, setSupportTicketPriority } = useAdmin();
+  const {
+    admin,
+    getSupportInboxThread,
+    replyToSupportInboxTicket,
+    setSupportTicketStatus,
+    setSupportTicketPriority,
+    claimSupportTicket,
+    unassignSupportTicket,
+  } = useAdmin();
   const [thread, setThread] = useState<SupportInboxTicketThread | null>(null);
   const [loading, setLoading] = useState(true);
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [updatingPriority, setUpdatingPriority] = useState(false);
+  const [updatingAssignment, setUpdatingAssignment] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
 
   const load = useCallback(async () => {
@@ -130,6 +139,46 @@ export function SuperAdminSupportTicketChatScreen({ route }: Props) {
     }
   };
 
+  const handleClaim = async () => {
+    setUpdatingAssignment(true);
+    try {
+      await claimSupportTicket(ticketId);
+      setThread((prev) => (prev ? { ...prev, assignedAgentId: admin.id, assignedAgentName: `${admin.firstName} ${admin.lastName}` } : prev));
+    } catch (err) {
+      const message = err instanceof AdminApiError ? err.message : 'Something went wrong. Please try again.';
+      showAlert('Couldn’t claim ticket', message);
+    } finally {
+      setUpdatingAssignment(false);
+    }
+  };
+
+  const handleUnassign = async () => {
+    setUpdatingAssignment(true);
+    try {
+      await unassignSupportTicket(ticketId);
+      setThread((prev) => (prev ? { ...prev, assignedAgentId: null, assignedAgentName: null } : prev));
+    } catch (err) {
+      const message = err instanceof AdminApiError ? err.message : 'Something went wrong. Please try again.';
+      showAlert('Couldn’t release ticket', message);
+    } finally {
+      setUpdatingAssignment(false);
+    }
+  };
+
+  const handleTakeOver = async () => {
+    setUpdatingAssignment(true);
+    try {
+      await unassignSupportTicket(ticketId);
+      await claimSupportTicket(ticketId);
+      setThread((prev) => (prev ? { ...prev, assignedAgentId: admin.id, assignedAgentName: `${admin.firstName} ${admin.lastName}` } : prev));
+    } catch (err) {
+      const message = err instanceof AdminApiError ? err.message : 'Something went wrong. Please try again.';
+      showAlert('Couldn’t take over ticket', message);
+    } finally {
+      setUpdatingAssignment(false);
+    }
+  };
+
   return (
     <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <StatusBar barStyle="light-content" />
@@ -145,6 +194,31 @@ export function SuperAdminSupportTicketChatScreen({ route }: Props) {
             <Text style={styles.requesterName}>{thread.requesterName}</Text>
             <Text style={styles.requesterEmail}>{thread.requesterEmail}</Text>
             <Text style={styles.requesterType}>{REQUESTER_LABEL[thread.requesterType] ?? thread.requesterType}</Text>
+          </View>
+
+          <View style={styles.assignmentRow}>
+            <Text style={styles.assignmentText}>
+              {thread.assignedAgentId === admin.id
+                ? 'Assigned to you'
+                : thread.assignedAgentName
+                  ? `Assigned to ${thread.assignedAgentName}`
+                  : 'Unassigned'}
+            </Text>
+            {updatingAssignment ? (
+              <ActivityIndicator color={colors.clubGreen} size="small" />
+            ) : thread.assignedAgentId === null ? (
+              <TouchableOpacity onPress={handleClaim}>
+                <Text style={styles.assignmentAction}>Claim</Text>
+              </TouchableOpacity>
+            ) : thread.assignedAgentId === admin.id ? (
+              <TouchableOpacity onPress={handleUnassign}>
+                <Text style={styles.assignmentAction}>Release</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity onPress={handleTakeOver}>
+                <Text style={styles.assignmentAction}>Take Over</Text>
+              </TouchableOpacity>
+            )}
           </View>
 
           <View style={styles.statusRow}>
@@ -220,6 +294,15 @@ function createStyles(colors: ThemeColors) {
   requesterName: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.textPrimary },
   requesterEmail: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary, marginTop: 2 },
   requesterType: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.tiny, color: colors.clubGreen, marginTop: 2 },
+  assignmentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: screenPadding,
+    paddingTop: spacing.xs,
+  },
+  assignmentText: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary },
+  assignmentAction: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.tiny, color: colors.clubGreen },
   priorityLabel: {
     fontFamily: fontFamily.bodySemiBold,
     fontSize: fontSize.tiny,

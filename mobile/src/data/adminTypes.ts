@@ -331,6 +331,8 @@ export interface SupportInboxTicket extends SupportTicketSummary {
   requesterName: string;
   requesterEmail: string;
   priority: SupportTicketPriority;
+  assignedAgentId: string | null;
+  assignedAgentName: string | null;
 }
 
 export interface SupportInboxTicketThread extends SupportTicketThread {
@@ -338,6 +340,8 @@ export interface SupportInboxTicketThread extends SupportTicketThread {
   requesterName: string;
   requesterEmail: string;
   priority: SupportTicketPriority;
+  assignedAgentId: string | null;
+  assignedAgentName: string | null;
 }
 
 export interface SupportAgent {

@@ -422,9 +422,9 @@ export const adminApi = {
     request<SupportTicketMessage[]>('?action=supportTicketReply', { method: 'POST', body: { ticketId, message } }),
 
   // --- Support Centre: agent side (super_admin or support_agent) ---
-  supportInbox: (status?: SupportTicketStatus, priority?: SupportTicketPriority) =>
+  supportInbox: (status?: SupportTicketStatus, priority?: SupportTicketPriority, assigned?: 'mine' | 'unassigned') =>
     request<SupportInboxTicket[]>(
-      `?action=supportInbox${status ? `&status=${status}` : ''}${priority ? `&priority=${priority}` : ''}`,
+      `?action=supportInbox${status ? `&status=${status}` : ''}${priority ? `&priority=${priority}` : ''}${assigned ? `&assigned=${assigned}` : ''}`,
     ),
 
   supportInboxThread: (id: string) => request<SupportInboxTicketThread>(`?action=supportInboxThread&id=${id}`),
@@ -434,6 +434,12 @@ export const adminApi = {
 
   setSupportTicketStatus: (ticketId: string, status: SupportTicketStatus) =>
     request<{ ok: boolean }>('?action=supportTicketStatus', { method: 'POST', body: { ticketId, status } }),
+
+  claimSupportTicket: (ticketId: string) =>
+    request<{ ok: boolean }>('?action=supportTicketClaim', { method: 'POST', body: { ticketId } }),
+
+  unassignSupportTicket: (ticketId: string) =>
+    request<{ ok: boolean }>('?action=supportTicketUnassign', { method: 'POST', body: { ticketId } }),
 
   setSupportTicketPriority: (ticketId: string, priority: SupportTicketPriority) =>
     request<{ ok: boolean }>('?action=supportTicketPriority', { method: 'POST', body: { ticketId, priority } }),

@@ -80,7 +80,10 @@ export async function addRequesterMessage(ticketId: string, body: string): Promi
 
 /** A support agent's (or super_admin's) reply. Auto-advances a still-'open'
  * thread to 'in_progress' — replying to it is exactly what that transition
- * means. Doesn't touch an already-'resolved' or manually-set status otherwise. */
+ * means. Doesn't touch an already-'resolved' or manually-set status otherwise.
+ * Also auto-claims an unassigned ticket for the replying agent (same idea as
+ * the status advance: replying to it is picking it up), without stealing it
+ * from whoever already has it. */
 export async function addAgentMessage(ticketId: string, agentId: string, body: string): Promise<void> {
   await sql`
     insert into support_ticket_messages (ticket_id, sender_type, sender_admin_id, body, read_by_requester, read_by_agent)
@@ -88,7 +91,9 @@ export async function addAgentMessage(ticketId: string, agentId: string, body: s
   `;
   await sql`
     update support_tickets
-    set updated_at = now(), status = case when status = 'open' then 'in_progress' else status end
+    set updated_at = now(),
+        status = case when status = 'open' then 'in_progress' else status end,
+        assigned_agent_id = coalesce(assigned_agent_id, ${agentId})
     where id = ${ticketId}
   `;
 }

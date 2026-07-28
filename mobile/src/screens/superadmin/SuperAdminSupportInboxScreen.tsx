@@ -31,6 +31,12 @@ const PRIORITY_FILTERS: Array<{ label: string; value: SupportTicketPriority | 'a
   { label: 'Low', value: 'low' },
 ];
 
+const ASSIGNED_FILTERS: Array<{ label: string; value: 'all' | 'mine' | 'unassigned' }> = [
+  { label: 'Everyone', value: 'all' },
+  { label: 'Mine', value: 'mine' },
+  { label: 'Unassigned', value: 'unassigned' },
+];
+
 const REQUESTER_LABEL: Record<string, string> = {
   member: 'Member',
   course_admin: 'Course Admin',
@@ -50,21 +56,25 @@ function relativeTime(iso: string): string {
 
 // Every support ticket across every club — a member/course_admin/staff's
 // ticket to the Flagrr team itself, answerable by any super_admin or
-// support_agent (no per-ticket assignment).
+// support_agent. A ticket auto-assigns to whoever first replies (or can be
+// explicitly claimed/released — see the ticket chat screen) so two agents
+// don't double-work the same conversation, but any agent can still see and
+// reply to any ticket regardless of who it's assigned to.
 export function SuperAdminSupportInboxScreen({ navigation }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const { getSupportInbox } = useAdmin();
+  const { admin, getSupportInbox } = useAdmin();
   const [filter, setFilter] = useState<SupportTicketStatus | 'all'>('all');
   const [priorityFilter, setPriorityFilter] = useState<SupportTicketPriority | 'all'>('all');
+  const [assignedFilter, setAssignedFilter] = useState<'all' | 'mine' | 'unassigned'>('all');
   const [tickets, setTickets] = useState<SupportInboxTicket[]>([]);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(
-    async (f: SupportTicketStatus | 'all', p: SupportTicketPriority | 'all') => {
+    async (f: SupportTicketStatus | 'all', p: SupportTicketPriority | 'all', a: 'all' | 'mine' | 'unassigned') => {
       setLoading(true);
       try {
-        setTickets(await getSupportInbox(f === 'all' ? undefined : f, p === 'all' ? undefined : p));
+        setTickets(await getSupportInbox(f === 'all' ? undefined : f, p === 'all' ? undefined : p, a === 'all' ? undefined : a));
       } finally {
         setLoading(false);
       }
@@ -74,9 +84,9 @@ export function SuperAdminSupportInboxScreen({ navigation }: Props) {
 
   useFocusEffect(
     useCallback(() => {
-      load(filter, priorityFilter).catch(() => {});
+      load(filter, priorityFilter, assignedFilter).catch(() => {});
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [filter, priorityFilter]),
+    }, [filter, priorityFilter, assignedFilter]),
   );
 
   const renderItem = ({ item }: { item: SupportInboxTicket }) => {
@@ -97,7 +107,10 @@ export function SuperAdminSupportInboxScreen({ navigation }: Props) {
             {item.requesterName} · {REQUESTER_LABEL[item.requesterType] ?? item.requesterType}
           </Text>
           <Text style={styles.lastMessage} numberOfLines={1}>{item.lastMessage ?? '—'}</Text>
-          <Text style={styles.meta}>{relativeTime(item.updatedAt)}</Text>
+          <Text style={styles.meta}>
+            {relativeTime(item.updatedAt)} ·{' '}
+            {item.assignedAgentId === admin.id ? 'Assigned to you' : item.assignedAgentName ? `Assigned to ${item.assignedAgentName}` : 'Unassigned'}
+          </Text>
         </View>
         <View style={{ gap: 4, alignItems: 'flex-end' }}>
           {item.priority !== 'normal' ? (
@@ -143,6 +156,18 @@ export function SuperAdminSupportInboxScreen({ navigation }: Props) {
             style={[styles.filterPill, priorityFilter === f.value && styles.filterPillActive]}
           >
             <Text style={[styles.filterText, priorityFilter === f.value && styles.filterTextActive]}>{f.label}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      <View style={styles.filterRow}>
+        {ASSIGNED_FILTERS.map((f) => (
+          <TouchableOpacity
+            key={f.value}
+            onPress={() => setAssignedFilter(f.value)}
+            style={[styles.filterPill, assignedFilter === f.value && styles.filterPillActive]}
+          >
+            <Text style={[styles.filterText, assignedFilter === f.value && styles.filterTextActive]}>{f.label}</Text>
           </TouchableOpacity>
         ))}
       </View>
