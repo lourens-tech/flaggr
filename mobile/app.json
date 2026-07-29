@@ -9,10 +9,12 @@
     "scheme": "flagrr",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.flagrr.loyalty"
+      "bundleIdentifier": "com.flagrr.loyalty",
+      "buildNumber": "1"
     },
     "android": {
       "package": "com.flagrr.loyalty",
+      "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#1F4234",
         "foregroundImage": "./assets/android-icon-foreground.png",

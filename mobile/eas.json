@@ -1,0 +1,27 @@
+{
+  "cli": {
+    "version": ">= 13.2.3",
+    "appVersionSource": "local"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal"
+    },
+    "preview": {
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_STORE_BUILD": "1"
+      }
+    },
+    "production": {
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_STORE_BUILD": "1"
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}
