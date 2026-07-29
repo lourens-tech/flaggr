@@ -187,7 +187,7 @@ export function MemberProfileScreen({ navigation }: Props) {
     try {
       const downloaded = await exportMyData();
       if (!downloaded) {
-        showAlert('Not available here', 'Data export is currently only available from the web app.');
+        showAlert('Not available here', 'Data export isn’t available on this device.');
       }
     } catch (err) {
       const message = err instanceof ApiError ? err.message : 'Something went wrong. Please try again.';

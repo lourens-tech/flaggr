@@ -1,5 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
+import { Directory, File, Paths } from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 import type {
   ActivityEntry,
   Ad,
@@ -252,13 +254,12 @@ export const api = {
     request<{ ok: boolean }>('/profile?action=deleteAccount', { method: 'POST', body: { password } }),
 };
 
-/** Downloads the member's own data export as a JSON file. Only works on the
- * web build (the only build that exists today) — triggers a browser file
- * download via a Blob + temporary anchor, since a plain <a href> can't carry
- * the Authorization header. Mirrors adminClient.ts's downloadCsvReport. */
+/** Downloads the member's own data export as a JSON file. On web this
+ * triggers a browser file download via a Blob + temporary anchor, since a
+ * plain <a href> can't carry the Authorization header. On native, the file
+ * is written to cache and handed to the system share sheet so the member can
+ * save or send it. Mirrors adminClient.ts's downloadCsvReport. */
 export async function downloadMyDataExport(): Promise<boolean> {
-  if (Platform.OS !== 'web') return false;
-
   const token = await getToken();
   const headers: Record<string, string> = {};
   if (token) headers.Authorization = `Bearer ${token}`;
@@ -267,14 +268,26 @@ export async function downloadMyDataExport(): Promise<boolean> {
   if (!res.ok) {
     throw new ApiError(res.status, 'Could not generate your data export');
   }
-  const blob = await res.blob();
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = 'flagrr-my-data.json';
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+
+  if (Platform.OS === 'web') {
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'flagrr-my-data.json';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    return true;
+  }
+
+  if (!(await Sharing.isAvailableAsync())) return false;
+  const text = await res.text();
+  const file = new File(new Directory(Paths.cache), 'flagrr-my-data.json');
+  if (file.exists) file.delete();
+  file.create();
+  file.write(text);
+  await Sharing.shareAsync(file.uri, { mimeType: 'application/json', dialogTitle: 'Your Flagrr Data' });
   return true;
 }
