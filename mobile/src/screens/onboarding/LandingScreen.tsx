@@ -5,6 +5,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from '../../navigation/types';
 import { FlagrrLogo } from '../../components/common/FlagrrLogo';
 import { PillButton } from '../../components/common/PillButton';
+import { IS_STORE_BUILD } from '../../config/buildConfig';
 import { ONBOARDING_BACKGROUNDS, fontFamily, screenPadding, spacing } from '../../theme';
 import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 
@@ -47,13 +48,17 @@ export function LandingScreen({ navigation }: Props) {
 
         <View style={styles.footer}>
           <PillButton label="Get Started" onPress={() => navigation.navigate('SignUpStep1')} />
-          <View style={{ height: spacing.md }} />
-          <PillButton
-            label="Golf Course Admin Login"
-            icon="business-outline"
-            variant="outlineLight"
-            onPress={() => navigation.navigate('AdminLogin')}
-          />
+          {IS_STORE_BUILD ? null : (
+            <>
+              <View style={{ height: spacing.md }} />
+              <PillButton
+                label="Golf Course Admin Login"
+                icon="business-outline"
+                variant="outlineLight"
+                onPress={() => navigation.navigate('AdminLogin')}
+              />
+            </>
+          )}
           <TouchableOpacity onPress={() => navigation.navigate('Login')} style={{ marginTop: spacing.lg }}>
             <Text style={styles.loginLink}>I already have an account</Text>
           </TouchableOpacity>

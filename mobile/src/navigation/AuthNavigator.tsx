@@ -8,6 +8,7 @@ import { SignUpStep2Screen } from '../screens/onboarding/SignUpStep2Screen';
 import { AdminLoginScreen } from '../screens/admin/AdminLoginScreen';
 import { ForgotPasswordScreen } from '../screens/onboarding/ForgotPasswordScreen';
 import { AdminForgotPasswordScreen } from '../screens/admin/AdminForgotPasswordScreen';
+import { IS_STORE_BUILD } from '../config/buildConfig';
 
 const Stack = createNativeStackNavigator<AuthStackParamList>();
 
@@ -16,9 +17,13 @@ export function AuthNavigator() {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="Landing" component={LandingScreen} />
       <Stack.Screen name="Login" component={LoginScreen} />
-      <Stack.Screen name="AdminLogin" component={AdminLoginScreen} />
+      {IS_STORE_BUILD ? null : (
+        <>
+          <Stack.Screen name="AdminLogin" component={AdminLoginScreen} />
+          <Stack.Screen name="AdminForgotPassword" component={AdminForgotPasswordScreen} />
+        </>
+      )}
       <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
-      <Stack.Screen name="AdminForgotPassword" component={AdminForgotPasswordScreen} />
       <Stack.Screen name="SignUpStep1" component={SignUpStep1Screen} />
       <Stack.Screen name="SignUpStep2" component={SignUpStep2Screen} />
     </Stack.Navigator>
