@@ -142,12 +142,15 @@ export interface ScannedMerchant {
   courseId: string | null;
 }
 
-// Result of POST /api/receipts/scan — either a duplicate rejection or a
-// full structured preview of what will be awarded if confirmed.
+// Result of POST /api/receipts/scan — a duplicate rejection, a rejection
+// because nothing receipt-shaped (no line items, no total) was found in the
+// photo, or a full structured preview of what will be awarded if confirmed.
 export type ScanResult =
   | { isDuplicate: true; reason: string }
+  | { isDuplicate: false; invalid: true; reason: string }
   | {
       isDuplicate: false;
+      invalid: false;
       ocrConfidence: number;
       merchantNameGuess: string | null;
       merchant: ScannedMerchant | null;

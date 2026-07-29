@@ -56,6 +56,10 @@ export function ScanReceiptScreen({ navigation }: Props) {
         showAlert('Already redeemed', result.reason);
         return;
       }
+      if (result.invalid) {
+        showAlert('This is not a valid slip', 'Please scan a valid slip.');
+        return;
+      }
       navigation.navigate('ReviewReceipt', { imageUri, imageBase64, scanResult: result });
     } catch (err) {
       const message = err instanceof ApiError ? err.message : 'Something went wrong scanning that receipt.';
