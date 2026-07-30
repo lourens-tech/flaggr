@@ -14,7 +14,7 @@ import {
 } from '../_lib/payfast';
 
 const APP_URL = process.env.APP_URL || 'https://flagrr-loyalty.vercel.app';
-const MONTHLY_SUBSCRIPTION_AMOUNT = 7199.0;
+const MONTHLY_SUBSCRIPTION_AMOUNT = 5299.0;
 
 // Grace period on a missed/late renewal: club keeps working while we chase
 // it, three reminder emails at these day offsets, full lockout at day 30 —
