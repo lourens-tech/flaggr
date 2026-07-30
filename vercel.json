@@ -8,5 +8,11 @@
       "maxDuration": 60,
       "includeFiles": "node_modules/tesseract.js-core/**"
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/courses?action=payfastGracePeriodCheck",
+      "schedule": "0 6 * * *"
+    }
+  ]
 }
