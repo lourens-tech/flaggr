@@ -237,10 +237,11 @@ interface CourseAdminInviteBody {
 
 // A club can have at most this many *active* course_admin accounts — a
 // course_admin can invite up to that many themselves (see
-// 'courseAdminInvite'), and can revoke/reactivate a fellow course_admin at
-// their own club to free up or restore a slot ('courseAdminRevoke'/
-// 'courseAdminReactivate'). Password reset/delete stay super_admin-only, see
-// SuperAdminCourseAdminsScreen.
+// 'courseAdminInvite'), and can revoke/reactivate/delete a fellow
+// course_admin at their own club ('courseAdminRevoke'/
+// 'courseAdminReactivate'/'courseAdminDelete') — delete permanently frees
+// their email for reuse, unlike revoke. Password reset stays
+// super_admin-only, see SuperAdminCourseAdminsScreen.
 const MAX_COURSE_ADMINS_PER_CLUB = 2;
 
 interface StaffUpdateBody {
@@ -2840,9 +2841,10 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
 
   // course_admin-only (not in STAFF_ALLOWED_ACTIONS) — lets a course_admin
   // manage the (at most MAX_COURSE_ADMINS_PER_CLUB active) admin accounts for
-  // their own club: invite, and revoke/reactivate a fellow course_admin to
-  // free up or restore a slot. Password reset/delete stay super_admin-only,
-  // see superAdminCourseAdmin* actions above.
+  // their own club: invite, revoke/reactivate a fellow course_admin to free
+  // up or restore a slot, or delete one outright (permanently freeing their
+  // email for reuse). Password reset stays super_admin-only, see
+  // superAdminCourseAdmin* actions above.
   if (action === 'courseAdmins' && req.method === 'GET') {
     const rows = (await sql`
       select id, first_name, last_name, email, revoked_at
@@ -2942,6 +2944,18 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       returning id
     `) as Array<{ id: string }>;
     if (updated.length === 0) throw new HttpError(404, 'Admin not found');
+    res.status(200).json({ ok: true });
+    return;
+  }
+
+  if (action === 'courseAdminDelete') {
+    const id = (req.body as CourseAdminIdBody).id;
+    if (!id) throw new HttpError(400, 'id is required');
+    if (id === authed.id) throw new HttpError(400, 'You can’t delete your own account — ask a fellow admin to do it');
+    const deleted = (await sql`
+      delete from admins where id = ${id} and course_id = ${courseId} and role = 'course_admin' returning id
+    `) as Array<{ id: string }>;
+    if (deleted.length === 0) throw new HttpError(404, 'Admin not found');
     res.status(200).json({ ok: true });
     return;
   }

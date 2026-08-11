@@ -260,6 +260,8 @@ export const adminApi = {
   reactivateCourseAdmin: (id: string) =>
     request<{ ok: boolean }>('?action=courseAdminReactivate', { method: 'POST', body: { id } }),
 
+  deleteCourseAdmin: (id: string) => request<{ ok: boolean }>('?action=courseAdminDelete', { method: 'POST', body: { id } }),
+
   staffList: () => request<AdminStaff[]>('?action=staffList'),
 
   createStaff: (payload: StaffCreatePayload) =>

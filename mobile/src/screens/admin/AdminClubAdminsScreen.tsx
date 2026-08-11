@@ -26,7 +26,7 @@ const MAX_CLUB_ADMINS = 2;
 export function AdminClubAdminsScreen({ navigation }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const { admin, getClubAdmins, inviteClubAdmin, revokeClubAdmin, reactivateClubAdmin } = useAdmin();
+  const { admin, getClubAdmins, inviteClubAdmin, revokeClubAdmin, reactivateClubAdmin, deleteClubAdmin } = useAdmin();
   const [admins, setAdmins] = useState<ClubAdminSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [firstName, setFirstName] = useState('');
@@ -116,6 +116,32 @@ export function AdminClubAdminsScreen({ navigation }: Props) {
     );
   };
 
+  const handleDelete = (item: ClubAdminSummary) => {
+    showAlert(
+      'Delete this admin?',
+      `${item.firstName} ${item.lastName} will permanently lose access and their account will be deleted. Their email will be free to invite again.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            setBusyId(item.id);
+            try {
+              await deleteClubAdmin(item.id);
+              await load();
+            } catch (err) {
+              const message = err instanceof AdminApiError ? err.message : 'Something went wrong. Please try again.';
+              showAlert('Couldn’t delete admin', message);
+            } finally {
+              setBusyId(null);
+            }
+          },
+        },
+      ],
+    );
+  };
+
   const canInviteMore = admins.filter((a) => !a.revoked).length < MAX_CLUB_ADMINS;
 
   return (
@@ -143,18 +169,28 @@ export function AdminClubAdminsScreen({ navigation }: Props) {
                 {a.id === admin.id ? null : busyId === a.id ? (
                   <ActivityIndicator color={colors.clubGreen} size="small" />
                 ) : (
-                  <TouchableOpacity
-                    onPress={() => handleToggleAccess(a)}
-                    hitSlop={8}
-                    accessibilityRole="button"
-                    accessibilityLabel={a.revoked ? `Reactivate ${a.firstName} ${a.lastName}` : `Revoke ${a.firstName} ${a.lastName}`}
-                  >
-                    <Ionicons
-                      name={a.revoked ? 'lock-open-outline' : 'lock-closed-outline'}
-                      size={20}
-                      color={a.revoked ? colors.clubGreen : colors.negative}
-                    />
-                  </TouchableOpacity>
+                  <View style={styles.cardActions}>
+                    <TouchableOpacity
+                      onPress={() => handleToggleAccess(a)}
+                      hitSlop={8}
+                      accessibilityRole="button"
+                      accessibilityLabel={a.revoked ? `Reactivate ${a.firstName} ${a.lastName}` : `Revoke ${a.firstName} ${a.lastName}`}
+                    >
+                      <Ionicons
+                        name={a.revoked ? 'lock-open-outline' : 'lock-closed-outline'}
+                        size={20}
+                        color={a.revoked ? colors.clubGreen : colors.negative}
+                      />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => handleDelete(a)}
+                      hitSlop={8}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Delete ${a.firstName} ${a.lastName}`}
+                    >
+                      <Ionicons name="trash-outline" size={20} color={colors.negative} />
+                    </TouchableOpacity>
+                  </View>
                 )}
               </View>
             ))}
@@ -213,6 +249,7 @@ function createStyles(colors: ThemeColors) {
     },
     cardTitle: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.textPrimary },
     cardEmail: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary, marginTop: 2 },
+    cardActions: { flexDirection: 'row', gap: spacing.md },
     revokedBadge: {
       fontFamily: fontFamily.bodySemiBold,
       fontSize: 10,
