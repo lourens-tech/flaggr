@@ -39,6 +39,7 @@ import { parseMemberRosterFile } from '../_lib/memberRosterFileParsing';
 import { logAudit } from '../_lib/auditLog';
 import { applyFraudConfirmationEffects, describeFraudReasons, resolveFlaggedReceipt } from '../_lib/fraudChecks';
 import { consumePasswordResetCode, issuePasswordResetCode } from '../_lib/passwordReset';
+import { renderBrandedEmailHtml, emailParagraph } from '../_lib/emailTemplate';
 
 // Every action for the course-admin side of the app lives in this one file,
 // dispatched by ?action= (same pattern as api/profile/index.ts and
@@ -54,6 +55,7 @@ const MAX_IMAGE_BASE64_LENGTH = 2_000_000;
 const MAX_ROSTER_FILE_BASE64_LENGTH = 4_000_000;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const CONTACT_EMAIL = process.env.CONTACT_EMAIL || 'lourens@ewosolutions.com';
+const APP_URL = process.env.APP_URL || 'https://flagrr-loyalty.vercel.app';
 
 function escapeHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
@@ -983,12 +985,13 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       await sendEmail({
         to: found.email,
         subject: 'Your Flagrr password reset code',
-        html: `
-          <p>Hi ${escapeHtml(found.first_name)},</p>
-          <p>Use this code to reset your Flagrr password. It expires in 30 minutes.</p>
-          <p style="font-size:28px;font-weight:bold;letter-spacing:4px;">${escapeHtml(code)}</p>
-          <p>If you didn't request this, you can safely ignore this email — your password won't change unless this code is used.</p>
-        `,
+        html: renderBrandedEmailHtml({
+          eyebrow: 'Password reset',
+          heading: `Hi ${found.first_name}, here's your code`,
+          bodyHtml: emailParagraph(`Use this code to reset your Flagrr password. It expires in 30 minutes.`),
+          code,
+          footerNote: `If you didn't request this, you can safely ignore this email — your password won't change unless this code is used.`,
+        }),
       });
     }
     res.status(200).json({ ok: true });
@@ -1302,14 +1305,18 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         await sendEmail({
           to: adminEmail,
           subject: `You've been set up as a course admin for ${courseName} on Flagrr`,
-          html: `
-            <p>Hi ${escapeHtml(adminFirstName)},</p>
-            <p>${escapeHtml(authedAdmin.firstName)} ${escapeHtml(authedAdmin.lastName)} has set you up as the course admin for ${escapeHtml(courseName)} on Flagrr.</p>
-            <p><strong>Login link:</strong> <a href="https://flagrr-loyalty.vercel.app">https://flagrr-loyalty.vercel.app</a></p>
-            <p><strong>Email:</strong> ${escapeHtml(adminEmail)}<br/>
-            <strong>Temporary password:</strong> ${escapeHtml(tempPassword)}</p>
-            <p>You'll be asked to choose your own password the first time you log in.</p>
-          `,
+          html: renderBrandedEmailHtml({
+            eyebrow: 'Welcome to Flagrr',
+            heading: `Hi ${adminFirstName}, you're a course admin`,
+            bodyHtml: emailParagraph(`${escapeHtml(authedAdmin.firstName)} ${escapeHtml(authedAdmin.lastName)} has set you up as the course admin for <strong style="color:#1F1F1F;">${escapeHtml(courseName)}</strong> on Flagrr.`) +
+              emailParagraph(`You'll be asked to choose your own password the first time you log in.`),
+            credentials: [
+              { label: 'Email', value: adminEmail },
+              { label: 'Temporary password', value: tempPassword },
+            ],
+            ctaLabel: 'Log In to Flagrr',
+            ctaUrl: APP_URL,
+          }),
         });
 
         await logAudit({
@@ -1950,14 +1957,18 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         await sendEmail({
           to: email,
           subject: `You've been set up as a course admin for ${targetCourse.name} on Flagrr`,
-          html: `
-            <p>Hi ${escapeHtml(firstName)},</p>
-            <p>${escapeHtml(authedAdmin.firstName)} ${escapeHtml(authedAdmin.lastName)} has set you up as a course admin for ${escapeHtml(targetCourse.name)} on Flagrr.</p>
-            <p><strong>Login link:</strong> <a href="https://flagrr-loyalty.vercel.app">https://flagrr-loyalty.vercel.app</a></p>
-            <p><strong>Email:</strong> ${escapeHtml(email)}<br/>
-            <strong>Temporary password:</strong> ${escapeHtml(tempPassword)}</p>
-            <p>You'll be asked to choose your own password the first time you log in.</p>
-          `,
+          html: renderBrandedEmailHtml({
+            eyebrow: 'Welcome to Flagrr',
+            heading: `Hi ${firstName}, you're a course admin`,
+            bodyHtml: emailParagraph(`${escapeHtml(authedAdmin.firstName)} ${escapeHtml(authedAdmin.lastName)} has set you up as a course admin for <strong style="color:#1F1F1F;">${escapeHtml(targetCourse.name)}</strong> on Flagrr.`) +
+              emailParagraph(`You'll be asked to choose your own password the first time you log in.`),
+            credentials: [
+              { label: 'Email', value: email },
+              { label: 'Temporary password', value: tempPassword },
+            ],
+            ctaLabel: 'Log In to Flagrr',
+            ctaUrl: APP_URL,
+          }),
         });
 
         await logAudit({
@@ -1990,12 +2001,15 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         await sendEmail({
           to: target.email,
           subject: `Your Flagrr password has been reset`,
-          html: `
-            <p>Hi ${escapeHtml(target.first_name)},</p>
-            <p>Your password for ${escapeHtml(targetCourse.name)} on Flagrr has been reset.</p>
-            <p><strong>Temporary password:</strong> ${escapeHtml(tempPassword)}</p>
-            <p>You'll be asked to choose your own password the next time you log in.</p>
-          `,
+          html: renderBrandedEmailHtml({
+            eyebrow: 'Password reset',
+            heading: `Hi ${target.first_name}, your password was reset`,
+            bodyHtml: emailParagraph(`Your password for <strong style="color:#1F1F1F;">${escapeHtml(targetCourse.name)}</strong> on Flagrr has been reset.`) +
+              emailParagraph(`You'll be asked to choose your own password the next time you log in.`),
+            credentials: [{ label: 'Temporary password', value: tempPassword }],
+            ctaLabel: 'Log In to Flagrr',
+            ctaUrl: APP_URL,
+          }),
         });
         await logAudit({
           adminId: authedAdmin.id,
@@ -2260,14 +2274,18 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         await sendEmail({
           to: email,
           subject: `You've been set up as a Flagrr support agent`,
-          html: `
-            <p>Hi ${escapeHtml(firstName)},</p>
-            <p>${escapeHtml(authedAdmin.firstName)} ${escapeHtml(authedAdmin.lastName)} has set you up with support agent access on Flagrr, so you can respond to member and club support tickets.</p>
-            <p><strong>Login link:</strong> <a href="https://flagrr-loyalty.vercel.app">https://flagrr-loyalty.vercel.app</a></p>
-            <p><strong>Email:</strong> ${escapeHtml(email)}<br/>
-            <strong>Temporary password:</strong> ${escapeHtml(tempPassword)}</p>
-            <p>You'll be asked to choose your own password the first time you log in.</p>
-          `,
+          html: renderBrandedEmailHtml({
+            eyebrow: 'Welcome to Flagrr',
+            heading: `Hi ${firstName}, you're a support agent`,
+            bodyHtml: emailParagraph(`${escapeHtml(authedAdmin.firstName)} ${escapeHtml(authedAdmin.lastName)} has set you up with support agent access on Flagrr, so you can respond to member and club support tickets.`) +
+              emailParagraph(`You'll be asked to choose your own password the first time you log in.`),
+            credentials: [
+              { label: 'Email', value: email },
+              { label: 'Temporary password', value: tempPassword },
+            ],
+            ctaLabel: 'Log In to Flagrr',
+            ctaUrl: APP_URL,
+          }),
         });
 
         await logAudit({
@@ -2307,12 +2325,15 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         await sendEmail({
           to: target.email,
           subject: `Your Flagrr password has been reset`,
-          html: `
-            <p>Hi ${escapeHtml(target.first_name)},</p>
-            <p>Your Flagrr support agent password has been reset.</p>
-            <p><strong>Temporary password:</strong> ${escapeHtml(tempPassword)}</p>
-            <p>You'll be asked to choose your own password the next time you log in.</p>
-          `,
+          html: renderBrandedEmailHtml({
+            eyebrow: 'Password reset',
+            heading: `Hi ${target.first_name}, your password was reset`,
+            bodyHtml: emailParagraph(`Your Flagrr support agent password has been reset.`) +
+              emailParagraph(`You'll be asked to choose your own password the next time you log in.`),
+            credentials: [{ label: 'Temporary password', value: tempPassword }],
+            ctaLabel: 'Log In to Flagrr',
+            ctaUrl: APP_URL,
+          }),
         });
         await logAudit({
           adminId: authedAdmin.id,
@@ -2896,14 +2917,18 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     await sendEmail({
       to: email,
       subject: `You've been set up as a course admin for ${course.name} on Flagrr`,
-      html: `
-        <p>Hi ${escapeHtml(firstName)},</p>
-        <p>${escapeHtml(authed.firstName)} ${escapeHtml(authed.lastName)} has set you up as a course admin for ${escapeHtml(course.name)} on Flagrr.</p>
-        <p><strong>Login link:</strong> <a href="https://flagrr-loyalty.vercel.app">https://flagrr-loyalty.vercel.app</a></p>
-        <p><strong>Email:</strong> ${escapeHtml(email)}<br/>
-        <strong>Temporary password:</strong> ${escapeHtml(tempPassword)}</p>
-        <p>You'll be asked to choose your own password the first time you log in.</p>
-      `,
+      html: renderBrandedEmailHtml({
+        eyebrow: 'Welcome to Flagrr',
+        heading: `Hi ${firstName}, you're a course admin`,
+        bodyHtml: emailParagraph(`${escapeHtml(authed.firstName)} ${escapeHtml(authed.lastName)} has set you up as a course admin for <strong style="color:#1F1F1F;">${escapeHtml(course.name)}</strong> on Flagrr.`) +
+          emailParagraph(`You'll be asked to choose your own password the first time you log in.`),
+        credentials: [
+          { label: 'Email', value: email },
+          { label: 'Temporary password', value: tempPassword },
+        ],
+        ctaLabel: 'Log In to Flagrr',
+        ctaUrl: APP_URL,
+      }),
     });
 
     res.status(200).json({
@@ -3054,14 +3079,18 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     await sendEmail({
       to: email,
       subject: `You've been added as staff at ${course.name} on Flagrr`,
-      html: `
-        <p>Hi ${escapeHtml(firstName)},</p>
-        <p>${escapeHtml(authed.firstName)} ${escapeHtml(authed.lastName)} has set you up with staff access to the Flagrr app for ${escapeHtml(course.name)}, so you can validate members' reward vouchers.</p>
-        <p><strong>Login link:</strong> <a href="https://flagrr-loyalty.vercel.app">https://flagrr-loyalty.vercel.app</a></p>
-        <p><strong>Username:</strong> ${escapeHtml(created[0].username)}<br/>
-        <strong>Temporary password:</strong> ${escapeHtml(tempPassword)}</p>
-        <p>You'll be asked to choose your own password the first time you log in.</p>
-      `,
+      html: renderBrandedEmailHtml({
+        eyebrow: 'Welcome to Flagrr',
+        heading: `Hi ${firstName}, you're on the team`,
+        bodyHtml: emailParagraph(`${escapeHtml(authed.firstName)} ${escapeHtml(authed.lastName)} has set you up with staff access to the Flagrr app for <strong style="color:#1F1F1F;">${escapeHtml(course.name)}</strong>, so you can validate members' reward vouchers.`) +
+          emailParagraph(`You'll be asked to choose your own password the first time you log in.`),
+        credentials: [
+          { label: 'Username', value: created[0].username },
+          { label: 'Temporary password', value: tempPassword },
+        ],
+        ctaLabel: 'Log In to Flagrr',
+        ctaUrl: APP_URL,
+      }),
     });
 
     res.status(200).json(staffDto({ ...created[0], redemption_count: 0 }));

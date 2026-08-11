@@ -12,6 +12,7 @@ import {
   PAYFAST_MERCHANT_ID,
   PAYFAST_PROCESS_URL,
 } from '../_lib/payfast';
+import { renderBrandedEmailHtml, emailParagraph } from '../_lib/emailTemplate';
 
 const APP_URL = process.env.APP_URL || 'https://flagrr-loyalty.vercel.app';
 const MONTHLY_SUBSCRIPTION_AMOUNT = 5299.0;
@@ -92,14 +93,19 @@ async function provisionCourseFromSignup(signup: {
   await sendEmail({
     to: signup.admin_email,
     subject: `Welcome to Flagrr — ${signup.course_name} is set up`,
-    html: `
-      <p>Hi ${escapeHtml(signup.admin_first_name)},</p>
-      <p>Thanks for subscribing! ${escapeHtml(signup.course_name)} is now set up on Flagrr.</p>
-      <p><strong>Login link:</strong> <a href="${APP_URL}">${APP_URL}</a></p>
-      <p><strong>Email:</strong> ${escapeHtml(signup.admin_email)}<br/>
-      <strong>Temporary password:</strong> ${escapeHtml(tempPassword)}</p>
-      <p>You'll be asked to choose your own password the first time you log in, and a setup wizard will walk you through the rest of your club's profile.</p>
-    `,
+    html: renderBrandedEmailHtml({
+      eyebrow: 'Welcome to Flagrr',
+      heading: `Hi ${signup.admin_first_name}, you're all set up`,
+      bodyHtml:
+        emailParagraph(`Thanks for subscribing! <strong style="color:#1F1F1F;">${escapeHtml(signup.course_name)}</strong> is now set up on Flagrr.`) +
+        emailParagraph(`You'll be asked to choose your own password the first time you log in, and a setup wizard will walk you through the rest of your club's profile.`),
+      credentials: [
+        { label: 'Email', value: signup.admin_email },
+        { label: 'Temporary password', value: tempPassword },
+      ],
+      ctaLabel: 'Log In to Flagrr',
+      ctaUrl: APP_URL,
+    }),
   });
 
   return { courseId: course.id };
@@ -115,11 +121,13 @@ async function sendPastDueReminderEmail(course: { id: string; name: string }, da
     await sendEmail({
       to: admin.email,
       subject: `Action needed: ${course.name}'s Flagrr subscription payment failed`,
-      html: `
-        <p>Hi ${escapeHtml(admin.first_name)},</p>
-        <p>We couldn't process this month's Flagrr subscription payment for ${escapeHtml(course.name)}. Please update your payment details with Payfast as soon as possible.</p>
-        <p>Your club's account will be suspended in <strong>${daysLeft} day${daysLeft === 1 ? '' : 's'}</strong> if payment isn't received.</p>
-      `,
+      html: renderBrandedEmailHtml({
+        eyebrow: 'Payment failed',
+        heading: `Hi ${admin.first_name}, we need your help`,
+        bodyHtml:
+          emailParagraph(`We couldn't process this month's Flagrr subscription payment for <strong style="color:#1F1F1F;">${escapeHtml(course.name)}</strong>. Please update your payment details with Payfast as soon as possible.`) +
+          emailParagraph(`Your club's account will be suspended in <strong style="color:#DE5C5C;">${daysLeft} day${daysLeft === 1 ? '' : 's'}</strong> if payment isn't received.`),
+      }),
     });
   }
 }

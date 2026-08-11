@@ -5,6 +5,7 @@ import { HttpError, withErrorHandling } from '../_lib/http';
 import { getCurrentTierStatus } from '../_lib/tierRewards';
 import { sendEmail } from '../_lib/email';
 import { consumePasswordResetCode, issuePasswordResetCode } from '../_lib/passwordReset';
+import { renderBrandedEmailHtml, emailParagraph } from '../_lib/emailTemplate';
 
 interface LoginBody {
   email?: string;
@@ -49,12 +50,13 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       await sendEmail({
         to: email,
         subject: 'Your Flagrr password reset code',
-        html: `
-          <p>Hi ${escapeHtml(rows[0].first_name)},</p>
-          <p>Use this code to reset your Flagrr password. It expires in 30 minutes.</p>
-          <p style="font-size:28px;font-weight:bold;letter-spacing:4px;">${escapeHtml(code)}</p>
-          <p>If you didn't request this, you can safely ignore this email — your password won't change unless this code is used.</p>
-        `,
+        html: renderBrandedEmailHtml({
+          eyebrow: 'Password reset',
+          heading: `Hi ${rows[0].first_name}, here's your code`,
+          bodyHtml: emailParagraph(`Use this code to reset your Flagrr password. It expires in 30 minutes.`),
+          code,
+          footerNote: `If you didn't request this, you can safely ignore this email — your password won't change unless this code is used.`,
+        }),
       });
     }
     res.status(200).json({ ok: true });
