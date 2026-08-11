@@ -255,6 +255,11 @@ export const adminApi = {
   inviteCourseAdmin: (payload: { firstName: string; lastName: string; email: string }) =>
     request<ClubAdminSummary>('?action=courseAdminInvite', { method: 'POST', body: payload }),
 
+  revokeCourseAdmin: (id: string) => request<{ ok: boolean }>('?action=courseAdminRevoke', { method: 'POST', body: { id } }),
+
+  reactivateCourseAdmin: (id: string) =>
+    request<{ ok: boolean }>('?action=courseAdminReactivate', { method: 'POST', body: { id } }),
+
   staffList: () => request<AdminStaff[]>('?action=staffList'),
 
   createStaff: (payload: StaffCreatePayload) =>

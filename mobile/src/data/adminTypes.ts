@@ -38,14 +38,16 @@ export interface StaffRedemption {
   staffRole: 'course_admin' | 'staff' | null;
 }
 
-// A course_admin's own view of who else administers their club — read-only,
-// no reset/revoke/delete ability (that stays super_admin-only, see
-// CourseAdminAccount / SuperAdminCourseAdminsScreen).
+// A course_admin's own view of who else administers their club — can
+// invite, revoke, and reactivate a fellow course_admin (to manage the
+// MAX_COURSE_ADMINS_PER_CLUB active-admin cap); password reset/delete stay
+// super_admin-only, see CourseAdminAccount / SuperAdminCourseAdminsScreen.
 export interface ClubAdminSummary {
   id: string;
   firstName: string;
   lastName: string;
   email: string;
+  revoked: boolean;
 }
 
 export interface AdminCourse {

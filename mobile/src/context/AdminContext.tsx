@@ -175,6 +175,8 @@ interface AdminContextValue {
   // MAX_COURSE_ADMINS_PER_CLUB) — no reset/revoke/delete (super_admin only).
   getClubAdmins: () => Promise<ClubAdminSummary[]>;
   inviteClubAdmin: (payload: { firstName: string; lastName: string; email: string }) => Promise<ClubAdminSummary>;
+  revokeClubAdmin: (id: string) => Promise<void>;
+  reactivateClubAdmin: (id: string) => Promise<void>;
   // super_admin only — cross-club course/course-admin management. Not scoped
   // to `course`, since a super_admin has no single course of its own.
   superAdminCourses: SuperAdminCourseSummary[];
@@ -517,6 +519,12 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
   const getClubAdmins = async () => adminApi.courseAdmins();
   const inviteClubAdmin = async (payload: { firstName: string; lastName: string; email: string }) =>
     adminApi.inviteCourseAdmin(payload);
+  const revokeClubAdmin = async (id: string) => {
+    await adminApi.revokeCourseAdmin(id);
+  };
+  const reactivateClubAdmin = async (id: string) => {
+    await adminApi.reactivateCourseAdmin(id);
+  };
 
   const loadStaff = useCallback(async () => {
     setStaff(await adminApi.staffList());
@@ -767,6 +775,8 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     staff,
     getClubAdmins,
     inviteClubAdmin,
+    revokeClubAdmin,
+    reactivateClubAdmin,
     loadStaff,
     createStaff,
     updateStaff,

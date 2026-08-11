@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
@@ -26,13 +26,14 @@ const MAX_CLUB_ADMINS = 2;
 export function AdminClubAdminsScreen({ navigation }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const { admin, getClubAdmins, inviteClubAdmin } = useAdmin();
+  const { admin, getClubAdmins, inviteClubAdmin, revokeClubAdmin, reactivateClubAdmin } = useAdmin();
   const [admins, setAdmins] = useState<ClubAdminSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [inviting, setInviting] = useState(false);
+  const [busyId, setBusyId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -85,7 +86,37 @@ export function AdminClubAdminsScreen({ navigation }: Props) {
     }
   };
 
-  const canInviteMore = admins.length < MAX_CLUB_ADMINS;
+  const handleToggleAccess = (item: ClubAdminSummary) => {
+    const isRevoked = item.revoked;
+    showAlert(
+      isRevoked ? 'Reactivate admin?' : 'Revoke admin access?',
+      isRevoked
+        ? `${item.firstName} ${item.lastName} will be able to log in again.`
+        : `${item.firstName} ${item.lastName} will no longer be able to log in. You can reactivate them later.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: isRevoked ? 'Reactivate' : 'Revoke',
+          style: isRevoked ? 'default' : 'destructive',
+          onPress: async () => {
+            setBusyId(item.id);
+            try {
+              if (isRevoked) await reactivateClubAdmin(item.id);
+              else await revokeClubAdmin(item.id);
+              await load();
+            } catch (err) {
+              const message = err instanceof AdminApiError ? err.message : 'Something went wrong. Please try again.';
+              showAlert('Couldn’t update access', message);
+            } finally {
+              setBusyId(null);
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  const canInviteMore = admins.filter((a) => !a.revoked).length < MAX_CLUB_ADMINS;
 
   return (
     <View style={styles.screen}>
@@ -107,7 +138,24 @@ export function AdminClubAdminsScreen({ navigation }: Props) {
                     {a.id === admin.id ? ' (You)' : ''}
                   </Text>
                   <Text style={styles.cardEmail}>{a.email}</Text>
+                  {a.revoked ? <Text style={styles.revokedBadge}>Revoked</Text> : null}
                 </View>
+                {a.id === admin.id ? null : busyId === a.id ? (
+                  <ActivityIndicator color={colors.clubGreen} size="small" />
+                ) : (
+                  <TouchableOpacity
+                    onPress={() => handleToggleAccess(a)}
+                    hitSlop={8}
+                    accessibilityRole="button"
+                    accessibilityLabel={a.revoked ? `Reactivate ${a.firstName} ${a.lastName}` : `Revoke ${a.firstName} ${a.lastName}`}
+                  >
+                    <Ionicons
+                      name={a.revoked ? 'lock-open-outline' : 'lock-closed-outline'}
+                      size={20}
+                      color={a.revoked ? colors.clubGreen : colors.negative}
+                    />
+                  </TouchableOpacity>
+                )}
               </View>
             ))}
 
@@ -136,7 +184,8 @@ export function AdminClubAdminsScreen({ navigation }: Props) {
               </>
             ) : (
               <Text style={styles.helpText}>
-                Your club already has the maximum of {MAX_CLUB_ADMINS} admins.
+                Your club already has the maximum of {MAX_CLUB_ADMINS} active admins. Revoke one above to invite
+                another.
               </Text>
             )}
           </>
@@ -164,6 +213,12 @@ function createStyles(colors: ThemeColors) {
     },
     cardTitle: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.textPrimary },
     cardEmail: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary, marginTop: 2 },
+    revokedBadge: {
+      fontFamily: fontFamily.bodySemiBold,
+      fontSize: 10,
+      color: colors.negative,
+      marginTop: 2,
+    },
     sectionTitle: {
       fontFamily: fontFamily.heading,
       fontSize: fontSize.cardTitle,

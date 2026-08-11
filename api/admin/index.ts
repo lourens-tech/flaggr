@@ -235,10 +235,12 @@ interface CourseAdminInviteBody {
   email?: string;
 }
 
-// A club can have at most this many course_admin accounts — a course_admin
-// can invite one more themselves (see 'courseAdminInvite' below), but has no
-// further admin-management ability (no reset/revoke/delete — that stays
-// super_admin-only, see SuperAdminCourseAdminsScreen).
+// A club can have at most this many *active* course_admin accounts — a
+// course_admin can invite up to that many themselves (see
+// 'courseAdminInvite'), and can revoke/reactivate a fellow course_admin at
+// their own club to free up or restore a slot ('courseAdminRevoke'/
+// 'courseAdminReactivate'). Password reset/delete stay super_admin-only, see
+// SuperAdminCourseAdminsScreen.
 const MAX_COURSE_ADMINS_PER_CLUB = 2;
 
 interface StaffUpdateBody {
@@ -250,6 +252,10 @@ interface StaffUpdateBody {
 }
 
 interface StaffIdBody {
+  id?: string;
+}
+
+interface CourseAdminIdBody {
   id?: string;
 }
 
@@ -2833,17 +2839,24 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
   }
 
   // course_admin-only (not in STAFF_ALLOWED_ACTIONS) — lets a course_admin
-  // add exactly one more admin for their own club themselves, without any
-  // further management ability (no reset/revoke/delete — that stays
-  // super_admin-only, see superAdminCourseAdmin* actions above).
+  // manage the (at most MAX_COURSE_ADMINS_PER_CLUB active) admin accounts for
+  // their own club: invite, and revoke/reactivate a fellow course_admin to
+  // free up or restore a slot. Password reset/delete stay super_admin-only,
+  // see superAdminCourseAdmin* actions above.
   if (action === 'courseAdmins' && req.method === 'GET') {
     const rows = (await sql`
-      select id, first_name, last_name, email
+      select id, first_name, last_name, email, revoked_at
       from admins where course_id = ${courseId} and role = 'course_admin'
-      order by created_at asc
-    `) as Array<{ id: string; first_name: string; last_name: string; email: string }>;
+      order by (revoked_at is not null), created_at asc
+    `) as Array<{ id: string; first_name: string; last_name: string; email: string; revoked_at: string | null }>;
     res.status(200).json(
-      rows.map((r) => ({ id: r.id, firstName: r.first_name, lastName: r.last_name, email: r.email })),
+      rows.map((r) => ({
+        id: r.id,
+        firstName: r.first_name,
+        lastName: r.last_name,
+        email: r.email,
+        revoked: r.revoked_at !== null,
+      })),
     );
     return;
   }
@@ -2857,10 +2870,10 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     if (!EMAIL_PATTERN.test(email)) throw new HttpError(400, 'Enter a valid email address');
 
     const existingCount = (await sql`
-      select count(*)::int as count from admins where course_id = ${courseId} and role = 'course_admin'
+      select count(*)::int as count from admins where course_id = ${courseId} and role = 'course_admin' and revoked_at is null
     `) as Array<{ count: number }>;
     if (existingCount[0].count >= MAX_COURSE_ADMINS_PER_CLUB) {
-      throw new HttpError(400, `Your club already has the maximum of ${MAX_COURSE_ADMINS_PER_CLUB} admins`);
+      throw new HttpError(400, `Your club already has the maximum of ${MAX_COURSE_ADMINS_PER_CLUB} active admins — revoke one first to invite another`);
     }
 
     const course = await fetchCourse(courseId);
@@ -2897,6 +2910,39 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       lastName: created[0].last_name,
       email: created[0].email,
     });
+    return;
+  }
+
+  if (action === 'courseAdminRevoke') {
+    const id = (req.body as CourseAdminIdBody).id;
+    if (!id) throw new HttpError(400, 'id is required');
+    if (id === authed.id) throw new HttpError(400, 'You can’t remove your own access — ask a fellow admin to do it');
+    const updated = (await sql`
+      update admins set revoked_at = now()
+      where id = ${id} and course_id = ${courseId} and role = 'course_admin'
+      returning id
+    `) as Array<{ id: string }>;
+    if (updated.length === 0) throw new HttpError(404, 'Admin not found');
+    res.status(200).json({ ok: true });
+    return;
+  }
+
+  if (action === 'courseAdminReactivate') {
+    const id = (req.body as CourseAdminIdBody).id;
+    if (!id) throw new HttpError(400, 'id is required');
+    const activeCount = (await sql`
+      select count(*)::int as count from admins where course_id = ${courseId} and role = 'course_admin' and revoked_at is null
+    `) as Array<{ count: number }>;
+    if (activeCount[0].count >= MAX_COURSE_ADMINS_PER_CLUB) {
+      throw new HttpError(400, `Your club already has the maximum of ${MAX_COURSE_ADMINS_PER_CLUB} active admins`);
+    }
+    const updated = (await sql`
+      update admins set revoked_at = null
+      where id = ${id} and course_id = ${courseId} and role = 'course_admin'
+      returning id
+    `) as Array<{ id: string }>;
+    if (updated.length === 0) throw new HttpError(404, 'Admin not found');
+    res.status(200).json({ ok: true });
     return;
   }
 
