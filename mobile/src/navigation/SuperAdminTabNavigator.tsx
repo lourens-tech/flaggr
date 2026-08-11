@@ -9,11 +9,14 @@ import { SuperAdminSupportInboxScreen } from '../screens/superadmin/SuperAdminSu
 import { SuperAdminProfileScreen } from '../screens/superadmin/SuperAdminProfileScreen';
 import { AdminTabBar } from '../components/common/AdminTabBar';
 import { useAdmin } from '../context/AdminContext';
+import { useIsDesktopNav } from '../hooks/useIsDesktopNav';
 
 const Tab = createBottomTabNavigator<SuperAdminTabParamList>();
 
 export function SuperAdminTabNavigator() {
   const { admin } = useAdmin();
+  const isDesktop = useIsDesktopNav();
+  const screenOptions = { headerShown: false, tabBarPosition: isDesktop ? ('left' as const) : ('bottom' as const) };
 
   // A `support_agent` account only gets the Support inbox and a basic
   // profile — every other tab (Courses/Ads/Reports) is super_admin-only,
@@ -21,7 +24,7 @@ export function SuperAdminTabNavigator() {
   // api/admin/index.ts).
   if (admin.role === 'support_agent') {
     return (
-      <Tab.Navigator screenOptions={{ headerShown: false }} tabBar={(props) => <AdminTabBar {...props} />}>
+      <Tab.Navigator screenOptions={screenOptions} tabBar={(props) => <AdminTabBar {...props} />}>
         <Tab.Screen name="SuperAdminSupport" component={SuperAdminSupportInboxScreen} />
         <Tab.Screen name="SuperAdminProfile" component={SuperAdminProfileScreen} />
       </Tab.Navigator>
@@ -29,7 +32,7 @@ export function SuperAdminTabNavigator() {
   }
 
   return (
-    <Tab.Navigator screenOptions={{ headerShown: false }} tabBar={(props) => <AdminTabBar {...props} />}>
+    <Tab.Navigator screenOptions={screenOptions} tabBar={(props) => <AdminTabBar {...props} />}>
       <Tab.Screen name="SuperAdminCourses" component={SuperAdminCoursesScreen} />
       <Tab.Screen name="SuperAdminAds" component={SuperAdminAdsScreen} />
       <Tab.Screen name="SuperAdminReports" component={SuperAdminReportsScreen} />
