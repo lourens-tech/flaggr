@@ -10,3 +10,4 @@ mkdir -p dist/rewards
 cp assets/images/rewards/*.jpg dist/rewards/
 cp static/delete-account.html dist/delete-account.html
 cp static/privacy.html dist/privacy.html
+cp static/support.html dist/support.html
