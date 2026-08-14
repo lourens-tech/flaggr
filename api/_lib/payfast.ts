@@ -84,7 +84,17 @@ export async function confirmItnWithPayfast(rawBody: string): Promise<boolean> {
 
 export interface SubscriptionCheckoutParams {
   mPaymentId: string;
+  /** Amount charged today, for this first payment. */
   amount: number;
+  /**
+   * Amount charged on every payment from the second cycle onward, forever
+   * (Payfast subscriptions are a two-tier model — a first-payment amount
+   * plus a flat recurring amount — there's no native support for a
+   * multi-cycle intro rate that then changes again; that would need a
+   * separate call to Payfast's subscription-management API once the intro
+   * cycles are up). Defaults to `amount` when the two don't differ.
+   */
+  recurringAmount?: number;
   itemName: string;
   itemDescription: string;
   nameFirst: string;
@@ -99,6 +109,7 @@ export interface SubscriptionCheckoutParams {
  * over) for a monthly, indefinite (cycles=0) Payfast Subscription checkout. */
 export function buildSubscriptionCheckoutFields(params: SubscriptionCheckoutParams): Record<string, string> {
   const amount = params.amount.toFixed(2);
+  const recurringAmount = (params.recurringAmount ?? params.amount).toFixed(2);
   const fields: Record<string, string> = {
     merchant_id: PAYFAST_MERCHANT_ID,
     merchant_key: PAYFAST_MERCHANT_KEY,
@@ -113,7 +124,7 @@ export function buildSubscriptionCheckoutFields(params: SubscriptionCheckoutPara
     item_name: params.itemName,
     item_description: params.itemDescription,
     subscription_type: '1',
-    recurring_amount: amount,
+    recurring_amount: recurringAmount,
     frequency: '3', // Monthly
     cycles: '0', // Indefinite — runs until cancelled
   };

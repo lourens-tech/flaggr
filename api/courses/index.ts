@@ -15,7 +15,16 @@ import {
 import { renderBrandedEmailHtml, emailParagraph } from '../_lib/emailTemplate';
 
 const APP_URL = process.env.APP_URL || 'https://flagrr-loyalty.vercel.app';
-const MONTHLY_SUBSCRIPTION_AMOUNT = 5299.0;
+// Matches the marketing site's advertised pricing exactly (see
+// flagrr-marketing's src/content/home.ts `plan` — keep these in sync).
+// Payfast subscriptions are a two-tier model (a first-payment amount, then a
+// flat recurring amount forever) — there's no native support for a
+// multi-cycle intro rate that later changes again, so the intro rate here
+// applies to the first payment only, not several cycles. A true multi-month
+// intro would need a follow-up call to Payfast's subscription-management API
+// once the intro cycles are up.
+const INTRO_FIRST_PAYMENT_AMOUNT = 2500.0;
+const RECURRING_SUBSCRIPTION_AMOUNT = 5250.0;
 
 // Grace period on a missed/late renewal: club keeps working while we chase
 // it, three reminder emails at these day offsets, full lockout at day 30 —
@@ -161,14 +170,15 @@ async function initiateSignup(req: VercelRequest, res: VercelResponse) {
   const mPaymentId = crypto.randomUUID();
   await sql`
     insert into pending_club_signups (m_payment_id, course_name, contact_email, contact_phone, admin_first_name, admin_last_name, admin_email, amount)
-    values (${mPaymentId}, ${courseName}, ${contactEmail}, ${body.contactPhone?.trim() || null}, ${adminFirstName}, ${adminLastName}, ${adminEmail}, ${MONTHLY_SUBSCRIPTION_AMOUNT})
+    values (${mPaymentId}, ${courseName}, ${contactEmail}, ${body.contactPhone?.trim() || null}, ${adminFirstName}, ${adminLastName}, ${adminEmail}, ${INTRO_FIRST_PAYMENT_AMOUNT})
   `;
 
   const fields = buildSubscriptionCheckoutFields({
     mPaymentId,
-    amount: MONTHLY_SUBSCRIPTION_AMOUNT,
+    amount: INTRO_FIRST_PAYMENT_AMOUNT,
+    recurringAmount: RECURRING_SUBSCRIPTION_AMOUNT,
     itemName: 'Flagrr Monthly Subscription',
-    itemDescription: `${courseName} — Flagrr loyalty platform, billed monthly`,
+    itemDescription: `${courseName} — Flagrr loyalty platform, first month R${INTRO_FIRST_PAYMENT_AMOUNT.toFixed(0)}, then R${RECURRING_SUBSCRIPTION_AMOUNT.toFixed(0)}/month ex VAT`,
     nameFirst: adminFirstName,
     nameLast: adminLastName,
     emailAddress: adminEmail,
