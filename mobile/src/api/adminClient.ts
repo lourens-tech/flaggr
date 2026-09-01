@@ -50,7 +50,10 @@ import type {
 // session (separate admins/admin_sessions tables server-side), and keeping
 // the client-side storage/token isolated means the two can never bleed
 // into each other on a shared device.
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://app.flagrr.com';
+// app.flagrr.com is registered in Vercel but its DNS isn't configured yet
+// (doesn't resolve publicly) — fall back to the working vercel.app domain
+// until that's set up, then switch back.
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://flagrr-loyalty.vercel.app';
 const ADMIN_TOKEN_KEY = 'flagrr_admin_auth_token';
 
 let cachedToken: string | null | undefined;

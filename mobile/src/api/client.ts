@@ -27,7 +27,10 @@ import type {
 // Points at the deployed backend by default so the app works out of the box
 // (Expo Go, standalone builds). Override with EXPO_PUBLIC_API_URL for local
 // backend development.
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://app.flagrr.com';
+// app.flagrr.com is registered in Vercel but its DNS isn't configured yet
+// (doesn't resolve publicly) — fall back to the working vercel.app domain
+// until that's set up, then switch back.
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://flagrr-loyalty.vercel.app';
 const TOKEN_KEY = 'flagrr_auth_token';
 
 let cachedToken: string | null | undefined;
