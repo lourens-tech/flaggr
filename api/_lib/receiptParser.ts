@@ -22,8 +22,12 @@ export interface ParsedReceipt {
   grandTotal: number | null;
 }
 
-// Matches both thousands-separated ("1,779.05") and plain ("1779.05") forms.
-const PRICE = /(\d+(?:[,\s]\d{3})*(?:\.\d{2}))/;
+// Matches an amount with cents in either "1,779.05" (thousands=comma,
+// decimal=period) or "1.779,05" (thousands=period, decimal=comma) form —
+// South African tills print both depending on the POS system's locale.
+// Whichever separator immediately precedes the final 2 digits is the
+// decimal point; parseAmount below relies on that.
+const PRICE = /(\d{1,3}(?:[,.\s]\d{3})*[.,]\d{2})/;
 
 function firstMatch(text: string, patterns: RegExp[]): string | null {
   for (const pattern of patterns) {
@@ -35,8 +39,13 @@ function firstMatch(text: string, patterns: RegExp[]): string | null {
 
 function parseAmount(raw: string | null): number | null {
   if (!raw) return null;
-  const cleaned = raw.replace(/[,\s]/g, '');
-  const value = Number(cleaned);
+  // The PRICE regex guarantees the string ends in [.,]\d{2} — treat that as
+  // the decimal point and strip every other separator (thousands grouping,
+  // in either comma, period, or space form) from what's left.
+  const m = raw.match(/^(.*)[,.](\d{2})$/);
+  if (!m) return null;
+  const integerPart = m[1].replace(/[,.\s]/g, '');
+  const value = Number(`${integerPart}.${m[2]}`);
   return Number.isFinite(value) ? value : null;
 }
 
@@ -46,6 +55,93 @@ function findAmount(text: string, keywordPatterns: RegExp[]): number | null {
     if (m?.[1]) return parseAmount(m[1]);
   }
   return null;
+}
+
+// Summary/payment lines conventionally lead with their keyword ("TOTAL:",
+// "VAT 15%", "CASH TENDERED", "VISA **** 1234") — anchoring to the start of
+// the line (rather than matching the keyword anywhere) means a real item
+// that merely mentions one of these words later in its name, e.g. a
+// "Titleist Card Holder", isn't mistaken for a summary line and dropped.
+const skipLinePattern =
+  /^\s*(?:sub\s*-?\s*total|vat|tax|grand\s*total|total|receipt|trans|till|thank you|change|cash|card|visa|mastercard)/i;
+const itemLinePattern = new RegExp(`^(.+?)\\s+${PRICE.source}$`);
+const priceOnlyLinePattern = new RegExp(`^${PRICE.source}$`);
+
+// A leading number is a quantity prefix ("2 FootJoy Glove") UNLESS it's
+// immediately followed by "hole" — "9 Hole Round" / "18 Hole Round" are
+// golf activity names where the number isn't a multiplier.
+function splitQuantity(raw: string): { quantity: number; description: string } {
+  const m = raw.match(/^(\d+)\s*[xX]?\s+(.+)$/);
+  if (m && !/^holes?\b/i.test(m[2])) {
+    return { quantity: Number(m[1]), description: m[2] };
+  }
+  return { quantity: 1, description: raw };
+}
+
+function toItem(descriptionRaw: string, priceRaw: string): ParsedLineItem | null {
+  const price = parseAmount(priceRaw);
+  const { quantity, description: splitDescription } = splitQuantity(descriptionRaw);
+  const description = splitDescription.replace(/\s{2,}/g, ' ').trim();
+  if (!price || !description || description.length < 2) return null;
+  return { description, quantity, price };
+}
+
+// Some POS layouts right-align the price in a column far enough from the
+// description that OCR renders it as its own line rather than trailing the
+// description on the same line — the description and its price end up as
+// two consecutive lines instead of one. Carrying the last description-only
+// line forward and pairing it with the next price-only line recovers those
+// items instead of silently dropping both halves.
+function extractItems(lines: string[]): ParsedLineItem[] {
+  const items: ParsedLineItem[] = [];
+  let pendingDescription: string | null = null;
+
+  for (const line of lines) {
+    if (skipLinePattern.test(line)) {
+      pendingDescription = null;
+      continue;
+    }
+
+    const sameLine = line.match(itemLinePattern);
+    if (sameLine) {
+      const [, descriptionRaw, priceRaw] = sameLine;
+      const item = toItem(descriptionRaw, priceRaw);
+      if (item) items.push(item);
+      pendingDescription = null;
+      continue;
+    }
+
+    const priceOnly = line.match(priceOnlyLinePattern);
+    if (priceOnly) {
+      if (pendingDescription) {
+        const item = toItem(pendingDescription, priceOnly[1]);
+        if (item) items.push(item);
+      }
+      pendingDescription = null;
+      continue;
+    }
+
+    // A plausible wrapped description: has some letters, isn't just noise.
+    pendingDescription = /[a-z]{2,}/i.test(line) ? line : null;
+  }
+
+  return items;
+}
+
+// Real receipts often lead with a logo (no OCR text), an address, or a
+// generic header ("TAX INVOICE", "*** COPY ***") before the actual venue
+// name — blindly taking the first line is wrong often enough to be worth
+// skipping past obvious non-name noise first.
+const GENERIC_HEADER_LINE = /^[\s*_=-]*(?:tax\s*invoice|invoice|receipt|slip|copy|original|duplicate)[\s*_=-]*$/i;
+
+function guessMerchantName(lines: string[]): string | null {
+  for (const line of lines) {
+    if (line.length < 3) continue;
+    if (!/[a-z]{2,}/i.test(line)) continue; // needs real letters, not just digits/symbols
+    if (GENERIC_HEADER_LINE.test(line)) continue;
+    return line;
+  }
+  return lines[0] ?? null;
 }
 
 export function parseReceiptText(rawText: string): ParsedReceipt {
@@ -81,36 +177,8 @@ export function parseReceiptText(rawText: string): ParsedReceipt {
     new RegExp(`\\btotal\\b[^\\d\\n]{0,30}${PRICE.source}`, 'i'),
   ]);
 
-  const skipLinePattern = /sub\s*-?\s*total|\bvat\b|\btax\b|grand\s*total|\btotal\b|receipt|trans|till|thank you|change|cash|card|visa|mastercard/i;
-  const itemLinePattern = new RegExp(`^(.+?)\\s+${PRICE.source}$`);
-
-  // A leading number is a quantity prefix ("2 FootJoy Glove") UNLESS it's
-  // immediately followed by "hole" — "9 Hole Round" / "18 Hole Round" are
-  // golf activity names where the number isn't a multiplier.
-  function splitQuantity(raw: string): { quantity: number; description: string } {
-    const m = raw.match(/^(\d+)\s*[xX]?\s+(.+)$/);
-    if (m && !/^holes?\b/i.test(m[2])) {
-      return { quantity: Number(m[1]), description: m[2] };
-    }
-    return { quantity: 1, description: raw };
-  }
-
-  const items: ParsedLineItem[] = [];
-  for (const line of lines) {
-    if (skipLinePattern.test(line)) continue;
-    const m = line.match(itemLinePattern);
-    if (!m) continue;
-    const [, descriptionRaw, priceRaw] = m;
-    const price = parseAmount(priceRaw);
-    const { quantity, description: splitDescription } = splitQuantity(descriptionRaw);
-    const description = splitDescription.replace(/\s{2,}/g, ' ').trim();
-    if (!price || !description || description.length < 2) continue;
-    items.push({ description, quantity, price });
-  }
-
-  // First non-empty line is usually the store/course name on most receipt
-  // layouts — used as a fallback when it doesn't fuzzy-match a known merchant.
-  const merchantNameGuess = lines[0] ?? null;
+  const items = extractItems(lines);
+  const merchantNameGuess = guessMerchantName(lines);
 
   return {
     merchantNameGuess,

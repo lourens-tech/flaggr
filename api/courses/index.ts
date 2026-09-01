@@ -14,7 +14,7 @@ import {
 } from '../_lib/payfast';
 import { renderBrandedEmailHtml, emailParagraph } from '../_lib/emailTemplate';
 
-const APP_URL = process.env.APP_URL || 'https://flagrr-loyalty.vercel.app';
+const APP_URL = process.env.APP_URL || 'https://app.flagrr.com';
 // Matches the marketing site's advertised pricing exactly (see
 // flagrr-marketing's src/content/home.ts `plan` — keep these in sync).
 // Payfast subscriptions are a two-tier model (a first-payment amount, then a
