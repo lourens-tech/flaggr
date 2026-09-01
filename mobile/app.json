@@ -7,6 +7,12 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "scheme": "flagrr",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/12ea4b7f-59dd-490e-8286-443a03ab9b6b"
+    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.flagrr.loyalty",
