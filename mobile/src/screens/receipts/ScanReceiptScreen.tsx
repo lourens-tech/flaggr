@@ -62,7 +62,10 @@ export function ScanReceiptScreen({ navigation }: Props) {
         return;
       }
       if (result.invalid) {
-        showAlert('This is not a valid slip', 'Please scan a valid slip.');
+        showAlert('This is not a valid slip', 'Please scan a valid slip.', [
+          { text: 'Back', style: 'cancel', onPress: () => navigation.goBack() },
+          { text: 'Try Again', style: 'default' },
+        ]);
         return;
       }
       navigation.navigate('ReviewReceipt', { imageUri, imageBase64, scanResult: result });
