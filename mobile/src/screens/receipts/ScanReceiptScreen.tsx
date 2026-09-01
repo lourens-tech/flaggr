@@ -30,7 +30,12 @@ async function prepareForScan(uri: string, width: number, height: number): Promi
     context.resize(isLandscape ? { width: MAX_LONG_EDGE } : { height: MAX_LONG_EDGE });
   }
   const rendered = await context.renderAsync();
-  const saved = await rendered.saveAsync({ base64: true, compress: 0.6, format: SaveFormat.JPEG });
+  // 0.6 JPEG quality was tuned for upload size, but the compression
+  // artifacts it introduces blur the fine, low-contrast print on a thermal
+  // receipt just enough to meaningfully hurt OCR accuracy. 0.9 costs more
+  // bytes but the resize above already caps the long edge at 1800px, so the
+  // result is still well within reason for a mobile upload.
+  const saved = await rendered.saveAsync({ base64: true, compress: 0.9, format: SaveFormat.JPEG });
   if (!saved.base64) throw new Error('Failed to encode image');
   return `data:image/jpeg;base64,${saved.base64}`;
 }

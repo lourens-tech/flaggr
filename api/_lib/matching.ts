@@ -61,6 +61,15 @@ export interface MatchResult<T extends Catalog> {
 
 const FUZZY_THRESHOLD = 0.72;
 
+// Levenshtein-normalized-by-length similarity is biased toward short
+// strings: a 4-character OCR fragment only needs to be one character off to
+// still score ~0.75, which is enough to clear FUZZY_THRESHOLD against a
+// completely unrelated catalog entry. Requiring a minimum normalized length
+// before a *fuzzy* (non-exact, non-alias) hit counts keeps that false-match
+// risk from applying to real exact/alias matches, which are trusted at any
+// length since they're not a similarity guess.
+const MIN_FUZZY_LENGTH = 6;
+
 // Tries every candidate's name + aliases, keeps the best-scoring hit above
 // the fuzzy threshold. Exact/alias matches (score === 1) short-circuit.
 export function matchCatalog<T extends Catalog>(text: string, candidates: T[]): MatchResult<T> | null {
@@ -86,5 +95,6 @@ export function matchCatalog<T extends Catalog>(text: string, candidates: T[]): 
   }
 
   if (!best || best.score < FUZZY_THRESHOLD) return null;
+  if (best.matchType === 'fuzzy' && normalizedText.length < MIN_FUZZY_LENGTH) return null;
   return best;
 }
