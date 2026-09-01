@@ -100,7 +100,7 @@ export function AdminVoucherRedeemScreen() {
               Flagrr needs camera access to scan a member's voucher QR code.
             </Text>
             <View style={{ height: spacing.lg }} />
-            <PillButton label="Allow Camera Access" onPress={requestPermission} />
+            <PillButton label="Continue" onPress={requestPermission} />
           </SafeAreaView>
         ) : (
           <CameraView

@@ -124,7 +124,7 @@ export function ScanReceiptScreen({ navigation }: Props) {
             Flaggr needs camera access to scan your receipts and award Flagrr Cash.
           </Text>
           <View style={{ height: spacing.lg }} />
-          <PillButton label="Allow Camera Access" onPress={requestPermission} />
+          <PillButton label="Continue" onPress={requestPermission} />
           <TouchableOpacity style={{ marginTop: spacing.md }} onPress={handleUpload}>
             <Text style={styles.uploadLink}>Upload from gallery instead</Text>
           </TouchableOpacity>
