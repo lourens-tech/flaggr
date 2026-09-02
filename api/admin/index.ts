@@ -13,6 +13,8 @@ import {
   listMembersReport,
   listReceiptsReport,
   listRedemptionsReport,
+  listSuperAdminMembersReport,
+  listSuperAdminRedemptionsReport,
   type CourseReportKind,
   type StatBreakdownMetric,
 } from '../_lib/adminReports';
@@ -338,6 +340,7 @@ const SUPER_ADMIN_ALLOWED_ACTIONS = new Set([
   'superAdminCourseCreate',
   'superAdminAds',
   'superAdminExportReport',
+  'superAdminReportRows',
   'superAdminAdSave',
   'superAdminAdDelete',
   'superAdminDashboard',
@@ -2178,12 +2181,44 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       // existed on SuperAdminCourseAdsScreen (client-side CSV before this) —
       // extend with more report types here if other super_admin screens grow
       // their own download buttons.
+      // Cross-club counterpart of course_admin's reportRows — backs
+      // super_admin's Tier Distribution / Top Redeemed Rewards detail pages.
+      if (action === 'superAdminReportRows' && req.method === 'GET') {
+        const report = req.query.report;
+        const period: StatsPeriod = isStatsPeriod(req.query.period) ? req.query.period : 'month';
+        if (report === 'crossClubMembers') {
+          res.status(200).json(await listSuperAdminMembersReport(period));
+        } else if (report === 'crossClubRedemptions') {
+          res.status(200).json(await listSuperAdminRedemptionsReport(period));
+        } else {
+          throw new HttpError(400, 'report must be one of crossClubMembers, crossClubRedemptions');
+        }
+        return;
+      }
+
       if (action === 'superAdminExportReport' && req.method === 'GET') {
         const report = typeof req.query.report === 'string' ? req.query.report : '';
+        const period: StatsPeriod = isStatsPeriod(req.query.period) ? req.query.period : 'month';
         let workbook: Buffer;
         let filename: string;
 
-        if (report === 'ads') {
+        if (report === 'crossClubMembers') {
+          const rows = await listSuperAdminMembersReport(period);
+          workbook = toXlsxBuffer(
+            ['First Name', 'Last Name', 'Email', 'Club', 'Tier', 'Member Since', 'FC Balance', 'FC Total Earned', 'FC Total Redeemed'],
+            rows.map((r) => [r.firstName, r.lastName, r.email, r.courseName, r.tier, r.memberSince, r.balance, r.totalEarned, r.totalRedeemed]),
+            'Members',
+          );
+          filename = `members-${period}.xlsx`;
+        } else if (report === 'crossClubRedemptions') {
+          const rows = await listSuperAdminRedemptionsReport(period);
+          workbook = toXlsxBuffer(
+            ['Code', 'Member', 'Email', 'Club', 'Reward', 'Variant', 'Flagrr Cash', 'Status', 'Issued At', 'Redeemed At'],
+            rows.map((r) => [r.code, r.memberName, r.memberEmail, r.courseName, r.rewardTitle, r.variantLabel, r.cost, r.status, r.issuedAt, r.redeemedAt]),
+            'Redemptions',
+          );
+          filename = `redemptions-${period}.xlsx`;
+        } else if (report === 'ads') {
           const targetCourseId = resolveAdCourseId(typeof req.query.courseId === 'string' ? req.query.courseId : undefined);
           const ads = await listAdsForCourse(targetCourseId);
           const placementLabels: Record<string, string> = { home: 'Home', home_top: 'Home (Top Banner)', rewards_shop: 'Rewards Shop' };
@@ -2201,7 +2236,6 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
           );
           filename = 'ads-report.xlsx';
         } else if (STAT_BREAKDOWN_METRICS.has(report)) {
-          const period: StatsPeriod = isStatsPeriod(req.query.period) ? req.query.period : 'month';
           const metricLabels: Record<string, string> = {
             members: 'Members',
             newMembers: 'New Members',

@@ -29,6 +29,9 @@ import type {
   MembersPage,
   RedemptionReportRow,
   ReceiptReportRow,
+  SuperAdminMemberReportRow,
+  SuperAdminRedemptionReportRow,
+  SuperAdminReportKind,
   SuperAdminBroadcast,
   SuperAdminBroadcastTarget,
   SuperAdminCourseSummary,
@@ -394,6 +397,13 @@ export const adminApi = {
   superAdminStatBreakdown: (metric: StatBreakdownMetric, period: 'month' | 'year' | 'all') =>
     request<StatBreakdownRow[]>(`?action=superAdminStatBreakdown&metric=${metric}&period=${period}`),
 
+  // Backs super_admin's Tier Distribution / Top Redeemed Rewards detail
+  // tables — cross-club counterpart of reportRows above.
+  superAdminReportRows: <K extends SuperAdminReportKind>(report: K, period: 'month' | 'year' | 'all') =>
+    request<K extends 'crossClubMembers' ? SuperAdminMemberReportRow[] : SuperAdminRedemptionReportRow[]>(
+      `?action=superAdminReportRows&report=${report}&period=${period}`,
+    ),
+
   cancelSuperAdminCourseSubscription: (courseId: string) =>
     request<{ ok: boolean }>('?action=superAdminCourseCancelSubscription', { method: 'POST', body: { courseId } }),
 
@@ -564,5 +574,16 @@ export async function downloadSuperAdminStatBreakdown(
   filename: string,
 ): Promise<boolean> {
   const params = new URLSearchParams({ action: 'superAdminExportReport', report: metric, period });
+  return downloadFile(params, filename);
+}
+
+/** Downloads a cross-club report (the same rows shown on
+ * SuperAdminReportDetailScreen) as a .xlsx workbook. */
+export async function downloadSuperAdminReport(
+  report: SuperAdminReportKind,
+  period: 'month' | 'year' | 'all',
+  filename: string,
+): Promise<boolean> {
+  const params = new URLSearchParams({ action: 'superAdminExportReport', report, period });
   return downloadFile(params, filename);
 }

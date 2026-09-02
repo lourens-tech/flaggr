@@ -435,6 +435,18 @@ export interface MemberReportRow {
   totalRedeemed: number;
 }
 
+// Cross-club counterparts — back super_admin's Tier Distribution / Top
+// Redeemed Rewards detail pages (SuperAdminReportDetailScreen).
+export type SuperAdminReportKind = 'crossClubMembers' | 'crossClubRedemptions';
+
+export interface SuperAdminMemberReportRow extends MemberReportRow {
+  courseName: string;
+}
+
+export interface SuperAdminRedemptionReportRow extends RedemptionReportRow {
+  courseName: string;
+}
+
 export interface AuditLogEntry {
   id: string;
   adminId: string | null;

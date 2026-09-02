@@ -194,7 +194,14 @@ export function SuperAdminReportsScreen({ navigation }: Props) {
               <BarChart data={dashboard.signupsByMonth} />
             </View>
 
-            <Text style={styles.sectionTitle}>Tier Distribution</Text>
+            <TouchableOpacity
+              style={styles.sectionHeaderRow}
+              activeOpacity={0.7}
+              onPress={() => navigation.navigate('SuperAdminReportDetail', { report: 'crossClubMembers', label: 'Tier Distribution', period: 'all' })}
+            >
+              <Text style={styles.sectionTitle}>Tier Distribution</Text>
+              <Ionicons name="chevron-forward" size={18} color={colors.clubGreen} />
+            </TouchableOpacity>
             <View style={styles.card}>
               {dashboard.tierDistribution.length === 0 ? (
                 <Text style={styles.emptyText}>No members yet.</Text>
@@ -208,7 +215,14 @@ export function SuperAdminReportsScreen({ navigation }: Props) {
               )}
             </View>
 
-            <Text style={styles.sectionTitle}>Top Redeemed Rewards</Text>
+            <TouchableOpacity
+              style={styles.sectionHeaderRow}
+              activeOpacity={0.7}
+              onPress={() => navigation.navigate('SuperAdminReportDetail', { report: 'crossClubRedemptions', label: 'Top Redeemed Rewards', period })}
+            >
+              <Text style={styles.sectionTitle}>Top Redeemed Rewards</Text>
+              <Ionicons name="chevron-forward" size={18} color={colors.clubGreen} />
+            </TouchableOpacity>
             <View style={styles.card}>
               {dashboard.topRewards.length === 0 ? (
                 <Text style={styles.emptyText}>No redemptions in this period.</Text>
@@ -300,6 +314,7 @@ function createStyles(colors: ThemeColors) {
   statsGrid: { gap: spacing.sm, marginBottom: spacing.lg },
   statsRow: { flexDirection: 'row', gap: 10 },
   sectionTitle: { fontFamily: fontFamily.heading, fontSize: fontSize.title, color: colors.textPrimary, marginBottom: spacing.sm },
+  sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   chartCard: {
     backgroundColor: colors.mintBg,
     borderWidth: 0.5,

@@ -245,6 +245,89 @@ export async function listMembersReport(courseId: string, period: StatsPeriod): 
   }));
 }
 
+export interface SuperAdminMemberReportRow extends MemberReportRow {
+  courseName: string;
+}
+
+// Cross-club counterpart of listMembersReport, for super_admin's Tier
+// Distribution detail page (every member, every club, annotated with which
+// club they belong to).
+export async function listSuperAdminMembersReport(period: StatsPeriod): Promise<SuperAdminMemberReportRow[]> {
+  const { currentStart } = periodWindow(period);
+  const rows = (await sql`
+    select u.first_name, u.last_name, u.email, u.tier, u.member_since, p.balance, p.total_earned, p.total_redeemed, c.name as course_name
+    from users u
+    join points_accounts p on p.user_id = u.id
+    join courses c on c.id = u.course_id
+    where u.member_since >= ${currentStart}
+    order by u.member_since desc
+  `) as Array<{
+    first_name: string;
+    last_name: string;
+    email: string;
+    tier: string;
+    member_since: string;
+    balance: number;
+    total_earned: number;
+    total_redeemed: number;
+    course_name: string;
+  }>;
+  return rows.map((r) => ({
+    firstName: r.first_name,
+    lastName: r.last_name,
+    email: r.email,
+    tier: r.tier,
+    memberSince: r.member_since,
+    balance: r.balance,
+    totalEarned: r.total_earned,
+    totalRedeemed: r.total_redeemed,
+    courseName: r.course_name,
+  }));
+}
+
+export interface SuperAdminRedemptionReportRow extends RedemptionReportRow {
+  courseName: string;
+}
+
+// Cross-club counterpart of listRedemptionsReport, for super_admin's Top
+// Redeemed Rewards detail page (every redemption, every club).
+export async function listSuperAdminRedemptionsReport(period: StatsPeriod): Promise<SuperAdminRedemptionReportRow[]> {
+  const { currentStart } = periodWindow(period);
+  const rows = (await sql`
+    select v.code, u.first_name, u.last_name, u.email, r.title, v.variant_label, v.cost, v.status, v.issued_at, v.redeemed_at, c.name as course_name
+    from vouchers v
+    join rewards r on r.id = v.reward_id
+    join users u on u.id = v.user_id
+    join courses c on c.id = r.course_id
+    where v.issued_at >= ${currentStart}
+    order by v.issued_at desc
+  `) as Array<{
+    code: string;
+    first_name: string;
+    last_name: string;
+    email: string;
+    title: string;
+    variant_label: string;
+    cost: number;
+    status: string;
+    issued_at: string;
+    redeemed_at: string | null;
+    course_name: string;
+  }>;
+  return rows.map((r) => ({
+    code: r.code,
+    memberName: `${r.first_name} ${r.last_name}`,
+    memberEmail: r.email,
+    rewardTitle: r.title,
+    variantLabel: r.variant_label,
+    cost: r.cost,
+    status: r.status,
+    issuedAt: r.issued_at,
+    redeemedAt: r.redeemed_at,
+    courseName: r.course_name,
+  }));
+}
+
 export interface SuperAdminDashboardReport extends DashboardReport {
   totals: DashboardReport['totals'] & { clubs: number };
 }

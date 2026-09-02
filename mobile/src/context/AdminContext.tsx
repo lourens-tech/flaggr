@@ -48,8 +48,11 @@ import type {
   SuperAdminBroadcastTarget,
   SuperAdminCourseSummary,
   SuperAdminDashboardReport,
+  SuperAdminMemberReportRow,
   SuperAdminMemberSearchResult,
   SuperAdminMemberStats,
+  SuperAdminRedemptionReportRow,
+  SuperAdminReportKind,
   AdPerformanceRow,
   StatBreakdownMetric,
   StatBreakdownRow,
@@ -226,6 +229,11 @@ interface AdminContextValue {
   getSuperAdminDashboard: (period: DashboardPeriod) => Promise<SuperAdminDashboardReport>;
   getSuperAdminAdPerformance: () => Promise<AdPerformanceRow[]>;
   getSuperAdminStatBreakdown: (metric: StatBreakdownMetric, period: DashboardPeriod) => Promise<StatBreakdownRow[]>;
+  // Cross-club Tier Distribution / Top Redeemed Rewards detail pages.
+  getSuperAdminReportRows: <K extends SuperAdminReportKind>(
+    report: K,
+    period: DashboardPeriod,
+  ) => Promise<K extends 'crossClubMembers' ? SuperAdminMemberReportRow[] : SuperAdminRedemptionReportRow[]>;
   // Support Centre (course_admin/staff requester side — a ticket to the
   // Flagrr team, distinct from the per-club 'enquiries' above).
   createSupportTicket: (subject: string, message: string) => Promise<string>;
@@ -661,6 +669,8 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
 
   const getSuperAdminStatBreakdown = async (metric: StatBreakdownMetric, period: DashboardPeriod) =>
     adminApi.superAdminStatBreakdown(metric, period);
+  const getSuperAdminReportRows = <K extends SuperAdminReportKind>(report: K, period: DashboardPeriod) =>
+    adminApi.superAdminReportRows(report, period);
 
   const createSupportTicket = async (subject: string, message: string) => {
     const res = await adminApi.createSupportTicket(subject, message);
@@ -839,6 +849,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     getSuperAdminDashboard,
     getSuperAdminAdPerformance,
     getSuperAdminStatBreakdown,
+    getSuperAdminReportRows,
     createSupportTicket,
     listSupportTickets,
     getSupportTicketThread,
