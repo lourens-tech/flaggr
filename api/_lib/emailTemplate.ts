@@ -2,7 +2,7 @@
 // signup welcome (which has its own richer template, see welcomeEmail.ts).
 // Table-based layout with inline styles throughout — the only markup that
 // renders consistently across Gmail, Apple Mail, and Outlook's Word engine.
-const LOGO_URL = 'https://app.flagrr.com/flagrr-logo-white-email.png';
+const LOGO_URL = 'https://flagrr-loyalty.vercel.app/flagrr-logo-white-email.png';
 
 export function escapeHtml(value: string): string {
   return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');

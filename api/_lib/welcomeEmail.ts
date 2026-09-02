@@ -2,7 +2,7 @@
 // strip/block base64 data URIs in received HTML email, so a real HTTPS URL
 // is the only reliably compatible option. Served as a static file copied
 // into the web build output (see vercel.json's buildCommand).
-const LOGO_URL = 'https://app.flagrr.com/flagrr-logo-white-email.png';
+const LOGO_URL = 'https://flagrr-loyalty.vercel.app/flagrr-logo-white-email.png';
 
 export interface WelcomeEmailParams {
   firstName: string;

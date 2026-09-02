@@ -7,7 +7,7 @@ import { matchesRoster } from '../_lib/memberRoster';
 import { sendEmail } from '../_lib/email';
 import { renderWelcomeEmailHtml, renderWelcomeEmailSubject } from '../_lib/welcomeEmail';
 
-const APP_URL = process.env.APP_URL || 'https://app.flagrr.com';
+const APP_URL = process.env.APP_URL || 'https://flagrr-loyalty.vercel.app';
 
 interface SignupBody {
   firstName?: string;

@@ -55,7 +55,7 @@ const MAX_IMAGE_BASE64_LENGTH = 2_000_000;
 const MAX_ROSTER_FILE_BASE64_LENGTH = 4_000_000;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const CONTACT_EMAIL = process.env.CONTACT_EMAIL || 'lourens@ewosolutions.com';
-const APP_URL = process.env.APP_URL || 'https://app.flagrr.com';
+const APP_URL = process.env.APP_URL || 'https://flagrr-loyalty.vercel.app';
 
 function escapeHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
