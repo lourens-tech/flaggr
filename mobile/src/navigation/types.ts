@@ -1,5 +1,5 @@
 import type { ScanResult } from '../data/types';
-import type { StatBreakdownMetric } from '../data/adminTypes';
+import type { CourseReportKind, StatBreakdownMetric } from '../data/adminTypes';
 
 export type AuthStackParamList = {
   Landing: undefined;
@@ -46,6 +46,7 @@ export type AdminStackParamList = {
   AdminSupportTicketChat: { ticketId: string };
   AdminMemberList: undefined;
   AdminFraudOversight: undefined;
+  AdminReportDetail: { report: CourseReportKind; label: string; period: 'month' | 'year' | 'all' };
   TermsPrivacy: undefined;
 };
 

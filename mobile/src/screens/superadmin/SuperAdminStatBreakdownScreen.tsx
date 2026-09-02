@@ -1,12 +1,13 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SuperAdminStackParamList } from '../../navigation/types';
 import { ScreenHeader } from '../../components/common/ScreenHeader';
 import { useAdmin } from '../../context/AdminContext';
-import { AdminApiError } from '../../api/adminClient';
+import { AdminApiError, downloadSuperAdminStatBreakdown } from '../../api/adminClient';
 import { showAlert } from '../../utils/alert';
 import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
 import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
@@ -30,6 +31,7 @@ export function SuperAdminStatBreakdownScreen({ navigation, route }: Props) {
   const [period, setPeriod] = useState<Period>(route.params.period);
   const [rows, setRows] = useState<StatBreakdownRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
 
   const load = useCallback(
     async (p: Period) => {
@@ -65,6 +67,22 @@ export function SuperAdminStatBreakdownScreen({ navigation, route }: Props) {
     load(p);
   };
 
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const slug = label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || metric;
+      const downloaded = await downloadSuperAdminStatBreakdown(metric, period, `${slug}-${period}.xlsx`);
+      if (!downloaded) {
+        showAlert('Web only for now', 'Excel export is available on the Flagrr web app — open this page in a browser to download this report.');
+      }
+    } catch (err) {
+      const message = err instanceof AdminApiError ? err.message : 'Something went wrong. Please try again.';
+      showAlert('Couldn’t generate report', message);
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const total = rows.reduce((sum, r) => sum + r.value, 0);
 
   return (
@@ -76,16 +94,28 @@ export function SuperAdminStatBreakdownScreen({ navigation, route }: Props) {
 
       <View style={styles.toolbar}>
         <Text style={styles.totalText}>{total.toLocaleString()} total</Text>
-        <View style={styles.periodToggle}>
-          {PERIODS.map((p) => (
-            <TouchableOpacity
-              key={p}
-              onPress={() => handlePeriodChange(p)}
-              style={[styles.periodPill, period === p && styles.periodPillActive]}
-            >
-              <Text style={[styles.periodText, period === p && styles.periodTextActive]}>{PERIOD_LABELS[p]}</Text>
-            </TouchableOpacity>
-          ))}
+        <View style={styles.toolbarRight}>
+          <View style={styles.periodToggle}>
+            {PERIODS.map((p) => (
+              <TouchableOpacity
+                key={p}
+                onPress={() => handlePeriodChange(p)}
+                style={[styles.periodPill, period === p && styles.periodPillActive]}
+              >
+                <Text style={[styles.periodText, period === p && styles.periodTextActive]}>{PERIOD_LABELS[p]}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          <TouchableOpacity style={styles.exportButton} onPress={handleExport} disabled={exporting}>
+            {exporting ? (
+              <ActivityIndicator color={colors.white} size="small" />
+            ) : (
+              <>
+                <Ionicons name="download-outline" size={16} color={colors.white} />
+                <Text style={styles.exportButtonText}>Excel</Text>
+              </>
+            )}
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -120,13 +150,26 @@ function createStyles(colors: ThemeColors) {
     justifyContent: 'space-between',
     paddingHorizontal: screenPadding,
     paddingTop: spacing.md,
+    flexWrap: 'wrap',
+    gap: spacing.sm,
   },
   totalText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.textPrimary },
+  toolbarRight: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   periodToggle: { flexDirection: 'row', backgroundColor: colors.mintBg, borderRadius: radius.pill, padding: 3 },
   periodPill: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: radius.pill },
   periodPillActive: { backgroundColor: colors.darkGreen },
   periodText: { fontFamily: fontFamily.heading, fontSize: 12, color: colors.textPrimary },
   periodTextActive: { color: colors.white },
+  exportButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.clubGreen,
+    borderRadius: radius.pill,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  exportButtonText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.tiny, color: colors.white },
   listContent: { padding: screenPadding, gap: spacing.sm },
   row: {
     flexDirection: 'row',

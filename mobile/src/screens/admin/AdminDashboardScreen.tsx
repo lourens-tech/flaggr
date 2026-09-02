@@ -12,7 +12,6 @@ import { AdminHeaderAvatar } from '../../components/common/AdminHeaderAvatar';
 import { TextField } from '../../components/common/TextField';
 import { PillButton } from '../../components/common/PillButton';
 import { useAdmin } from '../../context/AdminContext';
-import { downloadReport, AdminApiError } from '../../api/adminClient';
 import { showAlert } from '../../utils/alert';
 import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
 import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
@@ -27,19 +26,6 @@ const PERIODS: Period[] = ['month', 'year', 'all'];
 // so its deltaPct is always forced to 0 server-side — show no delta at all
 // there rather than a misleading "0%".
 const DELTA_LABELS: Record<Period, string> = { month: 'vs Last Month', year: 'vs Last Year', all: '' };
-
-type ReportKind = 'redemptions' | 'receipts' | 'members';
-const REPORT_KINDS: ReportKind[] = ['redemptions', 'receipts', 'members'];
-const REPORT_LABELS: Record<ReportKind, string> = {
-  redemptions: 'Redemptions',
-  receipts: 'Receipts',
-  members: 'Members',
-};
-const REPORT_ICONS: Record<ReportKind, keyof typeof Ionicons.glyphMap> = {
-  redemptions: 'pricetag-outline',
-  receipts: 'receipt-outline',
-  members: 'people-outline',
-};
 
 type Props = CompositeScreenProps<
   BottomTabScreenProps<AdminTabParamList, 'AdminDashboard'>,
@@ -60,7 +46,6 @@ export function AdminDashboardScreen({ navigation }: Props) {
     searchMembers,
     listAllMembers,
   } = useAdmin();
-  const [exporting, setExporting] = useState<string | null>(null);
   const [memberSearch, setMemberSearch] = useState('');
   const [memberResults, setMemberResults] = useState<AdminMember[]>([]);
   const [searchingMembers, setSearchingMembers] = useState(false);
@@ -105,21 +90,6 @@ export function AdminDashboardScreen({ navigation }: Props) {
     setShowAllMembers(next);
     if (next && allMembers.length === 0) {
       loadAllMembersPage(1);
-    }
-  };
-
-  const handleExport = async (report: ReportKind) => {
-    setExporting(report);
-    try {
-      const downloaded = await downloadReport(report, dashboardPeriod);
-      if (!downloaded) {
-        showAlert('Web only for now', 'Excel export is available on the Flagrr web app — open your dashboard in a browser to download this report.');
-      }
-    } catch (err) {
-      const message = err instanceof AdminApiError ? err.message : 'Something went wrong. Please try again.';
-      showAlert('Couldn’t generate report', message);
-    } finally {
-      setExporting(null);
     }
   };
 
@@ -179,8 +149,24 @@ export function AdminDashboardScreen({ navigation }: Props) {
           <>
             <View style={styles.statsGrid}>
               <View style={styles.statsRow}>
-                <StatCard label="Members" value={dashboard.totals.members} deltaPct={0} showDelta={false} fill backgroundColor={colors.mintBg} />
-                <StatCard label="New Members" value={dashboard.totals.newMembers} deltaPct={0} showDelta={false} fill backgroundColor={colors.mintBg} />
+                <StatCard
+                  label="Members"
+                  value={dashboard.totals.members}
+                  deltaPct={0}
+                  showDelta={false}
+                  fill
+                  backgroundColor={colors.mintBg}
+                  onPress={() => navigation.navigate('AdminReportDetail', { report: 'members', label: 'Members', period: 'all' })}
+                />
+                <StatCard
+                  label="New Members"
+                  value={dashboard.totals.newMembers}
+                  deltaPct={0}
+                  showDelta={false}
+                  fill
+                  backgroundColor={colors.mintBg}
+                  onPress={() => navigation.navigate('AdminReportDetail', { report: 'members', label: 'New Members', period: dashboardPeriod })}
+                />
               </View>
               <View style={styles.statsRow}>
                 <StatCard
@@ -191,6 +177,7 @@ export function AdminDashboardScreen({ navigation }: Props) {
                   showDelta={dashboardPeriod !== 'all'}
                   fill
                   backgroundColor={colors.mintBg}
+                  onPress={() => navigation.navigate('AdminReportDetail', { report: 'receipts', label: 'Flagrr Cash Earned', period: dashboardPeriod })}
                 />
                 <StatCard
                   label="Flagrr Cash Redeemed"
@@ -200,6 +187,7 @@ export function AdminDashboardScreen({ navigation }: Props) {
                   showDelta={dashboardPeriod !== 'all'}
                   fill
                   backgroundColor={colors.mintBg}
+                  onPress={() => navigation.navigate('AdminReportDetail', { report: 'redemptions', label: 'Flagrr Cash Redeemed', period: dashboardPeriod })}
                 />
               </View>
               <StatCard
@@ -210,6 +198,7 @@ export function AdminDashboardScreen({ navigation }: Props) {
                 showDelta={dashboardPeriod !== 'all'}
                 width="100%"
                 backgroundColor={colors.mintBg}
+                onPress={() => navigation.navigate('AdminReportDetail', { report: 'receipts', label: 'Receipts Scanned', period: dashboardPeriod })}
               />
             </View>
 
@@ -244,28 +233,6 @@ export function AdminDashboardScreen({ navigation }: Props) {
                   </View>
                 ))
               )}
-            </View>
-
-            <Text style={styles.sectionTitle}>Pull a Report</Text>
-            <View style={styles.card}>
-              <View style={styles.reportGrid}>
-                {REPORT_KINDS.map((report) => (
-                  <TouchableOpacity
-                    key={report}
-                    style={styles.reportTile}
-                    onPress={() => handleExport(report)}
-                    disabled={exporting === report}
-                  >
-                    <Ionicons name={REPORT_ICONS[report]} size={26} color={colors.clubGreen} />
-                    <Text style={styles.reportTileLabel}>{REPORT_LABELS[report]}</Text>
-                    {exporting === report ? (
-                      <View style={styles.reportTileOverlay}>
-                        <ActivityIndicator color={colors.clubGreen} size="small" />
-                      </View>
-                    ) : null}
-                  </TouchableOpacity>
-                ))}
-              </View>
             </View>
 
             <Text style={styles.sectionTitle}>Look Up a Member</Text>
@@ -444,27 +411,6 @@ function createStyles(colors: ThemeColors) {
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: spacing.sm },
   rowLabel: { flex: 1, fontFamily: fontFamily.body, fontSize: fontSize.body, color: colors.textPrimary },
   rowValue: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.textPrimary },
-  reportGrid: { flexDirection: 'row', gap: spacing.sm },
-  reportTile: {
-    flex: 1,
-    aspectRatio: 1,
-    backgroundColor: colors.background,
-    borderWidth: 0.5,
-    borderColor: colors.clubGreen,
-    borderRadius: radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.xs,
-    padding: spacing.sm,
-  },
-  reportTileLabel: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.tiny, color: colors.textPrimary, textAlign: 'center' },
-  reportTileOverlay: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(255,255,255,0.7)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radius.md,
-  },
   memberRow: {
     flexDirection: 'row',
     alignItems: 'center',

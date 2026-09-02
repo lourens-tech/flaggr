@@ -16,15 +16,19 @@ import type {
   AdminVoucherLookup,
   AuditLogEntry,
   BroadcastTarget,
+  CourseReportKind,
   DashboardReport,
   DuplicateReceiptAttempt,
   EnquiryMessage,
   EnquiryStatus,
   FlaggedReceipt,
+  MemberReportRow,
   MemberRosterStatus,
   MemberRosterUploadResult,
   MemberStats,
   MembersPage,
+  RedemptionReportRow,
+  ReceiptReportRow,
   SuperAdminBroadcast,
   SuperAdminBroadcastTarget,
   SuperAdminCourseSummary,
@@ -216,6 +220,13 @@ export const adminApi = {
 
   dashboard: (period: 'month' | 'year' | 'all') =>
     request<DashboardReport>(`?action=dashboard&period=${period}`),
+
+  // Backs each Overview stat card's detail table — same underlying rows as
+  // downloadReport's Excel file for that report, just as JSON.
+  reportRows: <K extends CourseReportKind>(report: K, period: 'month' | 'year' | 'all') =>
+    request<K extends 'redemptions' ? RedemptionReportRow[] : K extends 'receipts' ? ReceiptReportRow[] : MemberReportRow[]>(
+      `?action=reportRows&report=${report}&period=${period}`,
+    ),
 
   // --- This club's own flagged-receipts review queue (course_admin only) ---
   flaggedReceipts: () => request<FlaggedReceipt[]>('?action=flaggedReceipts'),
@@ -542,5 +553,16 @@ export async function downloadReport(
 /** Downloads the super_admin ads report for one course as a .xlsx workbook. */
 export async function downloadSuperAdminAdsReport(courseId: string, filename: string): Promise<boolean> {
   const params = new URLSearchParams({ action: 'superAdminExportReport', report: 'ads', courseId });
+  return downloadFile(params, filename);
+}
+
+/** Downloads a per-club stat breakdown (the same rows shown on
+ * SuperAdminStatBreakdownScreen) as a .xlsx workbook. */
+export async function downloadSuperAdminStatBreakdown(
+  metric: StatBreakdownMetric,
+  period: 'month' | 'year' | 'all',
+  filename: string,
+): Promise<boolean> {
+  const params = new URLSearchParams({ action: 'superAdminExportReport', report: metric, period });
   return downloadFile(params, filename);
 }

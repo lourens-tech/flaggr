@@ -10,6 +10,10 @@ import {
   getSuperAdminDashboardReport,
   getAdPerformanceReport,
   getSuperAdminStatBreakdown,
+  listMembersReport,
+  listReceiptsReport,
+  listRedemptionsReport,
+  type CourseReportKind,
   type StatBreakdownMetric,
 } from '../_lib/adminReports';
 import { toXlsxBuffer } from '../_lib/xlsx';
@@ -2176,24 +2180,49 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       // their own download buttons.
       if (action === 'superAdminExportReport' && req.method === 'GET') {
         const report = typeof req.query.report === 'string' ? req.query.report : '';
-        if (report !== 'ads') throw new HttpError(400, 'Unknown report');
-        const targetCourseId = resolveAdCourseId(typeof req.query.courseId === 'string' ? req.query.courseId : undefined);
-        const ads = await listAdsForCourse(targetCourseId);
-        const placementLabels: Record<string, string> = { home: 'Home', home_top: 'Home (Top Banner)', rewards_shop: 'Rewards Shop' };
-        const workbook = toXlsxBuffer(
-          ['Title', 'Placement', 'Status', 'Clicks', 'Starts', 'Ends'],
-          ads.map((a) => [
-            a.title || '(untitled ad)',
-            placementLabels[a.placement] ?? a.placement,
-            a.active ? 'Active' : 'Inactive',
-            a.clicks,
-            a.startsAt,
-            a.endsAt,
-          ]),
-          'Ads',
-        );
+        let workbook: Buffer;
+        let filename: string;
+
+        if (report === 'ads') {
+          const targetCourseId = resolveAdCourseId(typeof req.query.courseId === 'string' ? req.query.courseId : undefined);
+          const ads = await listAdsForCourse(targetCourseId);
+          const placementLabels: Record<string, string> = { home: 'Home', home_top: 'Home (Top Banner)', rewards_shop: 'Rewards Shop' };
+          workbook = toXlsxBuffer(
+            ['Title', 'Placement', 'Status', 'Clicks', 'Starts', 'Ends'],
+            ads.map((a) => [
+              a.title || '(untitled ad)',
+              placementLabels[a.placement] ?? a.placement,
+              a.active ? 'Active' : 'Inactive',
+              a.clicks,
+              a.startsAt,
+              a.endsAt,
+            ]),
+            'Ads',
+          );
+          filename = 'ads-report.xlsx';
+        } else if (STAT_BREAKDOWN_METRICS.has(report)) {
+          const period: StatsPeriod = isStatsPeriod(req.query.period) ? req.query.period : 'month';
+          const metricLabels: Record<string, string> = {
+            members: 'Members',
+            newMembers: 'New Members',
+            fcEarned: 'Flagrr Cash Earned',
+            fcRedeemed: 'Flagrr Cash Redeemed',
+            receiptsScanned: 'Receipts Scanned',
+          };
+          const valueLabel = metricLabels[report] ?? report;
+          const rows = await getSuperAdminStatBreakdown(period, report as StatBreakdownMetric);
+          workbook = toXlsxBuffer(
+            ['Club', valueLabel],
+            rows.map((r) => [r.courseName, r.value]),
+            valueLabel,
+          );
+          filename = `${report}-${period}.xlsx`;
+        } else {
+          throw new HttpError(400, 'Unknown report');
+        }
+
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.setHeader('Content-Disposition', 'attachment; filename="ads-report.xlsx"');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
         res.status(200).send(workbook);
         return;
       }
@@ -3597,85 +3626,54 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     return;
   }
 
+  // Backs each Overview stat card's detail page — the exact same rows as
+  // exportReport below (via the same listXReport functions), just JSON for
+  // the on-screen table instead of an .xlsx buffer, so the two never drift.
+  if (action === 'reportRows' && req.method === 'GET') {
+    const report = req.query.report;
+    const period: StatsPeriod = isStatsPeriod(req.query.period) ? req.query.period : 'month';
+    if (report === 'redemptions') {
+      res.status(200).json(await listRedemptionsReport(courseId, period));
+    } else if (report === 'receipts') {
+      res.status(200).json(await listReceiptsReport(courseId, period));
+    } else if (report === 'members') {
+      res.status(200).json(await listMembersReport(courseId, period));
+    } else {
+      throw new HttpError(400, 'report must be one of redemptions, receipts, members');
+    }
+    return;
+  }
+
   if (action === 'exportReport' && req.method === 'GET') {
     const report = typeof req.query.report === 'string' ? req.query.report : '';
     const period: StatsPeriod = isStatsPeriod(req.query.period) ? req.query.period : 'month';
-    const { currentStart } = periodWindow(period);
     let workbook: Buffer;
     let filename: string;
 
     if (report === 'redemptions') {
-      const rows = (await sql`
-        select v.code, u.first_name, u.last_name, u.email, r.title, v.variant_label, v.cost, v.status, v.issued_at, v.redeemed_at
-        from vouchers v
-        join rewards r on r.id = v.reward_id
-        join users u on u.id = v.user_id
-        where r.course_id = ${courseId} and v.issued_at >= ${currentStart}
-        order by v.issued_at desc
-      `) as Array<{
-        code: string;
-        first_name: string;
-        last_name: string;
-        email: string;
-        title: string;
-        variant_label: string;
-        cost: number;
-        status: string;
-        issued_at: string;
-        redeemed_at: string | null;
-      }>;
+      const rows = await listRedemptionsReport(courseId, period);
       workbook = toXlsxBuffer(
         ['Code', 'Member', 'Email', 'Reward', 'Variant', 'Flagrr Cash', 'Status', 'Issued At', 'Redeemed At'],
-        rows.map((r) => [r.code, `${r.first_name} ${r.last_name}`, r.email, r.title, r.variant_label, r.cost, r.status, r.issued_at, r.redeemed_at]),
+        rows.map((r) => [r.code, r.memberName, r.memberEmail, r.rewardTitle, r.variantLabel, r.cost, r.status, r.issuedAt, r.redeemedAt]),
         'Redemptions',
       );
       filename = `redemptions-${period}.xlsx`;
     } else if (report === 'receipts') {
-      const rows = (await sql`
-        select r.receipt_number, u.first_name, u.last_name, u.email, r.course_name, r.total, r.points_awarded, r.status, r.submitted_at
-        from receipts r
-        join users u on u.id = r.user_id
-        where r.course_id = ${courseId} and r.submitted_at >= ${currentStart}
-        order by r.submitted_at desc
-      `) as Array<{
-        receipt_number: string | null;
-        first_name: string;
-        last_name: string;
-        email: string;
-        course_name: string;
-        total: number;
-        points_awarded: number | null;
-        status: string;
-        submitted_at: string;
-      }>;
+      const rows = await listReceiptsReport(courseId, period);
       workbook = toXlsxBuffer(
         ['Receipt #', 'Member', 'Email', 'Where Scanned', 'Total (R)', 'Flagrr Cash Awarded', 'Status', 'Submitted At'],
-        rows.map((r) => [r.receipt_number, `${r.first_name} ${r.last_name}`, r.email, r.course_name, r.total, r.points_awarded, r.status, r.submitted_at]),
+        rows.map((r) => [r.receiptNumber, r.memberName, r.memberEmail, r.whereScanned, r.total, r.pointsAwarded, r.status, r.submittedAt]),
         'Receipts',
       );
       filename = `receipts-${period}.xlsx`;
     } else if (report === 'members') {
-      const rows = (await sql`
-        select u.first_name, u.last_name, u.email, u.tier, u.member_since, p.balance, p.total_earned, p.total_redeemed
-        from users u join points_accounts p on p.user_id = u.id
-        where u.course_id = ${courseId}
-        order by u.member_since desc
-      `) as Array<{
-        first_name: string;
-        last_name: string;
-        email: string;
-        tier: string;
-        member_since: string;
-        balance: number;
-        total_earned: number;
-        total_redeemed: number;
-      }>;
+      const rows = await listMembersReport(courseId, period);
       workbook = toXlsxBuffer(
         ['First Name', 'Last Name', 'Email', 'Tier', 'Member Since', 'FC Balance', 'FC Total Earned', 'FC Total Redeemed'],
-        rows.map((r) => [r.first_name, r.last_name, r.email, r.tier, r.member_since, r.balance, r.total_earned, r.total_redeemed]),
+        rows.map((r) => [r.firstName, r.lastName, r.email, r.tier, r.memberSince, r.balance, r.totalEarned, r.totalRedeemed]),
         'Members',
       );
-      filename = 'members.xlsx';
+      filename = `members-${period}.xlsx`;
     } else if (report === 'memberActivity') {
       const memberId = typeof req.query.userId === 'string' ? req.query.userId : '';
       if (!memberId) throw new HttpError(400, 'userId is required');

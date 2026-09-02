@@ -31,15 +31,19 @@ import type {
   AdminVoucherLookup,
   AuditLogEntry,
   BroadcastTarget,
+  CourseReportKind,
   DashboardReport,
   DuplicateReceiptAttempt,
   EnquiryMessage,
   EnquiryStatus,
   FlaggedReceipt,
+  MemberReportRow,
   MemberRosterStatus,
   MemberRosterUploadResult,
   MemberStats,
   MembersPage,
+  RedemptionReportRow,
+  ReceiptReportRow,
   SuperAdminBroadcast,
   SuperAdminBroadcastTarget,
   SuperAdminCourseSummary,
@@ -262,6 +266,11 @@ interface AdminContextValue {
   confirmReceiptFraud: (id: string, reason: string) => Promise<void>;
   approveReceipt: (id: string) => Promise<void>;
   getReceiptImage: (id: string) => Promise<string | null>;
+  // Backs each Overview stat card's detail page (AdminReportDetailScreen).
+  getReportRows: <K extends CourseReportKind>(
+    report: K,
+    period: 'month' | 'year' | 'all',
+  ) => Promise<K extends 'redemptions' ? RedemptionReportRow[] : K extends 'receipts' ? ReceiptReportRow[] : MemberReportRow[]>;
 }
 
 const AdminContext = createContext<AdminContextValue | undefined>(undefined);
@@ -727,6 +736,8 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     await adminApi.approveReceipt(id);
   };
   const getReceiptImage = async (id: string): Promise<string | null> => (await adminApi.receiptImage(id)).imageData;
+  const getReportRows = <K extends CourseReportKind>(report: K, period: 'month' | 'year' | 'all') =>
+    adminApi.reportRows(report, period);
 
   const value: AdminContextValue = {
     isAdminAuthenticated,
@@ -856,6 +867,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     confirmReceiptFraud,
     approveReceipt,
     getReceiptImage,
+    getReportRows,
   };
 
   return <AdminContext.Provider value={value}>{children}</AdminContext.Provider>;

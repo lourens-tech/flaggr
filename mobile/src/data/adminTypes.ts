@@ -396,6 +396,45 @@ export interface MemberRosterUploadResult {
   verifiedCount: number;
 }
 
+// Backs the Overview stat cards' detail pages (AdminReportDetailScreen) —
+// one row shape per underlying report, matching the columns of its Excel
+// download exactly (see api/_lib/adminReports.ts).
+export type CourseReportKind = 'redemptions' | 'receipts' | 'members';
+
+export interface RedemptionReportRow {
+  code: string;
+  memberName: string;
+  memberEmail: string;
+  rewardTitle: string;
+  variantLabel: string;
+  cost: number;
+  status: string;
+  issuedAt: string;
+  redeemedAt: string | null;
+}
+
+export interface ReceiptReportRow {
+  receiptNumber: string | null;
+  memberName: string;
+  memberEmail: string;
+  whereScanned: string;
+  total: number;
+  pointsAwarded: number | null;
+  status: string;
+  submittedAt: string;
+}
+
+export interface MemberReportRow {
+  firstName: string;
+  lastName: string;
+  email: string;
+  tier: string;
+  memberSince: string;
+  balance: number;
+  totalEarned: number;
+  totalRedeemed: number;
+}
+
 export interface AuditLogEntry {
   id: string;
   adminId: string | null;
