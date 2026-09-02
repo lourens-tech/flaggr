@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { Image, Linking, StyleProp, StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { useApp } from '../../context/AppContext';
@@ -17,8 +17,16 @@ const AD_SPACE_HEIGHT = 180;
 export function AdSpace({ placement, style }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const { ads, logAdClick } = useApp();
+  const { ads, logAdClick, logAdImpression } = useApp();
   const ad = ads.find((a) => a.placement === placement);
+
+  // One impression per time this ad actually renders on screen — mirrors
+  // logAdClick's fire-and-forget shape, just triggered by being shown
+  // instead of tapped. Re-fires if the ad in this slot changes.
+  useEffect(() => {
+    if (ad) logAdImpression(ad.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ad?.id]);
 
   // A video source, or '' when this ad isn't a video — useVideoPlayer must
   // run on every render (Rules of Hooks), so it can't sit behind the early

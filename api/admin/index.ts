@@ -8,7 +8,6 @@ import { fillMonthlyByNumber } from '../_lib/monthly';
 import {
   getDashboardReport,
   getSuperAdminDashboardReport,
-  getAdPerformanceReport,
   getSuperAdminStatBreakdown,
   listMembersReport,
   listReceiptsReport,
@@ -18,6 +17,7 @@ import {
   type CourseReportKind,
   type StatBreakdownMetric,
 } from '../_lib/adminReports';
+import { getAdClickLog, getAdPerformanceReport, getAdTrend } from '../_lib/adAnalytics';
 import { toXlsxBuffer } from '../_lib/xlsx';
 import {
   addAdminMessage,
@@ -345,6 +345,8 @@ const SUPER_ADMIN_ALLOWED_ACTIONS = new Set([
   'superAdminAdDelete',
   'superAdminDashboard',
   'superAdminAdPerformance',
+  'superAdminAdTrend',
+  'superAdminAdClickLog',
   'superAdminRewards',
   'superAdminRewardSave',
   'superAdminRewardDelete',
@@ -2218,6 +2220,34 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
             'Redemptions',
           );
           filename = `redemptions-${period}.xlsx`;
+        } else if (report === 'adPerformance') {
+          const rows = await getAdPerformanceReport(period);
+          const placementLabels: Record<string, string> = { home: 'Home', home_top: 'Home (Top Banner)', rewards_shop: 'Rewards Shop' };
+          workbook = toXlsxBuffer(
+            ['Title', 'Club', 'Placement', 'Media Type', 'Status', 'Clicks', 'Impressions', 'CTR (%)'],
+            rows.map((r) => [
+              r.title || '(untitled ad)',
+              r.courseName,
+              placementLabels[r.placement] ?? r.placement,
+              r.mediaType,
+              r.active ? 'Active' : 'Inactive',
+              r.clicks,
+              r.impressions,
+              r.ctr,
+            ]),
+            'Ad Performance',
+          );
+          filename = `ad-performance-${period}.xlsx`;
+        } else if (report === 'adClickLog') {
+          const adId = typeof req.query.adId === 'string' ? req.query.adId : '';
+          if (!adId) throw new HttpError(400, 'adId is required');
+          const rows = await getAdClickLog(adId, period);
+          workbook = toXlsxBuffer(
+            ['Member', 'Email', 'Clicked At'],
+            rows.map((r) => [r.memberName ?? '—', r.memberEmail ?? '—', r.clickedAt]),
+            'Ad Clicks',
+          );
+          filename = `ad-clicks-${period}.xlsx`;
         } else if (report === 'ads') {
           const targetCourseId = resolveAdCourseId(typeof req.query.courseId === 'string' ? req.query.courseId : undefined);
           const ads = await listAdsForCourse(targetCourseId);
@@ -2343,7 +2373,26 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       }
 
       if (action === 'superAdminAdPerformance' && req.method === 'GET') {
-        res.status(200).json(await getAdPerformanceReport());
+        const period: StatsPeriod = isStatsPeriod(req.query.period) ? req.query.period : 'month';
+        res.status(200).json(await getAdPerformanceReport(period));
+        return;
+      }
+
+      // Clicks + impressions over time, for the trend chart on the Ad
+      // Performance report (all ads) or one ad's own detail page (adId set).
+      if (action === 'superAdminAdTrend' && req.method === 'GET') {
+        const period: StatsPeriod = isStatsPeriod(req.query.period) ? req.query.period : 'month';
+        const adId = typeof req.query.adId === 'string' ? req.query.adId : undefined;
+        res.status(200).json(await getAdTrend(period, adId));
+        return;
+      }
+
+      // Individual click log behind one ad's summary — who clicked, when.
+      if (action === 'superAdminAdClickLog' && req.method === 'GET') {
+        const adId = typeof req.query.adId === 'string' ? req.query.adId : '';
+        if (!adId) throw new HttpError(400, 'adId is required');
+        const period: StatsPeriod = isStatsPeriod(req.query.period) ? req.query.period : 'month';
+        res.status(200).json(await getAdClickLog(adId, period));
         return;
       }
 

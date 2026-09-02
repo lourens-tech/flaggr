@@ -55,3 +55,13 @@ export async function logAdClick(adId: string, userId: string, courseId: string)
     select id, ${userId} from ads where id = ${adId} and (course_id = ${courseId} or course_id is null)
   `;
 }
+
+/** Logs a member being shown an ad (once per time it renders on their
+ * screen), for click-through-rate reporting. Same course/global scoping
+ * guard as logAdClick. */
+export async function logAdImpression(adId: string, userId: string, courseId: string): Promise<void> {
+  await sql`
+    insert into ad_impressions (ad_id, user_id)
+    select id, ${userId} from ads where id = ${adId} and (course_id = ${courseId} or course_id is null)
+  `;
+}

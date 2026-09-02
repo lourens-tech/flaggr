@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { sql } from '../_lib/db';
 import { hashPassword, requireAuthedUser, verifyPassword } from '../_lib/auth';
 import { HttpError, withErrorHandling } from '../_lib/http';
-import { logAdClick } from '../_lib/ads';
+import { logAdClick, logAdImpression } from '../_lib/ads';
 import { registerPushToken, type PushPlatform } from '../_lib/pushNotifications';
 import { notifyCourseAdmins } from '../_lib/adminNotifications';
 import { addMemberMessage, createEnquiry, listEnquiryMessages, markThreadReadByMember } from '../_lib/enquiries';
@@ -323,6 +323,16 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       throw new HttpError(400, 'adId is required');
     }
     await logAdClick(adId, authed.id, authed.courseId);
+    res.status(200).json({ ok: true });
+    return;
+  }
+
+  if (action === 'adImpression') {
+    const adId = (req.body as AdClickBody).adId;
+    if (!adId) {
+      throw new HttpError(400, 'adId is required');
+    }
+    await logAdImpression(adId, authed.id, authed.courseId);
     res.status(200).json({ ok: true });
     return;
   }

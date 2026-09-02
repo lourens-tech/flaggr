@@ -102,6 +102,7 @@ interface AppContextValue extends AppState {
   replyToEnquiry: (enquiryId: string, message: string) => Promise<EnquiryMessage[]>;
   getReceiptImage: (id: string) => Promise<string | null>;
   logAdClick: (adId: string) => void;
+  logAdImpression: (adId: string) => void;
   statsPeriod: StatsPeriod;
   setStatsPeriod: (period: StatsPeriod) => Promise<void>;
   unreadNotificationCount: number;
@@ -299,6 +300,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
+  const logAdImpression = (adId: string) => {
+    api.logAdImpression(adId).catch(() => {
+      // Best-effort — the ad still shows either way.
+    });
+  };
+
   const setStatsPeriod = async (period: StatsPeriod) => {
     setStatsPeriodState(period);
     try {
@@ -357,6 +364,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     replyToEnquiry,
     getReceiptImage,
     logAdClick,
+    logAdImpression,
     statsPeriod,
     setStatsPeriod,
     unreadNotificationCount,

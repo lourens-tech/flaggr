@@ -11,11 +11,11 @@ import { BarChart } from '../../components/common/BarChart';
 import { TextField } from '../../components/common/TextField';
 import { PillButton } from '../../components/common/PillButton';
 import { useAdmin } from '../../context/AdminContext';
-import { AdminApiError } from '../../api/adminClient';
+import { AdminApiError, downloadSuperAdminAdPerformance } from '../../api/adminClient';
 import { showAlert } from '../../utils/alert';
 import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
 import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
-import type { AdPerformanceRow, SuperAdminDashboardReport, SuperAdminMemberSearchResult } from '../../data/adminTypes';
+import type { AdPerformanceRow, AdTrendPoint, SuperAdminDashboardReport, SuperAdminMemberSearchResult } from '../../data/adminTypes';
 
 type Props = CompositeScreenProps<
   BottomTabScreenProps<SuperAdminTabParamList, 'SuperAdminReports'>,
@@ -34,13 +34,15 @@ const PLACEMENT_LABELS: Record<string, string> = { home: 'Home', home_top: 'Home
 export function SuperAdminReportsScreen({ navigation }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const { getSuperAdminDashboard, getSuperAdminAdPerformance, searchSuperAdminMembers } = useAdmin();
+  const { getSuperAdminDashboard, getSuperAdminAdPerformance, getSuperAdminAdTrend, searchSuperAdminMembers } = useAdmin();
 
   const [period, setPeriod] = useState<Period>('month');
   const [dashboard, setDashboard] = useState<SuperAdminDashboardReport | null>(null);
   const [dashboardLoading, setDashboardLoading] = useState(true);
   const [adPerformance, setAdPerformance] = useState<AdPerformanceRow[]>([]);
+  const [adTrend, setAdTrend] = useState<AdTrendPoint[]>([]);
   const [adsLoading, setAdsLoading] = useState(true);
+  const [adExporting, setAdExporting] = useState(false);
   const [memberSearch, setMemberSearch] = useState('');
   const [memberResults, setMemberResults] = useState<SuperAdminMemberSearchResult[]>([]);
   const [searchingMembers, setSearchingMembers] = useState(false);
@@ -59,6 +61,21 @@ export function SuperAdminReportsScreen({ navigation }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const loadAdPerformance = useCallback(async (p: Period) => {
+    setAdsLoading(true);
+    try {
+      const [rows, trend] = await Promise.all([getSuperAdminAdPerformance(p), getSuperAdminAdTrend(p)]);
+      setAdPerformance(rows);
+      setAdTrend(trend);
+    } catch {
+      setAdPerformance([]);
+      setAdTrend([]);
+    } finally {
+      setAdsLoading(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
       let cancelled = false;
@@ -66,15 +83,7 @@ export function SuperAdminReportsScreen({ navigation }: Props) {
         if (!cancelled) await loadDashboard(period);
       })();
       (async () => {
-        setAdsLoading(true);
-        try {
-          const rows = await getSuperAdminAdPerformance();
-          if (!cancelled) setAdPerformance(rows);
-        } catch {
-          if (!cancelled) setAdPerformance([]);
-        } finally {
-          if (!cancelled) setAdsLoading(false);
-        }
+        if (!cancelled) await loadAdPerformance(period);
       })();
       return () => {
         cancelled = true;
@@ -86,6 +95,22 @@ export function SuperAdminReportsScreen({ navigation }: Props) {
   const handlePeriodChange = (p: Period) => {
     setPeriod(p);
     loadDashboard(p);
+    loadAdPerformance(p);
+  };
+
+  const handleExportAdPerformance = async () => {
+    setAdExporting(true);
+    try {
+      const downloaded = await downloadSuperAdminAdPerformance(period, `ad-performance-${period}.xlsx`);
+      if (!downloaded) {
+        showAlert('Web only for now', 'Excel export is available on the Flagrr web app — open this page in a browser to download this report.');
+      }
+    } catch (err) {
+      const message = err instanceof AdminApiError ? err.message : 'Something went wrong. Please try again.';
+      showAlert('Couldn’t generate report', message);
+    } finally {
+      setAdExporting(false);
+    }
   };
 
   const handleSearchMembers = async () => {
@@ -238,26 +263,61 @@ export function SuperAdminReportsScreen({ navigation }: Props) {
           </>
         ) : null}
 
-        <Text style={styles.sectionTitle}>Ad Performance</Text>
-        <View style={styles.card}>
-          {adsLoading ? (
-            <ActivityIndicator color={colors.clubGreen} />
-          ) : adPerformance.length === 0 ? (
-            <Text style={styles.emptyText}>No ads running yet.</Text>
-          ) : (
-            adPerformance.map((a) => (
-              <View key={a.adId} style={styles.adRow}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.rowLabel} numberOfLines={1}>{a.title || '(untitled ad)'}</Text>
-                  <Text style={styles.adSubtext}>
-                    {a.courseName} · {PLACEMENT_LABELS[a.placement] ?? a.placement}{a.active ? '' : ' · inactive'}
-                  </Text>
-                </View>
-                <Text style={styles.rowValue}>{a.clicks} clicks</Text>
-              </View>
-            ))
-          )}
+        <View style={styles.sectionHeaderRow}>
+          <Text style={styles.sectionTitle}>Ad Performance</Text>
+          <TouchableOpacity style={styles.exportButton} onPress={handleExportAdPerformance} disabled={adExporting}>
+            {adExporting ? (
+              <ActivityIndicator color={colors.white} size="small" />
+            ) : (
+              <>
+                <Ionicons name="download-outline" size={16} color={colors.white} />
+                <Text style={styles.exportButtonText}>Excel</Text>
+              </>
+            )}
+          </TouchableOpacity>
         </View>
+
+        {adsLoading ? (
+          <ActivityIndicator color={colors.clubGreen} style={{ marginBottom: spacing.lg }} />
+        ) : (
+          <>
+            {adTrend.some((t) => t.clicks > 0 || t.impressions > 0) ? (
+              <View style={styles.chartCard}>
+                <Text style={styles.chartTitle}>Clicks Over Time</Text>
+                <BarChart data={adTrend.map((t) => ({ month: t.label, value: t.clicks }))} />
+                <View style={{ height: spacing.md }} />
+                <Text style={styles.chartTitle}>Impressions Over Time</Text>
+                <BarChart data={adTrend.map((t) => ({ month: t.label, value: t.impressions }))} />
+              </View>
+            ) : null}
+
+            <View style={styles.card}>
+              {adPerformance.length === 0 ? (
+                <Text style={styles.emptyText}>No ads running yet.</Text>
+              ) : (
+                adPerformance.map((a) => (
+                  <TouchableOpacity
+                    key={a.adId}
+                    style={styles.adRow}
+                    activeOpacity={0.7}
+                    onPress={() => navigation.navigate('SuperAdminAdDetail', { adId: a.adId, adTitle: a.title || '(untitled ad)', period })}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.rowLabel} numberOfLines={1}>{a.title || '(untitled ad)'}</Text>
+                      <Text style={styles.adSubtext}>
+                        {a.courseName} · {PLACEMENT_LABELS[a.placement] ?? a.placement}{a.active ? '' : ' · inactive'}
+                      </Text>
+                      <Text style={styles.adSubtext}>
+                        {a.clicks} clicks · {a.impressions} impressions · {a.ctr}% CTR
+                      </Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
+                  </TouchableOpacity>
+                ))
+              )}
+            </View>
+          </>
+        )}
 
         <Text style={styles.sectionTitle}>Look Up a Member</Text>
         <View style={styles.card}>
@@ -315,6 +375,16 @@ function createStyles(colors: ThemeColors) {
   statsRow: { flexDirection: 'row', gap: 10 },
   sectionTitle: { fontFamily: fontFamily.heading, fontSize: fontSize.title, color: colors.textPrimary, marginBottom: spacing.sm },
   sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  exportButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.clubGreen,
+    borderRadius: radius.pill,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  exportButtonText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.tiny, color: colors.white },
   chartCard: {
     backgroundColor: colors.mintBg,
     borderWidth: 0.5,

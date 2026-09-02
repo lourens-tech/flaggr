@@ -133,8 +133,27 @@ export interface AdPerformanceRow {
   courseName: string;
   title: string;
   placement: 'home' | 'home_top' | 'rewards_shop';
+  mediaType: 'image' | 'gif' | 'video';
   active: boolean;
   clicks: number;
+  impressions: number;
+  ctr: number; // percentage
+}
+
+// Clicks + impressions over time — the trend chart on the Ad Performance
+// report (every ad) or one ad's own detail page (SuperAdminAdDetailScreen).
+export interface AdTrendPoint {
+  label: string;
+  clicks: number;
+  impressions: number;
+}
+
+// The individual click log behind one ad's summary count.
+export interface AdClickLogRow {
+  id: string;
+  memberName: string | null;
+  memberEmail: string | null;
+  clickedAt: string;
 }
 
 export type StatBreakdownMetric = 'members' | 'newMembers' | 'fcEarned' | 'fcRedeemed' | 'receiptsScanned';

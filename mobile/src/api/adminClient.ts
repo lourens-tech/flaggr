@@ -38,7 +38,9 @@ import type {
   SuperAdminDashboardReport,
   SuperAdminMemberSearchResult,
   SuperAdminMemberStats,
+  AdClickLogRow,
   AdPerformanceRow,
+  AdTrendPoint,
   StatBreakdownMetric,
   StatBreakdownRow,
   StaffRedemption,
@@ -383,7 +385,14 @@ export const adminApi = {
   superAdminDashboard: (period: 'month' | 'year' | 'all') =>
     request<SuperAdminDashboardReport>(`?action=superAdminDashboard&period=${period}`),
 
-  superAdminAdPerformance: () => request<AdPerformanceRow[]>('?action=superAdminAdPerformance'),
+  superAdminAdPerformance: (period: 'month' | 'year' | 'all') =>
+    request<AdPerformanceRow[]>(`?action=superAdminAdPerformance&period=${period}`),
+
+  superAdminAdTrend: (period: 'month' | 'year' | 'all', adId?: string) =>
+    request<AdTrendPoint[]>(`?action=superAdminAdTrend&period=${period}${adId ? `&adId=${encodeURIComponent(adId)}` : ''}`),
+
+  superAdminAdClickLog: (adId: string, period: 'month' | 'year' | 'all') =>
+    request<AdClickLogRow[]>(`?action=superAdminAdClickLog&adId=${encodeURIComponent(adId)}&period=${period}`),
 
   superAdminRewards: (courseId: string) =>
     request<AdminReward[]>(`?action=superAdminRewards&courseId=${encodeURIComponent(courseId)}`),
@@ -585,5 +594,21 @@ export async function downloadSuperAdminReport(
   filename: string,
 ): Promise<boolean> {
   const params = new URLSearchParams({ action: 'superAdminExportReport', report, period });
+  return downloadFile(params, filename);
+}
+
+/** Downloads the cross-club Ad Performance summary as a .xlsx workbook. */
+export async function downloadSuperAdminAdPerformance(period: 'month' | 'year' | 'all', filename: string): Promise<boolean> {
+  const params = new URLSearchParams({ action: 'superAdminExportReport', report: 'adPerformance', period });
+  return downloadFile(params, filename);
+}
+
+/** Downloads one ad's individual click log as a .xlsx workbook. */
+export async function downloadSuperAdminAdClickLog(
+  adId: string,
+  period: 'month' | 'year' | 'all',
+  filename: string,
+): Promise<boolean> {
+  const params = new URLSearchParams({ action: 'superAdminExportReport', report: 'adClickLog', adId, period });
   return downloadFile(params, filename);
 }

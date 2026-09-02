@@ -68,6 +68,7 @@ export type SuperAdminStackParamList = {
   SuperAdminRewardEdit: { courseId: string; fbPerRand: number; rewardId?: string };
   SuperAdminStatBreakdown: { metric: StatBreakdownMetric; label: string; period: 'month' | 'year' | 'all' };
   SuperAdminReportDetail: { report: SuperAdminReportKind; label: string; period: 'month' | 'year' | 'all' };
+  SuperAdminAdDetail: { adId: string; adTitle: string; period: 'month' | 'year' | 'all' };
   SuperAdminSupportTicketChat: { ticketId: string };
   SuperAdminAgents: undefined;
   SuperAdminAgentCreate: undefined;

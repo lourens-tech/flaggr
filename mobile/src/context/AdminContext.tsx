@@ -53,7 +53,9 @@ import type {
   SuperAdminMemberStats,
   SuperAdminRedemptionReportRow,
   SuperAdminReportKind,
+  AdClickLogRow,
   AdPerformanceRow,
+  AdTrendPoint,
   StatBreakdownMetric,
   StatBreakdownRow,
   StaffRedemption,
@@ -227,7 +229,9 @@ interface AdminContextValue {
   reactivateSuperAdminCourseAdmin: (id: string) => Promise<void>;
   deleteSuperAdminCourseAdmin: (id: string) => Promise<void>;
   getSuperAdminDashboard: (period: DashboardPeriod) => Promise<SuperAdminDashboardReport>;
-  getSuperAdminAdPerformance: () => Promise<AdPerformanceRow[]>;
+  getSuperAdminAdPerformance: (period: DashboardPeriod) => Promise<AdPerformanceRow[]>;
+  getSuperAdminAdTrend: (period: DashboardPeriod, adId?: string) => Promise<AdTrendPoint[]>;
+  getSuperAdminAdClickLog: (adId: string, period: DashboardPeriod) => Promise<AdClickLogRow[]>;
   getSuperAdminStatBreakdown: (metric: StatBreakdownMetric, period: DashboardPeriod) => Promise<StatBreakdownRow[]>;
   // Cross-club Tier Distribution / Top Redeemed Rewards detail pages.
   getSuperAdminReportRows: <K extends SuperAdminReportKind>(
@@ -665,7 +669,9 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
   };
 
   const getSuperAdminDashboard = async (period: DashboardPeriod) => adminApi.superAdminDashboard(period);
-  const getSuperAdminAdPerformance = async () => adminApi.superAdminAdPerformance();
+  const getSuperAdminAdPerformance = async (period: DashboardPeriod) => adminApi.superAdminAdPerformance(period);
+  const getSuperAdminAdTrend = async (period: DashboardPeriod, adId?: string) => adminApi.superAdminAdTrend(period, adId);
+  const getSuperAdminAdClickLog = async (adId: string, period: DashboardPeriod) => adminApi.superAdminAdClickLog(adId, period);
 
   const getSuperAdminStatBreakdown = async (metric: StatBreakdownMetric, period: DashboardPeriod) =>
     adminApi.superAdminStatBreakdown(metric, period);
@@ -848,6 +854,8 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     deleteSuperAdminCourseAdmin,
     getSuperAdminDashboard,
     getSuperAdminAdPerformance,
+    getSuperAdminAdTrend,
+    getSuperAdminAdClickLog,
     getSuperAdminStatBreakdown,
     getSuperAdminReportRows,
     createSupportTicket,
