@@ -207,21 +207,26 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
           ? ' Earned at the standard away-club rate of R1 = 1 Flagrr Cash.'
           : '');
 
+    // A flagged receipt holds its Flagrr Cash until a human approves it
+    // (see applyApprovalEffects) — sits as 'pending' rather than
+    // auto-'approved', and none of the crediting side effects below run
+    // for it yet.
     let insertedRows: ReceiptRow[];
     try {
       insertedRows = (await sql`
         insert into receipts (
           id, user_id, course_id, course_name, image_uri, image_data, status, items, subtotal, tax, total, points_awarded,
           receipt_number, merchant_id, transaction_number, till_number, receipt_time, image_hash, ocr_confidence,
-          flagged, flag_reason
+          flagged, flag_reason, points_credited
         )
         values (
-          ${receiptId}, ${authed.id}, ${authed.courseId}, ${courseName}, ${body.imageUri ?? null}, ${imageBase64}, 'approved',
+          ${receiptId}, ${authed.id}, ${authed.courseId}, ${courseName}, ${body.imageUri ?? null}, ${imageBase64},
+          ${fraud.flagged ? 'pending' : 'approved'},
           ${JSON.stringify(itemsSnapshot)}::jsonb,
           ${parsed.subtotal ?? 0}, ${parsed.vat ?? 0}, ${parsed.grandTotal ?? 0}, ${finalPointsAwarded},
           ${parsed.receiptNumber}, ${scored.merchant?.id ?? null}, ${parsed.transactionNumber}, ${parsed.tillNumber},
           ${parsed.time}, ${imageHash}, ${ocrConfidence},
-          ${fraud.flagged}, ${fraud.flagged ? fraud.reasons.join(', ') : null}
+          ${fraud.flagged}, ${fraud.flagged ? fraud.reasons.join(', ') : null}, ${!fraud.flagged}
         )
         returning id, image_uri, status, course_name, items, subtotal, tax, total, submitted_at, points_awarded,
                   receipt_number, transaction_number, till_number, receipt_time, ocr_confidence, flagged, flag_reason
@@ -243,38 +248,44 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         `,
       ),
       sql`
-        update points_accounts
-        set balance = balance + ${finalPointsAwarded}, total_earned = total_earned + ${finalPointsAwarded}
-        where user_id = ${authed.id}
-      `,
-      sql`
         update user_stats
         set total_receipts_scanned = total_receipts_scanned + 1,
             last_scan_date = now()
         where user_id = ${authed.id}
       `,
-      sql`
-        insert into monthly_points (user_id, year, month, value)
-        values (${authed.id}, extract(year from now())::int, ${monthNumber}, ${finalPointsAwarded})
-        on conflict (user_id, year, month) do update set value = monthly_points.value + excluded.value
-      `,
-      sql`
-        insert into activity (user_id, type, title, subtitle, amount)
-        values (${authed.id}, 'earn', 'Receipt scanned', ${courseName}, ${finalPointsAwarded})
-      `,
-      sql`
-        insert into notifications (user_id, title, body)
-        values (${authed.id}, 'Flagrr Cash earned', ${notificationBody})
-      `,
+      ...(fraud.flagged
+        ? []
+        : [
+            sql`
+              update points_accounts
+              set balance = balance + ${finalPointsAwarded}, total_earned = total_earned + ${finalPointsAwarded}
+              where user_id = ${authed.id}
+            `,
+            sql`
+              insert into monthly_points (user_id, year, month, value)
+              values (${authed.id}, extract(year from now())::int, ${monthNumber}, ${finalPointsAwarded})
+              on conflict (user_id, year, month) do update set value = monthly_points.value + excluded.value
+            `,
+            sql`
+              insert into activity (user_id, type, title, subtitle, amount)
+              values (${authed.id}, 'earn', 'Receipt scanned', ${courseName}, ${finalPointsAwarded})
+            `,
+            sql`
+              insert into notifications (user_id, title, body)
+              values (${authed.id}, 'Flagrr Cash earned', ${notificationBody})
+            `,
+          ]),
     ]);
-    await sendPushToUser(authed.id, { title: 'Flagrr Cash earned', body: notificationBody }, 'accountActivity');
+    if (!fraud.flagged) {
+      await sendPushToUser(authed.id, { title: 'Flagrr Cash earned', body: notificationBody }, 'accountActivity');
+    }
 
     if (fraud.flagged) {
       await notifyCourseAdmins(
         authed.courseId,
         'Receipt flagged for review',
         `${authed.firstName} ${authed.lastName}'s receipt${courseName ? ` at ${courseName}` : ''} was flagged: ` +
-          `${describeFraudReasons(fraud.reasons)}. ${finalPointsAwarded} Flagrr Cash awarded.`,
+          `${describeFraudReasons(fraud.reasons)}. ${finalPointsAwarded} Flagrr Cash pending approval.`,
         { receiptId },
       );
     }

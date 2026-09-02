@@ -420,6 +420,11 @@ export interface FlaggedReceipt {
   pointsAwarded: number | null;
   submittedAt: string;
   flagReason: string | null;
+  // false while this receipt's Flagrr Cash is still held pending review —
+  // Approve will credit it for the first time; true means it was already
+  // credited (either approved before, or flagged before the held-points
+  // behavior shipped), so Approve just closes the review.
+  pointsCredited: boolean;
   memberFlagCount: number;
   fraudConfirmedCount: number;
 }

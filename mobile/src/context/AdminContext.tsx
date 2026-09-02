@@ -253,14 +253,14 @@ interface AdminContextValue {
   getAuditLog: () => Promise<AuditLogEntry[]>;
   // Cross-club fraud oversight (super_admin only) — same thin-passthrough pattern.
   getSuperAdminFlaggedReceipts: () => Promise<FlaggedReceipt[]>;
-  confirmSuperAdminReceiptFraud: (id: string) => Promise<void>;
-  clearSuperAdminReceiptFlag: (id: string) => Promise<void>;
+  confirmSuperAdminReceiptFraud: (id: string, reason: string) => Promise<void>;
+  approveSuperAdminReceipt: (id: string) => Promise<void>;
   getSuperAdminDuplicateAttempts: () => Promise<DuplicateReceiptAttempt[]>;
   getSuperAdminReceiptImage: (id: string) => Promise<string | null>;
   // This club's own flagged-receipts review queue (course_admin only).
   getFlaggedReceipts: () => Promise<FlaggedReceipt[]>;
-  confirmReceiptFraud: (id: string) => Promise<void>;
-  clearReceiptFlag: (id: string) => Promise<void>;
+  confirmReceiptFraud: (id: string, reason: string) => Promise<void>;
+  approveReceipt: (id: string) => Promise<void>;
   getReceiptImage: (id: string) => Promise<string | null>;
 }
 
@@ -709,22 +709,22 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
   const getAuditLog = async (): Promise<AuditLogEntry[]> => adminApi.auditLog();
 
   const getSuperAdminFlaggedReceipts = async (): Promise<FlaggedReceipt[]> => adminApi.superAdminFlaggedReceipts();
-  const confirmSuperAdminReceiptFraud = async (id: string) => {
-    await adminApi.superAdminConfirmReceiptFraud(id);
+  const confirmSuperAdminReceiptFraud = async (id: string, reason: string) => {
+    await adminApi.superAdminConfirmReceiptFraud(id, reason);
   };
-  const clearSuperAdminReceiptFlag = async (id: string) => {
-    await adminApi.superAdminClearReceiptFlag(id);
+  const approveSuperAdminReceipt = async (id: string) => {
+    await adminApi.superAdminApproveReceipt(id);
   };
   const getSuperAdminDuplicateAttempts = async (): Promise<DuplicateReceiptAttempt[]> => adminApi.superAdminDuplicateAttempts();
   const getSuperAdminReceiptImage = async (id: string): Promise<string | null> =>
     (await adminApi.superAdminReceiptImage(id)).imageData;
 
   const getFlaggedReceipts = async (): Promise<FlaggedReceipt[]> => adminApi.flaggedReceipts();
-  const confirmReceiptFraud = async (id: string) => {
-    await adminApi.confirmReceiptFraud(id);
+  const confirmReceiptFraud = async (id: string, reason: string) => {
+    await adminApi.confirmReceiptFraud(id, reason);
   };
-  const clearReceiptFlag = async (id: string) => {
-    await adminApi.clearReceiptFlag(id);
+  const approveReceipt = async (id: string) => {
+    await adminApi.approveReceipt(id);
   };
   const getReceiptImage = async (id: string): Promise<string | null> => (await adminApi.receiptImage(id)).imageData;
 
@@ -849,12 +849,12 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     getAuditLog,
     getSuperAdminFlaggedReceipts,
     confirmSuperAdminReceiptFraud,
-    clearSuperAdminReceiptFlag,
+    approveSuperAdminReceipt,
     getSuperAdminDuplicateAttempts,
     getSuperAdminReceiptImage,
     getFlaggedReceipts,
     confirmReceiptFraud,
-    clearReceiptFlag,
+    approveReceipt,
     getReceiptImage,
   };
 

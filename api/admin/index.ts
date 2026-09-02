@@ -37,7 +37,12 @@ import {
 import { getRosterStatus, replaceMemberRoster } from '../_lib/memberRoster';
 import { parseMemberRosterFile } from '../_lib/memberRosterFileParsing';
 import { logAudit } from '../_lib/auditLog';
-import { applyFraudConfirmationEffects, describeFraudReasons, resolveFlaggedReceipt } from '../_lib/fraudChecks';
+import {
+  applyApprovalEffects,
+  applyFraudConfirmationEffects,
+  describeFraudReasons,
+  resolveFlaggedReceipt,
+} from '../_lib/fraudChecks';
 import { consumePasswordResetCode, issuePasswordResetCode } from '../_lib/passwordReset';
 import { renderBrandedEmailHtml, emailParagraph } from '../_lib/emailTemplate';
 
@@ -346,7 +351,7 @@ const SUPER_ADMIN_ALLOWED_ACTIONS = new Set([
   'superAdminMemberStats',
   'superAdminFlaggedReceipts',
   'superAdminConfirmReceiptFraud',
-  'superAdminClearReceiptFlag',
+  'superAdminApproveReceipt',
   'superAdminDuplicateAttempts',
   'superAdminReceiptImage',
   'superAdminBroadcasts',
@@ -1691,7 +1696,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         const rows = (await sql`
           select r.id, r.course_id, c.name as course_name, r.user_id, u.first_name, u.last_name, u.email,
             u.fraud_confirmed_count, r.course_name as merchant_name, r.total, r.points_awarded, r.submitted_at,
-            r.flag_reason,
+            r.flag_reason, r.points_credited,
             (select count(*) from receipts r2 where r2.flagged = true and r2.user_id = r.user_id) as member_flag_count
           from receipts r
           join users u on u.id = r.user_id
@@ -1713,6 +1718,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
           points_awarded: number | null;
           submitted_at: string;
           flag_reason: string | null;
+          points_credited: boolean;
           member_flag_count: number | string;
         }>;
         res.status(200).json(
@@ -1728,6 +1734,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
             pointsAwarded: r.points_awarded,
             submittedAt: r.submitted_at,
             flagReason: r.flag_reason ? describeFraudReasons(r.flag_reason.split(', ')) : null,
+            pointsCredited: r.points_credited,
             memberFlagCount: Number(r.member_flag_count),
             fraudConfirmedCount: r.fraud_confirmed_count,
           })),
@@ -1735,14 +1742,20 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         return;
       }
 
-      if (action === 'superAdminConfirmReceiptFraud' || action === 'superAdminClearReceiptFlag') {
-        const { id } = req.body as { id?: string };
+      if (action === 'superAdminConfirmReceiptFraud' || action === 'superAdminApproveReceipt') {
+        const { id, reason } = req.body as { id?: string; reason?: string };
         if (!id) throw new HttpError(400, 'id is required');
         const resolution = action === 'superAdminConfirmReceiptFraud' ? 'confirmed' : 'cleared';
+        const trimmedReason = reason?.trim();
+        if (resolution === 'confirmed' && !trimmedReason) {
+          throw new HttpError(400, 'A reason is required to mark a receipt as fraud');
+        }
         const receipt = await resolveFlaggedReceipt({ receiptId: id, resolution, adminId: authedAdmin.id });
         if (!receipt) throw new HttpError(404, 'Flagged receipt not found or already resolved');
         if (resolution === 'confirmed') {
-          await applyFraudConfirmationEffects(receipt);
+          await applyFraudConfirmationEffects(receipt, trimmedReason as string);
+        } else {
+          await applyApprovalEffects(receipt);
         }
         await logAudit({
           adminId: authedAdmin.id,
@@ -2538,7 +2551,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     const course = await fetchCourse(courseId);
     const rows = (await sql`
       select r.id, r.user_id, u.first_name, u.last_name, u.email, u.fraud_confirmed_count,
-        r.course_name as merchant_name, r.total, r.points_awarded, r.submitted_at, r.flag_reason,
+        r.course_name as merchant_name, r.total, r.points_awarded, r.submitted_at, r.flag_reason, r.points_credited,
         (select count(*) from receipts r2 where r2.flagged = true and r2.user_id = r.user_id) as member_flag_count
       from receipts r
       join users u on u.id = r.user_id
@@ -2557,6 +2570,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       points_awarded: number | null;
       submitted_at: string;
       flag_reason: string | null;
+      points_credited: boolean;
       member_flag_count: number | string;
     }>;
     res.status(200).json(
@@ -2572,6 +2586,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         pointsAwarded: r.points_awarded,
         submittedAt: r.submitted_at,
         flagReason: r.flag_reason ? describeFraudReasons(r.flag_reason.split(', ')) : null,
+        pointsCredited: r.points_credited,
         memberFlagCount: Number(r.member_flag_count),
         fraudConfirmedCount: r.fraud_confirmed_count,
       })),
@@ -2579,14 +2594,20 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     return;
   }
 
-  if (action === 'confirmReceiptFraud' || action === 'clearReceiptFlag') {
-    const { id } = req.body as { id?: string };
+  if (action === 'confirmReceiptFraud' || action === 'approveReceipt') {
+    const { id, reason } = req.body as { id?: string; reason?: string };
     if (!id) throw new HttpError(400, 'id is required');
     const resolution = action === 'confirmReceiptFraud' ? 'confirmed' : 'cleared';
+    const trimmedReason = reason?.trim();
+    if (resolution === 'confirmed' && !trimmedReason) {
+      throw new HttpError(400, 'A reason is required to mark a receipt as fraud');
+    }
     const receipt = await resolveFlaggedReceipt({ receiptId: id, courseId, resolution, adminId: authed.id });
     if (!receipt) throw new HttpError(404, 'Flagged receipt not found or already resolved');
     if (resolution === 'confirmed') {
-      await applyFraudConfirmationEffects(receipt);
+      await applyFraudConfirmationEffects(receipt, trimmedReason as string);
+    } else {
+      await applyApprovalEffects(receipt);
     }
     await logAudit({
       adminId: authed.id,
