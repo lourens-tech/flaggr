@@ -3143,6 +3143,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         eyebrow: 'Welcome to Flagrr',
         heading: `Hi ${firstName}, you're on the team`,
         bodyHtml: emailParagraph(`${escapeHtml(authed.firstName)} ${escapeHtml(authed.lastName)} has set you up with staff access to the Flagrr app for <strong style="color:#1F1F1F;">${escapeHtml(course.name)}</strong>, so you can validate members' reward vouchers.`) +
+          emailParagraph(`Open the Flagrr app and tap <strong style="color:#1F1F1F;">Golf Course Admin Login</strong> on the welcome screen to sign in with the details below — not the member sign-up/login option.`) +
           emailParagraph(`You'll be asked to choose your own password the first time you log in.`),
         credentials: [
           { label: 'Username', value: created[0].username },
