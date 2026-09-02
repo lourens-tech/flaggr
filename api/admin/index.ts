@@ -359,6 +359,8 @@ const SUPER_ADMIN_ALLOWED_ACTIONS = new Set([
   'superAdminCourseAdminReactivate',
   'superAdminCourseAdminDelete',
   'auditLog',
+  'superAdminCourseEnquiries',
+  'superAdminEnquiryThread',
   'supportInbox',
   'supportInboxThread',
   'supportAgentReply',
@@ -676,6 +678,73 @@ async function listAdsForCourse(courseId: string | null) {
     endsAt: r.ends_at,
     clicks: r.clicks,
   }));
+}
+
+// Shared by the course_admin path (implicit courseId from the session) and
+// the super_admin path (explicit courseId, for its read-only view into a
+// club's own enquiries inbox — see 'superAdminCourseEnquiries' below).
+async function listEnquiriesForCourse(courseId: string, statusFilter: string | null) {
+  const rows = (await sql`
+    select e.id, e.enquiry_type, e.status, e.created_at, e.updated_at,
+           u.first_name, u.last_name, u.email,
+           (select body from enquiry_messages m where m.enquiry_id = e.id order by m.created_at desc limit 1) as last_message,
+           exists(select 1 from enquiry_messages m where m.enquiry_id = e.id and m.read_by_admin = false) as has_unread
+    from enquiries e
+    join users u on u.id = e.user_id
+    where e.course_id = ${courseId}
+      and (${statusFilter}::text is null or e.status = ${statusFilter})
+    order by e.updated_at desc
+  `) as Array<{
+    id: string;
+    enquiry_type: string;
+    status: string;
+    created_at: string;
+    updated_at: string;
+    first_name: string;
+    last_name: string;
+    email: string;
+    last_message: string | null;
+    has_unread: boolean;
+  }>;
+  return rows.map((r) => ({
+    id: r.id,
+    enquiryType: r.enquiry_type,
+    status: r.status,
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
+    memberName: `${r.first_name} ${r.last_name}`,
+    memberEmail: r.email,
+    lastMessage: r.last_message,
+    hasUnread: r.has_unread,
+  }));
+}
+
+/** Ownership/DTO assembly shared the same way as listEnquiriesForCourse.
+ * Deliberately doesn't mark the thread read — the course_admin path does
+ * that itself right after calling this, since a super_admin's read-only
+ * glance shouldn't clear the actual course admin's unread badge. */
+async function fetchEnquiryThreadForCourse(id: string, courseId: string) {
+  const owned = (await sql`
+    select e.id, e.status, e.enquiry_type, u.first_name, u.last_name, u.email
+    from enquiries e join users u on u.id = e.user_id
+    where e.id = ${id} and e.course_id = ${courseId}
+  `) as Array<{ id: string; status: string; enquiry_type: string; first_name: string; last_name: string; email: string }>;
+  if (owned.length === 0) throw new HttpError(404, 'Enquiry not found');
+  const e = owned[0];
+  return {
+    id: e.id,
+    status: e.status,
+    enquiryType: e.enquiry_type,
+    memberName: `${e.first_name} ${e.last_name}`,
+    memberEmail: e.email,
+    messages: await listEnquiryMessages(id),
+  };
+}
+
+function requireCourseIdParam(req: VercelRequest): string {
+  const value = typeof req.query.courseId === 'string' ? req.query.courseId : '';
+  if (!value) throw new HttpError(400, 'courseId is required');
+  return value;
 }
 
 async function saveAdForCourse(courseId: string | null, body: AdSaveBody): Promise<{ id: string }> {
@@ -2404,6 +2473,23 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         res.status(200).json({ ok: true });
         return;
       }
+
+      // Read-only oversight into any club's enquiries inbox (member <->
+      // course_admin) — a super_admin can see every course's threads, but
+      // can't reply into one; that stays between the member and their club.
+      if (action === 'superAdminCourseEnquiries' && req.method === 'GET') {
+        const targetCourseId = requireCourseIdParam(req);
+        const statusFilter = typeof req.query.status === 'string' ? req.query.status : null;
+        res.status(200).json(await listEnquiriesForCourse(targetCourseId, statusFilter));
+        return;
+      }
+
+      if (action === 'superAdminEnquiryThread' && req.method === 'GET') {
+        const targetCourseId = requireCourseIdParam(req);
+        const id = typeof req.query.id === 'string' ? req.query.id : '';
+        res.status(200).json(await fetchEnquiryThreadForCourse(id, targetCourseId));
+        return;
+      }
     }
 
     throw new HttpError(404, 'Unknown action');
@@ -2677,62 +2763,15 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
 
   if (action === 'enquiries' && req.method === 'GET') {
     const statusFilter = typeof req.query.status === 'string' ? req.query.status : null;
-    const rows = (await sql`
-      select e.id, e.enquiry_type, e.status, e.created_at, e.updated_at,
-             u.first_name, u.last_name, u.email,
-             (select body from enquiry_messages m where m.enquiry_id = e.id order by m.created_at desc limit 1) as last_message,
-             exists(select 1 from enquiry_messages m where m.enquiry_id = e.id and m.read_by_admin = false) as has_unread
-      from enquiries e
-      join users u on u.id = e.user_id
-      where e.course_id = ${courseId}
-        and (${statusFilter}::text is null or e.status = ${statusFilter})
-      order by e.updated_at desc
-    `) as Array<{
-      id: string;
-      enquiry_type: string;
-      status: string;
-      created_at: string;
-      updated_at: string;
-      first_name: string;
-      last_name: string;
-      email: string;
-      last_message: string | null;
-      has_unread: boolean;
-    }>;
-    res.status(200).json(
-      rows.map((r) => ({
-        id: r.id,
-        enquiryType: r.enquiry_type,
-        status: r.status,
-        createdAt: r.created_at,
-        updatedAt: r.updated_at,
-        memberName: `${r.first_name} ${r.last_name}`,
-        memberEmail: r.email,
-        lastMessage: r.last_message,
-        hasUnread: r.has_unread,
-      })),
-    );
+    res.status(200).json(await listEnquiriesForCourse(courseId, statusFilter));
     return;
   }
 
   if (action === 'enquiryThread' && req.method === 'GET') {
     const id = typeof req.query.id === 'string' ? req.query.id : '';
-    const owned = (await sql`
-      select e.id, e.status, e.enquiry_type, u.first_name, u.last_name, u.email
-      from enquiries e join users u on u.id = e.user_id
-      where e.id = ${id} and e.course_id = ${courseId}
-    `) as Array<{ id: string; status: string; enquiry_type: string; first_name: string; last_name: string; email: string }>;
-    if (owned.length === 0) throw new HttpError(404, 'Enquiry not found');
+    const thread = await fetchEnquiryThreadForCourse(id, courseId);
     await markThreadReadByAdmin(id);
-    const e = owned[0];
-    res.status(200).json({
-      id: e.id,
-      status: e.status,
-      enquiryType: e.enquiry_type,
-      memberName: `${e.first_name} ${e.last_name}`,
-      memberEmail: e.email,
-      messages: await listEnquiryMessages(id),
-    });
+    res.status(200).json(thread);
     return;
   }
 

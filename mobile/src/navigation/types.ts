@@ -71,6 +71,8 @@ export type SuperAdminStackParamList = {
   SuperAdminAgentCreate: undefined;
   SuperAdminBroadcastCompose: { title?: string; body?: string; target?: string } | undefined;
   SuperAdminCourseMemberList: { courseId: string; courseName: string };
+  SuperAdminCourseEnquiries: { courseId: string; courseName: string };
+  SuperAdminEnquiryChat: { courseId: string; enquiryId: string };
   SuperAdminCourseAdmins: { courseId: string; courseName: string };
   SuperAdminCourseAdminCreate: { courseId: string; courseName: string };
   SuperAdminMemberStats: { memberId: string };
@@ -110,9 +112,6 @@ export type RootStackParamList = {
   TermsPrivacy: undefined;
   MyEnquiries: undefined;
   EnquiryChat: { enquiryId: string };
-  SupportTickets: undefined;
-  SupportTicketCreate: undefined;
-  SupportTicketChat: { ticketId: string };
   NotificationPreferences: undefined;
 };
 

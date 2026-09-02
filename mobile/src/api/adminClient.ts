@@ -347,6 +347,18 @@ export const adminApi = {
   superAdminAds: (courseId: string) =>
     request<AdminAd[]>(`?action=superAdminAds&courseId=${encodeURIComponent(courseId)}`),
 
+  // Read-only oversight into any club's own enquiries inbox (member <->
+  // course_admin) — a super_admin can't reply here, that stays with the club.
+  superAdminCourseEnquiries: (courseId: string, status?: EnquiryStatus) =>
+    request<AdminEnquirySummary[]>(
+      `?action=superAdminCourseEnquiries&courseId=${encodeURIComponent(courseId)}${status ? `&status=${status}` : ''}`,
+    ),
+
+  superAdminEnquiryThread: (courseId: string, id: string) =>
+    request<AdminEnquiryThread>(
+      `?action=superAdminEnquiryThread&courseId=${encodeURIComponent(courseId)}&id=${encodeURIComponent(id)}`,
+    ),
+
   saveSuperAdminAd: (payload: SuperAdminAdSavePayload) =>
     request<{ id: string }>('?action=superAdminAdSave', { method: 'POST', body: payload }),
 

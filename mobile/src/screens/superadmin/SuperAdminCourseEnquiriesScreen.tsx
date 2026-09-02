@@ -4,17 +4,22 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import type { RootStackParamList } from '../../navigation/types';
+import type { SuperAdminStackParamList } from '../../navigation/types';
 import { ScreenHeader } from '../../components/common/ScreenHeader';
-import { useApp } from '../../context/AppContext';
-import { fontFamily, fontSize, radius, screenPadding, spacing, ticketStatusBadges } from '../../theme';
+import { useAdmin } from '../../context/AdminContext';
+import { enquiryStatusBadges, fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
 import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
-import type { SupportTicketStatus, SupportTicketSummary } from '../../data/types';
+import type { AdminEnquirySummary, EnquiryStatus } from '../../data/adminTypes';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'SupportTickets'>;
+type Props = NativeStackScreenProps<SuperAdminStackParamList, 'SuperAdminCourseEnquiries'>;
 
-// A fixed, theme-invariant palette — these are small self-contained status
-// chips (own bg + fg pair), not surfaces that should flip with dark mode.
+const FILTERS: Array<{ label: string; value: EnquiryStatus | 'all' }> = [
+  { label: 'All', value: 'all' },
+  { label: 'Pending', value: 'pending' },
+  { label: 'Chat in Progress', value: 'in_progress' },
+  { label: 'Resolved', value: 'resolved' },
+];
+
 function relativeTime(iso: string): string {
   const diffMs = Date.now() - new Date(iso).getTime();
   const mins = Math.floor(diffMs / 60000);
@@ -26,49 +31,51 @@ function relativeTime(iso: string): string {
   return `${days}d ago`;
 }
 
-// A ticket to the Flagrr team itself — separate from "My Enquiries", which
-// goes to this member's own club's admins.
-export function SupportTicketsScreen({ navigation }: Props) {
+// Read-only oversight into one club's own enquiries inbox (member <->
+// course_admin) — a super_admin can see every conversation, but can't
+// reply into one; that stays between the member and their club.
+export function SuperAdminCourseEnquiriesScreen({ route, navigation }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const { listMySupportTickets } = useApp();
-  const [tickets, setTickets] = useState<SupportTicketSummary[]>([]);
+  const { courseId, courseName } = route.params;
+  const { getSuperAdminCourseEnquiries } = useAdmin();
+  const [filter, setFilter] = useState<EnquiryStatus | 'all'>('all');
+  const [enquiries, setEnquiries] = useState<AdminEnquirySummary[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const load = useCallback(
+    async (f: EnquiryStatus | 'all') => {
+      setLoading(true);
+      try {
+        setEnquiries(await getSuperAdminCourseEnquiries(courseId, f === 'all' ? undefined : f));
+      } finally {
+        setLoading(false);
+      }
+    },
+    [courseId, getSuperAdminCourseEnquiries],
+  );
 
   useFocusEffect(
     useCallback(() => {
-      let cancelled = false;
-      (async () => {
-        setLoading(true);
-        try {
-          const rows = await listMySupportTickets();
-          if (!cancelled) setTickets(rows);
-        } finally {
-          if (!cancelled) setLoading(false);
-        }
-      })();
-      return () => {
-        cancelled = true;
-      };
+      load(filter).catch(() => {});
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []),
+    }, [filter]),
   );
 
-  const renderItem = ({ item }: { item: SupportTicketSummary }) => {
-    const badge = ticketStatusBadges(colors)[item.status];
+  const renderItem = ({ item }: { item: AdminEnquirySummary }) => {
+    const badge = enquiryStatusBadges(colors)[item.status];
     return (
       <TouchableOpacity
         style={styles.row}
-        onPress={() => navigation.navigate('SupportTicketChat', { ticketId: item.id })}
+        onPress={() => navigation.navigate('SuperAdminEnquiryChat', { courseId, enquiryId: item.id })}
         activeOpacity={0.8}
       >
         <View style={{ flex: 1 }}>
           <View style={styles.rowTop}>
-            <Text style={styles.subject} numberOfLines={1}>{item.subject}</Text>
-            {item.hasUnread ? <View style={styles.unreadDot} /> : null}
+            <Text style={styles.memberName} numberOfLines={1}>{item.memberName}</Text>
           </View>
           <Text style={styles.lastMessage} numberOfLines={1}>{item.lastMessage ?? '—'}</Text>
-          <Text style={styles.meta}>{relativeTime(item.updatedAt)}</Text>
+          <Text style={styles.meta}>{item.enquiryType} · {relativeTime(item.updatedAt)}</Text>
         </View>
         <View style={[styles.badge, { backgroundColor: badge.bg }]}>
           <Text style={[styles.badgeText, { color: badge.fg }]}>{badge.label}</Text>
@@ -82,33 +89,30 @@ export function SupportTicketsScreen({ navigation }: Props) {
     <View style={styles.screen}>
       <StatusBar barStyle="light-content" />
       <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
-        <ScreenHeader
-          title="Support Centre"
-          onBack={() => navigation.goBack()}
-          right={
-            <TouchableOpacity
-              onPress={() => navigation.navigate('SupportTicketCreate')}
-              hitSlop={8}
-              accessibilityLabel="New Ticket"
-              accessibilityRole="button"
-            >
-              <Ionicons name="add-circle" size={26} color={colors.white} />
-            </TouchableOpacity>
-          }
-        />
+        <ScreenHeader title={`${courseName} Enquiries`} onBack={() => navigation.goBack()} />
       </SafeAreaView>
+
+      <View style={styles.filterRow}>
+        {FILTERS.map((f) => (
+          <TouchableOpacity
+            key={f.value}
+            onPress={() => setFilter(f.value)}
+            style={[styles.filterPill, filter === f.value && styles.filterPillActive]}
+          >
+            <Text style={[styles.filterText, filter === f.value && styles.filterTextActive]}>{f.label}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
 
       {loading ? (
         <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
       ) : (
         <FlatList
-          data={tickets}
-          keyExtractor={(t) => t.id}
+          data={enquiries}
+          keyExtractor={(e) => e.id}
           renderItem={renderItem}
           contentContainerStyle={styles.listContent}
-          ListEmptyComponent={
-            <Text style={styles.emptyText}>No support tickets yet — tap + to log one.</Text>
-          }
+          ListEmptyComponent={<Text style={styles.emptyText}>No enquiries here yet.</Text>}
         />
       )}
     </View>
@@ -119,6 +123,17 @@ function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
   headerSafeArea: { backgroundColor: colors.clubGreen },
+  filterRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    paddingHorizontal: screenPadding,
+    paddingTop: spacing.md,
+  },
+  filterPill: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: radius.pill, backgroundColor: colors.mintBgAlt },
+  filterPillActive: { backgroundColor: colors.darkGreen },
+  filterText: { fontFamily: fontFamily.heading, fontSize: 11, color: colors.textPrimary },
+  filterTextActive: { color: colors.white },
   listContent: { padding: screenPadding, gap: spacing.sm },
   row: {
     flexDirection: 'row',
@@ -132,8 +147,7 @@ function createStyles(colors: ThemeColors) {
     marginBottom: spacing.sm,
   },
   rowTop: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  subject: { flex: 1, fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.textPrimary },
-  unreadDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.negative },
+  memberName: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.textPrimary },
   lastMessage: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary, marginTop: 2 },
   meta: { fontFamily: fontFamily.body, fontSize: 10, color: colors.textSecondary, marginTop: 2 },
   badge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: radius.pill },

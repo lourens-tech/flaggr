@@ -337,7 +337,7 @@ export function MemberProfileScreen({ navigation }: Props) {
         <Text style={styles.sectionLabel}>Support</Text>
         <View style={styles.linksCard}>
           <LinkRow icon="help-circle-outline" label="Help Center" onPress={() => navigation.navigate('HelpCenter')} />
-          <LinkRow icon="headset-outline" label="Contact Support" onPress={() => navigation.navigate('SupportTickets')} />
+          <LinkRow icon="headset-outline" label="Contact Your Club" onPress={() => navigation.navigate('Contact')} />
           <LinkRow icon="chatbubbles-outline" label="My Enquiries" onPress={() => navigation.navigate('MyEnquiries')} />
           <LinkRow
             icon="notifications-outline"

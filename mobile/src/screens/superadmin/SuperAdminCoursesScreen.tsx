@@ -201,6 +201,13 @@ export function SuperAdminCoursesScreen({ navigation }: Props) {
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.actionButton}
+          onPress={() => navigation.navigate('SuperAdminCourseEnquiries', { courseId: item.id, courseName: item.name })}
+        >
+          <Ionicons name="chatbubbles-outline" size={14} color={colors.clubGreen} />
+          <Text style={styles.actionButtonText}>Enquiries</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.actionButton}
           onPress={() => navigation.navigate('SuperAdminCourseAdmins', { courseId: item.id, courseName: item.name })}
         >
           <Ionicons name="person-add-outline" size={14} color={colors.clubGreen} />

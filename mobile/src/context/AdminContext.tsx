@@ -189,6 +189,10 @@ interface AdminContextValue {
   getSuperAdminAds: (courseId: string) => Promise<AdminAd[]>;
   saveSuperAdminAd: (payload: SuperAdminAdSavePayload) => Promise<{ id: string }>;
   deleteSuperAdminAd: (courseId: string, id: string) => Promise<void>;
+  // Read-only oversight into any club's own enquiries inbox — a super_admin
+  // can see the conversation but can't reply into it (see adminClient.ts).
+  getSuperAdminCourseEnquiries: (courseId: string, status?: EnquiryStatus) => Promise<AdminEnquirySummary[]>;
+  getSuperAdminEnquiryThread: (courseId: string, id: string) => Promise<AdminEnquiryThread>;
   getSuperAdminRewards: (courseId: string) => Promise<AdminReward[]>;
   saveSuperAdminReward: (payload: SuperAdminRewardSavePayload) => Promise<{ id: string }>;
   deleteSuperAdminReward: (courseId: string, id: string) => Promise<void>;
@@ -579,6 +583,10 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     await adminApi.deleteSuperAdminAd(courseId, id);
   };
 
+  const getSuperAdminCourseEnquiries = async (courseId: string, status?: EnquiryStatus) =>
+    adminApi.superAdminCourseEnquiries(courseId, status);
+  const getSuperAdminEnquiryThread = async (courseId: string, id: string) => adminApi.superAdminEnquiryThread(courseId, id);
+
   const getSuperAdminRewards = async (courseId: string) => adminApi.superAdminRewards(courseId);
   const saveSuperAdminReward = async (payload: SuperAdminRewardSavePayload) => adminApi.saveSuperAdminReward(payload);
   const deleteSuperAdminReward = async (courseId: string, id: string) => {
@@ -796,6 +804,8 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     getSuperAdminAds,
     saveSuperAdminAd,
     deleteSuperAdminAd,
+    getSuperAdminCourseEnquiries,
+    getSuperAdminEnquiryThread,
     getSuperAdminRewards,
     saveSuperAdminReward,
     deleteSuperAdminReward,

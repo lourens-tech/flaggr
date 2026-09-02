@@ -243,31 +243,3 @@ export interface MyEnquiryThread {
   enquiryType: string;
   messages: EnquiryMessage[];
 }
-
-export type SupportTicketStatus = 'open' | 'in_progress' | 'resolved';
-
-export interface SupportTicketMessage {
-  id: string;
-  senderType: 'requester' | 'agent';
-  body: string;
-  createdAt: string;
-}
-
-// A ticket to the Flagrr team itself — distinct from the Enquiry types
-// above, which go to this member's own club's admins.
-export interface SupportTicketSummary {
-  id: string;
-  subject: string;
-  status: SupportTicketStatus;
-  createdAt: string;
-  updatedAt: string;
-  lastMessage: string | null;
-  hasUnread: boolean;
-}
-
-export interface SupportTicketThread {
-  id: string;
-  subject: string;
-  status: SupportTicketStatus;
-  messages: SupportTicketMessage[];
-}

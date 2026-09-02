@@ -12,6 +12,8 @@ import { SuperAdminSupportTicketChatScreen } from '../screens/superadmin/SuperAd
 import { SuperAdminAgentsScreen } from '../screens/superadmin/SuperAdminAgentsScreen';
 import { SuperAdminAgentCreateScreen } from '../screens/superadmin/SuperAdminAgentCreateScreen';
 import { SuperAdminCourseMemberListScreen } from '../screens/superadmin/SuperAdminCourseMemberListScreen';
+import { SuperAdminCourseEnquiriesScreen } from '../screens/superadmin/SuperAdminCourseEnquiriesScreen';
+import { SuperAdminEnquiryChatScreen } from '../screens/superadmin/SuperAdminEnquiryChatScreen';
 import { SuperAdminBroadcastComposeScreen } from '../screens/superadmin/SuperAdminBroadcastComposeScreen';
 import { SuperAdminCourseAdminsScreen } from '../screens/superadmin/SuperAdminCourseAdminsScreen';
 import { SuperAdminCourseAdminCreateScreen } from '../screens/superadmin/SuperAdminCourseAdminCreateScreen';
@@ -39,6 +41,8 @@ export function SuperAdminNavigator() {
       <Stack.Screen name="SuperAdminAgents" component={SuperAdminAgentsScreen} />
       <Stack.Screen name="SuperAdminAgentCreate" component={SuperAdminAgentCreateScreen} />
       <Stack.Screen name="SuperAdminCourseMemberList" component={SuperAdminCourseMemberListScreen} />
+      <Stack.Screen name="SuperAdminCourseEnquiries" component={SuperAdminCourseEnquiriesScreen} />
+      <Stack.Screen name="SuperAdminEnquiryChat" component={SuperAdminEnquiryChatScreen} />
       <Stack.Screen name="SuperAdminBroadcastCompose" component={SuperAdminBroadcastComposeScreen} />
       <Stack.Screen name="SuperAdminCourseAdmins" component={SuperAdminCourseAdminsScreen} />
       <Stack.Screen name="SuperAdminCourseAdminCreate" component={SuperAdminCourseAdminCreateScreen} />

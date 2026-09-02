@@ -53,11 +53,11 @@ export function HelpCenterScreen({ navigation }: Props) {
       </SafeAreaView>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <TouchableOpacity style={styles.supportRow} onPress={() => navigation.navigate('SupportTickets')} activeOpacity={0.85}>
+        <TouchableOpacity style={styles.supportRow} onPress={() => navigation.navigate('Contact')} activeOpacity={0.85}>
           <Ionicons name="headset-outline" size={20} color={colors.clubGreen} />
           <View style={{ flex: 1 }}>
-            <Text style={styles.supportTitle}>Contact Flagrr Support</Text>
-            <Text style={styles.supportSubtitle}>Log a ticket and chat with our support team</Text>
+            <Text style={styles.supportTitle}>Contact Your Club</Text>
+            <Text style={styles.supportSubtitle}>Send a message and chat with your club's team</Text>
           </View>
           <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
         </TouchableOpacity>

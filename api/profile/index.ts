@@ -2,17 +2,10 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { sql } from '../_lib/db';
 import { hashPassword, requireAuthedUser, verifyPassword } from '../_lib/auth';
 import { HttpError, withErrorHandling } from '../_lib/http';
-import { sendEmail } from '../_lib/email';
 import { logAdClick } from '../_lib/ads';
 import { registerPushToken, type PushPlatform } from '../_lib/pushNotifications';
 import { notifyCourseAdmins } from '../_lib/adminNotifications';
 import { addMemberMessage, createEnquiry, listEnquiryMessages, markThreadReadByMember } from '../_lib/enquiries';
-import {
-  addRequesterMessage,
-  createSupportTicket,
-  listSupportTicketMessages,
-  markThreadReadByRequester,
-} from '../_lib/supportTickets';
 
 // Folded avatar update, profile field editing, the contact form's send,
 // ad-click logging, and push-token registration into one file (dispatched
@@ -22,9 +15,6 @@ import {
 const DATA_URI_PATTERN = /^data:image\/(jpeg|jpg|png|webp);base64,/;
 const MAX_AVATAR_BASE64_LENGTH = 2_000_000; // ~1.5MB decoded, comfortably above a 480px-wide JPEG
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-// Resend's shared test domain only delivers to the account owner's own
-// verified address until a custom sending domain is verified — see email.ts.
-const CONTACT_EMAIL = process.env.CONTACT_EMAIL || 'lourens@ewosolutions.com';
 
 interface UpdateAvatarBody {
   imageBase64?: string;
@@ -65,16 +55,6 @@ interface EnquiryReplyBody {
   message?: string;
 }
 
-interface SupportTicketCreateBody {
-  subject?: string;
-  message?: string;
-}
-
-interface SupportTicketReplyBody {
-  ticketId?: string;
-  message?: string;
-}
-
 interface ThemePreferenceBody {
   preference?: string;
 }
@@ -92,10 +72,6 @@ interface NotificationPreferencesBody {
   accountActivity?: boolean;
   supportReplies?: boolean;
   announcements?: boolean;
-}
-
-function escapeHtml(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
 export default withErrorHandling(async (req: VercelRequest, res: VercelResponse) => {
@@ -145,53 +121,6 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       status: owned[0].status,
       enquiryType: owned[0].enquiry_type,
       messages: await listEnquiryMessages(id),
-    });
-    return;
-  }
-
-  if (action === 'supportTickets' && req.method === 'GET') {
-    const rows = (await sql`
-      select t.id, t.subject, t.status, t.created_at, t.updated_at,
-             (select body from support_ticket_messages m where m.ticket_id = t.id order by m.created_at desc limit 1) as last_message,
-             exists(select 1 from support_ticket_messages m where m.ticket_id = t.id and m.read_by_requester = false) as has_unread
-      from support_tickets t
-      where t.requester_user_id = ${authed.id}
-      order by t.updated_at desc
-    `) as Array<{
-      id: string;
-      subject: string;
-      status: string;
-      created_at: string;
-      updated_at: string;
-      last_message: string | null;
-      has_unread: boolean;
-    }>;
-    res.status(200).json(
-      rows.map((r) => ({
-        id: r.id,
-        subject: r.subject,
-        status: r.status,
-        createdAt: r.created_at,
-        updatedAt: r.updated_at,
-        lastMessage: r.last_message,
-        hasUnread: r.has_unread,
-      })),
-    );
-    return;
-  }
-
-  if (action === 'supportTicketThread' && req.method === 'GET') {
-    const id = typeof req.query.id === 'string' ? req.query.id : '';
-    const owned = (await sql`
-      select id, status, subject from support_tickets where id = ${id} and requester_user_id = ${authed.id}
-    `) as Array<{ id: string; status: string; subject: string }>;
-    if (owned.length === 0) throw new HttpError(404, 'Ticket not found');
-    await markThreadReadByRequester(id);
-    res.status(200).json({
-      id: owned[0].id,
-      status: owned[0].status,
-      subject: owned[0].subject,
-      messages: await listSupportTicketMessages(id),
     });
     return;
   }
@@ -356,75 +285,15 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       throw new HttpError(400, 'message is required');
     }
     const fullName = [body.name?.trim(), body.surname?.trim()].filter(Boolean).join(' ') || authed.firstName;
-    const replyEmail = body.email?.trim() || authed.email;
     const enquiryType = body.enquiryType || 'General';
 
-    await sendEmail({
-      to: CONTACT_EMAIL,
-      subject: `Flaggr enquiry (${enquiryType}) from ${fullName}`,
-      html: `
-        <p><strong>From:</strong> ${escapeHtml(fullName)} (${escapeHtml(replyEmail)})</p>
-        <p><strong>Phone:</strong> ${escapeHtml(body.phone?.trim() || '—')}</p>
-        <p><strong>Enquiry type:</strong> ${escapeHtml(enquiryType)}</p>
-        <p><strong>Message:</strong></p>
-        <p>${escapeHtml(message).replace(/\n/g, '<br/>')}</p>
-      `,
-    });
-
-    // Also opens a real two-way thread with that member's own club's
-    // admin — not just a one-shot email to the central Flagrr inbox.
+    // Opens a two-way thread with the member's own club's admins — members
+    // talk to their course, never directly to Flagrr HQ (a super_admin can
+    // still see every course's enquiries inbox from the Support Centre).
     const enquiryId = await createEnquiry(authed.courseId, authed.id, enquiryType, message);
     await notifyCourseAdmins(authed.courseId, `New enquiry from ${fullName}`, `(${enquiryType}) ${message}`, { enquiryId });
 
     res.status(200).json({ ok: true, enquiryId });
-    return;
-  }
-
-  if (action === 'supportTicketCreate') {
-    const { subject, message } = req.body as SupportTicketCreateBody;
-    const trimmedSubject = subject?.trim();
-    const trimmedMessage = message?.trim();
-    if (!trimmedSubject || !trimmedMessage) {
-      throw new HttpError(400, 'subject and message are required');
-    }
-    const requesterName = `${authed.firstName} ${authed.lastName}`.trim();
-    const ticketId = await createSupportTicket({
-      requesterType: 'member',
-      requesterUserId: authed.id,
-      requesterAdminId: null,
-      requesterName,
-      requesterEmail: authed.email,
-      courseId: authed.courseId,
-      subject: trimmedSubject,
-      message: trimmedMessage,
-    });
-    await sendEmail({
-      to: CONTACT_EMAIL,
-      subject: `New support ticket: ${trimmedSubject}`,
-      html: `
-        <p><strong>From:</strong> ${escapeHtml(requesterName)} (${escapeHtml(authed.email)}) — member</p>
-        <p><strong>Subject:</strong> ${escapeHtml(trimmedSubject)}</p>
-        <p><strong>Message:</strong></p>
-        <p>${escapeHtml(trimmedMessage).replace(/\n/g, '<br/>')}</p>
-      `,
-    });
-    res.status(200).json({ ok: true, ticketId });
-    return;
-  }
-
-  if (action === 'supportTicketReply') {
-    const { ticketId, message } = req.body as SupportTicketReplyBody;
-    const body = message?.trim();
-    if (!ticketId || !body) {
-      throw new HttpError(400, 'ticketId and message are required');
-    }
-    const owned = (await sql`
-      select id from support_tickets where id = ${ticketId} and requester_user_id = ${authed.id}
-    `) as Array<{ id: string }>;
-    if (owned.length === 0) throw new HttpError(404, 'Ticket not found');
-
-    await addRequesterMessage(ticketId, body);
-    res.status(200).json(await listSupportTicketMessages(ticketId));
     return;
   }
 
