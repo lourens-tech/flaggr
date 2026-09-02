@@ -12,7 +12,7 @@ import { AdminHeaderAvatar } from '../../components/common/AdminHeaderAvatar';
 import { TextField } from '../../components/common/TextField';
 import { PillButton } from '../../components/common/PillButton';
 import { useAdmin } from '../../context/AdminContext';
-import { downloadCsvReport, AdminApiError } from '../../api/adminClient';
+import { downloadReport, AdminApiError } from '../../api/adminClient';
 import { showAlert } from '../../utils/alert';
 import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
 import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
@@ -111,9 +111,9 @@ export function AdminDashboardScreen({ navigation }: Props) {
   const handleExport = async (report: ReportKind) => {
     setExporting(report);
     try {
-      const downloaded = await downloadCsvReport(report, dashboardPeriod);
+      const downloaded = await downloadReport(report, dashboardPeriod);
       if (!downloaded) {
-        showAlert('Web only for now', 'CSV export is available on the Flagrr web app — open your dashboard in a browser to download this report.');
+        showAlert('Web only for now', 'Excel export is available on the Flagrr web app — open your dashboard in a browser to download this report.');
       }
     } catch (err) {
       const message = err instanceof AdminApiError ? err.message : 'Something went wrong. Please try again.';

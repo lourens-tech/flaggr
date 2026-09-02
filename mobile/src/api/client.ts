@@ -239,7 +239,7 @@ export const api = {
  * triggers a browser file download via a Blob + temporary anchor, since a
  * plain <a href> can't carry the Authorization header. On native, the file
  * is written to cache and handed to the system share sheet so the member can
- * save or send it. Mirrors adminClient.ts's downloadCsvReport. */
+ * save or send it. Mirrors adminClient.ts's downloadReport. */
 export async function downloadMyDataExport(): Promise<boolean> {
   const token = await getToken();
   const headers: Record<string, string> = {};

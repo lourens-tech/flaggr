@@ -12,7 +12,7 @@ import {
   getSuperAdminStatBreakdown,
   type StatBreakdownMetric,
 } from '../_lib/adminReports';
-import { toCsv } from '../_lib/csv';
+import { toXlsxBuffer } from '../_lib/xlsx';
 import {
   addAdminMessage,
   ENQUIRY_STATUSES,
@@ -333,6 +333,7 @@ const SUPER_ADMIN_ALLOWED_ACTIONS = new Set([
   'superAdminCourses',
   'superAdminCourseCreate',
   'superAdminAds',
+  'superAdminExportReport',
   'superAdminAdSave',
   'superAdminAdDelete',
   'superAdminDashboard',
@@ -2169,6 +2170,34 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         return;
       }
 
+      // Only 'ads' today, mirroring the one download button that already
+      // existed on SuperAdminCourseAdsScreen (client-side CSV before this) —
+      // extend with more report types here if other super_admin screens grow
+      // their own download buttons.
+      if (action === 'superAdminExportReport' && req.method === 'GET') {
+        const report = typeof req.query.report === 'string' ? req.query.report : '';
+        if (report !== 'ads') throw new HttpError(400, 'Unknown report');
+        const targetCourseId = resolveAdCourseId(typeof req.query.courseId === 'string' ? req.query.courseId : undefined);
+        const ads = await listAdsForCourse(targetCourseId);
+        const placementLabels: Record<string, string> = { home: 'Home', home_top: 'Home (Top Banner)', rewards_shop: 'Rewards Shop' };
+        const workbook = toXlsxBuffer(
+          ['Title', 'Placement', 'Status', 'Clicks', 'Starts', 'Ends'],
+          ads.map((a) => [
+            a.title || '(untitled ad)',
+            placementLabels[a.placement] ?? a.placement,
+            a.active ? 'Active' : 'Inactive',
+            a.clicks,
+            a.startsAt,
+            a.endsAt,
+          ]),
+          'Ads',
+        );
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', 'attachment; filename="ads-report.xlsx"');
+        res.status(200).send(workbook);
+        return;
+      }
+
       if (action === 'superAdminAdSave') {
         const body = req.body as SuperAdminAdSaveBody;
         const targetCourseId = resolveAdCourseId(body.courseId);
@@ -3568,11 +3597,11 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     return;
   }
 
-  if (action === 'exportCsv' && req.method === 'GET') {
+  if (action === 'exportReport' && req.method === 'GET') {
     const report = typeof req.query.report === 'string' ? req.query.report : '';
     const period: StatsPeriod = isStatsPeriod(req.query.period) ? req.query.period : 'month';
     const { currentStart } = periodWindow(period);
-    let csv: string;
+    let workbook: Buffer;
     let filename: string;
 
     if (report === 'redemptions') {
@@ -3595,11 +3624,12 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         issued_at: string;
         redeemed_at: string | null;
       }>;
-      csv = toCsv(
+      workbook = toXlsxBuffer(
         ['Code', 'Member', 'Email', 'Reward', 'Variant', 'Flagrr Cash', 'Status', 'Issued At', 'Redeemed At'],
         rows.map((r) => [r.code, `${r.first_name} ${r.last_name}`, r.email, r.title, r.variant_label, r.cost, r.status, r.issued_at, r.redeemed_at]),
+        'Redemptions',
       );
-      filename = `redemptions-${period}.csv`;
+      filename = `redemptions-${period}.xlsx`;
     } else if (report === 'receipts') {
       const rows = (await sql`
         select r.receipt_number, u.first_name, u.last_name, u.email, r.course_name, r.total, r.points_awarded, r.status, r.submitted_at
@@ -3618,11 +3648,12 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         status: string;
         submitted_at: string;
       }>;
-      csv = toCsv(
+      workbook = toXlsxBuffer(
         ['Receipt #', 'Member', 'Email', 'Where Scanned', 'Total (R)', 'Flagrr Cash Awarded', 'Status', 'Submitted At'],
         rows.map((r) => [r.receipt_number, `${r.first_name} ${r.last_name}`, r.email, r.course_name, r.total, r.points_awarded, r.status, r.submitted_at]),
+        'Receipts',
       );
-      filename = `receipts-${period}.csv`;
+      filename = `receipts-${period}.xlsx`;
     } else if (report === 'members') {
       const rows = (await sql`
         select u.first_name, u.last_name, u.email, u.tier, u.member_since, p.balance, p.total_earned, p.total_redeemed
@@ -3639,11 +3670,12 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         total_earned: number;
         total_redeemed: number;
       }>;
-      csv = toCsv(
+      workbook = toXlsxBuffer(
         ['First Name', 'Last Name', 'Email', 'Tier', 'Member Since', 'FC Balance', 'FC Total Earned', 'FC Total Redeemed'],
         rows.map((r) => [r.first_name, r.last_name, r.email, r.tier, r.member_since, r.balance, r.total_earned, r.total_redeemed]),
+        'Members',
       );
-      filename = 'members.csv';
+      filename = 'members.xlsx';
     } else if (report === 'memberActivity') {
       const memberId = typeof req.query.userId === 'string' ? req.query.userId : '';
       if (!memberId) throw new HttpError(400, 'userId is required');
@@ -3654,18 +3686,19 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         from activity where user_id = ${memberId}
         order by date desc
       `) as Array<{ date: string; type: string; title: string; subtitle: string; amount: number }>;
-      csv = toCsv(
+      workbook = toXlsxBuffer(
         ['Date', 'Type', 'Title', 'Details', 'Flagrr Cash'],
         rows.map((r) => [r.date, r.type, r.title, r.subtitle, r.amount]),
+        'Activity',
       );
-      filename = `member-activity-${memberId}.csv`;
+      filename = `member-activity-${memberId}.xlsx`;
     } else {
       throw new HttpError(400, 'Unknown report');
     }
 
-    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-    res.status(200).send(csv);
+    res.status(200).send(workbook);
     return;
   }
 

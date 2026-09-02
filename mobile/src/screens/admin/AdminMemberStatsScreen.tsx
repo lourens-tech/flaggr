@@ -7,7 +7,7 @@ import type { AdminStackParamList } from '../../navigation/types';
 import { StatCard } from '../../components/common/StatCard';
 import { BarChart } from '../../components/common/BarChart';
 import { useAdmin } from '../../context/AdminContext';
-import { downloadCsvReport, AdminApiError } from '../../api/adminClient';
+import { downloadReport, AdminApiError } from '../../api/adminClient';
 import { showAlert } from '../../utils/alert';
 import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
 import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
@@ -58,12 +58,12 @@ export function AdminMemberStatsScreen({ route, navigation }: Props) {
   const handleExport = async () => {
     setExporting(true);
     try {
-      const downloaded = await downloadCsvReport('memberActivity', period, {
+      const downloaded = await downloadReport('memberActivity', period, {
         userId: memberId,
-        filename: data ? `${data.member.firstName}-${data.member.lastName}-activity.csv` : 'member-activity.csv',
+        filename: data ? `${data.member.firstName}-${data.member.lastName}-activity.xlsx` : 'member-activity.xlsx',
       });
       if (!downloaded) {
-        showAlert('Web only for now', 'CSV export is available on the Flagrr web app — open your dashboard in a browser to download this report.');
+        showAlert('Web only for now', 'Excel export is available on the Flagrr web app — open your dashboard in a browser to download this report.');
       }
     } catch (err) {
       const message = err instanceof AdminApiError ? err.message : 'Something went wrong. Please try again.';
@@ -178,7 +178,7 @@ export function AdminMemberStatsScreen({ route, navigation }: Props) {
             <View style={styles.card}>
               <TouchableOpacity style={styles.downloadRow} onPress={handleExport} disabled={exporting}>
                 <Ionicons name="download-outline" size={20} color={colors.clubGreen} />
-                <Text style={styles.downloadLabel}>Download Member CSV</Text>
+                <Text style={styles.downloadLabel}>Download Member Excel Report</Text>
                 {exporting ? <ActivityIndicator color={colors.clubGreen} size="small" /> : null}
               </TouchableOpacity>
             </View>

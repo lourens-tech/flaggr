@@ -498,22 +498,16 @@ export const adminApi = {
     request<{ imageData: string | null }>(`?action=superAdminReceiptImage&id=${encodeURIComponent(id)}`),
 };
 
-/** Downloads a CSV report. Only works on the web build (the only build that
- * exists today) — triggers a browser file download via a Blob + temporary
- * anchor, since a plain <a href> can't carry the Authorization header. */
-export async function downloadCsvReport(
-  report: 'redemptions' | 'receipts' | 'members' | 'memberActivity',
-  period: 'month' | 'year' | 'all',
-  options?: { userId?: string; filename?: string },
-): Promise<boolean> {
+/** Fetches a report action's response and triggers a browser file download
+ * via a Blob + temporary anchor (a plain <a href> can't carry the
+ * Authorization header). Only works on the web build (the only build that
+ * exists today) — shared by every "download this report" button below. */
+async function downloadFile(params: URLSearchParams, filename: string): Promise<boolean> {
   if (Platform.OS !== 'web') return false;
 
   const token = await getToken();
   const headers: Record<string, string> = {};
   if (token) headers.Authorization = `Bearer ${token}`;
-
-  const params = new URLSearchParams({ action: 'exportCsv', report, period });
-  if (options?.userId) params.set('userId', options.userId);
 
   const res = await fetch(`${API_BASE_URL}/api/admin?${params.toString()}`, {
     headers,
@@ -526,10 +520,27 @@ export async function downloadCsvReport(
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = options?.filename ?? `${report}-${period}.csv`;
+  link.download = filename;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
   return true;
+}
+
+/** Downloads a course_admin report as a .xlsx workbook. */
+export async function downloadReport(
+  report: 'redemptions' | 'receipts' | 'members' | 'memberActivity',
+  period: 'month' | 'year' | 'all',
+  options?: { userId?: string; filename?: string },
+): Promise<boolean> {
+  const params = new URLSearchParams({ action: 'exportReport', report, period });
+  if (options?.userId) params.set('userId', options.userId);
+  return downloadFile(params, options?.filename ?? `${report}-${period}.xlsx`);
+}
+
+/** Downloads the super_admin ads report for one course as a .xlsx workbook. */
+export async function downloadSuperAdminAdsReport(courseId: string, filename: string): Promise<boolean> {
+  const params = new URLSearchParams({ action: 'superAdminExportReport', report: 'ads', courseId });
+  return downloadFile(params, filename);
 }

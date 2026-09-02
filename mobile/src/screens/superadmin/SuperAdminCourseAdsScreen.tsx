@@ -7,9 +7,8 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SuperAdminStackParamList } from '../../navigation/types';
 import { ScreenHeader } from '../../components/common/ScreenHeader';
 import { useAdmin } from '../../context/AdminContext';
-import { AdminApiError } from '../../api/adminClient';
+import { AdminApiError, downloadSuperAdminAdsReport } from '../../api/adminClient';
 import { showAlert } from '../../utils/alert';
-import { toCsv, exportCsv } from '../../utils/csv';
 import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
 import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 import type { AdminAd } from '../../data/adminTypes';
@@ -21,12 +20,6 @@ const PLACEMENTS: Array<{ label: string; value: AdminAd['placement'] }> = [
   { label: 'Home (Top Banner)', value: 'home_top' },
   { label: 'Rewards Shop', value: 'rewards_shop' },
 ];
-
-const PLACEMENT_LABELS: Record<AdminAd['placement'], string> = {
-  home: 'Home',
-  home_top: 'Home (Top Banner)',
-  rewards_shop: 'Rewards Shop',
-};
 
 // Same list/edit shape as the course-admin AdminAdsListScreen/AdminAdEditScreen
 // (currently unreachable — the Ads tab was removed from the course-admin nav
@@ -76,22 +69,14 @@ export function SuperAdminCourseAdsScreen({ navigation, route }: Props) {
   }, [ads]);
 
   const handleExport = async () => {
-    const csv = toCsv(
-      ['Title', 'Placement', 'Status', 'Clicks', 'Starts', 'Ends'],
-      ads.map((a) => [
-        a.title || '(untitled ad)',
-        PLACEMENT_LABELS[a.placement],
-        a.active ? 'Active' : 'Inactive',
-        a.clicks,
-        a.startsAt ?? '',
-        a.endsAt ?? '',
-      ]),
-    );
     const safeName = courseName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'course';
     try {
-      await exportCsv(`${safeName}-ads-report.csv`, csv);
+      const downloaded = await downloadSuperAdminAdsReport(courseId, `${safeName}-ads-report.xlsx`);
+      if (!downloaded) {
+        showAlert('Web only for now', 'Excel export is available on the Flagrr web app — open this screen in a browser to download this report.');
+      }
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Something went wrong. Please try again.';
+      const message = err instanceof AdminApiError ? err.message : 'Something went wrong. Please try again.';
       showAlert('Couldn’t export report', message);
     }
   };
