@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, useWindowDimensions, View } from 'react-native';
+import { Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { fontFamily, fontSize, radius, spacing } from '../../../theme';
 import { useThemeColors, type ThemeColors } from '../../../context/ThemeContext';
@@ -34,12 +34,15 @@ interface Props {
   userFirstName: string;
   userLastName: string;
   userRoleLabel: string;
+  avatarImageUrl?: string | null;
   onAvatarPress: () => void;
   breadcrumb: string;
   headerRight?: React.ReactNode;
   unreadNotificationCount?: number;
   onBellPress?: () => void;
   rightRail?: React.ReactNode;
+  // Square image card shown in the sidebar, under the nav menu items.
+  sidebarCoverImageUrl?: string | null;
   // Set false for screens that manage their own internal scrolling (e.g. a
   // chat thread with a pinned composer) — the content area becomes a plain
   // flex column instead of a ScrollView, so children aren't nested inside
@@ -64,12 +67,14 @@ export function DesktopShell({
   userFirstName,
   userLastName,
   userRoleLabel,
+  avatarImageUrl,
   onAvatarPress,
   breadcrumb,
   headerRight,
   unreadNotificationCount = 0,
   onBellPress,
   rightRail,
+  sidebarCoverImageUrl,
   scrollable = true,
   children,
 }: Props) {
@@ -120,9 +125,17 @@ export function DesktopShell({
           ))}
         </ScrollView>
 
+        {sidebarCoverImageUrl ? (
+          <Image source={{ uri: sidebarCoverImageUrl }} style={styles.sidebarCover} />
+        ) : null}
+
         <TouchableOpacity style={styles.sidebarFoot} onPress={onAvatarPress} activeOpacity={0.7}>
           <View style={styles.footAvatar}>
-            <Text style={styles.footAvatarText}>{userInitials}</Text>
+            {avatarImageUrl ? (
+              <Image source={{ uri: avatarImageUrl }} style={styles.footAvatarImage} />
+            ) : (
+              <Text style={styles.footAvatarText}>{userInitials}</Text>
+            )}
           </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.footName} numberOfLines={1}>{userFirstName} {userLastName}</Text>
@@ -159,7 +172,11 @@ export function DesktopShell({
             </TouchableOpacity>
           ) : null}
           <TouchableOpacity style={styles.avatarBtn} onPress={onAvatarPress} accessibilityLabel="Profile" accessibilityRole="button">
-            <Text style={styles.avatarBtnText}>{userInitials}</Text>
+            {avatarImageUrl ? (
+              <Image source={{ uri: avatarImageUrl }} style={styles.avatarBtnImage} />
+            ) : (
+              <Text style={styles.avatarBtnText}>{userInitials}</Text>
+            )}
           </TouchableOpacity>
         </View>
 
@@ -172,7 +189,13 @@ export function DesktopShell({
         )}
       </View>
 
-      {showRail ? <View style={styles.rail}>{rightRail}</View> : null}
+      {showRail ? (
+        <View style={styles.rail}>
+          <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={styles.railContent}>
+            {rightRail}
+          </ScrollView>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -234,8 +257,16 @@ function createStyles(colors: ThemeColors) {
     borderTopWidth: 1,
     borderTopColor: 'rgba(255,255,255,0.1)',
   },
-  footAvatar: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.lime, alignItems: 'center', justifyContent: 'center' },
+  footAvatar: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.lime, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  footAvatarImage: { width: '100%', height: '100%' },
   footAvatarText: { fontFamily: fontFamily.bodySemiBold, fontSize: 12, color: colors.darkGreen },
+  sidebarCover: {
+    width: '100%',
+    aspectRatio: 1,
+    borderRadius: 12,
+    marginTop: 4,
+    marginBottom: 12,
+  },
   footName: { fontFamily: fontFamily.bodySemiBold, fontSize: 12.5, color: colors.white },
   footRole: { fontFamily: fontFamily.body, fontSize: 10.5, color: 'rgba(255,255,255,0.5)' },
   main: { flex: 1, minWidth: 0 },
@@ -288,7 +319,8 @@ function createStyles(colors: ThemeColors) {
     justifyContent: 'center',
   },
   dotText: { fontFamily: fontFamily.bodySemiBold, fontSize: 9, color: colors.white },
-  avatarBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.mintBg, alignItems: 'center', justifyContent: 'center' },
+  avatarBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.mintBg, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  avatarBtnImage: { width: '100%', height: '100%' },
   avatarBtnText: { fontFamily: fontFamily.bodySemiBold, fontSize: 13, color: colors.clubGreen },
   content: { padding: 28, paddingBottom: 60, gap: spacing.lg, maxWidth: 1160 },
   nonScrollContent: { flex: 1, paddingBottom: 0 },
@@ -296,6 +328,8 @@ function createStyles(colors: ThemeColors) {
     width: 292,
     borderLeftWidth: 1,
     borderLeftColor: colors.border,
+  },
+  railContent: {
     paddingHorizontal: 20,
     paddingVertical: 22,
   },

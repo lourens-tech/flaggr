@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { fontFamily } from '../../../theme';
 import { useThemeColors, type ThemeColors } from '../../../context/ThemeContext';
@@ -40,11 +41,13 @@ export function AdminDesktopFrame({ activeKey, breadcrumb, headerRight, showRail
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const navigation = useNavigation() as unknown as DesktopNavigator;
-  const { admin, course, notifications, unreadNotificationCount } = useAdmin();
+  const { admin, course, notifications, unreadNotificationCount, markNotificationRead } = useAdmin();
 
   const handleActivityPress = (n: AdminNotification) => {
+    if (!n.read) markNotificationRead(n.id);
     if (n.enquiryId) navigation.navigate('AdminEnquiryChat', { enquiryId: n.enquiryId });
     else if (n.receiptId) navigation.navigate('AdminFraudOversight');
+    else if (/enquiry/i.test(`${n.title} ${n.body}`)) navigation.navigate('AdminEnquiries');
   };
 
   const rail = showRail ? (
@@ -60,9 +63,14 @@ export function AdminDesktopFrame({ activeKey, breadcrumb, headerRight, showRail
               ? 'Your last payment failed. Contact Flagrr support to update your billing details.'
               : 'Managed by the Flagrr team. Contact support with any billing questions.'}
           </Text>
-          <Text style={styles.subRate}>
-            Conversion rate <Text style={styles.subRateValue}>{course.fbPerRand} FC</Text> / R1
-          </Text>
+          <TouchableOpacity
+            style={styles.subSupportBtn}
+            onPress={() => navigation.navigate('AdminSupportTickets')}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="headset-outline" size={14} color={colors.darkGreen} />
+            <Text style={styles.subSupportBtnText}>Contact Support</Text>
+          </TouchableOpacity>
         </View>
       }
     />
@@ -78,12 +86,14 @@ export function AdminDesktopFrame({ activeKey, breadcrumb, headerRight, showRail
       userFirstName={admin.firstName}
       userLastName={admin.lastName}
       userRoleLabel={ROLE_LABELS[admin.role] ?? 'Course Admin'}
+      avatarImageUrl={course.logoUrl}
       onAvatarPress={() => navigation.navigate(admin.role === 'staff' ? 'AdminStaffProfile' : 'AdminCourseProfile')}
       breadcrumb={breadcrumb}
       headerRight={headerRight}
       unreadNotificationCount={unreadNotificationCount}
       onBellPress={() => navigation.navigate('AdminNotifications')}
       rightRail={rail}
+      sidebarCoverImageUrl={course.coverImageUrl}
       scrollable={scrollable}
     >
       {children}
@@ -114,7 +124,16 @@ function createStyles(colors: ThemeColors) {
   },
   subTitle: { fontFamily: fontFamily.heading, fontSize: 16, color: colors.white },
   subBody: { fontFamily: fontFamily.body, fontSize: 12, color: 'rgba(255,255,255,0.72)', lineHeight: 17 },
-  subRate: { fontFamily: fontFamily.body, fontSize: 12, color: 'rgba(255,255,255,0.85)', marginTop: 6 },
-  subRateValue: { fontFamily: fontFamily.heading, fontSize: 15, color: colors.lime },
+  subSupportBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    backgroundColor: colors.lime,
+    borderRadius: 10,
+    paddingVertical: 9,
+    marginTop: 8,
+  },
+  subSupportBtnText: { fontFamily: fontFamily.bodySemiBold, fontSize: 12.5, color: colors.darkGreen },
 });
 }

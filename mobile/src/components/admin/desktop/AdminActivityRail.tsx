@@ -4,6 +4,12 @@ import { fontFamily } from '../../../theme';
 import { useThemeColors, type ThemeColors } from '../../../context/ThemeContext';
 import type { AdminNotification } from '../../../data/adminTypes';
 
+// Older enquiry notifications can predate the enquiry_id linkage — fall
+// back to the title/body so they're still clickable instead of a dead row.
+function isActionable(n: AdminNotification): boolean {
+  return !!n.enquiryId || !!n.receiptId || /enquiry/i.test(`${n.title} ${n.body}`);
+}
+
 function timeAgo(iso: string): string {
   const diffMs = Date.now() - new Date(iso).getTime();
   const minutes = Math.floor(diffMs / 60000);
@@ -45,7 +51,7 @@ export function AdminActivityRail({ notifications, onPress, footer }: Props) {
                 key={n.id}
                 style={[styles.item, i === recent.length - 1 && styles.itemLast]}
                 onPress={() => onPress(n)}
-                disabled={!n.enquiryId && !n.receiptId}
+                disabled={!isActionable(n)}
                 activeOpacity={0.7}
               >
                 <View style={[styles.dot, { backgroundColor: dotColor }]} />

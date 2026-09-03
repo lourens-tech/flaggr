@@ -21,6 +21,7 @@ import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 import type { AdminMember } from '../../data/adminTypes';
 
 const MEMBERS_PAGE_SIZE = 10;
+const TIER_ORDER = ['Bronze', 'Silver', 'Gold', 'Platinum'];
 
 type Period = 'month' | 'year' | 'all';
 const PERIOD_LABELS: Record<Period, string> = { month: 'Month', year: 'Year', all: 'All' };
@@ -168,7 +169,7 @@ export function AdminDashboardScreen({ navigation }: Props) {
                 onPress={() => navigation.navigate('AdminReportDetail', { report: 'members', label: 'New Members', period: dashboardPeriod })}
               />
               <DesktopStatCard
-                label="Flagrr Cash Earned"
+                label="FC Earned"
                 value={dashboard.totals.fcEarned.toLocaleString()}
                 icon="trending-up-outline"
                 deltaPct={dashboard.totals.fcEarnedDeltaPct}
@@ -176,7 +177,7 @@ export function AdminDashboardScreen({ navigation }: Props) {
                 onPress={() => navigation.navigate('AdminReportDetail', { report: 'receipts', label: 'Flagrr Cash Earned', period: dashboardPeriod })}
               />
               <DesktopStatCard
-                label="Flagrr Cash Redeemed"
+                label="FC Redeemed"
                 value={dashboard.totals.fcRedeemed.toLocaleString()}
                 icon="swap-horizontal-outline"
                 deltaPct={dashboard.totals.fcRedeemedDeltaPct}
@@ -203,22 +204,20 @@ export function AdminDashboardScreen({ navigation }: Props) {
                 style={{ flex: 1 }}
                 onViewAll={() => navigation.navigate('AdminReportDetail', { report: 'members', label: 'Tier Distribution', period: 'all' })}
               >
-                {dashboard.tierDistribution.length === 0 ? (
-                  <Text style={styles.dEmptyText}>No members yet.</Text>
-                ) : (
-                  (() => {
-                    const max = Math.max(...dashboard.tierDistribution.map((t) => t.count), 1);
-                    return dashboard.tierDistribution.map((t) => (
-                      <View key={t.tier} style={styles.dTierRow}>
-                        <Text style={styles.dTierTag}>{t.tier}</Text>
-                        <View style={styles.dBarTrack}>
-                          <View style={[styles.dBarFill, { width: `${Math.max(4, (t.count / max) * 100)}%` }]} />
-                        </View>
-                        <Text style={styles.dTierValue}>{t.count}</Text>
+                {(() => {
+                  const counts = new Map(dashboard.tierDistribution.map((t) => [t.tier, t.count]));
+                  const rows = TIER_ORDER.map((tier) => ({ tier, count: counts.get(tier) ?? 0 }));
+                  const max = Math.max(...rows.map((r) => r.count), 1);
+                  return rows.map((t) => (
+                    <View key={t.tier} style={styles.dTierRow}>
+                      <Text style={styles.dTierTag}>{t.tier}</Text>
+                      <View style={styles.dBarTrack}>
+                        <View style={[styles.dBarFill, { width: `${Math.max(4, (t.count / max) * 100)}%` }]} />
                       </View>
-                    ));
-                  })()
-                )}
+                      <Text style={styles.dTierValue}>{t.count}</Text>
+                    </View>
+                  ));
+                })()}
               </DesktopPanel>
             </View>
 
