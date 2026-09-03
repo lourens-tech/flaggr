@@ -46,6 +46,8 @@ export type AdminStackParamList = {
   AdminSupportTicketChat: { ticketId: string };
   AdminMemberList: undefined;
   AdminFraudOversight: undefined;
+  AdminCatalog: undefined;
+  AdminCatalogItemEdit: { kind: 'product' | 'activity'; itemId?: string };
   AdminReportDetail: { report: CourseReportKind; label: string; period: 'month' | 'year' | 'all' };
   TermsPrivacy: undefined;
 };
@@ -66,6 +68,14 @@ export type SuperAdminStackParamList = {
   SuperAdminAdEdit: { courseId: string; adId?: string };
   SuperAdminCourseRewards: { courseId: string; courseName: string; fbPerRand: number };
   SuperAdminRewardEdit: { courseId: string; fbPerRand: number; rewardId?: string };
+  SuperAdminCourseCatalog: { courseId: string; courseName: string; fbPerRand: number };
+  SuperAdminCatalogItemEdit: {
+    courseId: string;
+    courseName: string;
+    fbPerRand: number;
+    kind: 'product' | 'activity';
+    itemId?: string;
+  };
   SuperAdminStatBreakdown: { metric: StatBreakdownMetric; label: string; period: 'month' | 'year' | 'all' };
   SuperAdminClubMembers: { courseId: string; courseName: string; period: 'month' | 'year' | 'all' };
   SuperAdminReportDetail: { report: SuperAdminReportKind; label: string; period: 'month' | 'year' | 'all' };

@@ -273,6 +273,19 @@ export function AdminCourseProfileScreen({ navigation }: Props) {
           onPress={() => navigation.navigate('AdminMemberList')}
         />
 
+        <Text style={styles.sectionTitle}>Products & Activities</Text>
+        <Text style={styles.helpText}>
+          What the receipt scanner matches purchases against and how much Flagrr Cash each one earns. Keep this up
+          to date with what you actually sell for accurate points.
+        </Text>
+        <View style={{ height: spacing.sm }} />
+        <PillButton
+          label="Manage Products & Activities"
+          icon="pricetags-outline"
+          variant="outline"
+          onPress={() => navigation.navigate('AdminCatalog')}
+        />
+
         <Text style={styles.sectionTitle}>Fraud Review</Text>
         <Text style={styles.helpText}>
           Review receipts flagged for your club, confirm genuine fraud (reverses the Flagrr Cash awarded), or clear

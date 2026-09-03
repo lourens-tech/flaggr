@@ -11,6 +11,10 @@ export interface ParsedLineItem {
 
 export interface ParsedReceipt {
   merchantNameGuess: string | null;
+  // Every OCR'd line, trimmed of blanks — used by pointsEngine.ts to search
+  // the whole slip for a known club's name rather than trust a single
+  // positional guess (see matchMerchantAcrossLines there).
+  rawLines: string[];
   receiptNumber: string | null;
   transactionNumber: string | null;
   tillNumber: string | null;
@@ -67,7 +71,7 @@ function findAmount(text: string, keywordPatterns: RegExp[]): number | null {
 // positive here just means one fewer noise line getting misread as an item,
 // never a real item being scored wrong.
 const skipLinePattern =
-  /^\s*(?:sub\s*-?\s*total|vat\s*no|vat|tax|grand\s*total|nett?\s*total|amount\s*due|balance\s*due|total\s*due|total|receipt|invoice|trans|till|register|thank you|change|cash|card|visa|mastercard|eft|debit|credit|balance|account|acc\.?\s*no|member\s*(?:no|number)?|loyalty|signature|approved|auth(?:oris|oriz)ation|operator|cashier|served\s*by|waiter|table|covers|customer|copy|duplicate|original|qty\s+description|description\s+amount|date|time|tel|www\.|reg(?:istration)?\s*no)/i;
+  /^\s*(?:sub\s*-?\s*total|vat\s*no|vat|tax|grand\s*total|nett?\s*total|amount\s*due|balance\s*due|total\s*due|total|receipt|invoice|trans|till|register|thank you|change|cash|card|visa|mastercard|eft|debit|credit|balance|account|acc\.?\s*no|member\s*(?:no|number)?|loyalty|points?\s*earned|signature|approved|auth(?:oris|oriz)ation|operator|cashier|served\s*by|waiter|table|covers|customer|copy|duplicate|original|qty\s+description|description\s+amount|date|time|tel|www\.|reg(?:istration)?\s*no|tip|gratuity|service\s*charge|delivery|levy|surcharge|round(?:ing)?|tender|terminal|merchant\s*copy)/i;
 
 // Some tills print an "R" / "ZAR" / "$" right against the amount instead of
 // leaving it implicit — consumed here so it never leaks into the item
@@ -213,14 +217,21 @@ export function parseReceiptText(rawText: string): ParsedReceipt {
     .filter(Boolean);
   const text = rawText;
 
+  // "Invoice No" / "Tax Invoice Nr" is at least as common as "Receipt No" on
+  // South African tills — this used to only look for "receipt"/"slip",
+  // which meant an invoice-numbered slip never got a receipt_number at all
+  // (so it could never be blocked from being redeemed twice) and the
+  // invoice-number line itself often got swept up as the "merchant name"
+  // guess instead, garbled and all. "nr" (Afrikaans/common local
+  // abbreviation for "number") is accepted anywhere "no" is.
+  const NUMBER_LABEL = '(?:no\\.?|number|nr\\.?|#)';
   const receiptNumber = firstMatch(text, [
-    /receipt\s*(?:no\.?|number|#)?\s*[:\-]?\s*([A-Z0-9][A-Z0-9\-\/]{3,})/i,
-    /slip\s*(?:no\.?|number|#)?\s*[:\-]?\s*([A-Z0-9][A-Z0-9\-\/]{3,})/i,
+    new RegExp(`(?:tax\\s*)?invoice\\s*${NUMBER_LABEL}?\\s*[:\\-]?\\s*([A-Z0-9][A-Z0-9\\-\\/]{3,})`, 'i'),
+    new RegExp(`receipt\\s*${NUMBER_LABEL}?\\s*[:\\-]?\\s*([A-Z0-9][A-Z0-9\\-\\/]{3,})`, 'i'),
+    new RegExp(`slip\\s*${NUMBER_LABEL}?\\s*[:\\-]?\\s*([A-Z0-9][A-Z0-9\\-\\/]{3,})`, 'i'),
   ]);
 
-  const transactionNumber = firstMatch(text, [
-    /trans(?:action)?\s*(?:no\.?|number|#)?\s*[:\-]?\s*([A-Z0-9\-\/]{2,})/i,
-  ]);
+  const transactionNumber = firstMatch(text, [new RegExp(`trans(?:action)?\\s*${NUMBER_LABEL}?\\s*[:\\-]?\\s*([A-Z0-9\\-\\/]{2,})`, 'i')]);
 
   const tillNumber = firstMatch(text, [/till\s*(?:no\.?|number|#)?\s*[:\-]?\s*(\d+)/i, /register\s*[:\-]?\s*(\d+)/i]);
 
@@ -246,6 +257,7 @@ export function parseReceiptText(rawText: string): ParsedReceipt {
 
   return {
     merchantNameGuess,
+    rawLines: lines,
     receiptNumber,
     transactionNumber,
     tillNumber,

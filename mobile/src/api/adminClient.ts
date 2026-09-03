@@ -16,6 +16,10 @@ import type {
   AdminVoucherLookup,
   AuditLogEntry,
   BroadcastTarget,
+  CatalogActivity,
+  CatalogActivitySavePayload,
+  CatalogProduct,
+  CatalogProductSavePayload,
   CourseReportKind,
   DashboardReport,
   DuplicateReceiptAttempt,
@@ -196,6 +200,14 @@ export interface SuperAdminRewardSavePayload extends RewardSavePayload {
   courseId: string;
 }
 
+export interface SuperAdminCatalogProductSavePayload extends CatalogProductSavePayload {
+  courseId: string;
+}
+
+export interface SuperAdminCatalogActivitySavePayload extends CatalogActivitySavePayload {
+  courseId: string;
+}
+
 export interface SupportAgentCreatePayload {
   firstName: string;
   lastName: string;
@@ -301,6 +313,22 @@ export const adminApi = {
     request<{ id: string }>('?action=rewardSave', { method: 'POST', body: payload }),
 
   deleteReward: (id: string) => request<{ ok: boolean }>('?action=rewardDelete', { method: 'POST', body: { id } }),
+
+  catalogProducts: () => request<CatalogProduct[]>('?action=catalogProducts'),
+
+  saveCatalogProduct: (payload: CatalogProductSavePayload) =>
+    request<{ id: string }>('?action=catalogProductSave', { method: 'POST', body: payload }),
+
+  deleteCatalogProduct: (id: string) =>
+    request<{ ok: boolean }>('?action=catalogProductDelete', { method: 'POST', body: { id } }),
+
+  catalogActivities: () => request<CatalogActivity[]>('?action=catalogActivities'),
+
+  saveCatalogActivity: (payload: CatalogActivitySavePayload) =>
+    request<{ id: string }>('?action=catalogActivitySave', { method: 'POST', body: payload }),
+
+  deleteCatalogActivity: (id: string) =>
+    request<{ ok: boolean }>('?action=catalogActivityDelete', { method: 'POST', body: { id } }),
 
   ads: () => request<AdminAd[]>('?action=ads'),
 
@@ -408,6 +436,24 @@ export const adminApi = {
 
   deleteSuperAdminReward: (courseId: string, id: string) =>
     request<{ ok: boolean }>('?action=superAdminRewardDelete', { method: 'POST', body: { courseId, id } }),
+
+  superAdminCatalogProducts: (courseId: string) =>
+    request<CatalogProduct[]>(`?action=superAdminCatalogProducts&courseId=${encodeURIComponent(courseId)}`),
+
+  saveSuperAdminCatalogProduct: (payload: SuperAdminCatalogProductSavePayload) =>
+    request<{ id: string }>('?action=superAdminCatalogProductSave', { method: 'POST', body: payload }),
+
+  deleteSuperAdminCatalogProduct: (courseId: string, id: string) =>
+    request<{ ok: boolean }>('?action=superAdminCatalogProductDelete', { method: 'POST', body: { courseId, id } }),
+
+  superAdminCatalogActivities: (courseId: string) =>
+    request<CatalogActivity[]>(`?action=superAdminCatalogActivities&courseId=${encodeURIComponent(courseId)}`),
+
+  saveSuperAdminCatalogActivity: (payload: SuperAdminCatalogActivitySavePayload) =>
+    request<{ id: string }>('?action=superAdminCatalogActivitySave', { method: 'POST', body: payload }),
+
+  deleteSuperAdminCatalogActivity: (courseId: string, id: string) =>
+    request<{ ok: boolean }>('?action=superAdminCatalogActivityDelete', { method: 'POST', body: { courseId, id } }),
 
   superAdminStatBreakdown: (metric: StatBreakdownMetric, period: 'month' | 'year' | 'all') =>
     request<StatBreakdownRow[]>(`?action=superAdminStatBreakdown&metric=${metric}&period=${period}`),

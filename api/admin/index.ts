@@ -132,6 +132,42 @@ interface SuperAdminRewardDeleteBody extends RewardDeleteBody {
   courseId?: string;
 }
 
+interface CatalogProductSaveBody {
+  id?: string;
+  name?: string;
+  brand?: string;
+  category?: string;
+  aliases?: string[];
+  randValue?: number;
+  pointsPerUnit?: boolean;
+  active?: boolean;
+}
+
+interface CatalogActivitySaveBody {
+  id?: string;
+  name?: string;
+  category?: string;
+  aliases?: string[];
+  randValue?: number;
+  active?: boolean;
+}
+
+interface CatalogIdBody {
+  id?: string;
+}
+
+interface SuperAdminCatalogProductSaveBody extends CatalogProductSaveBody {
+  courseId?: string;
+}
+
+interface SuperAdminCatalogActivitySaveBody extends CatalogActivitySaveBody {
+  courseId?: string;
+}
+
+interface SuperAdminCatalogIdBody extends CatalogIdBody {
+  courseId?: string;
+}
+
 interface SubscriptionActionBody {
   courseId?: string;
 }
@@ -357,6 +393,12 @@ const SUPER_ADMIN_ALLOWED_ACTIONS = new Set([
   'superAdminRewards',
   'superAdminRewardSave',
   'superAdminRewardDelete',
+  'superAdminCatalogProducts',
+  'superAdminCatalogProductSave',
+  'superAdminCatalogProductDelete',
+  'superAdminCatalogActivities',
+  'superAdminCatalogActivitySave',
+  'superAdminCatalogActivityDelete',
   'superAdminStatBreakdown',
   'superAdminClubMembers',
   'superAdminCourseCancelSubscription',
@@ -953,6 +995,138 @@ async function deleteRewardForCourse(courseId: string, id: string) {
   `;
 }
 
+// --- Golf product/activity catalog — what the receipt scanner matches item
+// names against, and prices in Flagrr Cash from (rand_value * the club's own
+// fb_per_rand — see api/_lib/pointsEngine.ts). Every club manages its own,
+// mirroring the rewards pattern above: course_admin scoped to their own club
+// implicitly, super_admin with an explicit courseId for any club. ---
+async function listCatalogProductsForCourse(courseId: string) {
+  const rows = (await sql`
+    select id, name, brand, category, aliases, rand_value, points_per_unit, active
+    from golf_products where course_id = ${courseId}
+    order by active desc, name
+  `) as Array<{
+    id: string;
+    name: string;
+    brand: string;
+    category: string;
+    aliases: string[];
+    rand_value: number;
+    points_per_unit: boolean;
+    active: boolean;
+  }>;
+  return rows.map((r) => ({
+    id: r.id,
+    name: r.name,
+    brand: r.brand,
+    category: r.category,
+    aliases: r.aliases,
+    randValue: r.rand_value,
+    pointsPerUnit: r.points_per_unit,
+    active: r.active,
+  }));
+}
+
+async function saveCatalogProductForCourse(courseId: string, body: CatalogProductSaveBody): Promise<{ id: string }> {
+  const name = body.name?.trim();
+  if (!name) throw new HttpError(400, 'name is required');
+  if (typeof body.randValue !== 'number' || body.randValue < 0) {
+    throw new HttpError(400, 'A Rand value is required');
+  }
+  const randValue = Math.round(body.randValue);
+  const brand = body.brand?.trim() ?? '';
+  const category = body.category?.trim() ?? '';
+  const aliases = (body.aliases ?? []).map((a) => a.trim().toLowerCase()).filter(Boolean);
+  const pointsPerUnit = body.pointsPerUnit ?? true;
+  const active = body.active ?? true;
+
+  if (body.id) {
+    const owned = (await sql`select id from golf_products where id = ${body.id} and course_id = ${courseId}`) as Array<{
+      id: string;
+    }>;
+    if (owned.length === 0) throw new HttpError(404, 'Product not found');
+    await sql`
+      update golf_products
+      set name = ${name}, brand = ${brand}, category = ${category}, aliases = ${aliases},
+          rand_value = ${randValue}, points_per_unit = ${pointsPerUnit}, active = ${active}
+      where id = ${body.id}
+    `;
+    return { id: body.id };
+  }
+  const inserted = (await sql`
+    insert into golf_products (course_id, name, brand, category, aliases, rand_value, points_per_unit, active)
+    values (${courseId}, ${name}, ${brand}, ${category}, ${aliases}, ${randValue}, ${pointsPerUnit}, ${active})
+    returning id
+  `) as Array<{ id: string }>;
+  return { id: inserted[0].id };
+}
+
+async function deactivateCatalogProductForCourse(courseId: string, id: string) {
+  // Soft-delete: receipt_items.matched_product_id references this row with
+  // no cascade, so past receipts can still resolve which catalog entry
+  // earned their points. Deactivating removes it from scanner matching
+  // instead of hard-deleting.
+  await sql`update golf_products set active = false where id = ${id} and course_id = ${courseId}`;
+}
+
+async function listCatalogActivitiesForCourse(courseId: string) {
+  const rows = (await sql`
+    select id, name, category, aliases, rand_value, active
+    from golf_activities where course_id = ${courseId}
+    order by active desc, name
+  `) as Array<{
+    id: string;
+    name: string;
+    category: string;
+    aliases: string[];
+    rand_value: number;
+    active: boolean;
+  }>;
+  return rows.map((r) => ({
+    id: r.id,
+    name: r.name,
+    category: r.category,
+    aliases: r.aliases,
+    randValue: r.rand_value,
+    active: r.active,
+  }));
+}
+
+async function saveCatalogActivityForCourse(courseId: string, body: CatalogActivitySaveBody): Promise<{ id: string }> {
+  const name = body.name?.trim();
+  if (!name) throw new HttpError(400, 'name is required');
+  if (typeof body.randValue !== 'number' || body.randValue < 0) {
+    throw new HttpError(400, 'A Rand value is required');
+  }
+  const randValue = Math.round(body.randValue);
+  const category = body.category?.trim() ?? '';
+  const aliases = (body.aliases ?? []).map((a) => a.trim().toLowerCase()).filter(Boolean);
+  const active = body.active ?? true;
+
+  if (body.id) {
+    const owned = (await sql`select id from golf_activities where id = ${body.id} and course_id = ${courseId}`) as Array<{
+      id: string;
+    }>;
+    if (owned.length === 0) throw new HttpError(404, 'Activity not found');
+    await sql`
+      update golf_activities
+      set name = ${name}, category = ${category}, aliases = ${aliases}, rand_value = ${randValue}, active = ${active}
+      where id = ${body.id}
+    `;
+    return { id: body.id };
+  }
+  const inserted = (await sql`
+    insert into golf_activities (course_id, name, category, aliases, rand_value, active)
+    values (${courseId}, ${name}, ${category}, ${aliases}, ${randValue}, ${active})
+    returning id
+  `) as Array<{ id: string }>;
+  return { id: inserted[0].id };
+}
+
+async function deactivateCatalogActivityForCourse(courseId: string, id: string) {
+  await sql`update golf_activities set active = false where id = ${id} and course_id = ${courseId}`;
+}
+
 // A super_admin's ad actions carry a courseId that's either a real course
 // id or the literal string 'global' (a course id can never collide with
 // that, since courses.id is a uuid) — 'global' maps to a null course_id,
@@ -1380,6 +1554,15 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         if (contactEmail && !EMAIL_PATTERN.test(contactEmail)) throw new HttpError(400, 'Enter a valid contact email address');
 
         const newCourse = (await insertCourseWithUniqueSlug({ name: courseName, contactEmail }))[0];
+
+        // Without a merchants row, the receipt scanner could never recognise
+        // "this slip is from our own course" for this club — every one of
+        // their members' receipts would score as an away-club purchase (see
+        // matchMerchantAcrossLines in api/_lib/pointsEngine.ts).
+        await sql`
+          insert into merchants (name, aliases, merchant_type, course_id)
+          values (${courseName}, array[${courseName.toLowerCase()}], 'golf_course', ${newCourse.id})
+        `;
 
         const tempPassword = generateTempPassword();
         const passwordHash = await hashPassword(tempPassword);
@@ -2418,6 +2601,88 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
           adminRole: authedAdmin.role,
           action: 'superAdminRewardDelete',
           targetType: 'reward',
+          targetId: body.id,
+        });
+        res.status(200).json({ ok: true });
+        return;
+      }
+
+      if (action === 'superAdminCatalogProducts' && req.method === 'GET') {
+        const targetCourseId = typeof req.query.courseId === 'string' ? req.query.courseId : undefined;
+        if (!targetCourseId) throw new HttpError(400, 'courseId is required');
+        res.status(200).json(await listCatalogProductsForCourse(targetCourseId));
+        return;
+      }
+
+      if (action === 'superAdminCatalogProductSave') {
+        const body = req.body as SuperAdminCatalogProductSaveBody;
+        if (!body.courseId) throw new HttpError(400, 'courseId is required');
+        const saved = await saveCatalogProductForCourse(body.courseId, body);
+        await logAudit({
+          adminId: authedAdmin.id,
+          adminName: `${authedAdmin.firstName} ${authedAdmin.lastName}`,
+          adminRole: authedAdmin.role,
+          action: 'superAdminCatalogProductSave',
+          targetType: 'golf_product',
+          targetId: saved.id,
+          targetLabel: body.name,
+        });
+        res.status(200).json(saved);
+        return;
+      }
+
+      if (action === 'superAdminCatalogProductDelete') {
+        const body = req.body as SuperAdminCatalogIdBody;
+        if (!body.courseId) throw new HttpError(400, 'courseId is required');
+        if (!body.id) throw new HttpError(400, 'id is required');
+        await deactivateCatalogProductForCourse(body.courseId, body.id);
+        await logAudit({
+          adminId: authedAdmin.id,
+          adminName: `${authedAdmin.firstName} ${authedAdmin.lastName}`,
+          adminRole: authedAdmin.role,
+          action: 'superAdminCatalogProductDelete',
+          targetType: 'golf_product',
+          targetId: body.id,
+        });
+        res.status(200).json({ ok: true });
+        return;
+      }
+
+      if (action === 'superAdminCatalogActivities' && req.method === 'GET') {
+        const targetCourseId = typeof req.query.courseId === 'string' ? req.query.courseId : undefined;
+        if (!targetCourseId) throw new HttpError(400, 'courseId is required');
+        res.status(200).json(await listCatalogActivitiesForCourse(targetCourseId));
+        return;
+      }
+
+      if (action === 'superAdminCatalogActivitySave') {
+        const body = req.body as SuperAdminCatalogActivitySaveBody;
+        if (!body.courseId) throw new HttpError(400, 'courseId is required');
+        const saved = await saveCatalogActivityForCourse(body.courseId, body);
+        await logAudit({
+          adminId: authedAdmin.id,
+          adminName: `${authedAdmin.firstName} ${authedAdmin.lastName}`,
+          adminRole: authedAdmin.role,
+          action: 'superAdminCatalogActivitySave',
+          targetType: 'golf_activity',
+          targetId: saved.id,
+          targetLabel: body.name,
+        });
+        res.status(200).json(saved);
+        return;
+      }
+
+      if (action === 'superAdminCatalogActivityDelete') {
+        const body = req.body as SuperAdminCatalogIdBody;
+        if (!body.courseId) throw new HttpError(400, 'courseId is required');
+        if (!body.id) throw new HttpError(400, 'id is required');
+        await deactivateCatalogActivityForCourse(body.courseId, body.id);
+        await logAudit({
+          adminId: authedAdmin.id,
+          adminName: `${authedAdmin.firstName} ${authedAdmin.lastName}`,
+          adminRole: authedAdmin.role,
+          action: 'superAdminCatalogActivityDelete',
+          targetType: 'golf_activity',
           targetId: body.id,
         });
         res.status(200).json({ ok: true });
@@ -3463,6 +3728,42 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     const id = (req.body as RewardDeleteBody).id;
     if (!id) throw new HttpError(400, 'id is required');
     await deleteRewardForCourse(courseId, id);
+    res.status(200).json({ ok: true });
+    return;
+  }
+
+  if (action === 'catalogProducts' && req.method === 'GET') {
+    res.status(200).json(await listCatalogProductsForCourse(courseId));
+    return;
+  }
+
+  if (action === 'catalogProductSave') {
+    res.status(200).json(await saveCatalogProductForCourse(courseId, req.body as CatalogProductSaveBody));
+    return;
+  }
+
+  if (action === 'catalogProductDelete') {
+    const id = (req.body as CatalogIdBody).id;
+    if (!id) throw new HttpError(400, 'id is required');
+    await deactivateCatalogProductForCourse(courseId, id);
+    res.status(200).json({ ok: true });
+    return;
+  }
+
+  if (action === 'catalogActivities' && req.method === 'GET') {
+    res.status(200).json(await listCatalogActivitiesForCourse(courseId));
+    return;
+  }
+
+  if (action === 'catalogActivitySave') {
+    res.status(200).json(await saveCatalogActivityForCourse(courseId, req.body as CatalogActivitySaveBody));
+    return;
+  }
+
+  if (action === 'catalogActivityDelete') {
+    const id = (req.body as CatalogIdBody).id;
+    if (!id) throw new HttpError(400, 'id is required');
+    await deactivateCatalogActivityForCourse(courseId, id);
     res.status(200).json({ ok: true });
     return;
   }

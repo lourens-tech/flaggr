@@ -194,6 +194,19 @@ export function SuperAdminCoursesScreen({ navigation }: Props) {
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.actionButton}
+          onPress={() =>
+            navigation.navigate('SuperAdminCourseCatalog', {
+              courseId: item.id,
+              courseName: item.name,
+              fbPerRand: item.fbPerRand,
+            })
+          }
+        >
+          <Ionicons name="pricetags-outline" size={14} color={colors.clubGreen} />
+          <Text style={styles.actionButtonText}>Products & Activities</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.actionButton}
           onPress={() => navigation.navigate('SuperAdminCourseMemberList', { courseId: item.id, courseName: item.name })}
         >
           <Ionicons name="cloud-upload-outline" size={14} color={colors.clubGreen} />

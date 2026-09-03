@@ -1,14 +1,14 @@
 import { sql } from './db';
-import { matchCatalog, type Catalog } from './matching';
+import { matchCatalog, type Catalog, type MatchResult } from './matching';
 import type { ParsedLineItem } from './receiptParser';
 
 interface GolfProductRow extends Catalog {
-  points_value: number;
+  rand_value: number;
   points_per_unit: boolean;
 }
 
 interface GolfActivityRow extends Catalog {
-  points_value: number;
+  rand_value: number;
 }
 
 interface MerchantRow extends Catalog {
@@ -34,10 +34,14 @@ export interface PointsResult {
   totalPointsAwarded: number; // after merchant bonus multiplier
 }
 
-async function loadCatalogs() {
+// Products/activities are scoped to one club — every club manages its own
+// catalog and Rand pricing (course_admin, or super_admin on their behalf).
+// Merchants stay unscoped: a receipt could be from any Flagrr club, home or
+// away, so the whole list is loaded to figure out which one this is.
+async function loadCatalogs(homeCourseId: string) {
   const [products, activities, merchants] = await Promise.all([
-    sql`select id, name, aliases, points_value, points_per_unit from golf_products where active`,
-    sql`select id, name, aliases, points_value from golf_activities where active`,
+    sql`select id, name, aliases, rand_value, points_per_unit from golf_products where active and course_id = ${homeCourseId}`,
+    sql`select id, name, aliases, rand_value from golf_activities where active and course_id = ${homeCourseId}`,
     sql`select id, name, aliases, merchant_type, bonus_multiplier, course_id from merchants where active`,
   ]);
   return {
@@ -47,18 +51,42 @@ async function loadCatalogs() {
   };
 }
 
+async function getFbPerRand(courseId: string): Promise<number> {
+  const rows = (await sql`select fb_per_rand from courses where id = ${courseId}`) as Array<{
+    fb_per_rand: string | number;
+  }>;
+  return rows.length > 0 ? Number(rows[0].fb_per_rand) : 1;
+}
+
+// The actual venue name on a slip is often not the first line — a logo,
+// address, or an invoice-number line usually is — so this searches every
+// OCR'd line against the known-clubs list and keeps whichever one scores
+// best, rather than trusting a single positional guess.
+function matchMerchantAcrossLines(lines: string[], merchants: MerchantRow[]): MatchResult<MerchantRow> | null {
+  let best: MatchResult<MerchantRow> | null = null;
+  for (const line of lines) {
+    const match = matchCatalog(line, merchants);
+    if (match && (!best || match.score > best.score)) best = match;
+    if (best?.score === 1) break; // exact/alias match — can't do better
+  }
+  return best;
+}
+
 export async function matchAndScoreReceipt(
   items: ParsedLineItem[],
-  merchantNameGuess: string | null,
+  rawLines: string[],
+  homeCourseId: string,
 ): Promise<PointsResult> {
-  const { products, activities, merchants } = await loadCatalogs();
+  const [{ products, activities, merchants }, fbPerRand] = await Promise.all([
+    loadCatalogs(homeCourseId),
+    getFbPerRand(homeCourseId),
+  ]);
 
   const matchedItems: MatchedItem[] = items.map((item) => {
     const productMatch = matchCatalog(item.description, products);
     if (productMatch) {
-      const points = productMatch.item.points_per_unit
-        ? productMatch.item.points_value * item.quantity
-        : productMatch.item.points_value;
+      const unitPoints = Math.round(productMatch.item.rand_value * fbPerRand);
+      const points = productMatch.item.points_per_unit ? unitPoints * item.quantity : unitPoints;
       return {
         description: item.description,
         quantity: item.quantity,
@@ -72,6 +100,7 @@ export async function matchAndScoreReceipt(
 
     const activityMatch = matchCatalog(item.description, activities);
     if (activityMatch) {
+      const points = Math.round(activityMatch.item.rand_value * fbPerRand) * item.quantity;
       return {
         description: item.description,
         quantity: item.quantity,
@@ -79,10 +108,15 @@ export async function matchAndScoreReceipt(
         matchedProductId: null,
         matchedActivityId: activityMatch.item.id,
         matchedName: activityMatch.item.name,
-        pointsAwarded: Math.round(activityMatch.item.points_value * item.quantity),
+        pointsAwarded: Math.round(points),
       };
     }
 
+    // Not in this club's catalog — fall back to the Rand amount actually
+    // printed on this line, converted at the same rate as everything else.
+    // item.price is already the full line total (it already reflects
+    // quantity — "2 x Sunscreen  90.00" parses to price 90 for both), so it
+    // isn't multiplied by quantity again here.
     return {
       description: item.description,
       quantity: item.quantity,
@@ -90,13 +124,13 @@ export async function matchAndScoreReceipt(
       matchedProductId: null,
       matchedActivityId: null,
       matchedName: null,
-      pointsAwarded: 0,
+      pointsAwarded: Math.round(item.price * fbPerRand),
     };
   });
 
   const subtotalPoints = matchedItems.reduce((sum, i) => sum + i.pointsAwarded, 0);
 
-  const merchantMatch = merchantNameGuess ? matchCatalog(merchantNameGuess, merchants) : null;
+  const merchantMatch = matchMerchantAcrossLines(rawLines, merchants);
   const bonusMultiplier = merchantMatch ? Number(merchantMatch.item.bonus_multiplier) : 1;
   const totalPointsAwarded = Math.round(subtotalPoints * bonusMultiplier);
 

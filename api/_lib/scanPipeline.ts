@@ -15,10 +15,12 @@ export interface ScanPipelineResult {
 // image rather than trusting client-supplied extracted data/points — that's
 // what "prevent manual editing of extracted receipt data" actually requires;
 // a read-only field in the UI is not a security boundary on its own.
-export async function runScanPipeline(imageDataUri: string): Promise<ScanPipelineResult> {
+// homeCourseId scopes which club's product/activity catalog and Flagrr Cash
+// conversion rate are used to score matched items (see pointsEngine.ts).
+export async function runScanPipeline(imageDataUri: string, homeCourseId: string): Promise<ScanPipelineResult> {
   const imageHash = hashImageDataUri(imageDataUri);
   const ocr = await runOcr(imageDataUri);
   const parsed = parseReceiptText(ocr.text);
-  const scored = await matchAndScoreReceipt(parsed.items, parsed.merchantNameGuess);
+  const scored = await matchAndScoreReceipt(parsed.items, parsed.rawLines, homeCourseId);
   return { imageHash, ocrConfidence: ocr.confidence, parsed, scored };
 }

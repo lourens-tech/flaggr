@@ -110,7 +110,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     // Folded into this route (rather than its own file) to stay within
     // Vercel's per-deployment serverless function cap on the Hobby plan.
     if (req.query.action === 'scan') {
-      const { ocrConfidence, parsed, scored } = await runScanPipeline(imageBase64);
+      const { ocrConfidence, parsed, scored } = await runScanPipeline(imageBase64, authed.courseId);
       if (parsed.items.length === 0 && parsed.grandTotal === null) {
         res.status(200).json({
           isDuplicate: false,
@@ -164,7 +164,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     // Re-run the full pipeline server-side from the original image rather
     // than trusting any client-supplied extracted data or point totals —
     // the scan preview is a UI convenience, not the source of truth.
-    const { imageHash, ocrConfidence, parsed, scored } = await runScanPipeline(imageBase64);
+    const { imageHash, ocrConfidence, parsed, scored } = await runScanPipeline(imageBase64, authed.courseId);
 
     if (parsed.items.length === 0 && parsed.grandTotal === null) {
       throw new HttpError(422, "We couldn't read a valid receipt from that photo. Please scan a valid receipt or slip.");

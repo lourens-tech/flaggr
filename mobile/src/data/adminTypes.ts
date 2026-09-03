@@ -185,6 +185,49 @@ export interface AdminReward {
   variants: AdminRewardVariant[];
 }
 
+// What the receipt scanner matches item names against, per club — priced in
+// Flagrr Cash from randValue * the club's own fbPerRand (see
+// api/_lib/pointsEngine.ts), the same conversion Rewards already uses.
+export interface CatalogProduct {
+  id: string;
+  name: string;
+  brand: string;
+  category: string;
+  aliases: string[];
+  randValue: number;
+  pointsPerUnit: boolean;
+  active: boolean;
+}
+
+export interface CatalogActivity {
+  id: string;
+  name: string;
+  category: string;
+  aliases: string[];
+  randValue: number;
+  active: boolean;
+}
+
+export interface CatalogProductSavePayload {
+  id?: string;
+  name: string;
+  brand: string;
+  category: string;
+  aliases: string[];
+  randValue: number;
+  pointsPerUnit: boolean;
+  active: boolean;
+}
+
+export interface CatalogActivitySavePayload {
+  id?: string;
+  name: string;
+  category: string;
+  aliases: string[];
+  randValue: number;
+  active: boolean;
+}
+
 export interface AdminAd {
   id: string;
   placement: 'home' | 'home_top' | 'rewards_shop';
