@@ -8,6 +8,8 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SuperAdminStackParamList, SuperAdminTabParamList } from '../../navigation/types';
 import { TextField } from '../../components/common/TextField';
 import { useAdmin } from '../../context/AdminContext';
+import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
+import { SuperAdminDesktopFrame } from '../../components/admin/desktop/SuperAdminDesktopFrame';
 import { AdminApiError } from '../../api/adminClient';
 import { showAlert } from '../../utils/alert';
 import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
@@ -29,6 +31,7 @@ const SUBSCRIPTION_LABELS: Record<string, string> = {
 export function SuperAdminCoursesScreen({ navigation }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const isDesktop = useIsDesktopNav();
   const {
     superAdminCourses,
     loadSuperAdminCourses,
@@ -268,6 +271,54 @@ export function SuperAdminCoursesScreen({ navigation }: Props) {
     </View>
   );
 
+  const searchArea = (
+    <View style={styles.searchArea}>
+      <TextField placeholder="Search courses" variant="onLight" icon="search" value={search} onChangeText={setSearch} />
+      <TouchableOpacity
+        style={styles.showArchivedRow}
+        onPress={() => setShowArchived((prev) => !prev)}
+        accessibilityRole="button"
+        accessibilityLabel="Toggle showing archived clubs"
+      >
+        <Ionicons name={showArchived ? 'checkbox' : 'square-outline'} size={16} color={colors.clubGreen} />
+        <Text style={styles.showArchivedText}>Show archived clubs</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
+  if (isDesktop) {
+    return (
+      <SuperAdminDesktopFrame activeKey="SuperAdminCourses" breadcrumb="Courses">
+        <View style={styles.dHeadRow}>
+          <View>
+            <Text style={styles.dPageTitle}>Courses</Text>
+            <Text style={styles.dPageSubtitle}>
+              {superAdminCourses.length} club{superAdminCourses.length === 1 ? '' : 's'} on Flagrr
+            </Text>
+          </View>
+          <TouchableOpacity style={styles.dAddButton} onPress={() => navigation.navigate('SuperAdminCourseCreate')}>
+            <Ionicons name="add" size={16} color={colors.darkGreen} />
+            <Text style={styles.dAddButtonText}>New Course</Text>
+          </TouchableOpacity>
+        </View>
+        {searchArea}
+        {loading ? (
+          <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
+        ) : filtered.length === 0 ? (
+          <Text style={styles.emptyText}>
+            {superAdminCourses.length === 0 ? 'No courses yet — add one.' : 'No courses match your search.'}
+          </Text>
+        ) : (
+          <View style={{ gap: spacing.sm }}>
+            {filtered.map((item) => (
+              <React.Fragment key={item.id}>{renderItem({ item })}</React.Fragment>
+            ))}
+          </View>
+        )}
+      </SuperAdminDesktopFrame>
+    );
+  }
+
   return (
     <View style={styles.screen}>
       <StatusBar barStyle="light-content" />
@@ -290,22 +341,7 @@ export function SuperAdminCoursesScreen({ navigation }: Props) {
         </View>
       </SafeAreaView>
 
-      <View style={styles.searchArea}>
-        <TextField placeholder="Search courses" variant="onLight" icon="search" value={search} onChangeText={setSearch} />
-        <TouchableOpacity
-          style={styles.showArchivedRow}
-          onPress={() => setShowArchived((prev) => !prev)}
-          accessibilityRole="button"
-          accessibilityLabel="Toggle showing archived clubs"
-        >
-          <Ionicons
-            name={showArchived ? 'checkbox' : 'square-outline'}
-            size={16}
-            color={colors.clubGreen}
-          />
-          <Text style={styles.showArchivedText}>Show archived clubs</Text>
-        </TouchableOpacity>
-      </View>
+      {searchArea}
 
       {loading ? (
         <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
@@ -373,5 +409,18 @@ function createStyles(colors: ThemeColors) {
     textAlign: 'center',
     marginTop: spacing.xl,
   },
+  dHeadRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  dPageTitle: { fontFamily: fontFamily.heading, fontSize: 26, color: colors.textPrimary },
+  dPageSubtitle: { fontFamily: fontFamily.body, fontSize: 13, color: colors.textSecondary, marginTop: 2 },
+  dAddButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.lime,
+    borderRadius: radius.pill,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  dAddButtonText: { fontFamily: fontFamily.bodySemiBold, fontSize: 13, color: colors.darkGreen },
 });
 }

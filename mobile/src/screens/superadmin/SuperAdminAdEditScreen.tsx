@@ -10,6 +10,9 @@ import { DateField } from '../../components/common/DateField';
 import { PillButton } from '../../components/common/PillButton';
 import { AdMediaField } from '../../components/common/AdMediaField';
 import { useAdmin } from '../../context/AdminContext';
+import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
+import { SuperAdminDesktopFrame } from '../../components/admin/desktop/SuperAdminDesktopFrame';
+import { DesktopPanel } from '../../components/admin/desktop/DesktopPanel';
 import { AdminApiError } from '../../api/adminClient';
 import { showAlert } from '../../utils/alert';
 import { fontFamily, fontSize, screenPadding, spacing } from '../../theme';
@@ -28,6 +31,7 @@ const PLACEMENT_OPTIONS = [
 export function SuperAdminAdEditScreen({ navigation, route }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const isDesktop = useIsDesktopNav();
   const { courseId, adId } = route.params;
   const { getSuperAdminAds, saveSuperAdminAd, deleteSuperAdminAd } = useAdmin();
 
@@ -124,7 +128,16 @@ export function SuperAdminAdEditScreen({ navigation, route }: Props) {
     ]);
   };
 
+  const title2 = existing ? 'Edit Ad' : 'New Ad';
+
   if (loadingExisting) {
+    if (isDesktop) {
+      return (
+        <SuperAdminDesktopFrame activeKey="SuperAdminCourses" breadcrumb="Edit Ad" showRail={false}>
+          <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
+        </SuperAdminDesktopFrame>
+      );
+    }
     return (
       <View style={styles.screen}>
         <StatusBar barStyle="light-content" />
@@ -136,61 +149,78 @@ export function SuperAdminAdEditScreen({ navigation, route }: Props) {
     );
   }
 
+  const form = (
+    <>
+      <AdMediaField
+        mediaType={mediaType}
+        previewUrl={previewUrl}
+        onPicked={(result) => {
+          setImageBase64(result.dataUri);
+          setPreviewUrl(result.dataUri);
+          setMediaType(result.mediaType);
+        }}
+      />
+      <View style={{ height: spacing.lg }} />
+
+      <TextField placeholder="Title (internal label)" variant="onLight" value={title} onChangeText={setTitle} />
+      <View style={{ height: spacing.md }} />
+      <SelectField placeholder="Placement" variant="onLight" options={PLACEMENT_OPTIONS} value={placement} onChange={setPlacement} />
+      <View style={{ height: spacing.md }} />
+      <TextField
+        placeholder="Link (https://...)"
+        variant="onLight"
+        autoCapitalize="none"
+        keyboardType="url"
+        value={targetUrl}
+        onChangeText={setTargetUrl}
+      />
+
+      <View style={styles.dateRow}>
+        <View style={{ flex: 1 }}>
+          <DateField placeholder="Starts (optional)" variant="onLight" value={startsAt} onChange={setStartsAt} />
+        </View>
+        <View style={{ width: spacing.md }} />
+        <View style={{ flex: 1 }}>
+          <DateField placeholder="Ends (optional)" variant="onLight" value={endsAt} onChange={setEndsAt} />
+        </View>
+      </View>
+
+      <View style={styles.activeRow}>
+        <Text style={styles.activeLabel}>Active</Text>
+        <Switch value={active} onValueChange={setActive} trackColor={{ true: colors.clubGreen }} />
+      </View>
+
+      <View style={{ height: spacing.lg }} />
+      <PillButton label="Save Ad" onPress={handleSave} loading={saving} />
+
+      {existing ? (
+        <TouchableOpacity onPress={handleDelete} style={styles.deleteButton} disabled={saving}>
+          <Text style={styles.deleteText}>Remove Ad</Text>
+        </TouchableOpacity>
+      ) : null}
+    </>
+  );
+
+  if (isDesktop) {
+    return (
+      <SuperAdminDesktopFrame activeKey="SuperAdminCourses" breadcrumb={title2} showRail={false}>
+        <Text style={styles.dPageTitle}>{title2}</Text>
+        <DesktopPanel title=" " style={{ maxWidth: 520 }}>
+          {form}
+        </DesktopPanel>
+      </SuperAdminDesktopFrame>
+    );
+  }
+
   return (
     <View style={styles.screen}>
       <StatusBar barStyle="light-content" />
       <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
-        <ScreenHeader title={existing ? 'Edit Ad' : 'New Ad'} onBack={() => navigation.goBack()} />
+        <ScreenHeader title={title2} onBack={() => navigation.goBack()} />
       </SafeAreaView>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <AdMediaField
-          mediaType={mediaType}
-          previewUrl={previewUrl}
-          onPicked={(result) => {
-            setImageBase64(result.dataUri);
-            setPreviewUrl(result.dataUri);
-            setMediaType(result.mediaType);
-          }}
-        />
-        <View style={{ height: spacing.lg }} />
-
-        <TextField placeholder="Title (internal label)" variant="onLight" value={title} onChangeText={setTitle} />
-        <View style={{ height: spacing.md }} />
-        <SelectField placeholder="Placement" variant="onLight" options={PLACEMENT_OPTIONS} value={placement} onChange={setPlacement} />
-        <View style={{ height: spacing.md }} />
-        <TextField
-          placeholder="Link (https://...)"
-          variant="onLight"
-          autoCapitalize="none"
-          keyboardType="url"
-          value={targetUrl}
-          onChangeText={setTargetUrl}
-        />
-
-        <View style={styles.dateRow}>
-          <View style={{ flex: 1 }}>
-            <DateField placeholder="Starts (optional)" variant="onLight" value={startsAt} onChange={setStartsAt} />
-          </View>
-          <View style={{ width: spacing.md }} />
-          <View style={{ flex: 1 }}>
-            <DateField placeholder="Ends (optional)" variant="onLight" value={endsAt} onChange={setEndsAt} />
-          </View>
-        </View>
-
-        <View style={styles.activeRow}>
-          <Text style={styles.activeLabel}>Active</Text>
-          <Switch value={active} onValueChange={setActive} trackColor={{ true: colors.clubGreen }} />
-        </View>
-
-        <View style={{ height: spacing.lg }} />
-        <PillButton label="Save Ad" onPress={handleSave} loading={saving} />
-
-        {existing ? (
-          <TouchableOpacity onPress={handleDelete} style={styles.deleteButton} disabled={saving}>
-            <Text style={styles.deleteText}>Remove Ad</Text>
-          </TouchableOpacity>
-        ) : null}
+        {form}
       </ScrollView>
     </View>
   );
@@ -211,5 +241,6 @@ function createStyles(colors: ThemeColors) {
   activeLabel: { fontFamily: fontFamily.body, fontSize: fontSize.body, color: colors.textPrimary },
   deleteButton: { alignItems: 'center', marginTop: spacing.lg },
   deleteText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.negative },
+  dPageTitle: { fontFamily: fontFamily.heading, fontSize: 26, color: colors.textPrimary },
 });
 }

@@ -8,6 +8,9 @@ import type { SuperAdminStackParamList } from '../../navigation/types';
 import { ScreenHeader } from '../../components/common/ScreenHeader';
 import { PillButton } from '../../components/common/PillButton';
 import { useAdmin } from '../../context/AdminContext';
+import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
+import { SuperAdminDesktopFrame } from '../../components/admin/desktop/SuperAdminDesktopFrame';
+import { DesktopPanel } from '../../components/admin/desktop/DesktopPanel';
 import { AdminApiError } from '../../api/adminClient';
 import { pickMemberRosterFile, MemberRosterFileError } from '../../utils/pickMemberRosterFile';
 import { showAlert } from '../../utils/alert';
@@ -23,6 +26,7 @@ type Props = NativeStackScreenProps<SuperAdminStackParamList, 'SuperAdminCourseM
 export function SuperAdminCourseMemberListScreen({ navigation, route }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const isDesktop = useIsDesktopNav();
   const { courseId, courseName } = route.params;
   const { getSuperAdminMemberRosterStatus, uploadSuperAdminMemberRoster } = useAdmin();
   const [status, setStatus] = useState<MemberRosterStatus | null>(null);
@@ -82,6 +86,63 @@ export function SuperAdminCourseMemberListScreen({ navigation, route }: Props) {
     }
   };
 
+  const body = (
+    <>
+      <Text style={styles.helpText}>
+        Upload {courseName}'s membership list on their behalf so new signups can be confirmed as actual members. CSV
+        and Excel (.xlsx) files are supported — First Name, Last Name, and Email columns are needed (Member Number
+        optional). Re-uploading replaces the previous list entirely.
+      </Text>
+      <Text style={styles.helpText}>
+        A member who doesn't match the list can still use the app fully, but stays capped at Bronze tier until
+        they're verified.
+      </Text>
+
+      <View style={{ height: spacing.lg }} />
+
+      {loading ? (
+        <ActivityIndicator color={colors.clubGreen} />
+      ) : (
+        <View style={styles.statusCard}>
+          <Ionicons name="people-outline" size={22} color={colors.clubGreen} />
+          <View style={{ flex: 1 }}>
+            {status && status.count > 0 ? (
+              <>
+                <Text style={styles.statusTitle}>{status.count.toLocaleString()} members on file</Text>
+                {status.lastUploadedAt ? (
+                  <Text style={styles.statusSubtitle}>
+                    Last uploaded {new Date(status.lastUploadedAt).toLocaleDateString()}
+                  </Text>
+                ) : null}
+              </>
+            ) : (
+              <Text style={styles.statusTitle}>No member list uploaded yet</Text>
+            )}
+          </View>
+        </View>
+      )}
+
+      <View style={{ height: spacing.lg }} />
+      <PillButton
+        label={status && status.count > 0 ? 'Upload New Member List' : 'Upload Member List'}
+        icon="cloud-upload-outline"
+        onPress={handleUpload}
+        loading={uploading}
+      />
+    </>
+  );
+
+  if (isDesktop) {
+    return (
+      <SuperAdminDesktopFrame activeKey="SuperAdminCourses" breadcrumb={`${courseName} Member List`} showRail={false}>
+        <Text style={styles.dPageTitle}>{courseName} — Member List</Text>
+        <DesktopPanel title=" " style={{ maxWidth: 560 }}>
+          {body}
+        </DesktopPanel>
+      </SuperAdminDesktopFrame>
+    );
+  }
+
   return (
     <View style={styles.screen}>
       <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
@@ -89,47 +150,7 @@ export function SuperAdminCourseMemberListScreen({ navigation, route }: Props) {
       </SafeAreaView>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={styles.helpText}>
-          Upload {courseName}'s membership list on their behalf so new signups can be confirmed as actual members. CSV
-          and Excel (.xlsx) files are supported — First Name, Last Name, and Email columns are needed (Member Number
-          optional). Re-uploading replaces the previous list entirely.
-        </Text>
-        <Text style={styles.helpText}>
-          A member who doesn't match the list can still use the app fully, but stays capped at Bronze tier until
-          they're verified.
-        </Text>
-
-        <View style={{ height: spacing.lg }} />
-
-        {loading ? (
-          <ActivityIndicator color={colors.clubGreen} />
-        ) : (
-          <View style={styles.statusCard}>
-            <Ionicons name="people-outline" size={22} color={colors.clubGreen} />
-            <View style={{ flex: 1 }}>
-              {status && status.count > 0 ? (
-                <>
-                  <Text style={styles.statusTitle}>{status.count.toLocaleString()} members on file</Text>
-                  {status.lastUploadedAt ? (
-                    <Text style={styles.statusSubtitle}>
-                      Last uploaded {new Date(status.lastUploadedAt).toLocaleDateString()}
-                    </Text>
-                  ) : null}
-                </>
-              ) : (
-                <Text style={styles.statusTitle}>No member list uploaded yet</Text>
-              )}
-            </View>
-          </View>
-        )}
-
-        <View style={{ height: spacing.lg }} />
-        <PillButton
-          label={status && status.count > 0 ? 'Upload New Member List' : 'Upload Member List'}
-          icon="cloud-upload-outline"
-          onPress={handleUpload}
-          loading={uploading}
-        />
+        {body}
       </ScrollView>
     </View>
   );
@@ -158,5 +179,6 @@ function createStyles(colors: ThemeColors) {
     },
     statusTitle: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.textPrimary },
     statusSubtitle: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary, marginTop: 2 },
+    dPageTitle: { fontFamily: fontFamily.heading, fontSize: 26, color: colors.textPrimary },
   });
 }

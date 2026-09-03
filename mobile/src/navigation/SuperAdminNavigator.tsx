@@ -26,6 +26,7 @@ import { SuperAdminMemberStatsScreen } from '../screens/superadmin/SuperAdminMem
 import { SuperAdminAuditLogScreen } from '../screens/superadmin/SuperAdminAuditLogScreen';
 import { SuperAdminFraudOversightScreen } from '../screens/superadmin/SuperAdminFraudOversightScreen';
 import { TermsPrivacyScreen } from '../screens/profile/TermsPrivacyScreen';
+import { useIsDesktopNav } from '../hooks/useIsDesktopNav';
 
 const Stack = createNativeStackNavigator<SuperAdminStackParamList>();
 
@@ -33,8 +34,12 @@ const Stack = createNativeStackNavigator<SuperAdminStackParamList>();
 // inside SuperAdminTabNavigator (Support + Profile only), enforced there and
 // server-side (see SUPPORT_AGENT_ALLOWED_ACTIONS in api/admin/index.ts).
 export function SuperAdminNavigator() {
+  const isDesktop = useIsDesktopNav();
+  // Every screen renders its own instance of the desktop sidebar/topbar (see
+  // SuperAdminDesktopFrame) so it reads as persistent chrome — the default
+  // slide transition would otherwise visibly re-animate it on every nav.
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator screenOptions={{ headerShown: false, animation: isDesktop ? 'none' : 'default' }}>
       <Stack.Screen name="SuperAdminTabs" component={SuperAdminTabNavigator} />
       <Stack.Screen name="SuperAdminCourseCreate" component={SuperAdminCourseCreateScreen} />
       <Stack.Screen name="SuperAdminCourseAds" component={SuperAdminCourseAdsScreen} />

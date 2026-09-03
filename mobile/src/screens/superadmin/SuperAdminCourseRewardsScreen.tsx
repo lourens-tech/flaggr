@@ -7,6 +7,8 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SuperAdminStackParamList } from '../../navigation/types';
 import { ScreenHeader } from '../../components/common/ScreenHeader';
 import { useAdmin } from '../../context/AdminContext';
+import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
+import { SuperAdminDesktopFrame } from '../../components/admin/desktop/SuperAdminDesktopFrame';
 import { AdminApiError } from '../../api/adminClient';
 import { showAlert } from '../../utils/alert';
 import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
@@ -40,6 +42,7 @@ function priceLabelFor(item: AdminReward): string {
 export function SuperAdminCourseRewardsScreen({ navigation, route }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const isDesktop = useIsDesktopNav();
   const { courseId, courseName, fbPerRand } = route.params;
   const { getSuperAdminRewards } = useAdmin();
   const [rewards, setRewards] = useState<AdminReward[]>([]);
@@ -71,6 +74,60 @@ export function SuperAdminCourseRewardsScreen({ navigation, route }: Props) {
     }, [courseId]),
   );
 
+  const rewardCard = (reward: AdminReward) => (
+    <TouchableOpacity
+      key={reward.id}
+      style={[styles.card, isDesktop && styles.dCard]}
+      activeOpacity={0.85}
+      onPress={() => navigation.navigate('SuperAdminRewardEdit', { courseId, fbPerRand, rewardId: reward.id })}
+    >
+      {reward.imageUrl ? (
+        <Image source={{ uri: reward.imageUrl }} style={styles.image} />
+      ) : (
+        <View style={[styles.image, styles.imageFallback]}>
+          <MaterialCommunityIcons name={CATEGORY_ICON[reward.category] ?? 'gift'} size={40} color={colors.lime} />
+        </View>
+      )}
+      {!reward.active ? (
+        <View style={styles.inactiveBadge}>
+          <Text style={styles.inactiveBadgeText}>Inactive</Text>
+        </View>
+      ) : null}
+
+      <View style={styles.body}>
+        <Text style={styles.title} numberOfLines={1}>{reward.title}</Text>
+        <Text style={styles.description} numberOfLines={2}>{reward.description}</Text>
+        <Text style={styles.cost}>{priceLabelFor(reward)}</Text>
+
+        <View style={styles.editButton}>
+          <Text style={styles.editButtonText}>Edit</Text>
+          <Ionicons name="arrow-forward" size={14} color={colors.darkGreen} />
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+
+  if (isDesktop) {
+    return (
+      <SuperAdminDesktopFrame activeKey="SuperAdminCourses" breadcrumb={`${courseName} Rewards`} showRail={false}>
+        <View style={styles.dHeadRow}>
+          <Text style={styles.dPageTitle}>{courseName} — Rewards</Text>
+          <TouchableOpacity style={styles.dAddButton} onPress={() => navigation.navigate('SuperAdminRewardEdit', { courseId, fbPerRand })}>
+            <Ionicons name="add" size={16} color={colors.darkGreen} />
+            <Text style={styles.dAddButtonText}>New Reward</Text>
+          </TouchableOpacity>
+        </View>
+        {loading ? (
+          <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
+        ) : rewards.length === 0 ? (
+          <Text style={styles.emptyText}>No rewards yet — create the first one.</Text>
+        ) : (
+          <View style={styles.dGrid}>{rewards.map(rewardCard)}</View>
+        )}
+      </SuperAdminDesktopFrame>
+    );
+  }
+
   return (
     <View style={styles.screen}>
       <StatusBar barStyle="light-content" />
@@ -97,44 +154,7 @@ export function SuperAdminCourseRewardsScreen({ navigation, route }: Props) {
         <Text style={styles.emptyText}>No rewards yet — tap + to create the first one.</Text>
       ) : (
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-          <View style={styles.grid}>
-            {rewards.map((reward) => (
-              <TouchableOpacity
-                key={reward.id}
-                style={styles.card}
-                activeOpacity={0.85}
-                onPress={() => navigation.navigate('SuperAdminRewardEdit', { courseId, fbPerRand, rewardId: reward.id })}
-              >
-                {reward.imageUrl ? (
-                  <Image source={{ uri: reward.imageUrl }} style={styles.image} />
-                ) : (
-                  <View style={[styles.image, styles.imageFallback]}>
-                    <MaterialCommunityIcons
-                      name={CATEGORY_ICON[reward.category] ?? 'gift'}
-                      size={40}
-                      color={colors.lime}
-                    />
-                  </View>
-                )}
-                {!reward.active ? (
-                  <View style={styles.inactiveBadge}>
-                    <Text style={styles.inactiveBadgeText}>Inactive</Text>
-                  </View>
-                ) : null}
-
-                <View style={styles.body}>
-                  <Text style={styles.title} numberOfLines={1}>{reward.title}</Text>
-                  <Text style={styles.description} numberOfLines={2}>{reward.description}</Text>
-                  <Text style={styles.cost}>{priceLabelFor(reward)}</Text>
-
-                  <View style={styles.editButton}>
-                    <Text style={styles.editButtonText}>Edit</Text>
-                    <Ionicons name="arrow-forward" size={14} color={colors.darkGreen} />
-                  </View>
-                </View>
-              </TouchableOpacity>
-            ))}
-          </View>
+          <View style={styles.grid}>{rewards.map(rewardCard)}</View>
           <View style={{ height: 120 }} />
         </ScrollView>
       )}
@@ -190,5 +210,19 @@ function createStyles(colors: ThemeColors) {
     textAlign: 'center',
     marginTop: spacing.xl,
   },
+  dHeadRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  dPageTitle: { fontFamily: fontFamily.heading, fontSize: 26, color: colors.textPrimary },
+  dAddButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.lime,
+    borderRadius: radius.pill,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  dAddButtonText: { fontFamily: fontFamily.bodySemiBold, fontSize: 13, color: colors.darkGreen },
+  dGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
+  dCard: { width: 220 },
 });
 }

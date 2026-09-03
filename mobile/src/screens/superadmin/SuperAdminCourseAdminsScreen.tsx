@@ -8,6 +8,9 @@ import type { SuperAdminStackParamList } from '../../navigation/types';
 import { ScreenHeader } from '../../components/common/ScreenHeader';
 import { TextField } from '../../components/common/TextField';
 import { useAdmin } from '../../context/AdminContext';
+import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
+import { SuperAdminDesktopFrame } from '../../components/admin/desktop/SuperAdminDesktopFrame';
+import { DesktopPanel } from '../../components/admin/desktop/DesktopPanel';
 import { AdminApiError } from '../../api/adminClient';
 import { showAlert } from '../../utils/alert';
 import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
@@ -23,6 +26,7 @@ type Props = NativeStackScreenProps<SuperAdminStackParamList, 'SuperAdminCourseA
 export function SuperAdminCourseAdminsScreen({ navigation, route }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const isDesktop = useIsDesktopNav();
   const { courseId, courseName } = route.params;
   const {
     getSuperAdminCourseAdmins,
@@ -184,6 +188,34 @@ export function SuperAdminCourseAdminsScreen({ navigation, route }: Props) {
     </View>
   );
 
+  if (isDesktop) {
+    return (
+      <SuperAdminDesktopFrame activeKey="SuperAdminCourses" breadcrumb={`${courseName} Admins`}>
+        <View style={styles.dHeadRow}>
+          <Text style={styles.dPageTitle}>{courseName} — Course Admins</Text>
+          <TouchableOpacity style={styles.dAddButton} onPress={() => navigation.navigate('SuperAdminCourseAdminCreate', { courseId, courseName })}>
+            <Ionicons name="add" size={16} color={colors.darkGreen} />
+            <Text style={styles.dAddButtonText}>Add Admin</Text>
+          </TouchableOpacity>
+        </View>
+        <DesktopPanel title="All Admins">
+          <TextField placeholder="Search admins" variant="onLight" icon="search" value={search} onChangeText={setSearch} />
+          {loading ? (
+            <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.md }} />
+          ) : filtered.length === 0 ? (
+            <Text style={styles.emptyText}>{admins.length === 0 ? 'No admins yet.' : 'No admins match your search.'}</Text>
+          ) : (
+            <View style={{ gap: spacing.sm, marginTop: spacing.sm }}>
+              {filtered.map((item) => (
+                <React.Fragment key={item.id}>{renderItem({ item })}</React.Fragment>
+              ))}
+            </View>
+          )}
+        </DesktopPanel>
+      </SuperAdminDesktopFrame>
+    );
+  }
+
   return (
     <View style={styles.screen}>
       <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
@@ -259,5 +291,17 @@ function createStyles(colors: ThemeColors) {
     textAlign: 'center',
     marginTop: spacing.xl,
   },
+  dHeadRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  dPageTitle: { fontFamily: fontFamily.heading, fontSize: 26, color: colors.textPrimary },
+  dAddButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.lime,
+    borderRadius: radius.pill,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  dAddButtonText: { fontFamily: fontFamily.bodySemiBold, fontSize: 13, color: colors.darkGreen },
 });
 }

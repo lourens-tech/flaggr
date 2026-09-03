@@ -8,6 +8,9 @@ import { ScreenHeader } from '../../components/common/ScreenHeader';
 import { TextField } from '../../components/common/TextField';
 import { PillButton } from '../../components/common/PillButton';
 import { useAdmin } from '../../context/AdminContext';
+import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
+import { SuperAdminDesktopFrame } from '../../components/admin/desktop/SuperAdminDesktopFrame';
+import { DesktopPanel } from '../../components/admin/desktop/DesktopPanel';
 import { AdminApiError } from '../../api/adminClient';
 import { showAlert } from '../../utils/alert';
 import { fontFamily, fontSize, spacing } from '../../theme';
@@ -22,6 +25,7 @@ type Props = NativeStackScreenProps<SuperAdminStackParamList, 'SuperAdminCatalog
 export function SuperAdminCatalogItemEditScreen({ navigation, route }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const isDesktop = useIsDesktopNav();
   const { courseId, courseName, fbPerRand, kind, itemId } = route.params;
   const isProduct = kind === 'product';
   const {
@@ -179,20 +183,10 @@ export function SuperAdminCatalogItemEditScreen({ navigation, route }: Props) {
     );
   };
 
-  return (
-    <View style={styles.screen}>
-      <StatusBar barStyle="light-content" />
-      <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
-        <ScreenHeader
-          title={itemId ? `Edit ${isProduct ? 'Product' : 'Activity'}` : `New ${isProduct ? 'Product' : 'Activity'}`}
-          onBack={() => navigation.goBack()}
-        />
-      </SafeAreaView>
+  const pageTitle = itemId ? `Edit ${isProduct ? 'Product' : 'Activity'}` : `New ${isProduct ? 'Product' : 'Activity'}`;
 
-      {loading ? (
-        <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
-      ) : (
-        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+  const form = (
+    <>
           <TextField
             placeholder={isProduct ? 'Name (e.g. Titleist Pro V1 Golf Balls)' : 'Name (e.g. 18 Hole Round)'}
             variant="onLight"
@@ -250,6 +244,32 @@ export function SuperAdminCatalogItemEditScreen({ navigation, route }: Props) {
               <Text style={styles.deleteText}>Remove {isProduct ? 'Product' : 'Activity'}</Text>
             </TouchableOpacity>
           ) : null}
+    </>
+  );
+
+  if (isDesktop) {
+    return (
+      <SuperAdminDesktopFrame activeKey="SuperAdminCourses" breadcrumb={pageTitle} showRail={false}>
+        <Text style={styles.dPageTitle}>{pageTitle}</Text>
+        <DesktopPanel title=" " style={{ maxWidth: 520 }}>
+          {loading ? <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.md }} /> : form}
+        </DesktopPanel>
+      </SuperAdminDesktopFrame>
+    );
+  }
+
+  return (
+    <View style={styles.screen}>
+      <StatusBar barStyle="light-content" />
+      <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
+        <ScreenHeader title={pageTitle} onBack={() => navigation.goBack()} />
+      </SafeAreaView>
+
+      {loading ? (
+        <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
+      ) : (
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+          {form}
         </ScrollView>
       )}
     </View>
@@ -273,5 +293,6 @@ function createStyles(colors: ThemeColors) {
   switchHint: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary, marginTop: 2 },
   deleteButton: { alignItems: 'center', marginTop: spacing.lg },
   deleteText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.negative },
+  dPageTitle: { fontFamily: fontFamily.heading, fontSize: 26, color: colors.textPrimary },
 });
 }

@@ -8,6 +8,9 @@ import type { SuperAdminStackParamList } from '../../navigation/types';
 import { ScreenHeader } from '../../components/common/ScreenHeader';
 import { BarChart } from '../../components/common/BarChart';
 import { useAdmin } from '../../context/AdminContext';
+import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
+import { SuperAdminDesktopFrame } from '../../components/admin/desktop/SuperAdminDesktopFrame';
+import { DesktopPanel } from '../../components/admin/desktop/DesktopPanel';
 import { AdminApiError, downloadSuperAdminAdClickLog } from '../../api/adminClient';
 import { showAlert } from '../../utils/alert';
 import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
@@ -36,6 +39,7 @@ function computeCtr(clicks: number, impressions: number): number {
 export function SuperAdminAdDetailScreen({ navigation, route }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const isDesktop = useIsDesktopNav();
   const { adId, adTitle } = route.params;
   const { getSuperAdminAdTrend, getSuperAdminAdClickLog } = useAdmin();
   const [period, setPeriod] = useState<Period>(route.params.period);
@@ -94,6 +98,72 @@ export function SuperAdminAdDetailScreen({ navigation, route }: Props) {
   const totalImpressions = trend.reduce((sum, t) => sum + t.impressions, 0);
   const ctr = computeCtr(totalClicks, totalImpressions);
 
+  const periodToggle = (
+    <View style={styles.periodToggle}>
+      {PERIODS.map((p) => (
+        <TouchableOpacity
+          key={p}
+          onPress={() => handlePeriodChange(p)}
+          style={[styles.periodPill, period === p && styles.periodPillActive]}
+        >
+          <Text style={[styles.periodText, period === p && styles.periodTextActive]}>{PERIOD_LABELS[p]}</Text>
+        </TouchableOpacity>
+      ))}
+    </View>
+  );
+
+  if (isDesktop) {
+    return (
+      <SuperAdminDesktopFrame activeKey="SuperAdminReports" breadcrumb={adTitle} headerRight={periodToggle} showRail={false}>
+        <Text style={styles.dPageTitle}>{adTitle}</Text>
+        {loading ? (
+          <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
+        ) : (
+          <>
+            <View style={styles.summaryRow}>
+              <View style={styles.summaryTile}>
+                <Text style={styles.summaryValue}>{totalClicks.toLocaleString()}</Text>
+                <Text style={styles.summaryLabel}>Clicks</Text>
+              </View>
+              <View style={styles.summaryTile}>
+                <Text style={styles.summaryValue}>{totalImpressions.toLocaleString()}</Text>
+                <Text style={styles.summaryLabel}>Impressions</Text>
+              </View>
+              <View style={styles.summaryTile}>
+                <Text style={styles.summaryValue}>{ctr}%</Text>
+                <Text style={styles.summaryLabel}>CTR</Text>
+              </View>
+            </View>
+
+            <DesktopPanel title="Trend">
+              <Text style={styles.chartTitle}>Clicks Over Time</Text>
+              <BarChart data={trend.map((t) => ({ month: t.label, value: t.clicks }))} />
+              <View style={{ height: spacing.md }} />
+              <Text style={styles.chartTitle}>Impressions Over Time</Text>
+              <BarChart data={trend.map((t) => ({ month: t.label, value: t.impressions }))} />
+            </DesktopPanel>
+
+            <DesktopPanel title="Click Log" onViewAll={handleExport} viewAllLabel={exporting ? 'Exporting…' : 'Export Excel'}>
+              {clickLog.length === 0 ? (
+                <Text style={styles.emptyText}>No clicks in this period.</Text>
+              ) : (
+                clickLog.map((c) => (
+                  <View key={c.id} style={styles.row}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.rowLabel} numberOfLines={1}>{c.memberName ?? 'Deleted member'}</Text>
+                      {c.memberEmail ? <Text style={styles.rowSubtext}>{c.memberEmail}</Text> : null}
+                    </View>
+                    <Text style={styles.rowValue}>{formatDate(c.clickedAt)}</Text>
+                  </View>
+                ))
+              )}
+            </DesktopPanel>
+          </>
+        )}
+      </SuperAdminDesktopFrame>
+    );
+  }
+
   return (
     <View style={styles.screen}>
       <StatusBar barStyle="light-content" />
@@ -101,19 +171,7 @@ export function SuperAdminAdDetailScreen({ navigation, route }: Props) {
         <ScreenHeader title={adTitle} onBack={() => navigation.goBack()} />
       </SafeAreaView>
 
-      <View style={styles.toolbar}>
-        <View style={styles.periodToggle}>
-          {PERIODS.map((p) => (
-            <TouchableOpacity
-              key={p}
-              onPress={() => handlePeriodChange(p)}
-              style={[styles.periodPill, period === p && styles.periodPillActive]}
-            >
-              <Text style={[styles.periodText, period === p && styles.periodTextActive]}>{PERIOD_LABELS[p]}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </View>
+      <View style={styles.toolbar}>{periodToggle}</View>
 
       {loading ? (
         <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
@@ -233,5 +291,6 @@ function createStyles(colors: ThemeColors) {
   rowSubtext: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary, marginTop: 2 },
   rowValue: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary },
   emptyText: { fontFamily: fontFamily.body, fontSize: fontSize.body, color: colors.textSecondary },
+  dPageTitle: { fontFamily: fontFamily.heading, fontSize: 26, color: colors.textPrimary },
 });
 }

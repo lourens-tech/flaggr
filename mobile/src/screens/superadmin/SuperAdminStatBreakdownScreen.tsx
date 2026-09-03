@@ -7,6 +7,8 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SuperAdminStackParamList } from '../../navigation/types';
 import { ScreenHeader } from '../../components/common/ScreenHeader';
 import { useAdmin } from '../../context/AdminContext';
+import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
+import { SuperAdminDesktopFrame } from '../../components/admin/desktop/SuperAdminDesktopFrame';
 import { AdminApiError, downloadSuperAdminStatBreakdown } from '../../api/adminClient';
 import { showAlert } from '../../utils/alert';
 import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
@@ -25,6 +27,7 @@ const PERIODS: Period[] = ['month', 'year', 'all'];
 export function SuperAdminStatBreakdownScreen({ navigation, route }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const isDesktop = useIsDesktopNav();
   const { metric, label } = route.params;
   const { getSuperAdminStatBreakdown } = useAdmin();
 
@@ -101,6 +104,68 @@ export function SuperAdminStatBreakdownScreen({ navigation, route }: Props) {
     });
   };
 
+  const rowItem = (item: StatBreakdownRow, index: number) => (
+    <TouchableOpacity
+      key={item.courseId}
+      style={styles.row}
+      onPress={() => handleRowPress(item)}
+      disabled={!isMemberMetric}
+      activeOpacity={isMemberMetric ? 0.7 : 1}
+    >
+      <Text style={styles.rank}>{index + 1}</Text>
+      <Text style={styles.rowLabel} numberOfLines={1}>{item.courseName}</Text>
+      <Text style={styles.rowValue}>{item.value.toLocaleString()}</Text>
+      {isMemberMetric ? <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} /> : null}
+    </TouchableOpacity>
+  );
+
+  const toolbar = (
+    <View style={styles.toolbar}>
+      <Text style={styles.totalText}>{total.toLocaleString()} total</Text>
+      <View style={styles.toolbarRight}>
+        <View style={styles.periodToggle}>
+          {PERIODS.map((p) => (
+            <TouchableOpacity
+              key={p}
+              onPress={() => handlePeriodChange(p)}
+              style={[styles.periodPill, period === p && styles.periodPillActive]}
+            >
+              <Text style={[styles.periodText, period === p && styles.periodTextActive]}>{PERIOD_LABELS[p]}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+        <TouchableOpacity style={styles.exportButton} onPress={handleExport} disabled={exporting}>
+          {exporting ? (
+            <ActivityIndicator color={colors.white} size="small" />
+          ) : (
+            <>
+              <Ionicons name="download-outline" size={16} color={colors.white} />
+              <Text style={styles.exportButtonText}>Excel</Text>
+            </>
+          )}
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
+  if (isDesktop) {
+    return (
+      <SuperAdminDesktopFrame activeKey="SuperAdminReports" breadcrumb={label} showRail={false}>
+        <Text style={styles.dPageTitle}>{label}</Text>
+        <View style={styles.dCard}>
+          {toolbar}
+          {loading ? (
+            <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
+          ) : rows.length === 0 ? (
+            <Text style={styles.emptyText}>No clubs yet.</Text>
+          ) : (
+            <View style={{ padding: screenPadding, gap: spacing.sm }}>{rows.map((r, i) => rowItem(r, i))}</View>
+          )}
+        </View>
+      </SuperAdminDesktopFrame>
+    );
+  }
+
   return (
     <View style={styles.screen}>
       <StatusBar barStyle="light-content" />
@@ -108,32 +173,7 @@ export function SuperAdminStatBreakdownScreen({ navigation, route }: Props) {
         <ScreenHeader title={label} onBack={() => navigation.goBack()} />
       </SafeAreaView>
 
-      <View style={styles.toolbar}>
-        <Text style={styles.totalText}>{total.toLocaleString()} total</Text>
-        <View style={styles.toolbarRight}>
-          <View style={styles.periodToggle}>
-            {PERIODS.map((p) => (
-              <TouchableOpacity
-                key={p}
-                onPress={() => handlePeriodChange(p)}
-                style={[styles.periodPill, period === p && styles.periodPillActive]}
-              >
-                <Text style={[styles.periodText, period === p && styles.periodTextActive]}>{PERIOD_LABELS[p]}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-          <TouchableOpacity style={styles.exportButton} onPress={handleExport} disabled={exporting}>
-            {exporting ? (
-              <ActivityIndicator color={colors.white} size="small" />
-            ) : (
-              <>
-                <Ionicons name="download-outline" size={16} color={colors.white} />
-                <Text style={styles.exportButtonText}>Excel</Text>
-              </>
-            )}
-          </TouchableOpacity>
-        </View>
-      </View>
+      {toolbar}
 
       {loading ? (
         <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
@@ -142,19 +182,7 @@ export function SuperAdminStatBreakdownScreen({ navigation, route }: Props) {
           data={rows}
           keyExtractor={(r) => r.courseId}
           contentContainerStyle={styles.listContent}
-          renderItem={({ item, index }) => (
-            <TouchableOpacity
-              style={styles.row}
-              onPress={() => handleRowPress(item)}
-              disabled={!isMemberMetric}
-              activeOpacity={isMemberMetric ? 0.7 : 1}
-            >
-              <Text style={styles.rank}>{index + 1}</Text>
-              <Text style={styles.rowLabel} numberOfLines={1}>{item.courseName}</Text>
-              <Text style={styles.rowValue}>{item.value.toLocaleString()}</Text>
-              {isMemberMetric ? <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} /> : null}
-            </TouchableOpacity>
-          )}
+          renderItem={({ item, index }) => rowItem(item, index)}
           ListEmptyComponent={<Text style={styles.emptyText}>No clubs yet.</Text>}
         />
       )}
@@ -212,6 +240,14 @@ function createStyles(colors: ThemeColors) {
     color: colors.textSecondary,
     textAlign: 'center',
     marginTop: spacing.xl,
+  },
+  dPageTitle: { fontFamily: fontFamily.heading, fontSize: 26, color: colors.textPrimary },
+  dCard: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 16,
+    overflow: 'hidden',
   },
 });
 }

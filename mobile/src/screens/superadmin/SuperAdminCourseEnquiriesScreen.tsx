@@ -7,6 +7,9 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SuperAdminStackParamList } from '../../navigation/types';
 import { ScreenHeader } from '../../components/common/ScreenHeader';
 import { useAdmin } from '../../context/AdminContext';
+import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
+import { SuperAdminDesktopFrame } from '../../components/admin/desktop/SuperAdminDesktopFrame';
+import { DesktopPanel } from '../../components/admin/desktop/DesktopPanel';
 import { enquiryStatusBadges, fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
 import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 import type { AdminEnquirySummary, EnquiryStatus } from '../../data/adminTypes';
@@ -37,6 +40,7 @@ function relativeTime(iso: string): string {
 export function SuperAdminCourseEnquiriesScreen({ route, navigation }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const isDesktop = useIsDesktopNav();
   const { courseId, courseName } = route.params;
   const { getSuperAdminCourseEnquiries } = useAdmin();
   const [filter, setFilter] = useState<EnquiryStatus | 'all'>('all');
@@ -85,6 +89,42 @@ export function SuperAdminCourseEnquiriesScreen({ route, navigation }: Props) {
     );
   };
 
+  const filterRow = (
+    <View style={styles.filterRow}>
+      {FILTERS.map((f) => (
+        <TouchableOpacity
+          key={f.value}
+          onPress={() => setFilter(f.value)}
+          style={[styles.filterPill, filter === f.value && styles.filterPillActive]}
+        >
+          <Text style={[styles.filterText, filter === f.value && styles.filterTextActive]}>{f.label}</Text>
+        </TouchableOpacity>
+      ))}
+    </View>
+  );
+
+  if (isDesktop) {
+    return (
+      <SuperAdminDesktopFrame activeKey="SuperAdminCourses" breadcrumb={`${courseName} Enquiries`} showRail={false}>
+        <Text style={styles.dPageTitle}>{courseName} — Enquiries</Text>
+        <DesktopPanel title="All Enquiries">
+          {filterRow}
+          {loading ? (
+            <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.md }} />
+          ) : enquiries.length === 0 ? (
+            <Text style={styles.emptyText}>No enquiries here yet.</Text>
+          ) : (
+            <View style={{ gap: spacing.sm, marginTop: spacing.sm }}>
+              {enquiries.map((item) => (
+                <React.Fragment key={item.id}>{renderItem({ item })}</React.Fragment>
+              ))}
+            </View>
+          )}
+        </DesktopPanel>
+      </SuperAdminDesktopFrame>
+    );
+  }
+
   return (
     <View style={styles.screen}>
       <StatusBar barStyle="light-content" />
@@ -92,17 +132,7 @@ export function SuperAdminCourseEnquiriesScreen({ route, navigation }: Props) {
         <ScreenHeader title={`${courseName} Enquiries`} onBack={() => navigation.goBack()} />
       </SafeAreaView>
 
-      <View style={styles.filterRow}>
-        {FILTERS.map((f) => (
-          <TouchableOpacity
-            key={f.value}
-            onPress={() => setFilter(f.value)}
-            style={[styles.filterPill, filter === f.value && styles.filterPillActive]}
-          >
-            <Text style={[styles.filterText, filter === f.value && styles.filterTextActive]}>{f.label}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+      {filterRow}
 
       {loading ? (
         <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
@@ -159,5 +189,6 @@ function createStyles(colors: ThemeColors) {
     textAlign: 'center',
     marginTop: spacing.xl,
   },
+  dPageTitle: { fontFamily: fontFamily.heading, fontSize: 26, color: colors.textPrimary },
 });
 }

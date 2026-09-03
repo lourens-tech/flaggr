@@ -7,13 +7,16 @@ import type { SuperAdminStackParamList } from '../../navigation/types';
 import { ScreenHeader } from '../../components/common/ScreenHeader';
 import { TextField } from '../../components/common/TextField';
 import { useAdmin } from '../../context/AdminContext';
+import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
+import { SuperAdminDesktopFrame } from '../../components/admin/desktop/SuperAdminDesktopFrame';
+import { DesktopPanel } from '../../components/admin/desktop/DesktopPanel';
 import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
 import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 import type { AuditLogEntry } from '../../data/adminTypes';
 
 type Props = NativeStackScreenProps<SuperAdminStackParamList, 'SuperAdminAuditLog'>;
 
-const ACTION_LABELS: Record<string, string> = {
+export const ACTION_LABELS: Record<string, string> = {
   superAdminCourseCreate: 'Created club',
   superAdminCourseCancelSubscription: "Cancelled club's subscription",
   superAdminCourseReactivateSubscription: "Reactivated club's subscription",
@@ -39,7 +42,7 @@ const ACTION_LABELS: Record<string, string> = {
   supportAgentDelete: 'Deleted support agent',
 };
 
-function actionLabel(action: string): string {
+export function actionLabel(action: string): string {
   return ACTION_LABELS[action] ?? action;
 }
 
@@ -50,6 +53,7 @@ function formatCreatedAt(iso: string): string {
 export function SuperAdminAuditLogScreen({ navigation }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const isDesktop = useIsDesktopNav();
   const { getAuditLog } = useAdmin();
   const [entries, setEntries] = useState<AuditLogEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -96,15 +100,41 @@ export function SuperAdminAuditLogScreen({ navigation }: Props) {
     </View>
   );
 
+  const searchArea = (
+    <View style={styles.searchArea}>
+      <TextField placeholder="Search audit log" variant="onLight" icon="search" value={search} onChangeText={setSearch} />
+    </View>
+  );
+
+  if (isDesktop) {
+    return (
+      <SuperAdminDesktopFrame activeKey="SuperAdminAuditLog" breadcrumb="Audit Log" showRail={false}>
+        <Text style={styles.dPageTitle}>Audit Log</Text>
+        <DesktopPanel title="All Actions">
+          {searchArea}
+          {loading ? (
+            <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.md }} />
+          ) : filtered.length === 0 ? (
+            <Text style={styles.emptyText}>{entries.length === 0 ? 'No actions recorded yet.' : 'No entries match your search.'}</Text>
+          ) : (
+            <View style={{ gap: spacing.sm, marginTop: spacing.sm }}>
+              {filtered.map((item) => (
+                <React.Fragment key={item.id}>{renderItem({ item })}</React.Fragment>
+              ))}
+            </View>
+          )}
+        </DesktopPanel>
+      </SuperAdminDesktopFrame>
+    );
+  }
+
   return (
     <View style={styles.screen}>
       <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
         <ScreenHeader title="Audit Log" onBack={() => navigation.goBack()} />
       </SafeAreaView>
 
-      <View style={styles.searchArea}>
-        <TextField placeholder="Search audit log" variant="onLight" icon="search" value={search} onChangeText={setSearch} />
-      </View>
+      {searchArea}
 
       {loading ? (
         <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
@@ -152,5 +182,6 @@ function createStyles(colors: ThemeColors) {
     textAlign: 'center',
     marginTop: spacing.xl,
   },
+  dPageTitle: { fontFamily: fontFamily.heading, fontSize: 26, color: colors.textPrimary },
 });
 }

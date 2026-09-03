@@ -7,6 +7,9 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SuperAdminStackParamList } from '../../navigation/types';
 import { ScreenHeader } from '../../components/common/ScreenHeader';
 import { useAdmin } from '../../context/AdminContext';
+import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
+import { SuperAdminDesktopFrame } from '../../components/admin/desktop/SuperAdminDesktopFrame';
+import { DesktopPanel } from '../../components/admin/desktop/DesktopPanel';
 import { AdminApiError } from '../../api/adminClient';
 import { showAlert } from '../../utils/alert';
 import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
@@ -22,6 +25,7 @@ type Kind = 'product' | 'activity';
 export function SuperAdminCourseCatalogScreen({ navigation, route }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const isDesktop = useIsDesktopNav();
   const { courseId, courseName, fbPerRand } = route.params;
   const { getSuperAdminCatalogProducts, getSuperAdminCatalogActivities } = useAdmin();
   const [kind, setKind] = useState<Kind>('product');
@@ -109,6 +113,49 @@ export function SuperAdminCourseCatalogScreen({ navigation, route }: Props) {
 
   const list = kind === 'product' ? products : activities;
 
+  const toggle = (
+    <View style={styles.toggle}>
+      <TouchableOpacity style={[styles.togglePill, kind === 'product' && styles.togglePillActive]} onPress={() => setKind('product')}>
+        <Text style={[styles.toggleText, kind === 'product' && styles.toggleTextActive]}>Products</Text>
+      </TouchableOpacity>
+      <TouchableOpacity style={[styles.togglePill, kind === 'activity' && styles.togglePillActive]} onPress={() => setKind('activity')}>
+        <Text style={[styles.toggleText, kind === 'activity' && styles.toggleTextActive]}>Activities</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
+  const listRows =
+    loading ? (
+      <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.md }} />
+    ) : list.length === 0 ? (
+      <Text style={styles.emptyText}>
+        {kind === 'product' ? 'No products yet — add the first one.' : 'No activities yet — add the first one.'}
+      </Text>
+    ) : (
+      <View style={{ gap: spacing.sm }}>{kind === 'product' ? products.map(renderProductRow) : activities.map(renderActivityRow)}</View>
+    );
+
+  if (isDesktop) {
+    return (
+      <SuperAdminDesktopFrame activeKey="SuperAdminCourses" breadcrumb={`${courseName} Catalog`}>
+        <View style={styles.dHeadRow}>
+          <Text style={styles.dPageTitle}>{courseName} — Products & Activities</Text>
+          <TouchableOpacity
+            style={styles.dAddButton}
+            onPress={() => navigation.navigate('SuperAdminCatalogItemEdit', { courseId, courseName, fbPerRand, kind })}
+          >
+            <Ionicons name="add" size={16} color={colors.darkGreen} />
+            <Text style={styles.dAddButtonText}>{kind === 'product' ? 'Add Product' : 'Add Activity'}</Text>
+          </TouchableOpacity>
+        </View>
+        <DesktopPanel title=" ">
+          {toggle}
+          <View style={{ marginTop: spacing.sm }}>{listRows}</View>
+        </DesktopPanel>
+      </SuperAdminDesktopFrame>
+    );
+  }
+
   return (
     <View style={styles.screen}>
       <StatusBar barStyle="light-content" />
@@ -117,20 +164,7 @@ export function SuperAdminCourseCatalogScreen({ navigation, route }: Props) {
       </SafeAreaView>
 
       <View style={styles.toolbar}>
-        <View style={styles.toggle}>
-          <TouchableOpacity
-            style={[styles.togglePill, kind === 'product' && styles.togglePillActive]}
-            onPress={() => setKind('product')}
-          >
-            <Text style={[styles.toggleText, kind === 'product' && styles.toggleTextActive]}>Products</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.togglePill, kind === 'activity' && styles.togglePillActive]}
-            onPress={() => setKind('activity')}
-          >
-            <Text style={[styles.toggleText, kind === 'activity' && styles.toggleTextActive]}>Activities</Text>
-          </TouchableOpacity>
-        </View>
+        {toggle}
         <TouchableOpacity
           onPress={() => navigation.navigate('SuperAdminCatalogItemEdit', { courseId, courseName, fbPerRand, kind })}
           hitSlop={8}
@@ -194,5 +228,17 @@ function createStyles(colors: ThemeColors) {
     textAlign: 'center',
     marginTop: spacing.xl,
   },
+  dHeadRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  dPageTitle: { fontFamily: fontFamily.heading, fontSize: 26, color: colors.textPrimary },
+  dAddButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.lime,
+    borderRadius: radius.pill,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  dAddButtonText: { fontFamily: fontFamily.bodySemiBold, fontSize: 13, color: colors.darkGreen },
 });
 }

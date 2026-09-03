@@ -8,6 +8,9 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SuperAdminStackParamList, SuperAdminTabParamList } from '../../navigation/types';
 import { PillButton } from '../../components/common/PillButton';
 import { useAdmin } from '../../context/AdminContext';
+import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
+import { SuperAdminDesktopFrame } from '../../components/admin/desktop/SuperAdminDesktopFrame';
+import { DesktopPanel } from '../../components/admin/desktop/DesktopPanel';
 import { AdminApiError } from '../../api/adminClient';
 import { showAlert } from '../../utils/alert';
 import { ThemeToggleRow } from '../../components/common/ThemeToggleRow';
@@ -32,6 +35,7 @@ const ROLE_LABEL: Record<string, string> = {
 export function SuperAdminProfileScreen({ navigation }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const isDesktop = useIsDesktopNav();
   const { admin, updateThemePreference, logout } = useAdmin();
 
   const [savingTheme, setSavingTheme] = useState(false);
@@ -55,17 +59,8 @@ export function SuperAdminProfileScreen({ navigation }: Props) {
     ]);
   };
 
-  return (
-    <View style={styles.screen}>
-      <StatusBar barStyle="light-content" />
-      <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>My Profile</Text>
-          <Text style={styles.headerSubtitle}>Flagrr {ROLE_LABEL[admin.role] ?? admin.role}</Text>
-        </View>
-      </SafeAreaView>
-
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+  const body = (
+    <>
         <View style={styles.avatarWrap}>
           <View style={styles.avatar}>
             <Ionicons name="shield-checkmark-outline" size={28} color={colors.clubGreen} />
@@ -120,6 +115,32 @@ export function SuperAdminProfileScreen({ navigation }: Props) {
           <Ionicons name="log-out-outline" size={18} color={colors.negative} />
           <Text style={styles.logoutText}>Log Out</Text>
         </TouchableOpacity>
+    </>
+  );
+
+  if (isDesktop) {
+    return (
+      <SuperAdminDesktopFrame activeKey="SuperAdminProfile" breadcrumb="Profile" showRail={false}>
+        <Text style={styles.dPageTitle}>My Profile</Text>
+        <DesktopPanel title=" " style={{ maxWidth: 480 }}>
+          {body}
+        </DesktopPanel>
+      </SuperAdminDesktopFrame>
+    );
+  }
+
+  return (
+    <View style={styles.screen}>
+      <StatusBar barStyle="light-content" />
+      <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>My Profile</Text>
+          <Text style={styles.headerSubtitle}>Flagrr {ROLE_LABEL[admin.role] ?? admin.role}</Text>
+        </View>
+      </SafeAreaView>
+
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        {body}
       </ScrollView>
     </View>
   );
@@ -167,5 +188,6 @@ function createStyles(colors: ThemeColors) {
     paddingVertical: spacing.sm,
   },
   logoutText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.negative },
+  dPageTitle: { fontFamily: fontFamily.heading, fontSize: 26, color: colors.textPrimary },
 });
 }

@@ -9,6 +9,9 @@ import { TextField } from '../../components/common/TextField';
 import { SelectField } from '../../components/common/SelectField';
 import { PillButton } from '../../components/common/PillButton';
 import { useAdmin } from '../../context/AdminContext';
+import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
+import { SuperAdminDesktopFrame } from '../../components/admin/desktop/SuperAdminDesktopFrame';
+import { DesktopPanel } from '../../components/admin/desktop/DesktopPanel';
 import { AdminApiError, type RewardVariantPayload } from '../../api/adminClient';
 import { pickAndResizeAvatar, AvatarPermissionError } from '../../utils/pickAvatar';
 import { showAlert } from '../../utils/alert';
@@ -45,6 +48,7 @@ function newVariant(sortOrder: number): LocalVariant {
 export function SuperAdminRewardEditScreen({ navigation, route }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const isDesktop = useIsDesktopNav();
   const { courseId, fbPerRand, rewardId } = route.params;
   const { getSuperAdminRewards, saveSuperAdminReward, deleteSuperAdminReward } = useAdmin();
 
@@ -191,7 +195,16 @@ export function SuperAdminRewardEditScreen({ navigation, route }: Props) {
     ]);
   };
 
+  const pageTitle = existing ? 'Edit Reward' : 'New Reward';
+
   if (loadingExisting) {
+    if (isDesktop) {
+      return (
+        <SuperAdminDesktopFrame activeKey="SuperAdminCourses" breadcrumb="Edit Reward" showRail={false}>
+          <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
+        </SuperAdminDesktopFrame>
+      );
+    }
     return (
       <View style={styles.screen}>
         <StatusBar barStyle="light-content" />
@@ -203,14 +216,8 @@ export function SuperAdminRewardEditScreen({ navigation, route }: Props) {
     );
   }
 
-  return (
-    <View style={styles.screen}>
-      <StatusBar barStyle="light-content" />
-      <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
-        <ScreenHeader title={existing ? 'Edit Reward' : 'New Reward'} onBack={() => navigation.goBack()} />
-      </SafeAreaView>
-
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+  const form = (
+    <>
         <TouchableOpacity style={styles.imagePicker} onPress={handlePickImage} disabled={uploadingImage}>
           {previewUrl ? (
             <Image source={{ uri: previewUrl }} style={styles.imagePreview} />
@@ -286,6 +293,29 @@ export function SuperAdminRewardEditScreen({ navigation, route }: Props) {
             <Text style={styles.deleteText}>Remove Reward</Text>
           </TouchableOpacity>
         ) : null}
+    </>
+  );
+
+  if (isDesktop) {
+    return (
+      <SuperAdminDesktopFrame activeKey="SuperAdminCourses" breadcrumb={pageTitle} showRail={false}>
+        <Text style={styles.dPageTitle}>{pageTitle}</Text>
+        <DesktopPanel title=" " style={{ maxWidth: 520 }}>
+          {form}
+        </DesktopPanel>
+      </SuperAdminDesktopFrame>
+    );
+  }
+
+  return (
+    <View style={styles.screen}>
+      <StatusBar barStyle="light-content" />
+      <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
+        <ScreenHeader title={pageTitle} onBack={() => navigation.goBack()} />
+      </SafeAreaView>
+
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        {form}
       </ScrollView>
     </View>
   );
@@ -334,5 +364,6 @@ function createStyles(colors: ThemeColors) {
   addVariantText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.clubGreen },
   deleteButton: { alignItems: 'center', marginTop: spacing.lg },
   deleteText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.negative },
+  dPageTitle: { fontFamily: fontFamily.heading, fontSize: 26, color: colors.textPrimary },
 });
 }

@@ -7,6 +7,9 @@ import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SuperAdminStackParamList, SuperAdminTabParamList } from '../../navigation/types';
 import { useAdmin } from '../../context/AdminContext';
+import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
+import { SuperAdminDesktopFrame } from '../../components/admin/desktop/SuperAdminDesktopFrame';
+import { DesktopPanel } from '../../components/admin/desktop/DesktopPanel';
 import { fontFamily, fontSize, priorityBadges, radius, screenPadding, spacing, ticketStatusBadges } from '../../theme';
 import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 import type { SupportInboxTicket, SupportTicketPriority, SupportTicketStatus } from '../../data/adminTypes';
@@ -63,6 +66,7 @@ function relativeTime(iso: string): string {
 export function SuperAdminSupportInboxScreen({ navigation }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const isDesktop = useIsDesktopNav();
   const { admin, getSupportInbox } = useAdmin();
   const [filter, setFilter] = useState<SupportTicketStatus | 'all'>('all');
   const [priorityFilter, setPriorityFilter] = useState<SupportTicketPriority | 'all'>('all');
@@ -127,15 +131,8 @@ export function SuperAdminSupportInboxScreen({ navigation }: Props) {
     );
   };
 
-  return (
-    <View style={styles.screen}>
-      <StatusBar barStyle="light-content" />
-      <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Support Centre</Text>
-        </View>
-      </SafeAreaView>
-
+  const filterRows = (
+    <>
       <View style={styles.filterRow}>
         {FILTERS.map((f) => (
           <TouchableOpacity
@@ -171,6 +168,41 @@ export function SuperAdminSupportInboxScreen({ navigation }: Props) {
           </TouchableOpacity>
         ))}
       </View>
+    </>
+  );
+
+  if (isDesktop) {
+    return (
+      <SuperAdminDesktopFrame activeKey="SuperAdminSupport" breadcrumb="Support Centre">
+        <Text style={styles.dPageTitle}>Support Centre</Text>
+        <DesktopPanel title="All Tickets">
+          {filterRows}
+          {loading ? (
+            <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.md }} />
+          ) : tickets.length === 0 ? (
+            <Text style={styles.emptyText}>No support tickets here yet.</Text>
+          ) : (
+            <View style={{ gap: spacing.sm, marginTop: spacing.sm }}>
+              {tickets.map((item) => (
+                <React.Fragment key={item.id}>{renderItem({ item })}</React.Fragment>
+              ))}
+            </View>
+          )}
+        </DesktopPanel>
+      </SuperAdminDesktopFrame>
+    );
+  }
+
+  return (
+    <View style={styles.screen}>
+      <StatusBar barStyle="light-content" />
+      <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Support Centre</Text>
+        </View>
+      </SafeAreaView>
+
+      {filterRows}
 
       {loading ? (
         <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
@@ -231,5 +263,6 @@ function createStyles(colors: ThemeColors) {
     textAlign: 'center',
     marginTop: spacing.xl,
   },
+  dPageTitle: { fontFamily: fontFamily.heading, fontSize: 26, color: colors.textPrimary },
 });
 }

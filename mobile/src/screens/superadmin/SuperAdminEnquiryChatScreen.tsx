@@ -6,6 +6,8 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SuperAdminStackParamList } from '../../navigation/types';
 import { ScreenHeader } from '../../components/common/ScreenHeader';
 import { useAdmin } from '../../context/AdminContext';
+import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
+import { SuperAdminDesktopFrame } from '../../components/admin/desktop/SuperAdminDesktopFrame';
 import { AdminApiError } from '../../api/adminClient';
 import { showAlert } from '../../utils/alert';
 import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
@@ -24,6 +26,7 @@ function formatTime(iso: string): string {
 export function SuperAdminEnquiryChatScreen({ route }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const isDesktop = useIsDesktopNav();
   const { courseId, enquiryId } = route.params;
   const { getSuperAdminEnquiryThread } = useAdmin();
   const [thread, setThread] = useState<AdminEnquiryThread | null>(null);
@@ -53,6 +56,39 @@ export function SuperAdminEnquiryChatScreen({ route }: Props) {
     }
   }, [thread?.messages.length]);
 
+  const body = loading || !thread ? (
+    <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
+  ) : (
+    <>
+      <View style={styles.memberInfo}>
+        <Text style={styles.memberEmail}>{thread.memberEmail}</Text>
+        <Text style={styles.enquiryType}>{thread.enquiryType}</Text>
+      </View>
+
+      <ScrollView ref={scrollRef} contentContainerStyle={styles.messages} showsVerticalScrollIndicator={false}>
+        {thread.messages.map((m) => (
+          <View
+            key={m.id}
+            style={[styles.bubbleRow, m.senderType === 'admin' ? styles.bubbleRowRight : styles.bubbleRowLeft]}
+          >
+            <View style={[styles.bubble, m.senderType === 'admin' ? styles.bubbleAdmin : styles.bubbleMember]}>
+              <Text style={[styles.bubbleText, m.senderType === 'admin' && styles.bubbleTextAdmin]}>{m.body}</Text>
+            </View>
+            <Text style={styles.bubbleTime}>{formatTime(m.createdAt)}</Text>
+          </View>
+        ))}
+      </ScrollView>
+    </>
+  );
+
+  if (isDesktop) {
+    return (
+      <SuperAdminDesktopFrame activeKey="SuperAdminCourses" breadcrumb={thread?.memberName ?? 'Enquiry'} showRail={false} scrollable={false}>
+        <View style={styles.dChatCard}>{body}</View>
+      </SuperAdminDesktopFrame>
+    );
+  }
+
   return (
     <View style={styles.screen}>
       <StatusBar barStyle="light-content" />
@@ -60,30 +96,7 @@ export function SuperAdminEnquiryChatScreen({ route }: Props) {
         <ScreenHeader title={thread?.memberName ?? 'Enquiry'} />
       </SafeAreaView>
 
-      {loading || !thread ? (
-        <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
-      ) : (
-        <>
-          <View style={styles.memberInfo}>
-            <Text style={styles.memberEmail}>{thread.memberEmail}</Text>
-            <Text style={styles.enquiryType}>{thread.enquiryType}</Text>
-          </View>
-
-          <ScrollView ref={scrollRef} contentContainerStyle={styles.messages} showsVerticalScrollIndicator={false}>
-            {thread.messages.map((m) => (
-              <View
-                key={m.id}
-                style={[styles.bubbleRow, m.senderType === 'admin' ? styles.bubbleRowRight : styles.bubbleRowLeft]}
-              >
-                <View style={[styles.bubble, m.senderType === 'admin' ? styles.bubbleAdmin : styles.bubbleMember]}>
-                  <Text style={[styles.bubbleText, m.senderType === 'admin' && styles.bubbleTextAdmin]}>{m.body}</Text>
-                </View>
-                <Text style={styles.bubbleTime}>{formatTime(m.createdAt)}</Text>
-              </View>
-            ))}
-          </ScrollView>
-        </>
-      )}
+      {body}
     </View>
   );
 }
@@ -105,5 +118,13 @@ function createStyles(colors: ThemeColors) {
   bubbleText: { fontFamily: fontFamily.body, fontSize: fontSize.body, color: colors.textPrimary },
   bubbleTextAdmin: { color: colors.white },
   bubbleTime: { fontFamily: fontFamily.body, fontSize: 9, color: colors.textSecondary, marginTop: 2, alignSelf: 'flex-end' },
+  dChatCard: {
+    flex: 1,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
 });
 }

@@ -8,6 +8,9 @@ import { ScreenHeader } from '../../components/common/ScreenHeader';
 import { TextField } from '../../components/common/TextField';
 import { PillButton } from '../../components/common/PillButton';
 import { useAdmin } from '../../context/AdminContext';
+import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
+import { SuperAdminDesktopFrame } from '../../components/admin/desktop/SuperAdminDesktopFrame';
+import { DesktopPanel } from '../../components/admin/desktop/DesktopPanel';
 import { AdminApiError, type SuperAdminCourseCreateResponse } from '../../api/adminClient';
 import { showAlert } from '../../utils/alert';
 import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
@@ -25,6 +28,7 @@ const STEP_COUNT = 4;
 export function SuperAdminCourseCreateScreen({ navigation }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const isDesktop = useIsDesktopNav();
   const { createSuperAdminCourse } = useAdmin();
 
   const [step, setStep] = useState(0);
@@ -80,20 +84,16 @@ export function SuperAdminCourseCreateScreen({ navigation }: Props) {
     }
   };
 
-  return (
-    <View style={styles.screen}>
-      <StatusBar barStyle="light-content" />
-      <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
-        <ScreenHeader title="New Course" onBack={() => navigation.goBack()} />
-      </SafeAreaView>
+  const progressRow = (
+    <View style={styles.progressRow}>
+      {Array.from({ length: STEP_COUNT }).map((_, i) => (
+        <View key={i} style={[styles.progressDot, i <= step && styles.progressDotActive]} />
+      ))}
+    </View>
+  );
 
-      <View style={styles.progressRow}>
-        {Array.from({ length: STEP_COUNT }).map((_, i) => (
-          <View key={i} style={[styles.progressDot, i <= step && styles.progressDotActive]} />
-        ))}
-      </View>
-
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+  const wizardBody = (
+    <>
         {step === 0 ? (
           <>
             <Text style={styles.title}>Course Details</Text>
@@ -195,6 +195,32 @@ export function SuperAdminCourseCreateScreen({ navigation }: Props) {
             <PillButton label="Done" onPress={() => navigation.goBack()} />
           </>
         ) : null}
+    </>
+  );
+
+  if (isDesktop) {
+    return (
+      <SuperAdminDesktopFrame activeKey="SuperAdminCourses" breadcrumb="New Course" showRail={false}>
+        <Text style={styles.dPageTitle}>New Course</Text>
+        <DesktopPanel title=" " style={{ maxWidth: 480 }}>
+          {progressRow}
+          {wizardBody}
+        </DesktopPanel>
+      </SuperAdminDesktopFrame>
+    );
+  }
+
+  return (
+    <View style={styles.screen}>
+      <StatusBar barStyle="light-content" />
+      <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
+        <ScreenHeader title="New Course" onBack={() => navigation.goBack()} />
+      </SafeAreaView>
+
+      {progressRow}
+
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        {wizardBody}
       </ScrollView>
     </View>
   );
@@ -232,5 +258,6 @@ function createStyles(colors: ThemeColors) {
   successIcon: { alignSelf: 'center', marginBottom: spacing.sm },
   backButton: { alignItems: 'center', marginTop: spacing.md },
   backButtonText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.textSecondary },
+  dPageTitle: { fontFamily: fontFamily.heading, fontSize: 26, color: colors.textPrimary },
 });
 }
