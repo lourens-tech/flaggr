@@ -134,6 +134,7 @@ interface AdminContextValue {
   // getSuperAdminMemberRosterStatus for the general pattern this follows).
   searchSuperAdminMembers: (search: string) => Promise<SuperAdminMemberSearchResult[]>;
   getSuperAdminMemberStats: (id: string, period: DashboardPeriod) => Promise<SuperAdminMemberStats>;
+  giftFlagrrCash: (userId: string, amount: number, reason: string) => Promise<{ newBalance: number }>;
   lookupVoucher: (code: string) => Promise<AdminVoucherLookup>;
   redeemVoucher: (code: string) => Promise<AdminVoucherLookup>;
   listEnquiries: (status?: EnquiryStatus) => Promise<AdminEnquirySummary[]>;
@@ -462,6 +463,8 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
   const getMemberStats = async (id: string, period: DashboardPeriod) => adminApi.memberStats(id, period);
   const searchSuperAdminMembers = async (search: string) => adminApi.superAdminMembers(search);
   const getSuperAdminMemberStats = async (id: string, period: DashboardPeriod) => adminApi.superAdminMemberStats(id, period);
+  const giftFlagrrCash = async (userId: string, amount: number, reason: string) =>
+    adminApi.superAdminGiftFlagrrCash(userId, amount, reason);
 
   const lookupVoucher = async (code: string) => adminApi.lookupVoucher(code);
   const redeemVoucher = async (code: string) => adminApi.redeemVoucher(code);
@@ -789,6 +792,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     getMemberStats,
     searchSuperAdminMembers,
     getSuperAdminMemberStats,
+    giftFlagrrCash,
     lookupVoucher,
     redeemVoucher,
     listEnquiries,

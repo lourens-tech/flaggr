@@ -18,6 +18,7 @@ import {
   type StatBreakdownMetric,
 } from '../_lib/adminReports';
 import { getAdClickLog, getAdPerformanceReport, getAdTrend } from '../_lib/adAnalytics';
+import { giftFlagrrCash } from '../_lib/giftFlagrrCash';
 import { toXlsxBuffer } from '../_lib/xlsx';
 import {
   addAdminMessage,
@@ -203,6 +204,12 @@ interface SuperAdminAdDeleteBody extends AdDeleteBody {
   courseId?: string;
 }
 
+interface SuperAdminGiftFlagrrCashBody {
+  userId?: string;
+  amount?: number;
+  reason?: string;
+}
+
 interface VoucherRedeemBody {
   code?: string;
 }
@@ -359,6 +366,7 @@ const SUPER_ADMIN_ALLOWED_ACTIONS = new Set([
   'superAdminMemberRosterUpload',
   'superAdminMembers',
   'superAdminMemberStats',
+  'superAdminGiftFlagrrCash',
   'superAdminFlaggedReceipts',
   'superAdminConfirmReceiptFraud',
   'superAdminApproveReceipt',
@@ -1693,6 +1701,45 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
             monthly: fillMonthlyByNumber(monthlyRows as Array<{ month: number; value: number }>),
           },
         });
+        return;
+      }
+
+      // Manually credits or deducts a member's Flagrr Cash balance — a
+      // reason is required (becomes part of the member's own notification),
+      // and every gift/adjustment is audit-logged like any other super_admin
+      // mutation. Balance is floored at zero either direction.
+      if (action === 'superAdminGiftFlagrrCash') {
+        const body = req.body as SuperAdminGiftFlagrrCashBody;
+        const userId = body.userId;
+        const amount = body.amount;
+        const reason = body.reason?.trim();
+        if (!userId) throw new HttpError(400, 'userId is required');
+        if (typeof amount !== 'number' || !Number.isInteger(amount) || amount === 0) {
+          throw new HttpError(400, 'amount must be a non-zero whole number');
+        }
+        if (!reason) throw new HttpError(400, 'A reason is required');
+
+        const memberRows = (await sql`select first_name, last_name, email from users where id = ${userId}`) as Array<{
+          first_name: string;
+          last_name: string;
+          email: string;
+        }>;
+        if (memberRows.length === 0) throw new HttpError(404, 'Member not found');
+        const member = memberRows[0];
+
+        const { newBalance } = await giftFlagrrCash({ userId, amount, reason });
+
+        await logAudit({
+          adminId: authedAdmin.id,
+          adminName: `${authedAdmin.firstName} ${authedAdmin.lastName}`,
+          adminRole: authedAdmin.role,
+          action: 'superAdminGiftFlagrrCash',
+          targetType: 'member',
+          targetId: userId,
+          targetLabel: `${member.first_name} ${member.last_name} (${member.email}) — ${amount > 0 ? '+' : ''}${amount} FC: ${reason}`,
+        });
+
+        res.status(200).json({ ok: true, newBalance });
         return;
       }
 

@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { ActivityIndicator, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Modal, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -27,10 +27,14 @@ export function SuperAdminMemberStatsScreen({ route, navigation }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { memberId } = route.params;
-  const { getSuperAdminMemberStats } = useAdmin();
+  const { getSuperAdminMemberStats, giftFlagrrCash } = useAdmin();
   const [period, setPeriod] = useState<Period>('month');
   const [data, setData] = useState<SuperAdminMemberStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [giftModalOpen, setGiftModalOpen] = useState(false);
+  const [giftAmount, setGiftAmount] = useState('');
+  const [giftReason, setGiftReason] = useState('');
+  const [giftSubmitting, setGiftSubmitting] = useState(false);
 
   const load = async (p: Period) => {
     setLoading(true);
@@ -52,6 +56,34 @@ export function SuperAdminMemberStatsScreen({ route, navigation }: Props) {
   const handlePeriodChange = (p: Period) => {
     setPeriod(p);
     load(p);
+  };
+
+  const openGiftModal = () => {
+    setGiftAmount('');
+    setGiftReason('');
+    setGiftModalOpen(true);
+  };
+
+  const parsedGiftAmount = Number(giftAmount);
+  const giftAmountValid = giftAmount.trim() !== '' && Number.isInteger(parsedGiftAmount) && parsedGiftAmount !== 0;
+
+  const handleSubmitGift = async () => {
+    if (!giftAmountValid || !giftReason.trim()) return;
+    setGiftSubmitting(true);
+    try {
+      const { newBalance } = await giftFlagrrCash(memberId, parsedGiftAmount, giftReason.trim());
+      setData((prev) => (prev ? { ...prev, member: { ...prev.member, balance: newBalance } } : prev));
+      setGiftModalOpen(false);
+      showAlert(
+        parsedGiftAmount > 0 ? 'Flagrr Cash gifted' : 'Flagrr Cash adjusted',
+        `${data?.member.firstName ?? 'The member'}'s new balance is ${newBalance.toLocaleString()} FC.`,
+      );
+    } catch (err) {
+      const message = err instanceof AdminApiError ? err.message : 'Something went wrong. Please try again.';
+      showAlert('Couldn’t update balance', message);
+    } finally {
+      setGiftSubmitting(false);
+    }
   };
 
   return (
@@ -102,6 +134,11 @@ export function SuperAdminMemberStatsScreen({ route, navigation }: Props) {
               </View>
               <Text style={styles.balanceText}>{data.member.balance.toLocaleString()} FC Balance</Text>
             </View>
+
+            <TouchableOpacity style={styles.giftButton} onPress={openGiftModal}>
+              <Ionicons name="gift-outline" size={16} color={colors.white} />
+              <Text style={styles.giftButtonText}>Gift Flagrr Cash</Text>
+            </TouchableOpacity>
 
             <View style={styles.statsGrid}>
               <View style={styles.statsRow}>
@@ -162,6 +199,56 @@ export function SuperAdminMemberStatsScreen({ route, navigation }: Props) {
           </>
         ) : null}
       </ScrollView>
+
+      <Modal visible={giftModalOpen} transparent animationType="fade" onRequestClose={() => setGiftModalOpen(false)}>
+        <View style={styles.backdrop}>
+          <View style={styles.giftSheet}>
+            <View style={styles.giftSheetHeader}>
+              <Text style={styles.giftSheetTitle}>Gift Flagrr Cash</Text>
+              <TouchableOpacity onPress={() => setGiftModalOpen(false)} hitSlop={8}>
+                <Ionicons name="close" size={22} color={colors.textPrimary} />
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.giftSheetHint}>
+              Enter a negative number to deduct instead. {data?.member.firstName ?? 'The member'} will be sent a
+              notification with the reason below either way.
+            </Text>
+            <TextInput
+              placeholder="Amount (e.g. 100 or -50)"
+              placeholderTextColor={colors.textSecondary}
+              value={giftAmount}
+              onChangeText={setGiftAmount}
+              keyboardType="numbers-and-punctuation"
+              style={styles.giftAmountInput}
+            />
+            <View style={{ height: spacing.sm }} />
+            <TextInput
+              placeholder="Reason (e.g. Birthday gift, goodwill correction…)"
+              placeholderTextColor={colors.textSecondary}
+              value={giftReason}
+              onChangeText={setGiftReason}
+              multiline
+              style={styles.giftReasonInput}
+            />
+            <View style={styles.giftModalActions}>
+              <TouchableOpacity style={styles.giftCancelButton} onPress={() => setGiftModalOpen(false)}>
+                <Text style={styles.giftCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.giftSubmitButton, (!giftAmountValid || !giftReason.trim() || giftSubmitting) && styles.giftSubmitButtonDisabled]}
+                onPress={handleSubmitGift}
+                disabled={!giftAmountValid || !giftReason.trim() || giftSubmitting}
+              >
+                {giftSubmitting ? (
+                  <ActivityIndicator color={colors.white} size="small" />
+                ) : (
+                  <Text style={styles.giftSubmitText}>{parsedGiftAmount < 0 ? 'Deduct' : 'Gift'}</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -215,6 +302,65 @@ function createStyles(colors: ThemeColors) {
   },
   tierPillText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.tiny, color: colors.textPrimary },
   balanceText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.textPrimary },
+  giftButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    alignSelf: 'flex-start',
+    backgroundColor: colors.clubGreen,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    marginBottom: spacing.lg,
+  },
+  giftButtonText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.small, color: colors.white },
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center', padding: screenPadding },
+  giftSheet: {
+    backgroundColor: colors.background,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    width: '100%',
+    maxWidth: 420,
+  },
+  giftSheetHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.sm },
+  giftSheetTitle: { fontFamily: fontFamily.heading, fontSize: fontSize.cardTitle, color: colors.textPrimary },
+  giftSheetHint: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary, marginBottom: spacing.sm, lineHeight: 17 },
+  giftAmountInput: {
+    backgroundColor: colors.inputBg,
+    borderWidth: 1,
+    borderColor: colors.inputBorder,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    fontFamily: fontFamily.body,
+    fontSize: fontSize.body,
+    color: colors.textPrimary,
+  },
+  giftReasonInput: {
+    backgroundColor: colors.inputBg,
+    borderWidth: 1,
+    borderColor: colors.inputBorder,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    minHeight: 80,
+    fontFamily: fontFamily.body,
+    fontSize: fontSize.body,
+    color: colors.textPrimary,
+    textAlignVertical: 'top',
+  },
+  giftModalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: spacing.sm, marginTop: spacing.md },
+  giftCancelButton: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
+  giftCancelText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.small, color: colors.textSecondary },
+  giftSubmitButton: {
+    backgroundColor: colors.clubGreen,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    minWidth: 72,
+    alignItems: 'center',
+  },
+  giftSubmitButtonDisabled: { opacity: 0.5 },
+  giftSubmitText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.small, color: colors.white },
   statsGrid: { gap: spacing.sm, marginBottom: spacing.lg },
   statsRow: { flexDirection: 'row', gap: 10 },
   chartCard: {

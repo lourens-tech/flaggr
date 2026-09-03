@@ -323,6 +323,12 @@ export const adminApi = {
   superAdminMemberStats: (id: string, period: 'month' | 'year' | 'all') =>
     request<SuperAdminMemberStats>(`?action=superAdminMemberStats&id=${encodeURIComponent(id)}&period=${period}`),
 
+  superAdminGiftFlagrrCash: (userId: string, amount: number, reason: string) =>
+    request<{ ok: boolean; newBalance: number }>('?action=superAdminGiftFlagrrCash', {
+      method: 'POST',
+      body: { userId, amount, reason },
+    }),
+
   broadcasts: () => request<AdminBroadcast[]>('?action=broadcasts'),
 
   sendBroadcast: (payload: { title: string; body: string; target: BroadcastTarget }) =>

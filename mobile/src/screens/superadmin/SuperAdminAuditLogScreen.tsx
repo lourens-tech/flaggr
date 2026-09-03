@@ -29,6 +29,7 @@ const ACTION_LABELS: Record<string, string> = {
   superAdminCourseAdminDelete: 'Deleted course admin',
   superAdminAdSave: 'Saved ad',
   superAdminAdDelete: 'Deleted ad',
+  superAdminGiftFlagrrCash: 'Gifted/adjusted Flagrr Cash',
   superAdminRewardSave: 'Saved reward',
   superAdminRewardDelete: 'Deleted reward',
   supportAgentCreate: 'Added support agent',
