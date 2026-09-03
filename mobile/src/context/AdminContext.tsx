@@ -234,6 +234,8 @@ interface AdminContextValue {
   getSuperAdminAdTrend: (period: DashboardPeriod, adId?: string) => Promise<AdTrendPoint[]>;
   getSuperAdminAdClickLog: (adId: string, period: DashboardPeriod) => Promise<AdClickLogRow[]>;
   getSuperAdminStatBreakdown: (metric: StatBreakdownMetric, period: DashboardPeriod) => Promise<StatBreakdownRow[]>;
+  // One club's own member list, tapped from a row on the stat breakdown page.
+  getSuperAdminClubMembers: (courseId: string, period: DashboardPeriod) => Promise<MemberReportRow[]>;
   // Cross-club Tier Distribution / Top Redeemed Rewards detail pages.
   getSuperAdminReportRows: <K extends SuperAdminReportKind>(
     report: K,
@@ -678,6 +680,8 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
 
   const getSuperAdminStatBreakdown = async (metric: StatBreakdownMetric, period: DashboardPeriod) =>
     adminApi.superAdminStatBreakdown(metric, period);
+  const getSuperAdminClubMembers = async (courseId: string, period: DashboardPeriod) =>
+    adminApi.superAdminClubMembers(courseId, period);
   const getSuperAdminReportRows = <K extends SuperAdminReportKind>(report: K, period: DashboardPeriod) =>
     adminApi.superAdminReportRows(report, period);
 
@@ -861,6 +865,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     getSuperAdminAdTrend,
     getSuperAdminAdClickLog,
     getSuperAdminStatBreakdown,
+    getSuperAdminClubMembers,
     getSuperAdminReportRows,
     createSupportTicket,
     listSupportTickets,

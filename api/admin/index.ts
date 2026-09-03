@@ -358,6 +358,7 @@ const SUPER_ADMIN_ALLOWED_ACTIONS = new Set([
   'superAdminRewardSave',
   'superAdminRewardDelete',
   'superAdminStatBreakdown',
+  'superAdminClubMembers',
   'superAdminCourseCancelSubscription',
   'superAdminCourseReactivateSubscription',
   'superAdminCourseArchive',
@@ -2312,6 +2313,16 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
             'Ads',
           );
           filename = 'ads-report.xlsx';
+        } else if (report === 'clubMembers') {
+          const courseId = typeof req.query.courseId === 'string' ? req.query.courseId : '';
+          if (!courseId) throw new HttpError(400, 'courseId is required');
+          const rows = await listMembersReport(courseId, period);
+          workbook = toXlsxBuffer(
+            ['First Name', 'Last Name', 'Email', 'Tier', 'Member Since', 'FC Balance', 'FC Total Earned', 'FC Total Redeemed'],
+            rows.map((r) => [r.firstName, r.lastName, r.email, r.tier, r.memberSince, r.balance, r.totalEarned, r.totalRedeemed]),
+            'Members',
+          );
+          filename = `members-${period}.xlsx`;
         } else if (STAT_BREAKDOWN_METRICS.has(report)) {
           const metricLabels: Record<string, string> = {
             members: 'Members',
@@ -2450,6 +2461,18 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
           throw new HttpError(400, 'metric must be one of members, newMembers, fcEarned, fcRedeemed, receiptsScanned');
         }
         res.status(200).json(await getSuperAdminStatBreakdown(period, metric as StatBreakdownMetric));
+        return;
+      }
+
+      // One club's own member list, tapped from a row on
+      // SuperAdminStatBreakdownScreen ('members'/'newMembers' cards) —
+      // reuses course_admin's own listMembersReport, just scoped to
+      // whichever club the super_admin tapped into.
+      if (action === 'superAdminClubMembers' && req.method === 'GET') {
+        const courseId = typeof req.query.courseId === 'string' ? req.query.courseId : '';
+        if (!courseId) throw new HttpError(400, 'courseId is required');
+        const period: StatsPeriod = isStatsPeriod(req.query.period) ? req.query.period : 'all';
+        res.status(200).json(await listMembersReport(courseId, period));
         return;
       }
 

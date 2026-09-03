@@ -412,6 +412,11 @@ export const adminApi = {
   superAdminStatBreakdown: (metric: StatBreakdownMetric, period: 'month' | 'year' | 'all') =>
     request<StatBreakdownRow[]>(`?action=superAdminStatBreakdown&metric=${metric}&period=${period}`),
 
+  // Backs the per-club member table opened from a row on
+  // SuperAdminStatBreakdownScreen ('members'/'newMembers' cards).
+  superAdminClubMembers: (courseId: string, period: 'month' | 'year' | 'all') =>
+    request<MemberReportRow[]>(`?action=superAdminClubMembers&courseId=${encodeURIComponent(courseId)}&period=${period}`),
+
   // Backs super_admin's Tier Distribution / Top Redeemed Rewards detail
   // tables — cross-club counterpart of reportRows above.
   superAdminReportRows: <K extends SuperAdminReportKind>(report: K, period: 'month' | 'year' | 'all') =>
@@ -589,6 +594,17 @@ export async function downloadSuperAdminStatBreakdown(
   filename: string,
 ): Promise<boolean> {
   const params = new URLSearchParams({ action: 'superAdminExportReport', report: metric, period });
+  return downloadFile(params, filename);
+}
+
+/** Downloads one club's own member list (the same rows shown on
+ * SuperAdminClubMembersScreen) as a .xlsx workbook. */
+export async function downloadSuperAdminClubMembers(
+  courseId: string,
+  period: 'month' | 'year' | 'all',
+  filename: string,
+): Promise<boolean> {
+  const params = new URLSearchParams({ action: 'superAdminExportReport', report: 'clubMembers', courseId, period });
   return downloadFile(params, filename);
 }
 

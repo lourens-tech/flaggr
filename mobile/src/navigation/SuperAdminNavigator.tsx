@@ -8,6 +8,7 @@ import { SuperAdminAdEditScreen } from '../screens/superadmin/SuperAdminAdEditSc
 import { SuperAdminCourseRewardsScreen } from '../screens/superadmin/SuperAdminCourseRewardsScreen';
 import { SuperAdminRewardEditScreen } from '../screens/superadmin/SuperAdminRewardEditScreen';
 import { SuperAdminStatBreakdownScreen } from '../screens/superadmin/SuperAdminStatBreakdownScreen';
+import { SuperAdminClubMembersScreen } from '../screens/superadmin/SuperAdminClubMembersScreen';
 import { SuperAdminReportDetailScreen } from '../screens/superadmin/SuperAdminReportDetailScreen';
 import { SuperAdminAdDetailScreen } from '../screens/superadmin/SuperAdminAdDetailScreen';
 import { SuperAdminSupportTicketChatScreen } from '../screens/superadmin/SuperAdminSupportTicketChatScreen';
@@ -39,6 +40,7 @@ export function SuperAdminNavigator() {
       <Stack.Screen name="SuperAdminCourseRewards" component={SuperAdminCourseRewardsScreen} />
       <Stack.Screen name="SuperAdminRewardEdit" component={SuperAdminRewardEditScreen} />
       <Stack.Screen name="SuperAdminStatBreakdown" component={SuperAdminStatBreakdownScreen} />
+      <Stack.Screen name="SuperAdminClubMembers" component={SuperAdminClubMembersScreen} />
       <Stack.Screen name="SuperAdminReportDetail" component={SuperAdminReportDetailScreen} />
       <Stack.Screen name="SuperAdminAdDetail" component={SuperAdminAdDetailScreen} />
       <Stack.Screen name="SuperAdminSupportTicketChat" component={SuperAdminSupportTicketChatScreen} />
