@@ -80,6 +80,15 @@ const CURRENCY_PREFIX = /(?:R|ZAR|\$)\s*/;
 const itemLinePattern = new RegExp(`^(.+?)\\s+(?:${CURRENCY_PREFIX.source})?${PRICE.source}$`);
 const priceOnlyLinePattern = new RegExp(`^(?:${CURRENCY_PREFIX.source})?${PRICE.source}$`);
 
+// Some tills mark an already-settled item with a word instead of a "0.00"
+// amount — a round paid for in advance, or comped by the pro shop. Checked
+// only as a fallback once the numeric patterns above have had first shot, so
+// a line that happens to include one of these words *and* a real price
+// (rare, but possible) still scores off the real price.
+const PAID_MARKER = /(?:pre-?paid|paid|comp(?:limentary)?|n\/c|no\s*charge)/i;
+const itemPaidLinePattern = new RegExp(`^(.+?)\\s+${PAID_MARKER.source}\\s*$`, 'i');
+const paidOnlyLinePattern = new RegExp(`^${PAID_MARKER.source}\\s*$`, 'i');
+
 // A leading number is usually a quantity prefix ("2 FootJoy Glove") UNLESS
 // what follows names something where the number is part of the product
 // itself, not a multiplier — hole counts ("9 Hole Round") and club/loft
@@ -147,6 +156,23 @@ function extractItems(lines: string[]): ParsedLineItem[] {
     if (priceOnly) {
       if (pendingDescription) {
         const item = toItem(pendingDescription, priceOnly[1]);
+        if (item) items.push(item);
+      }
+      pendingDescription = null;
+      continue;
+    }
+
+    const paidSameLine = line.match(itemPaidLinePattern);
+    if (paidSameLine) {
+      const item = toItem(paidSameLine[1], '0.00');
+      if (item) items.push(item);
+      pendingDescription = null;
+      continue;
+    }
+
+    if (paidOnlyLinePattern.test(line)) {
+      if (pendingDescription) {
+        const item = toItem(pendingDescription, '0.00');
         if (item) items.push(item);
       }
       pendingDescription = null;
@@ -248,7 +274,12 @@ export function parseReceiptText(rawText: string): ParsedReceipt {
   const grandTotal = findAmount(text, [
     new RegExp(`grand\\s*total[^\\d\\n]{0,30}${PRICE.source}`, 'i'),
     new RegExp(`(?:nett?\\s*total|amount\\s*due|balance\\s*due|total\\s*due)[^\\d\\n]{0,30}${PRICE.source}`, 'i'),
-    new RegExp(`\\btotal\\b[^\\d\\n]{0,30}${PRICE.source}`, 'i'),
+    // Bare "total" as a last resort — but never "Total Tendered"/"Total
+    // Amount Tendered", the cash actually handed over (usually more than
+    // the bill, with change given back), which would otherwise get read as
+    // the receipt's total if it's the first "total"-labeled line the OCR
+    // text happens to contain.
+    new RegExp(`\\btotal\\b(?!\\s*(?:amount\\s*)?tender)[^\\d\\n]{0,30}${PRICE.source}`, 'i'),
   ]);
 
   const merchantNameGuess = guessMerchantName(lines);
