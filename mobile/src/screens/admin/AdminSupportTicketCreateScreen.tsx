@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { ScrollView, StatusBar, StyleSheet, TextInput, View } from 'react-native';
+import { ScrollView, StatusBar, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AdminStackParamList } from '../../navigation/types';
@@ -7,6 +7,9 @@ import { ScreenHeader } from '../../components/common/ScreenHeader';
 import { TextField } from '../../components/common/TextField';
 import { PillButton } from '../../components/common/PillButton';
 import { useAdmin } from '../../context/AdminContext';
+import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
+import { AdminDesktopFrame } from '../../components/admin/desktop/AdminDesktopFrame';
+import { DesktopPanel } from '../../components/admin/desktop/DesktopPanel';
 import { AdminApiError } from '../../api/adminClient';
 import { showAlert } from '../../utils/alert';
 import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
@@ -17,6 +20,7 @@ type Props = NativeStackScreenProps<AdminStackParamList, 'AdminSupportTicketCrea
 export function AdminSupportTicketCreateScreen({ navigation }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const isDesktop = useIsDesktopNav();
   const { createSupportTicket } = useAdmin();
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
@@ -39,6 +43,34 @@ export function AdminSupportTicketCreateScreen({ navigation }: Props) {
     }
   };
 
+  const form = (
+    <>
+      <TextField placeholder="Subject" variant="onLight" value={subject} onChangeText={setSubject} />
+      <View style={{ height: spacing.md }} />
+      <TextInput
+        placeholder="Describe what's going on…"
+        placeholderTextColor={colors.textSecondary}
+        value={message}
+        onChangeText={setMessage}
+        multiline
+        style={styles.messageInput}
+      />
+      <View style={{ height: spacing.lg }} />
+      <PillButton label="Send Ticket" onPress={handleSubmit} loading={submitting} />
+    </>
+  );
+
+  if (isDesktop) {
+    return (
+      <AdminDesktopFrame activeKey="" breadcrumb="New Ticket" showRail={false}>
+        <Text style={styles.dPageTitle}>New Support Ticket</Text>
+        <DesktopPanel title=" " style={{ maxWidth: 480 }}>
+          {form}
+        </DesktopPanel>
+      </AdminDesktopFrame>
+    );
+  }
+
   return (
     <View style={styles.screen}>
       <StatusBar barStyle="light-content" />
@@ -47,18 +79,7 @@ export function AdminSupportTicketCreateScreen({ navigation }: Props) {
       </SafeAreaView>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <TextField placeholder="Subject" variant="onLight" value={subject} onChangeText={setSubject} />
-        <View style={{ height: spacing.md }} />
-        <TextInput
-          placeholder="Describe what's going on…"
-          placeholderTextColor={colors.textSecondary}
-          value={message}
-          onChangeText={setMessage}
-          multiline
-          style={styles.messageInput}
-        />
-        <View style={{ height: spacing.lg }} />
-        <PillButton label="Send Ticket" onPress={handleSubmit} loading={submitting} />
+        {form}
       </ScrollView>
     </View>
   );
@@ -81,5 +102,6 @@ function createStyles(colors: ThemeColors) {
     color: colors.textPrimary,
     textAlignVertical: 'top',
   },
+  dPageTitle: { fontFamily: fontFamily.heading, fontSize: 26, color: colors.textPrimary },
 });
 }

@@ -7,6 +7,9 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AdminStackParamList } from '../../navigation/types';
 import { ScreenHeader } from '../../components/common/ScreenHeader';
 import { useAdmin } from '../../context/AdminContext';
+import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
+import { AdminDesktopFrame } from '../../components/admin/desktop/AdminDesktopFrame';
+import { DesktopPanel } from '../../components/admin/desktop/DesktopPanel';
 import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
 import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 import type { CatalogActivity, CatalogProduct } from '../../data/adminTypes';
@@ -21,6 +24,7 @@ type Kind = 'product' | 'activity';
 export function AdminCatalogScreen({ navigation }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const isDesktop = useIsDesktopNav();
   const { course, catalogProducts, catalogActivities, loadCatalogProducts, loadCatalogActivities } = useAdmin();
   const [kind, setKind] = useState<Kind>('product');
   const [loading, setLoading] = useState(true);
@@ -94,6 +98,50 @@ export function AdminCatalogScreen({ navigation }: Props) {
 
   const list = kind === 'product' ? products : activities;
 
+  const toggle = (
+    <View style={styles.toggle}>
+      <TouchableOpacity style={[styles.togglePill, kind === 'product' && styles.togglePillActive]} onPress={() => setKind('product')}>
+        <Text style={[styles.toggleText, kind === 'product' && styles.toggleTextActive]}>Products</Text>
+      </TouchableOpacity>
+      <TouchableOpacity style={[styles.togglePill, kind === 'activity' && styles.togglePillActive]} onPress={() => setKind('activity')}>
+        <Text style={[styles.toggleText, kind === 'activity' && styles.toggleTextActive]}>Activities</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
+  const listRows =
+    loading ? (
+      <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.md }} />
+    ) : list.length === 0 ? (
+      <Text style={styles.emptyText}>
+        {kind === 'product' ? 'No products yet — add your first one.' : 'No activities yet — add your first one.'}
+      </Text>
+    ) : (
+      <View style={{ gap: spacing.sm }}>{kind === 'product' ? products.map(renderProductRow) : activities.map(renderActivityRow)}</View>
+    );
+
+  if (isDesktop) {
+    return (
+      <AdminDesktopFrame activeKey="AdminCatalog" breadcrumb="Products & Activities">
+        <View style={styles.dHeadRow}>
+          <Text style={styles.dPageTitle}>Products & Activities</Text>
+          <TouchableOpacity style={styles.dAddButton} onPress={() => navigation.navigate('AdminCatalogItemEdit', { kind })}>
+            <Ionicons name="add" size={16} color={colors.darkGreen} />
+            <Text style={styles.dAddButtonText}>{kind === 'product' ? 'Add Product' : 'Add Activity'}</Text>
+          </TouchableOpacity>
+        </View>
+        <Text style={styles.helpText}>
+          The receipt scanner matches item names against this list to award Flagrr Cash — anything not listed here
+          still earns Flagrr Cash from its printed Rand price.
+        </Text>
+        <DesktopPanel title=" ">
+          {toggle}
+          <View style={{ marginTop: spacing.sm }}>{listRows}</View>
+        </DesktopPanel>
+      </AdminDesktopFrame>
+    );
+  }
+
   return (
     <View style={styles.screen}>
       <StatusBar barStyle="light-content" />
@@ -102,20 +150,7 @@ export function AdminCatalogScreen({ navigation }: Props) {
       </SafeAreaView>
 
       <View style={styles.toolbar}>
-        <View style={styles.toggle}>
-          <TouchableOpacity
-            style={[styles.togglePill, kind === 'product' && styles.togglePillActive]}
-            onPress={() => setKind('product')}
-          >
-            <Text style={[styles.toggleText, kind === 'product' && styles.toggleTextActive]}>Products</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.togglePill, kind === 'activity' && styles.togglePillActive]}
-            onPress={() => setKind('activity')}
-          >
-            <Text style={[styles.toggleText, kind === 'activity' && styles.toggleTextActive]}>Activities</Text>
-          </TouchableOpacity>
-        </View>
+        {toggle}
         <TouchableOpacity
           onPress={() => navigation.navigate('AdminCatalogItemEdit', { kind })}
           hitSlop={8}
@@ -191,5 +226,17 @@ function createStyles(colors: ThemeColors) {
     textAlign: 'center',
     marginTop: spacing.xl,
   },
+  dHeadRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  dPageTitle: { fontFamily: fontFamily.heading, fontSize: 26, color: colors.textPrimary },
+  dAddButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.lime,
+    borderRadius: radius.pill,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  dAddButtonText: { fontFamily: fontFamily.bodySemiBold, fontSize: 13, color: colors.darkGreen },
 });
 }

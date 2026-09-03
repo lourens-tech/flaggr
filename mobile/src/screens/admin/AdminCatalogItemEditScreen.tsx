@@ -7,6 +7,9 @@ import { ScreenHeader } from '../../components/common/ScreenHeader';
 import { TextField } from '../../components/common/TextField';
 import { PillButton } from '../../components/common/PillButton';
 import { useAdmin } from '../../context/AdminContext';
+import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
+import { AdminDesktopFrame } from '../../components/admin/desktop/AdminDesktopFrame';
+import { DesktopPanel } from '../../components/admin/desktop/DesktopPanel';
 import { AdminApiError } from '../../api/adminClient';
 import { showAlert } from '../../utils/alert';
 import { fontFamily, fontSize, spacing } from '../../theme';
@@ -17,6 +20,7 @@ type Props = NativeStackScreenProps<AdminStackParamList, 'AdminCatalogItemEdit'>
 export function AdminCatalogItemEditScreen({ navigation, route }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const isDesktop = useIsDesktopNav();
   const { kind, itemId } = route.params;
   const isProduct = kind === 'product';
   const {
@@ -120,17 +124,10 @@ export function AdminCatalogItemEditScreen({ navigation, route }: Props) {
     );
   };
 
-  return (
-    <View style={styles.screen}>
-      <StatusBar barStyle="light-content" />
-      <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
-        <ScreenHeader
-          title={itemId ? `Edit ${isProduct ? 'Product' : 'Activity'}` : `New ${isProduct ? 'Product' : 'Activity'}`}
-          onBack={() => navigation.goBack()}
-        />
-      </SafeAreaView>
+  const title = itemId ? `Edit ${isProduct ? 'Product' : 'Activity'}` : `New ${isProduct ? 'Product' : 'Activity'}`;
 
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+  const form = (
+    <>
         <TextField
           placeholder={isProduct ? 'Name (e.g. Titleist Pro V1 Golf Balls)' : 'Name (e.g. 18 Hole Round)'}
           variant="onLight"
@@ -188,6 +185,29 @@ export function AdminCatalogItemEditScreen({ navigation, route }: Props) {
             <Text style={styles.deleteText}>Remove {isProduct ? 'Product' : 'Activity'}</Text>
           </TouchableOpacity>
         ) : null}
+    </>
+  );
+
+  if (isDesktop) {
+    return (
+      <AdminDesktopFrame activeKey="AdminCatalog" breadcrumb={title} showRail={false}>
+        <Text style={styles.dPageTitle}>{title}</Text>
+        <DesktopPanel title=" " style={{ maxWidth: 520 }}>
+          {form}
+        </DesktopPanel>
+      </AdminDesktopFrame>
+    );
+  }
+
+  return (
+    <View style={styles.screen}>
+      <StatusBar barStyle="light-content" />
+      <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
+        <ScreenHeader title={title} onBack={() => navigation.goBack()} />
+      </SafeAreaView>
+
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        {form}
       </ScrollView>
     </View>
   );
@@ -210,5 +230,6 @@ function createStyles(colors: ThemeColors) {
   switchHint: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary, marginTop: 2 },
   deleteButton: { alignItems: 'center', marginTop: spacing.lg },
   deleteText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.negative },
+  dPageTitle: { fontFamily: fontFamily.heading, fontSize: 26, color: colors.textPrimary },
 });
 }

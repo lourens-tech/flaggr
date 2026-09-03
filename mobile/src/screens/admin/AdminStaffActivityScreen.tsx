@@ -6,6 +6,9 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AdminStackParamList } from '../../navigation/types';
 import { ScreenHeader } from '../../components/common/ScreenHeader';
 import { useAdmin } from '../../context/AdminContext';
+import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
+import { AdminDesktopFrame } from '../../components/admin/desktop/AdminDesktopFrame';
+import { DesktopPanel } from '../../components/admin/desktop/DesktopPanel';
 import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
 import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 import type { StaffRedemption } from '../../data/adminTypes';
@@ -23,6 +26,7 @@ function formatDate(iso: string): string {
 export function AdminStaffActivityScreen({ navigation }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const isDesktop = useIsDesktopNav();
   const { getStaffRedemptions } = useAdmin();
   const [redemptions, setRedemptions] = useState<StaffRedemption[]>([]);
   const [loading, setLoading] = useState(true);
@@ -63,6 +67,27 @@ export function AdminStaffActivityScreen({ navigation }: Props) {
       <Text style={styles.cardTime}>{formatDate(item.redeemedAt)} · {item.code}</Text>
     </View>
   );
+
+  if (isDesktop) {
+    return (
+      <AdminDesktopFrame activeKey="AdminStaffList" breadcrumb="Redemption Activity" showRail={false}>
+        <Text style={styles.dPageTitle}>Redemption Activity</Text>
+        <DesktopPanel title="All Redemptions">
+          {loading ? (
+            <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.md }} />
+          ) : redemptions.length === 0 ? (
+            <Text style={styles.emptyText}>No rewards have been redeemed at the till yet.</Text>
+          ) : (
+            <View style={{ gap: spacing.sm }}>
+              {redemptions.map((item) => (
+                <React.Fragment key={item.code}>{renderItem({ item })}</React.Fragment>
+              ))}
+            </View>
+          )}
+        </DesktopPanel>
+      </AdminDesktopFrame>
+    );
+  }
 
   return (
     <View style={styles.screen}>
@@ -111,5 +136,6 @@ function createStyles(colors: ThemeColors) {
     textAlign: 'center',
     marginTop: spacing.xl,
   },
+  dPageTitle: { fontFamily: fontFamily.heading, fontSize: 26, color: colors.textPrimary },
 });
 }

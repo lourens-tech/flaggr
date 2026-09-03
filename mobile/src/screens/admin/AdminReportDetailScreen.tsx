@@ -7,6 +7,8 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AdminStackParamList } from '../../navigation/types';
 import { ScreenHeader } from '../../components/common/ScreenHeader';
 import { useAdmin } from '../../context/AdminContext';
+import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
+import { AdminDesktopFrame } from '../../components/admin/desktop/AdminDesktopFrame';
 import { downloadReport, AdminApiError } from '../../api/adminClient';
 import { showAlert } from '../../utils/alert';
 import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
@@ -97,6 +99,7 @@ const COLUMNS_BY_REPORT: Record<CourseReportKind, Column[]> = {
 export function AdminReportDetailScreen({ navigation, route }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const isDesktop = useIsDesktopNav();
   const { report, label } = route.params;
   const { getReportRows } = useAdmin();
   const [period, setPeriod] = useState<Period>(route.params.period);
@@ -149,6 +152,76 @@ export function AdminReportDetailScreen({ navigation, route }: Props) {
     }
   };
 
+  const toolbar = (
+    <View style={styles.toolbar}>
+      <Text style={styles.totalText}>{rows.length.toLocaleString()} row{rows.length === 1 ? '' : 's'}</Text>
+      <View style={styles.toolbarRight}>
+        <View style={styles.periodToggle}>
+          {PERIODS.map((p) => (
+            <TouchableOpacity
+              key={p}
+              onPress={() => handlePeriodChange(p)}
+              style={[styles.periodPill, period === p && styles.periodPillActive]}
+            >
+              <Text style={[styles.periodText, period === p && styles.periodTextActive]}>{PERIOD_LABELS[p]}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+        <TouchableOpacity style={styles.exportButton} onPress={handleExport} disabled={exporting}>
+          {exporting ? (
+            <ActivityIndicator color={colors.white} size="small" />
+          ) : (
+            <>
+              <Ionicons name="download-outline" size={16} color={colors.white} />
+              <Text style={styles.exportButtonText}>Excel</Text>
+            </>
+          )}
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
+  const table = loading ? (
+    <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
+  ) : rows.length === 0 ? (
+    <Text style={styles.emptyText}>No data for this period.</Text>
+  ) : (
+    <ScrollView horizontal showsHorizontalScrollIndicator style={styles.tableScroll}>
+      <View>
+        <View style={styles.headerRow}>
+          {columns.map((c) => (
+            <Text key={c.key} style={[styles.headerCell, { width: c.width }]} numberOfLines={1}>
+              {c.label}
+            </Text>
+          ))}
+        </View>
+        <ScrollView showsVerticalScrollIndicator style={styles.verticalScroll}>
+          {rows.map((row, i) => (
+            <View key={i} style={[styles.dataRow, i % 2 === 1 && styles.dataRowAlt]}>
+              {columns.map((c) => (
+                <Text key={c.key} style={[styles.dataCell, { width: c.width }]} numberOfLines={1}>
+                  {c.render(row)}
+                </Text>
+              ))}
+            </View>
+          ))}
+        </ScrollView>
+      </View>
+    </ScrollView>
+  );
+
+  if (isDesktop) {
+    return (
+      <AdminDesktopFrame activeKey="" breadcrumb={label} showRail={false} scrollable={false}>
+        <Text style={styles.dPageTitle}>{label}</Text>
+        <View style={styles.dTableCard}>
+          {toolbar}
+          {table}
+        </View>
+      </AdminDesktopFrame>
+    );
+  }
+
   return (
     <View style={styles.screen}>
       <StatusBar barStyle="light-content" />
@@ -156,61 +229,8 @@ export function AdminReportDetailScreen({ navigation, route }: Props) {
         <ScreenHeader title={label} onBack={() => navigation.goBack()} />
       </SafeAreaView>
 
-      <View style={styles.toolbar}>
-        <Text style={styles.totalText}>{rows.length.toLocaleString()} row{rows.length === 1 ? '' : 's'}</Text>
-        <View style={styles.toolbarRight}>
-          <View style={styles.periodToggle}>
-            {PERIODS.map((p) => (
-              <TouchableOpacity
-                key={p}
-                onPress={() => handlePeriodChange(p)}
-                style={[styles.periodPill, period === p && styles.periodPillActive]}
-              >
-                <Text style={[styles.periodText, period === p && styles.periodTextActive]}>{PERIOD_LABELS[p]}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-          <TouchableOpacity style={styles.exportButton} onPress={handleExport} disabled={exporting}>
-            {exporting ? (
-              <ActivityIndicator color={colors.white} size="small" />
-            ) : (
-              <>
-                <Ionicons name="download-outline" size={16} color={colors.white} />
-                <Text style={styles.exportButtonText}>Excel</Text>
-              </>
-            )}
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {loading ? (
-        <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
-      ) : rows.length === 0 ? (
-        <Text style={styles.emptyText}>No data for this period.</Text>
-      ) : (
-        <ScrollView horizontal showsHorizontalScrollIndicator style={styles.tableScroll}>
-          <View>
-            <View style={styles.headerRow}>
-              {columns.map((c) => (
-                <Text key={c.key} style={[styles.headerCell, { width: c.width }]} numberOfLines={1}>
-                  {c.label}
-                </Text>
-              ))}
-            </View>
-            <ScrollView showsVerticalScrollIndicator style={styles.verticalScroll}>
-              {rows.map((row, i) => (
-                <View key={i} style={[styles.dataRow, i % 2 === 1 && styles.dataRowAlt]}>
-                  {columns.map((c) => (
-                    <Text key={c.key} style={[styles.dataCell, { width: c.width }]} numberOfLines={1}>
-                      {c.render(row)}
-                    </Text>
-                  ))}
-                </View>
-              ))}
-            </ScrollView>
-          </View>
-        </ScrollView>
-      )}
+      {toolbar}
+      {table}
     </View>
   );
 }
@@ -270,6 +290,15 @@ function createStyles(colors: ThemeColors) {
     color: colors.textSecondary,
     textAlign: 'center',
     marginTop: spacing.xl,
+  },
+  dPageTitle: { fontFamily: fontFamily.heading, fontSize: 26, color: colors.textPrimary },
+  dTableCard: {
+    flex: 1,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 16,
+    overflow: 'hidden',
   },
 });
 }

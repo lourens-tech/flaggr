@@ -8,6 +8,9 @@ import type { AdminStackParamList } from '../../navigation/types';
 import { ScreenHeader } from '../../components/common/ScreenHeader';
 import { TextField } from '../../components/common/TextField';
 import { useAdmin } from '../../context/AdminContext';
+import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
+import { AdminDesktopFrame } from '../../components/admin/desktop/AdminDesktopFrame';
+import { DesktopPanel } from '../../components/admin/desktop/DesktopPanel';
 import { AdminApiError } from '../../api/adminClient';
 import { showAlert } from '../../utils/alert';
 import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
@@ -27,6 +30,7 @@ const FILTERS: Array<{ label: string; value: StatusFilter }> = [
 export function AdminStaffListScreen({ navigation }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const isDesktop = useIsDesktopNav();
   const { staff, loadStaff, revokeStaff, reactivateStaff, deleteStaff, course, reopenStaffOnboardingWizard } = useAdmin();
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -163,6 +167,72 @@ export function AdminStaffListScreen({ navigation }: Props) {
     </TouchableOpacity>
   );
 
+  const onboardingBanner = course.staffOnboardingCompletedAt === null ? (
+    <TouchableOpacity style={styles.onboardingBanner} onPress={reopenStaffOnboardingWizard} activeOpacity={0.85}>
+      <Ionicons name="people-outline" size={18} color={colors.darkGreen} />
+      <Text style={styles.onboardingBannerText}>Invite your team</Text>
+      <Ionicons name="chevron-forward" size={16} color={colors.darkGreen} />
+    </TouchableOpacity>
+  ) : null;
+
+  const searchAndFilters = (
+    <View style={styles.searchArea}>
+      <TextField placeholder="Search staff" variant="onLight" icon="search" value={search} onChangeText={setSearch} />
+      <View style={styles.filterRow}>
+        {FILTERS.map((f) => (
+          <TouchableOpacity
+            key={f.value}
+            onPress={() => setFilter(f.value)}
+            style={[styles.filterPill, filter === f.value && styles.filterPillActive]}
+            accessibilityLabel={`Filter ${f.label}`}
+            accessibilityRole="button"
+          >
+            <Text style={[styles.filterText, filter === f.value && styles.filterTextActive]}>{f.label}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+    </View>
+  );
+
+  if (isDesktop) {
+    return (
+      <AdminDesktopFrame activeKey="AdminStaffList" breadcrumb="Staff & Club Admins">
+        <View style={styles.dHeadRow}>
+          <Text style={styles.dPageTitle}>Staff & Club Admins</Text>
+          <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+            <TouchableOpacity style={styles.dSecondaryButton} onPress={() => navigation.navigate('AdminClubAdmins')}>
+              <Ionicons name="person-add-outline" size={15} color={colors.textPrimary} />
+              <Text style={styles.dSecondaryButtonText}>Club Admins</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.dSecondaryButton} onPress={() => navigation.navigate('AdminStaffActivity')}>
+              <Ionicons name="time-outline" size={15} color={colors.textPrimary} />
+              <Text style={styles.dSecondaryButtonText}>Activity</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.dAddButton} onPress={() => navigation.navigate('AdminStaffEdit', undefined)}>
+              <Ionicons name="add" size={16} color={colors.darkGreen} />
+              <Text style={styles.dAddButtonText}>Add Staff</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+        {onboardingBanner}
+        <DesktopPanel title="Staff Members">
+          {searchAndFilters}
+          {loading ? (
+            <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.md }} />
+          ) : filtered.length === 0 ? (
+            <Text style={styles.emptyText}>{staff.length === 0 ? 'No staff members yet.' : 'No staff match your search.'}</Text>
+          ) : (
+            <View style={{ gap: spacing.sm, marginTop: spacing.sm }}>
+              {filtered.map((item) => (
+                <React.Fragment key={item.id}>{renderItem({ item })}</React.Fragment>
+              ))}
+            </View>
+          )}
+        </DesktopPanel>
+      </AdminDesktopFrame>
+    );
+  }
+
   return (
     <View style={styles.screen}>
       <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
@@ -192,30 +262,8 @@ export function AdminStaffListScreen({ navigation }: Props) {
         />
       </SafeAreaView>
 
-      <View style={styles.searchArea}>
-        <TextField placeholder="Search staff" variant="onLight" icon="search" value={search} onChangeText={setSearch} />
-        <View style={styles.filterRow}>
-          {FILTERS.map((f) => (
-            <TouchableOpacity
-              key={f.value}
-              onPress={() => setFilter(f.value)}
-              style={[styles.filterPill, filter === f.value && styles.filterPillActive]}
-              accessibilityLabel={`Filter ${f.label}`}
-              accessibilityRole="button"
-            >
-              <Text style={[styles.filterText, filter === f.value && styles.filterTextActive]}>{f.label}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </View>
-
-      {course.staffOnboardingCompletedAt === null ? (
-        <TouchableOpacity style={styles.onboardingBanner} onPress={reopenStaffOnboardingWizard} activeOpacity={0.85}>
-          <Ionicons name="people-outline" size={18} color={colors.darkGreen} />
-          <Text style={styles.onboardingBannerText}>Invite your team</Text>
-          <Ionicons name="chevron-forward" size={16} color={colors.darkGreen} />
-        </TouchableOpacity>
-      ) : null}
+      {searchAndFilters}
+      {onboardingBanner}
 
       {loading ? (
         <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
@@ -285,5 +333,28 @@ function createStyles(colors: ThemeColors) {
     textAlign: 'center',
     marginTop: spacing.xl,
   },
+  dHeadRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: spacing.sm },
+  dPageTitle: { fontFamily: fontFamily.heading, fontSize: 26, color: colors.textPrimary },
+  dSecondaryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.pill,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+  },
+  dSecondaryButtonText: { fontFamily: fontFamily.bodySemiBold, fontSize: 12.5, color: colors.textPrimary },
+  dAddButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.lime,
+    borderRadius: radius.pill,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  dAddButtonText: { fontFamily: fontFamily.bodySemiBold, fontSize: 13, color: colors.darkGreen },
 });
 }

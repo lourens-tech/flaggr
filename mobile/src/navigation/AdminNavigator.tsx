@@ -24,14 +24,19 @@ import { TermsPrivacyScreen } from '../screens/profile/TermsPrivacyScreen';
 import { AdminOnboardingWizard } from '../components/admin/AdminOnboardingWizard';
 import { AdminStaffOnboardingWizard } from '../components/admin/AdminStaffOnboardingWizard';
 import { useAdmin } from '../context/AdminContext';
+import { useIsDesktopNav } from '../hooks/useIsDesktopNav';
 
 const Stack = createNativeStackNavigator<AdminStackParamList>();
 
 export function AdminNavigator() {
   const { showOnboardingWizard, showStaffOnboardingWizard } = useAdmin();
+  const isDesktop = useIsDesktopNav();
+  // Every screen renders its own instance of the desktop sidebar/topbar (see
+  // AdminDesktopFrame) so it reads as persistent chrome — the default slide
+  // transition would otherwise visibly re-animate it on every navigation.
   return (
     <>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Navigator screenOptions={{ headerShown: false, animation: isDesktop ? 'none' : 'default' }}>
         <Stack.Screen name="AdminTabs" component={AdminTabNavigator} />
         <Stack.Screen name="AdminRewardEdit" component={AdminRewardEditScreen} />
         <Stack.Screen name="AdminAdEdit" component={AdminAdEditScreen} />

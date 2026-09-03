@@ -7,6 +7,9 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AdminStackParamList } from '../../navigation/types';
 import { ScreenHeader } from '../../components/common/ScreenHeader';
 import { useAdmin } from '../../context/AdminContext';
+import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
+import { AdminDesktopFrame } from '../../components/admin/desktop/AdminDesktopFrame';
+import { DesktopPanel } from '../../components/admin/desktop/DesktopPanel';
 import { showAlert } from '../../utils/alert';
 import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
 import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
@@ -21,6 +24,7 @@ function formatDate(iso: string): string {
 export function AdminFraudOversightScreen({ navigation }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const isDesktop = useIsDesktopNav();
   const { getFlaggedReceipts, confirmReceiptFraud, approveReceipt, getReceiptImage } = useAdmin();
   const [flagged, setFlagged] = useState<FlaggedReceipt[]>([]);
   const [loading, setLoading] = useState(true);
@@ -159,6 +163,86 @@ export function AdminFraudOversightScreen({ navigation }: Props) {
       </View>
     </View>
   );
+
+  const listBody = loading ? (
+    <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
+  ) : flagged.length === 0 ? (
+    <Text style={styles.emptyText}>No flagged receipts awaiting review.</Text>
+  ) : null;
+
+  if (isDesktop) {
+    return (
+      <>
+        <AdminDesktopFrame activeKey="AdminFraudOversight" breadcrumb="Fraud Review" showRail={false}>
+          <Text style={styles.dPageTitle}>Fraud Review</Text>
+          <DesktopPanel title="Flagged Receipts">
+            {listBody ?? (
+              <View style={{ gap: spacing.sm }}>
+                {flagged.map((item) => (
+                  <React.Fragment key={item.id}>{renderItem({ item })}</React.Fragment>
+                ))}
+              </View>
+            )}
+          </DesktopPanel>
+        </AdminDesktopFrame>
+
+        <Modal visible={photoModal !== null} transparent animationType="fade" onRequestClose={() => setPhotoModal(null)}>
+          <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={() => setPhotoModal(null)}>
+            <View style={styles.photoSheet}>
+              <View style={styles.photoSheetHeader}>
+                <Text style={styles.photoSheetTitle}>Receipt Photo</Text>
+                <TouchableOpacity onPress={() => setPhotoModal(null)} hitSlop={8}>
+                  <Ionicons name="close" size={22} color={colors.textPrimary} />
+                </TouchableOpacity>
+              </View>
+              {photoModal?.imageData ? (
+                <Image source={{ uri: photoModal.imageData }} style={styles.photoImage} resizeMode="contain" />
+              ) : (
+                <Text style={styles.emptyText}>No photo was saved for this receipt.</Text>
+              )}
+            </View>
+          </TouchableOpacity>
+        </Modal>
+
+        <Modal visible={reasonModal !== null} transparent animationType="fade" onRequestClose={() => setReasonModal(null)}>
+          <View style={styles.backdrop}>
+            <View style={styles.photoSheet}>
+              <View style={styles.photoSheetHeader}>
+                <Text style={styles.photoSheetTitle}>Mark as Fraud</Text>
+                <TouchableOpacity onPress={() => setReasonModal(null)} hitSlop={8}>
+                  <Ionicons name="close" size={22} color={colors.textPrimary} />
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.reasonModalHint}>
+                This rejects the receipt{reasonModal && !reasonModal.pointsCredited ? '' : " and reverses any Flagrr Cash it already awarded"}.
+                {reasonModal?.memberName ? ` ${reasonModal.memberName}` : 'The member'} will be sent the reason below. This can't be undone.
+              </Text>
+              <TextInput
+                placeholder="Explain why this receipt is fraudulent…"
+                placeholderTextColor={colors.textSecondary}
+                value={reasonText}
+                onChangeText={setReasonText}
+                multiline
+                style={styles.reasonInput}
+              />
+              <View style={styles.reasonModalActions}>
+                <TouchableOpacity style={styles.reasonCancelButton} onPress={() => setReasonModal(null)}>
+                  <Text style={styles.reasonCancelText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.reasonSubmitButton, !reasonText.trim() && styles.reasonSubmitButtonDisabled]}
+                  onPress={handleSubmitFraudReason}
+                  disabled={!reasonText.trim()}
+                >
+                  <Text style={styles.reasonSubmitText}>Mark as Fraud</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+      </>
+    );
+  }
 
   return (
     <View style={styles.screen}>
@@ -303,5 +387,6 @@ function createStyles(colors: ThemeColors) {
     textAlign: 'center',
     marginTop: spacing.xl,
   },
+  dPageTitle: { fontFamily: fontFamily.heading, fontSize: 26, color: colors.textPrimary },
 });
 }

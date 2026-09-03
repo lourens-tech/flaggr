@@ -9,6 +9,9 @@ import type { AdminStackParamList, AdminTabParamList } from '../../navigation/ty
 import { AdminHeaderAvatar } from '../../components/common/AdminHeaderAvatar';
 import { PillButton } from '../../components/common/PillButton';
 import { useAdmin } from '../../context/AdminContext';
+import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
+import { AdminDesktopFrame } from '../../components/admin/desktop/AdminDesktopFrame';
+import { DesktopPanel } from '../../components/admin/desktop/DesktopPanel';
 import { AdminApiError } from '../../api/adminClient';
 import { showAlert } from '../../utils/alert';
 import { ThemeToggleRow } from '../../components/common/ThemeToggleRow';
@@ -29,6 +32,7 @@ type Props = CompositeScreenProps<
 export function AdminStaffProfileScreen({ navigation }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const isDesktop = useIsDesktopNav();
   const { admin, course, updateThemePreference, logout } = useAdmin();
 
   const [savingTheme, setSavingTheme] = useState(false);
@@ -51,6 +55,36 @@ export function AdminStaffProfileScreen({ navigation }: Props) {
       { text: 'Log Out', style: 'destructive', onPress: () => logout() },
     ]);
   };
+
+  if (isDesktop) {
+    return (
+      <AdminDesktopFrame activeKey="AdminStaffProfile" breadcrumb="Profile" showRail={false}>
+        <Text style={styles.dPageTitle}>My Profile</Text>
+        <DesktopPanel title=" " style={{ maxWidth: 480 }}>
+          <View style={styles.avatarWrap}>
+            <AdminHeaderAvatar logoUrl={course.logoUrl} size={64} />
+            <Text style={styles.name}>{admin.firstName} {admin.lastName}</Text>
+            <Text style={styles.email}>Username: {admin.username}</Text>
+            <View style={styles.roleBadge}>
+              <Text style={styles.roleBadgeText}>Staff</Text>
+            </View>
+          </View>
+          <Text style={styles.helpText}>
+            Your name and username are managed by your course admin. Contact them if these need to change.
+          </Text>
+          <PillButton label="Support Centre" icon="headset-outline" variant="outline" onPress={() => navigation.navigate('AdminSupportTickets')} />
+          <View style={{ height: spacing.md }} />
+          <ThemeToggleRow onChange={handleThemeChange} disabled={savingTheme} />
+          <View style={{ height: spacing.md }} />
+          <PillButton label="Terms & Privacy" icon="shield-checkmark-outline" variant="outline" onPress={() => navigation.navigate('TermsPrivacy')} />
+          <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
+            <Ionicons name="log-out-outline" size={18} color={colors.negative} />
+            <Text style={styles.logoutText}>Log Out</Text>
+          </TouchableOpacity>
+        </DesktopPanel>
+      </AdminDesktopFrame>
+    );
+  }
 
   return (
     <View style={styles.screen}>
@@ -145,5 +179,6 @@ function createStyles(colors: ThemeColors) {
     paddingVertical: spacing.sm,
   },
   logoutText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.negative },
+  dPageTitle: { fontFamily: fontFamily.heading, fontSize: 26, color: colors.textPrimary },
 });
 }

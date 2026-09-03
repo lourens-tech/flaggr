@@ -7,6 +7,9 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AdminStackParamList } from '../../navigation/types';
 import { ScreenHeader } from '../../components/common/ScreenHeader';
 import { useAdmin } from '../../context/AdminContext';
+import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
+import { AdminDesktopFrame } from '../../components/admin/desktop/AdminDesktopFrame';
+import { DesktopPanel } from '../../components/admin/desktop/DesktopPanel';
 import { fontFamily, fontSize, radius, screenPadding, spacing, ticketStatusBadges } from '../../theme';
 import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 import type { SupportTicketStatus, SupportTicketSummary } from '../../data/adminTypes';
@@ -29,6 +32,7 @@ function relativeTime(iso: string): string {
 export function AdminSupportTicketsScreen({ navigation }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const isDesktop = useIsDesktopNav();
   const { listSupportTickets } = useAdmin();
   const [tickets, setTickets] = useState<SupportTicketSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -75,6 +79,33 @@ export function AdminSupportTicketsScreen({ navigation }: Props) {
       </TouchableOpacity>
     );
   };
+
+  if (isDesktop) {
+    return (
+      <AdminDesktopFrame activeKey="" breadcrumb="Support Centre" showRail={false}>
+        <View style={styles.dHeadRow}>
+          <Text style={styles.dPageTitle}>Support Centre</Text>
+          <TouchableOpacity style={styles.dAddButton} onPress={() => navigation.navigate('AdminSupportTicketCreate')}>
+            <Ionicons name="add" size={16} color={colors.darkGreen} />
+            <Text style={styles.dAddButtonText}>New Ticket</Text>
+          </TouchableOpacity>
+        </View>
+        <DesktopPanel title="Your Tickets">
+          {loading ? (
+            <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.md }} />
+          ) : tickets.length === 0 ? (
+            <Text style={styles.emptyText}>No support tickets yet.</Text>
+          ) : (
+            <View style={{ gap: spacing.sm }}>
+              {tickets.map((item) => (
+                <React.Fragment key={item.id}>{renderItem({ item })}</React.Fragment>
+              ))}
+            </View>
+          )}
+        </DesktopPanel>
+      </AdminDesktopFrame>
+    );
+  }
 
   return (
     <View style={styles.screen}>
@@ -141,5 +172,17 @@ function createStyles(colors: ThemeColors) {
     textAlign: 'center',
     marginTop: spacing.xl,
   },
+  dHeadRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  dPageTitle: { fontFamily: fontFamily.heading, fontSize: 26, color: colors.textPrimary },
+  dAddButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.lime,
+    borderRadius: radius.pill,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  dAddButtonText: { fontFamily: fontFamily.bodySemiBold, fontSize: 13, color: colors.darkGreen },
 });
 }

@@ -9,6 +9,9 @@ import { ScreenHeader } from '../../components/common/ScreenHeader';
 import { TextField } from '../../components/common/TextField';
 import { PillButton } from '../../components/common/PillButton';
 import { useAdmin } from '../../context/AdminContext';
+import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
+import { AdminDesktopFrame } from '../../components/admin/desktop/AdminDesktopFrame';
+import { DesktopPanel } from '../../components/admin/desktop/DesktopPanel';
 import { AdminApiError } from '../../api/adminClient';
 import { showAlert } from '../../utils/alert';
 import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
@@ -26,6 +29,7 @@ const MAX_CLUB_ADMINS = 2;
 export function AdminClubAdminsScreen({ navigation }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const isDesktop = useIsDesktopNav();
   const { admin, getClubAdmins, inviteClubAdmin, revokeClubAdmin, reactivateClubAdmin, deleteClubAdmin } = useAdmin();
   const [admins, setAdmins] = useState<ClubAdminSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -144,14 +148,9 @@ export function AdminClubAdminsScreen({ navigation }: Props) {
 
   const canInviteMore = admins.filter((a) => !a.revoked).length < MAX_CLUB_ADMINS;
 
-  return (
-    <View style={styles.screen}>
-      <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
-        <ScreenHeader title="Club Admins" onBack={() => navigation.goBack()} />
-      </SafeAreaView>
-
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {loading ? (
+  const body = (
+    <>
+      {loading ? (
           <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
         ) : (
           <>
@@ -226,6 +225,34 @@ export function AdminClubAdminsScreen({ navigation }: Props) {
             )}
           </>
         )}
+    </>
+  );
+
+  if (isDesktop) {
+    return (
+      <AdminDesktopFrame activeKey="AdminStaffList" breadcrumb="Club Admins">
+        <View style={styles.dHeadRow}>
+          <Text style={styles.dPageTitle}>Club Admins</Text>
+          <TouchableOpacity style={styles.dSecondaryButton} onPress={() => navigation.navigate('AdminStaffList')}>
+            <Ionicons name="people-circle-outline" size={15} color={colors.textPrimary} />
+            <Text style={styles.dSecondaryButtonText}>Staff</Text>
+          </TouchableOpacity>
+        </View>
+        <DesktopPanel title=" " style={{ maxWidth: 560 }}>
+          {body}
+        </DesktopPanel>
+      </AdminDesktopFrame>
+    );
+  }
+
+  return (
+    <View style={styles.screen}>
+      <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
+        <ScreenHeader title="Club Admins" onBack={() => navigation.goBack()} />
+      </SafeAreaView>
+
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        {body}
       </ScrollView>
     </View>
   );
@@ -264,5 +291,18 @@ function createStyles(colors: ThemeColors) {
       marginBottom: spacing.sm,
     },
     helpText: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary },
+    dHeadRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    dPageTitle: { fontFamily: fontFamily.heading, fontSize: 26, color: colors.textPrimary },
+    dSecondaryButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: radius.pill,
+      paddingHorizontal: 14,
+      paddingVertical: 9,
+    },
+    dSecondaryButtonText: { fontFamily: fontFamily.bodySemiBold, fontSize: 12.5, color: colors.textPrimary },
   });
 }

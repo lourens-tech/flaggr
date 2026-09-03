@@ -7,6 +7,10 @@ import type { AdminStackParamList } from '../../navigation/types';
 import { StatCard } from '../../components/common/StatCard';
 import { BarChart } from '../../components/common/BarChart';
 import { useAdmin } from '../../context/AdminContext';
+import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
+import { AdminDesktopFrame } from '../../components/admin/desktop/AdminDesktopFrame';
+import { DesktopStatCard } from '../../components/admin/desktop/DesktopStatCard';
+import { DesktopPanel } from '../../components/admin/desktop/DesktopPanel';
 import { downloadReport, AdminApiError } from '../../api/adminClient';
 import { showAlert } from '../../utils/alert';
 import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
@@ -26,6 +30,7 @@ type Props = NativeStackScreenProps<AdminStackParamList, 'AdminMemberStats'>;
 export function AdminMemberStatsScreen({ route, navigation }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const isDesktop = useIsDesktopNav();
   const { memberId } = route.params;
   const { getMemberStats } = useAdmin();
   const [period, setPeriod] = useState<Period>('month');
@@ -73,6 +78,66 @@ export function AdminMemberStatsScreen({ route, navigation }: Props) {
     }
   };
 
+  const periodToggle = (
+    <View style={styles.periodToggle}>
+      {PERIODS.map((p) => (
+        <TouchableOpacity
+          key={p}
+          onPress={() => handlePeriodChange(p)}
+          style={[styles.periodPill, period === p && styles.periodPillActive]}
+        >
+          <Text style={[styles.periodText, period === p && styles.periodTextActive]}>{PERIOD_LABELS[p]}</Text>
+        </TouchableOpacity>
+      ))}
+    </View>
+  );
+
+  if (isDesktop) {
+    return (
+      <AdminDesktopFrame
+        activeKey=""
+        breadcrumb={data ? `${data.member.firstName} ${data.member.lastName}` : 'Member Stats'}
+        headerRight={periodToggle}
+        showRail={false}
+      >
+        <Text style={styles.dPageTitle}>{data ? `${data.member.firstName} ${data.member.lastName}` : 'Member Stats'}</Text>
+        {data ? <Text style={styles.dPageSubtitle}>{data.member.email}</Text> : null}
+
+        {loading && !data ? (
+          <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
+        ) : data ? (
+          <>
+            <View style={styles.tierRow}>
+              <View style={styles.tierPill}>
+                <Ionicons name="trophy-outline" size={14} color={colors.textPrimary} />
+                <Text style={styles.tierPillText}>{data.member.tier} Member</Text>
+              </View>
+              <Text style={styles.balanceText}>{data.member.balance.toLocaleString()} FC Balance</Text>
+            </View>
+
+            <View style={styles.dStatRow}>
+              <DesktopStatCard label="Rounds (9 Holes)" value={data.stats.roundsPlayed9} icon="golf-outline" deltaPct={data.stats.roundsPlayed9DeltaPct} showDelta={period !== 'all'} />
+              <DesktopStatCard label="Rounds (18 Holes)" value={data.stats.roundsPlayed18} icon="golf-outline" deltaPct={data.stats.roundsPlayed18DeltaPct} showDelta={period !== 'all'} />
+              <DesktopStatCard label="Flagrr Cash Earned" value={data.stats.bucksEarned.toLocaleString()} icon="trending-up-outline" deltaPct={data.stats.bucksEarnedDeltaPct} showDelta={period !== 'all'} />
+              <DesktopStatCard label="Flagrr Cash Redeemed" value={data.stats.bucksRedeemed.toLocaleString()} icon="swap-horizontal-outline" deltaPct={data.stats.bucksRedeemedDeltaPct} showDelta={period !== 'all'} />
+              <DesktopStatCard label="Receipts Scanned" value={data.stats.receiptsScanned} icon="receipt-outline" deltaPct={data.stats.receiptsScannedDeltaPct} showDelta={period !== 'all'} />
+            </View>
+
+            <DesktopPanel title="Flagrr Cash Earned Per Month">
+              <BarChart data={data.stats.monthly} height={130} />
+            </DesktopPanel>
+
+            <TouchableOpacity style={styles.dDownloadRow} onPress={handleExport} disabled={exporting}>
+              <Ionicons name="download-outline" size={18} color={colors.clubGreen} />
+              <Text style={styles.dDownloadLabel}>Download Member Excel Report</Text>
+              {exporting ? <ActivityIndicator color={colors.clubGreen} size="small" /> : null}
+            </TouchableOpacity>
+          </>
+        ) : null}
+      </AdminDesktopFrame>
+    );
+  }
+
   return (
     <View style={styles.screen}>
       <StatusBar barStyle="light-content" />
@@ -93,17 +158,7 @@ export function AdminMemberStatsScreen({ route, navigation }: Props) {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.statsHeaderRow}>
           <Text style={styles.sectionTitle}>Overview</Text>
-          <View style={styles.periodToggle}>
-            {PERIODS.map((p) => (
-              <TouchableOpacity
-                key={p}
-                onPress={() => handlePeriodChange(p)}
-                style={[styles.periodPill, period === p && styles.periodPillActive]}
-              >
-                <Text style={[styles.periodText, period === p && styles.periodTextActive]}>{PERIOD_LABELS[p]}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          {periodToggle}
         </View>
 
         {loading && !data ? (
@@ -260,5 +315,20 @@ function createStyles(colors: ThemeColors) {
   },
   downloadRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   downloadLabel: { flex: 1, fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.textPrimary },
+  dPageTitle: { fontFamily: fontFamily.heading, fontSize: 26, color: colors.textPrimary },
+  dPageSubtitle: { fontFamily: fontFamily.body, fontSize: 13, color: colors.textSecondary, marginTop: 2 },
+  dStatRow: { flexDirection: 'row', gap: 14, flexWrap: 'wrap' },
+  dDownloadRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.mintBgAlt,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 14,
+    padding: spacing.md,
+    alignSelf: 'flex-start',
+  },
+  dDownloadLabel: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.textPrimary },
 });
 }
