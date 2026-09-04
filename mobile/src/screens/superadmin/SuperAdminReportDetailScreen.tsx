@@ -9,6 +9,7 @@ import { ScreenHeader } from '../../components/common/ScreenHeader';
 import { useAdmin } from '../../context/AdminContext';
 import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
 import { SuperAdminDesktopFrame } from '../../components/admin/desktop/SuperAdminDesktopFrame';
+import { DesktopDataTable, TableAvatarCell, TableTag, TableText, statusTone, type DesktopTableColumn } from '../../components/admin/desktop/DesktopDataTable';
 import { AdminApiError, downloadSuperAdminReport } from '../../api/adminClient';
 import { showAlert } from '../../utils/alert';
 import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
@@ -70,6 +71,51 @@ const REDEMPTION_COLUMNS: Column[] = [
 const COLUMNS_BY_REPORT: Record<SuperAdminReportKind, Column[]> = {
   crossClubMembers: MEMBER_COLUMNS,
   crossClubRedemptions: REDEMPTION_COLUMNS,
+};
+
+// Desktop-only column definitions — same underlying rows, but the
+// member/status columns render as an avatar cell / colored tag instead of
+// plain text (see DesktopDataTable). Mobile keeps the plain-text table above.
+const D_MEMBER_COLUMNS: DesktopTableColumn<SuperAdminMemberReportRow>[] = [
+  {
+    key: 'member',
+    label: 'Member',
+    width: 220,
+    render: (r) => <TableAvatarCell name={`${r.firstName} ${r.lastName}`} subtitle={r.email} />,
+  },
+  { key: 'courseName', label: 'Club', width: 150, render: (r) => <TableText>{r.courseName}</TableText> },
+  { key: 'tier', label: 'Tier', width: 100, render: (r) => <TableTag label={r.tier} /> },
+  { key: 'memberSince', label: 'Member Since', width: 160, render: (r) => <TableText muted>{formatDate(r.memberSince)}</TableText> },
+  { key: 'balance', label: 'FC Balance', width: 100, align: 'right', render: (r) => <TableText>{r.balance.toLocaleString()}</TableText> },
+  { key: 'totalEarned', label: 'FC Earned', width: 100, align: 'right', render: (r) => <TableText>{r.totalEarned.toLocaleString()}</TableText> },
+  { key: 'totalRedeemed', label: 'FC Redeemed', width: 110, align: 'right', render: (r) => <TableText>{r.totalRedeemed.toLocaleString()}</TableText> },
+];
+
+const D_REDEMPTION_COLUMNS: DesktopTableColumn<SuperAdminRedemptionReportRow>[] = [
+  { key: 'code', label: 'Code', width: 110, render: (r) => <TableText>{r.code}</TableText> },
+  {
+    key: 'member',
+    label: 'Member',
+    width: 220,
+    render: (r) => <TableAvatarCell name={r.memberName} subtitle={r.memberEmail} />,
+  },
+  { key: 'courseName', label: 'Club', width: 150, render: (r) => <TableText>{r.courseName}</TableText> },
+  { key: 'reward', label: 'Reward', width: 170, render: (r) => <TableText>{r.rewardTitle}</TableText> },
+  { key: 'variant', label: 'Variant', width: 130, render: (r) => <TableText>{r.variantLabel}</TableText> },
+  { key: 'cost', label: 'Flagrr Cash', width: 100, align: 'right', render: (r) => <TableText>{r.cost.toLocaleString()}</TableText> },
+  { key: 'status', label: 'Status', width: 110, render: (r) => <TableTag label={r.status} tone={statusTone(r.status)} /> },
+  { key: 'issuedAt', label: 'Issued At', width: 160, render: (r) => <TableText muted>{formatDate(r.issuedAt)}</TableText> },
+  {
+    key: 'redeemedAt',
+    label: 'Redeemed At',
+    width: 160,
+    render: (r) => <TableText muted>{r.redeemedAt ? formatDate(r.redeemedAt) : '—'}</TableText>,
+  },
+];
+
+const D_COLUMNS_BY_REPORT: Record<SuperAdminReportKind, DesktopTableColumn<Row>[]> = {
+  crossClubMembers: D_MEMBER_COLUMNS as DesktopTableColumn<Row>[],
+  crossClubRedemptions: D_REDEMPTION_COLUMNS as DesktopTableColumn<Row>[],
 };
 
 // Cross-club counterpart of AdminReportDetailScreen — backs super_admin's
@@ -189,13 +235,21 @@ export function SuperAdminReportDetailScreen({ navigation, route }: Props) {
     </ScrollView>
   );
 
+  const desktopTable = loading ? (
+    <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
+  ) : rows.length === 0 ? (
+    <Text style={styles.emptyText}>No data for this period.</Text>
+  ) : (
+    <DesktopDataTable columns={D_COLUMNS_BY_REPORT[report]} rows={rows} keyExtractor={(_, i) => String(i)} />
+  );
+
   if (isDesktop) {
     return (
       <SuperAdminDesktopFrame activeKey="SuperAdminReports" breadcrumb={label} showRail={false} scrollable={false}>
         <Text style={styles.dPageTitle}>{label}</Text>
         <View style={styles.dTableCard}>
           {toolbar}
-          {table}
+          {desktopTable}
         </View>
       </SuperAdminDesktopFrame>
     );

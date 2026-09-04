@@ -9,6 +9,7 @@ import { ScreenHeader } from '../../components/common/ScreenHeader';
 import { useAdmin } from '../../context/AdminContext';
 import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
 import { AdminDesktopFrame } from '../../components/admin/desktop/AdminDesktopFrame';
+import { DesktopDataTable, TableAvatarCell, TableTag, TableText, statusTone, type DesktopTableColumn } from '../../components/admin/desktop/DesktopDataTable';
 import { downloadReport, AdminApiError } from '../../api/adminClient';
 import { showAlert } from '../../utils/alert';
 import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
@@ -88,6 +89,71 @@ const COLUMNS_BY_REPORT: Record<CourseReportKind, Column[]> = {
   redemptions: REDEMPTION_COLUMNS,
   receipts: RECEIPT_COLUMNS,
   members: MEMBER_COLUMNS,
+};
+
+// Desktop-only column definitions — same underlying rows, but the
+// member/status columns render as an avatar cell / colored tag instead of
+// plain text (see DesktopDataTable). Mobile keeps the plain-text table above.
+const D_REDEMPTION_COLUMNS: DesktopTableColumn<RedemptionReportRow>[] = [
+  { key: 'code', label: 'Code', width: 110, render: (r) => <TableText>{r.code}</TableText> },
+  {
+    key: 'member',
+    label: 'Member',
+    width: 220,
+    render: (r) => <TableAvatarCell name={r.memberName} subtitle={r.memberEmail} />,
+  },
+  { key: 'reward', label: 'Reward', width: 170, render: (r) => <TableText>{r.rewardTitle}</TableText> },
+  { key: 'variant', label: 'Variant', width: 130, render: (r) => <TableText>{r.variantLabel}</TableText> },
+  { key: 'cost', label: 'Flagrr Cash', width: 100, align: 'right', render: (r) => <TableText>{r.cost.toLocaleString()}</TableText> },
+  { key: 'status', label: 'Status', width: 110, render: (r) => <TableTag label={r.status} tone={statusTone(r.status)} /> },
+  { key: 'issuedAt', label: 'Issued At', width: 160, render: (r) => <TableText muted>{formatDate(r.issuedAt)}</TableText> },
+  {
+    key: 'redeemedAt',
+    label: 'Redeemed At',
+    width: 160,
+    render: (r) => <TableText muted>{r.redeemedAt ? formatDate(r.redeemedAt) : '—'}</TableText>,
+  },
+];
+
+const D_RECEIPT_COLUMNS: DesktopTableColumn<ReceiptReportRow>[] = [
+  { key: 'receiptNumber', label: 'Receipt #', width: 130, render: (r) => <TableText>{r.receiptNumber ?? '—'}</TableText> },
+  {
+    key: 'member',
+    label: 'Member',
+    width: 220,
+    render: (r) => <TableAvatarCell name={r.memberName} subtitle={r.memberEmail} />,
+  },
+  { key: 'whereScanned', label: 'Where Scanned', width: 170, render: (r) => <TableText>{r.whereScanned || '—'}</TableText> },
+  { key: 'total', label: 'Total (R)', width: 100, align: 'right', render: (r) => <TableText>{r.total.toFixed(2)}</TableText> },
+  {
+    key: 'pointsAwarded',
+    label: 'Flagrr Cash',
+    width: 110,
+    align: 'right',
+    render: (r) => <TableText>{r.pointsAwarded === null ? '—' : r.pointsAwarded.toLocaleString()}</TableText>,
+  },
+  { key: 'status', label: 'Status', width: 110, render: (r) => <TableTag label={r.status} tone={statusTone(r.status)} /> },
+  { key: 'submittedAt', label: 'Submitted At', width: 160, render: (r) => <TableText muted>{formatDate(r.submittedAt)}</TableText> },
+];
+
+const D_MEMBER_COLUMNS: DesktopTableColumn<MemberReportRow>[] = [
+  {
+    key: 'member',
+    label: 'Member',
+    width: 220,
+    render: (r) => <TableAvatarCell name={`${r.firstName} ${r.lastName}`} subtitle={r.email} />,
+  },
+  { key: 'tier', label: 'Tier', width: 100, render: (r) => <TableTag label={r.tier} /> },
+  { key: 'memberSince', label: 'Member Since', width: 160, render: (r) => <TableText muted>{formatDate(r.memberSince)}</TableText> },
+  { key: 'balance', label: 'FC Balance', width: 100, align: 'right', render: (r) => <TableText>{r.balance.toLocaleString()}</TableText> },
+  { key: 'totalEarned', label: 'FC Earned', width: 100, align: 'right', render: (r) => <TableText>{r.totalEarned.toLocaleString()}</TableText> },
+  { key: 'totalRedeemed', label: 'FC Redeemed', width: 110, align: 'right', render: (r) => <TableText>{r.totalRedeemed.toLocaleString()}</TableText> },
+];
+
+const D_COLUMNS_BY_REPORT: Record<CourseReportKind, DesktopTableColumn<Row>[]> = {
+  redemptions: D_REDEMPTION_COLUMNS as DesktopTableColumn<Row>[],
+  receipts: D_RECEIPT_COLUMNS as DesktopTableColumn<Row>[],
+  members: D_MEMBER_COLUMNS as DesktopTableColumn<Row>[],
 };
 
 // A single generic detail page for every Overview stat card — 'redemptions'
@@ -210,13 +276,21 @@ export function AdminReportDetailScreen({ navigation, route }: Props) {
     </ScrollView>
   );
 
+  const desktopTable = loading ? (
+    <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
+  ) : rows.length === 0 ? (
+    <Text style={styles.emptyText}>No data for this period.</Text>
+  ) : (
+    <DesktopDataTable columns={D_COLUMNS_BY_REPORT[report]} rows={rows} keyExtractor={(_, i) => String(i)} />
+  );
+
   if (isDesktop) {
     return (
       <AdminDesktopFrame activeKey="" breadcrumb={label} showRail={false} scrollable={false}>
         <Text style={styles.dPageTitle}>{label}</Text>
         <View style={styles.dTableCard}>
           {toolbar}
-          {table}
+          {desktopTable}
         </View>
       </AdminDesktopFrame>
     );

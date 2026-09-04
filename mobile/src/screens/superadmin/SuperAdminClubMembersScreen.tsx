@@ -9,6 +9,7 @@ import { ScreenHeader } from '../../components/common/ScreenHeader';
 import { useAdmin } from '../../context/AdminContext';
 import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
 import { SuperAdminDesktopFrame } from '../../components/admin/desktop/SuperAdminDesktopFrame';
+import { DesktopDataTable, TableAvatarCell, TableTag, TableText, type DesktopTableColumn } from '../../components/admin/desktop/DesktopDataTable';
 import { AdminApiError, downloadSuperAdminClubMembers } from '../../api/adminClient';
 import { showAlert } from '../../utils/alert';
 import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
@@ -41,6 +42,21 @@ const COLUMNS: Column[] = [
   { key: 'balance', label: 'FC Balance', width: 100, render: (r) => r.balance.toLocaleString() },
   { key: 'totalEarned', label: 'FC Earned', width: 100, render: (r) => r.totalEarned.toLocaleString() },
   { key: 'totalRedeemed', label: 'FC Redeemed', width: 110, render: (r) => r.totalRedeemed.toLocaleString() },
+];
+
+// Desktop-only columns — same rows, avatar cell + tier tag (see DesktopDataTable).
+const D_COLUMNS: DesktopTableColumn<MemberReportRow>[] = [
+  {
+    key: 'member',
+    label: 'Member',
+    width: 220,
+    render: (r) => <TableAvatarCell name={`${r.firstName} ${r.lastName}`} subtitle={r.email} />,
+  },
+  { key: 'tier', label: 'Tier', width: 100, render: (r) => <TableTag label={r.tier} /> },
+  { key: 'memberSince', label: 'Member Since', width: 160, render: (r) => <TableText muted>{formatDate(r.memberSince)}</TableText> },
+  { key: 'balance', label: 'FC Balance', width: 100, align: 'right', render: (r) => <TableText>{r.balance.toLocaleString()}</TableText> },
+  { key: 'totalEarned', label: 'FC Earned', width: 100, align: 'right', render: (r) => <TableText>{r.totalEarned.toLocaleString()}</TableText> },
+  { key: 'totalRedeemed', label: 'FC Redeemed', width: 110, align: 'right', render: (r) => <TableText>{r.totalRedeemed.toLocaleString()}</TableText> },
 ];
 
 // One club's own member table, opened by tapping a row on
@@ -158,13 +174,21 @@ export function SuperAdminClubMembersScreen({ navigation, route }: Props) {
     </ScrollView>
   );
 
+  const desktopTable = loading ? (
+    <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
+  ) : rows.length === 0 ? (
+    <Text style={styles.emptyText}>No members for this period.</Text>
+  ) : (
+    <DesktopDataTable columns={D_COLUMNS} rows={rows} keyExtractor={(_, i) => String(i)} />
+  );
+
   if (isDesktop) {
     return (
       <SuperAdminDesktopFrame activeKey="SuperAdminReports" breadcrumb={courseName} showRail={false} scrollable={false}>
         <Text style={styles.dPageTitle}>{courseName} — Members</Text>
         <View style={styles.dTableCard}>
           {toolbar}
-          {table}
+          {desktopTable}
         </View>
       </SuperAdminDesktopFrame>
     );
