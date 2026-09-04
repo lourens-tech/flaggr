@@ -22,18 +22,29 @@ interface Props<T> {
 // dashboard's card language. Cell content is fully caller-supplied (see
 // TableAvatarCell/TableTag below) so a "Member" column can show an avatar
 // and a "Status"/"Tier" column a colored tag.
+//
+// Each column's `width` is used as a flex ratio (not a hard pixel size): if
+// the columns' combined width is narrower than the table card, they grow
+// proportionally to fill it; if it's wider (many columns), they hold their
+// size and the table scrolls horizontally instead of squeezing.
 export function DesktopDataTable<T>({ columns, rows, keyExtractor }: Props<T>) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const totalWidth = useMemo(() => columns.reduce((sum, c) => sum + c.width, 0), [columns]);
 
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator style={styles.tableScroll}>
-      <View>
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator
+      style={styles.tableScroll}
+      contentContainerStyle={{ flexGrow: 1, minWidth: totalWidth }}
+    >
+      <View style={{ flex: 1 }}>
         <View style={styles.headerRow}>
           {columns.map((c) => (
             <Text
               key={c.key}
-              style={[styles.headerCell, { width: c.width, textAlign: c.align ?? 'left' }]}
+              style={[styles.headerCell, columnFlex(c), { textAlign: c.align ?? 'left' }]}
               numberOfLines={1}
             >
               {c.label}
@@ -44,7 +55,10 @@ export function DesktopDataTable<T>({ columns, rows, keyExtractor }: Props<T>) {
           {rows.map((row, i) => (
             <View key={keyExtractor(row, i)} style={[styles.dataRow, i === rows.length - 1 && styles.dataRowLast]}>
               {columns.map((c) => (
-                <View key={c.key} style={{ width: c.width, paddingRight: spacing.sm }}>
+                <View
+                  key={c.key}
+                  style={[columnFlex(c), { paddingRight: spacing.sm }, c.align === 'right' && styles.cellAlignRight]}
+                >
                   {c.render(row)}
                 </View>
               ))}
@@ -54,6 +68,10 @@ export function DesktopDataTable<T>({ columns, rows, keyExtractor }: Props<T>) {
       </View>
     </ScrollView>
   );
+}
+
+function columnFlex(c: { width: number }) {
+  return { flexGrow: c.width, flexShrink: 0, flexBasis: c.width };
 }
 
 function initials(a: string, b?: string): string {
@@ -154,6 +172,7 @@ function createStyles(colors: ThemeColors) {
     borderBottomColor: colors.border,
   },
   dataRowLast: { borderBottomWidth: 0 },
+  cellAlignRight: { alignItems: 'flex-end' },
   plainText: { fontFamily: fontFamily.body, fontSize: 13, color: colors.textPrimary },
   plainTextMuted: { color: colors.textSecondary },
   avatarCell: { flexDirection: 'row', alignItems: 'center', gap: 10 },
