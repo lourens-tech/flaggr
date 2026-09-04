@@ -11,6 +11,7 @@ import { useAdmin } from '../../context/AdminContext';
 import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
 import { SuperAdminDesktopFrame } from '../../components/admin/desktop/SuperAdminDesktopFrame';
 import { DesktopPanel } from '../../components/admin/desktop/DesktopPanel';
+import { QuickLinkButton } from '../../components/admin/desktop/DesktopQuickLink';
 import { AdminApiError } from '../../api/adminClient';
 import { showAlert } from '../../utils/alert';
 import { ThemeToggleRow } from '../../components/common/ThemeToggleRow';
@@ -118,12 +119,51 @@ export function SuperAdminProfileScreen({ navigation }: Props) {
     </>
   );
 
+  const desktopBody = (
+    <>
+      <View style={styles.avatarWrap}>
+        <View style={styles.avatar}>
+          <Ionicons name="shield-checkmark-outline" size={28} color={colors.clubGreen} />
+        </View>
+        <Text style={styles.name}>{admin.firstName} {admin.lastName}</Text>
+        <Text style={styles.email}>{admin.email}</Text>
+        <View style={styles.roleBadge}>
+          <Text style={styles.roleBadgeText}>{ROLE_LABEL[admin.role] ?? admin.role}</Text>
+        </View>
+      </View>
+
+      {admin.role === 'super_admin' ? (
+        <>
+          <Text style={styles.sectionTitle}>Support Agents</Text>
+          <QuickLinkButton label="Manage Support Agents" icon="headset-outline" tone="green" onPress={() => navigation.navigate('SuperAdminAgents')} />
+
+          <Text style={styles.sectionTitle}>Accountability</Text>
+          <QuickLinkButton label="View Audit Log" icon="document-text-outline" tone="darkGreen" onPress={() => navigation.navigate('SuperAdminAuditLog')} />
+          <View style={{ marginTop: spacing.sm }}>
+            <QuickLinkButton label="Fraud Oversight" icon="shield-outline" tone="amber" onPress={() => navigation.navigate('SuperAdminFraudOversight')} />
+          </View>
+        </>
+      ) : null}
+
+      <Text style={styles.sectionTitle}>Appearance</Text>
+      <ThemeToggleRow onChange={handleThemeChange} disabled={savingTheme} />
+
+      <Text style={styles.sectionTitle}>Legal</Text>
+      <QuickLinkButton label="Terms and Privacy" icon="shield-checkmark-outline" tone="lime" onPress={() => navigation.navigate('TermsPrivacy')} />
+
+      <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
+        <Ionicons name="log-out-outline" size={18} color={colors.negative} />
+        <Text style={styles.logoutText}>Log Out</Text>
+      </TouchableOpacity>
+    </>
+  );
+
   if (isDesktop) {
     return (
       <SuperAdminDesktopFrame activeKey="SuperAdminProfile" breadcrumb="Profile" showRail={false}>
         <Text style={styles.dPageTitle}>My Profile</Text>
         <DesktopPanel title=" " style={{ maxWidth: 480 }}>
-          {body}
+          {desktopBody}
         </DesktopPanel>
       </SuperAdminDesktopFrame>
     );
