@@ -230,7 +230,7 @@ export function AdminCourseProfileScreen({ navigation }: Props) {
               <PillButton label="Manage Staff" icon="people-outline" variant="outline" onPress={() => navigation.navigate('AdminStaffList')} />
               <PillButton label="Club Admins" icon="person-add-outline" variant="outline" onPress={() => navigation.navigate('AdminClubAdmins')} />
               <PillButton label="Manage Member List" icon="cloud-upload-outline" variant="outline" onPress={() => navigation.navigate('AdminMemberList')} />
-              <PillButton label="Products & Activities" icon="pricetags-outline" variant="outline" onPress={() => navigation.navigate('AdminCatalog')} />
+              <PillButton label="Products and Activities" icon="pricetags-outline" variant="outline" onPress={() => navigation.navigate('AdminCatalog')} />
               <PillButton label="Flagged Receipts" icon="flag-outline" variant="outline" onPress={() => navigation.navigate('AdminFraudOversight')} />
               <PillButton label="Contact Support" icon="headset-outline" variant="outline" onPress={() => navigation.navigate('AdminSupportTickets')} />
             </DesktopPanel>
@@ -267,7 +267,7 @@ export function AdminCourseProfileScreen({ navigation }: Props) {
 
         <View style={styles.dFooterRow}>
           <TouchableOpacity onPress={() => navigation.navigate('TermsPrivacy')}>
-            <Text style={styles.dFooterLink}>Terms & Privacy</Text>
+            <Text style={styles.dFooterLink}>Terms and Privacy</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
             <Ionicons name="log-out-outline" size={16} color={colors.negative} />
@@ -405,14 +405,14 @@ export function AdminCourseProfileScreen({ navigation }: Props) {
           onPress={() => navigation.navigate('AdminMemberList')}
         />
 
-        <Text style={styles.sectionTitle}>Products & Activities</Text>
+        <Text style={styles.sectionTitle}>Products and Activities</Text>
         <Text style={styles.helpText}>
           What the receipt scanner matches purchases against and how much Flagrr Cash each one earns. Keep this up
           to date with what you actually sell for accurate points.
         </Text>
         <View style={{ height: spacing.sm }} />
         <PillButton
-          label="Manage Products & Activities"
+          label="Manage Products and Activities"
           icon="pricetags-outline"
           variant="outline"
           onPress={() => navigation.navigate('AdminCatalog')}
@@ -465,7 +465,7 @@ export function AdminCourseProfileScreen({ navigation }: Props) {
 
         <Text style={styles.sectionTitle}>Legal</Text>
         <PillButton
-          label="Terms & Privacy"
+          label="Terms and Privacy"
           icon="shield-checkmark-outline"
           variant="outline"
           onPress={() => navigation.navigate('TermsPrivacy')}

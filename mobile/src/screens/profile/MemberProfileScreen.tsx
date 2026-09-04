@@ -402,7 +402,7 @@ export function MemberProfileScreen({ navigation }: Props) {
         <View style={styles.linksCard}>
           <LinkRow
             icon="shield-checkmark-outline"
-            label="Terms & Privacy"
+            label="Terms and Privacy"
             onPress={() => navigation.navigate('TermsPrivacy')}
           />
         </View>

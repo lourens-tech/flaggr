@@ -26,7 +26,7 @@ const ROWS: Array<{ key: keyof NotificationPreferences; label: string; descripti
   },
   {
     key: 'announcements',
-    label: 'Club & Flagrr Announcements',
+    label: 'Club and Flagrr Announcements',
     description: 'Broadcasts from your club or the Flagrr team.',
   },
 ];

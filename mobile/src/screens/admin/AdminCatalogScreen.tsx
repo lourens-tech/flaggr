@@ -122,9 +122,9 @@ export function AdminCatalogScreen({ navigation }: Props) {
 
   if (isDesktop) {
     return (
-      <AdminDesktopFrame activeKey="AdminCatalog" breadcrumb="Products & Activities">
+      <AdminDesktopFrame activeKey="AdminCatalog" breadcrumb="Products and Activities">
         <View style={styles.dHeadRow}>
-          <Text style={styles.dPageTitle}>Products & Activities</Text>
+          <Text style={styles.dPageTitle}>Products and Activities</Text>
           <TouchableOpacity style={styles.dAddButton} onPress={() => navigation.navigate('AdminCatalogItemEdit', { kind })}>
             <Ionicons name="add" size={16} color={colors.darkGreen} />
             <Text style={styles.dAddButtonText}>{kind === 'product' ? 'Add Product' : 'Add Activity'}</Text>
@@ -146,7 +146,7 @@ export function AdminCatalogScreen({ navigation }: Props) {
     <View style={styles.screen}>
       <StatusBar barStyle="light-content" />
       <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
-        <ScreenHeader title="Products & Activities" onBack={() => navigation.goBack()} />
+        <ScreenHeader title="Products and Activities" onBack={() => navigation.goBack()} />
       </SafeAreaView>
 
       <View style={styles.toolbar}>

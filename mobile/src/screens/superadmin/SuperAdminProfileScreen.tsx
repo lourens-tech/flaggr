@@ -105,7 +105,7 @@ export function SuperAdminProfileScreen({ navigation }: Props) {
 
         <Text style={styles.sectionTitle}>Legal</Text>
         <PillButton
-          label="Terms & Privacy"
+          label="Terms and Privacy"
           icon="shield-checkmark-outline"
           variant="outline"
           onPress={() => navigation.navigate('TermsPrivacy')}

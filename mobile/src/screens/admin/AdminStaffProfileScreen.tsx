@@ -76,7 +76,7 @@ export function AdminStaffProfileScreen({ navigation }: Props) {
           <View style={{ height: spacing.md }} />
           <ThemeToggleRow onChange={handleThemeChange} disabled={savingTheme} />
           <View style={{ height: spacing.md }} />
-          <PillButton label="Terms & Privacy" icon="shield-checkmark-outline" variant="outline" onPress={() => navigation.navigate('TermsPrivacy')} />
+          <PillButton label="Terms and Privacy" icon="shield-checkmark-outline" variant="outline" onPress={() => navigation.navigate('TermsPrivacy')} />
           <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
             <Ionicons name="log-out-outline" size={18} color={colors.negative} />
             <Text style={styles.logoutText}>Log Out</Text>
@@ -123,7 +123,7 @@ export function AdminStaffProfileScreen({ navigation }: Props) {
 
         <Text style={styles.sectionTitle}>Legal</Text>
         <PillButton
-          label="Terms & Privacy"
+          label="Terms and Privacy"
           icon="shield-checkmark-outline"
           variant="outline"
           onPress={() => navigation.navigate('TermsPrivacy')}

@@ -48,7 +48,7 @@ export const ADMIN_NAV_GROUPS: DesktopNavGroup[] = [
       { key: 'AdminEnquiries', label: 'Enquiries', icon: 'chatbubbles-outline', target: tab('AdminTabs', 'AdminEnquiries') },
       { key: 'AdminPush', label: 'Push Notifications', icon: 'megaphone-outline', target: tab('AdminTabs', 'AdminPush') },
       { key: 'AdminRewards', label: 'Rewards', icon: 'gift-outline', target: tab('AdminTabs', 'AdminRewards') },
-      { key: 'AdminCatalog', label: 'Products & Activities', icon: 'pricetags-outline', target: stack('AdminCatalog') },
+      { key: 'AdminCatalog', label: 'Products and Activities', icon: 'pricetags-outline', target: stack('AdminCatalog') },
     ],
   },
   {
@@ -62,7 +62,7 @@ export const ADMIN_NAV_GROUPS: DesktopNavGroup[] = [
   {
     label: 'Settings',
     items: [
-      { key: 'AdminStaffList', label: 'Staff & Club Admins', icon: 'people-circle-outline', target: stack('AdminStaffList') },
+      { key: 'AdminStaffList', label: 'Staff and Club Admins', icon: 'people-circle-outline', target: stack('AdminStaffList') },
       { key: 'AdminCourseProfile', label: 'Course Profile', icon: 'business-outline', target: tab('AdminTabs', 'AdminCourseProfile') },
     ],
   },

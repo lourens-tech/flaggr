@@ -139,7 +139,7 @@ export function SuperAdminCourseCatalogScreen({ navigation, route }: Props) {
     return (
       <SuperAdminDesktopFrame activeKey="SuperAdminCourses" breadcrumb={`${courseName} Catalog`}>
         <View style={styles.dHeadRow}>
-          <Text style={styles.dPageTitle}>{courseName} — Products & Activities</Text>
+          <Text style={styles.dPageTitle}>{courseName} — Products and Activities</Text>
           <TouchableOpacity
             style={styles.dAddButton}
             onPress={() => navigation.navigate('SuperAdminCatalogItemEdit', { courseId, courseName, fbPerRand, kind })}

@@ -196,9 +196,9 @@ export function AdminStaffListScreen({ navigation }: Props) {
 
   if (isDesktop) {
     return (
-      <AdminDesktopFrame activeKey="AdminStaffList" breadcrumb="Staff & Club Admins">
+      <AdminDesktopFrame activeKey="AdminStaffList" breadcrumb="Staff and Club Admins">
         <View style={styles.dHeadRow}>
-          <Text style={styles.dPageTitle}>Staff & Club Admins</Text>
+          <Text style={styles.dPageTitle}>Staff and Club Admins</Text>
           <View style={{ flexDirection: 'row', gap: spacing.sm }}>
             <TouchableOpacity style={styles.dSecondaryButton} onPress={() => navigation.navigate('AdminClubAdmins')}>
               <Ionicons name="person-add-outline" size={15} color={colors.textPrimary} />

@@ -206,7 +206,7 @@ export function SuperAdminCoursesScreen({ navigation }: Props) {
           }
         >
           <Ionicons name="pricetags-outline" size={14} color={colors.clubGreen} />
-          <Text style={styles.actionButtonText}>Products & Activities</Text>
+          <Text style={styles.actionButtonText}>Products and Activities</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.actionButton}
