@@ -15,6 +15,7 @@ import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
 import { SuperAdminDesktopFrame } from '../../components/admin/desktop/SuperAdminDesktopFrame';
 import { DesktopStatCard } from '../../components/admin/desktop/DesktopStatCard';
 import { DesktopPanel } from '../../components/admin/desktop/DesktopPanel';
+import { TableAvatarCell, TableTag } from '../../components/admin/desktop/DesktopDataTable';
 import { AdminApiError, downloadSuperAdminAdPerformance } from '../../api/adminClient';
 import { showAlert } from '../../utils/alert';
 import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
@@ -298,20 +299,17 @@ export function SuperAdminReportsScreen({ navigation }: Props) {
           {searchedOnce && memberResults.length === 0 ? (
             <Text style={styles.emptyText}>No members match that search.</Text>
           ) : (
-            memberResults.map((m) => (
+            memberResults.map((m, i) => (
               <TouchableOpacity
                 key={m.id}
-                style={styles.memberRow}
+                style={[styles.dMemberRow, i === memberResults.length - 1 && styles.dMemberRowLast]}
                 onPress={() => navigation.navigate('SuperAdminMemberStats', { memberId: m.id })}
               >
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.memberName}>{m.firstName} {m.lastName}</Text>
-                  <Text style={styles.memberEmail}>{m.email} · {m.courseName}</Text>
+                  <TableAvatarCell name={`${m.firstName} ${m.lastName}`} subtitle={`${m.email} · ${m.courseName}`} />
                 </View>
-                <View style={{ alignItems: 'flex-end' }}>
-                  <Text style={styles.memberTier}>{m.tier}</Text>
-                  <Text style={styles.memberBalance}>{m.balance.toLocaleString()} FC</Text>
-                </View>
+                <TableTag label={m.tier} />
+                <Text style={styles.dMemberBalance}>{m.balance.toLocaleString()} FC</Text>
                 <Ionicons name="chevron-forward" size={18} color={colors.clubGreen} />
               </TouchableOpacity>
             ))
@@ -604,6 +602,16 @@ function createStyles(colors: ThemeColors) {
   memberEmail: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary },
   memberTier: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.tiny, color: colors.textPrimary },
   memberBalance: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary },
+  dMemberRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  dMemberRowLast: { borderBottomWidth: 0 },
+  dMemberBalance: { fontFamily: fontFamily.bodySemiBold, fontSize: 13, color: colors.textPrimary },
   dPageTitle: { fontFamily: fontFamily.heading, fontSize: 26, color: colors.textPrimary },
   dPageSubtitle: { fontFamily: fontFamily.body, fontSize: 13, color: colors.textSecondary, marginTop: 2 },
   dStatRow: { flexDirection: 'row', gap: 14, flexWrap: 'wrap' },

@@ -12,6 +12,7 @@ import { useAdmin } from '../../context/AdminContext';
 import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
 import { AdminDesktopFrame } from '../../components/admin/desktop/AdminDesktopFrame';
 import { DesktopPanel } from '../../components/admin/desktop/DesktopPanel';
+import { TableAvatarCell, TableTag } from '../../components/admin/desktop/DesktopDataTable';
 import { AdminApiError } from '../../api/adminClient';
 import { showAlert } from '../../utils/alert';
 import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
@@ -228,6 +229,84 @@ export function AdminClubAdminsScreen({ navigation }: Props) {
     </>
   );
 
+  const desktopBody = (
+    <>
+      {loading ? (
+        <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
+      ) : (
+        <>
+          {admins.map((a, i) => (
+            <View key={a.id} style={[styles.dRow, i === admins.length - 1 && styles.dRowLast]}>
+              <View style={{ flex: 1 }}>
+                <TableAvatarCell
+                  name={`${a.firstName} ${a.lastName}${a.id === admin.id ? ' (You)' : ''}`}
+                  subtitle={a.email}
+                />
+              </View>
+              {a.revoked ? <TableTag label="Revoked" tone="red" /> : null}
+              {a.id === admin.id ? null : busyId === a.id ? (
+                <ActivityIndicator color={colors.clubGreen} size="small" />
+              ) : (
+                <View style={styles.cardActions}>
+                  <TouchableOpacity
+                    onPress={() => handleToggleAccess(a)}
+                    hitSlop={8}
+                    accessibilityRole="button"
+                    accessibilityLabel={a.revoked ? `Reactivate ${a.firstName} ${a.lastName}` : `Revoke ${a.firstName} ${a.lastName}`}
+                  >
+                    <Ionicons
+                      name={a.revoked ? 'lock-open-outline' : 'lock-closed-outline'}
+                      size={18}
+                      color={a.revoked ? colors.clubGreen : colors.negative}
+                    />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => handleDelete(a)}
+                    hitSlop={8}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Delete ${a.firstName} ${a.lastName}`}
+                  >
+                    <Ionicons name="trash-outline" size={18} color={colors.negative} />
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+          ))}
+
+          {canInviteMore ? (
+            <>
+              <Text style={styles.sectionTitle}>Add Another Admin</Text>
+              <Text style={styles.helpText}>
+                Your club can have up to {MAX_CLUB_ADMINS} admins. They'll be emailed a temporary password to log
+                in with full course admin access.
+              </Text>
+              <View style={{ height: spacing.md }} />
+              <TextField placeholder="First Name" variant="onLight" value={firstName} onChangeText={setFirstName} />
+              <View style={{ height: spacing.md }} />
+              <TextField placeholder="Last Name" variant="onLight" value={lastName} onChangeText={setLastName} />
+              <View style={{ height: spacing.md }} />
+              <TextField
+                placeholder="Email"
+                variant="onLight"
+                autoCapitalize="none"
+                keyboardType="email-address"
+                value={email}
+                onChangeText={setEmail}
+              />
+              <View style={{ height: spacing.lg }} />
+              <PillButton label="Send Invite" onPress={handleInvite} loading={inviting} />
+            </>
+          ) : (
+            <Text style={styles.helpText}>
+              Your club already has the maximum of {MAX_CLUB_ADMINS} active admins. Revoke one above to invite
+              another.
+            </Text>
+          )}
+        </>
+      )}
+    </>
+  );
+
   if (isDesktop) {
     return (
       <AdminDesktopFrame activeKey="AdminStaffList" breadcrumb="Club Admins">
@@ -239,7 +318,7 @@ export function AdminClubAdminsScreen({ navigation }: Props) {
           </TouchableOpacity>
         </View>
         <DesktopPanel title=" " style={{ maxWidth: 560 }}>
-          {body}
+          {desktopBody}
         </DesktopPanel>
       </AdminDesktopFrame>
     );
@@ -277,6 +356,15 @@ function createStyles(colors: ThemeColors) {
     cardTitle: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.textPrimary },
     cardEmail: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary, marginTop: 2 },
     cardActions: { flexDirection: 'row', gap: spacing.md },
+    dRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.md,
+      paddingVertical: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    dRowLast: { borderBottomWidth: 0 },
     revokedBadge: {
       fontFamily: fontFamily.bodySemiBold,
       fontSize: 10,
