@@ -10,6 +10,7 @@ import { TextField } from '../../components/common/TextField';
 import { PillButton } from '../../components/common/PillButton';
 import { useAdmin } from '../../context/AdminContext';
 import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
+import { useHover, hoverTransition } from '../../hooks/useHover';
 import { AdminDesktopFrame } from '../../components/admin/desktop/AdminDesktopFrame';
 import { DesktopPanel } from '../../components/admin/desktop/DesktopPanel';
 import { AdminApiError } from '../../api/adminClient';
@@ -32,6 +33,56 @@ type Props = CompositeScreenProps<
   BottomTabScreenProps<AdminTabParamList, 'AdminCourseProfile'>,
   NativeStackScreenProps<AdminStackParamList>
 >;
+
+// A little brand-safe colour per quick link (reusing existing theme tokens,
+// not new hues) so the list reads as more than a stack of identical rows —
+// green for the people-management links, lime for the two "go do a thing
+// with product/support" CTAs, amber for the one that needs attention.
+const QUICK_LINK_TONES = {
+  green: { bg: (c: ThemeColors) => c.mintBg, fg: (c: ThemeColors) => c.clubGreen },
+  darkGreen: { bg: () => 'rgba(31,66,52,0.08)', fg: (c: ThemeColors) => c.darkGreen },
+  lime: { bg: () => 'rgba(205,222,92,0.25)', fg: (c: ThemeColors) => c.darkGreen },
+  amber: { bg: (c: ThemeColors) => c.warningBg, fg: (c: ThemeColors) => c.warning },
+} as const;
+type QuickLinkTone = keyof typeof QUICK_LINK_TONES;
+
+function QuickLinkButton({
+  label,
+  icon,
+  tone,
+  onPress,
+  colors,
+  styles,
+}: {
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  tone: QuickLinkTone;
+  onPress: () => void;
+  colors: ThemeColors;
+  styles: ReturnType<typeof createStyles>;
+}) {
+  const [hovered, hoverHandlers] = useHover();
+  const t = QUICK_LINK_TONES[tone];
+  return (
+    <TouchableOpacity
+      style={[styles.dQuickLink, hoverTransition, hovered && styles.dQuickLinkHover]}
+      onPress={onPress}
+      activeOpacity={0.85}
+      {...hoverHandlers}
+    >
+      <View style={[styles.dQuickLinkIcon, { backgroundColor: t.bg(colors) }]}>
+        <Ionicons name={icon} size={16} color={t.fg(colors)} />
+      </View>
+      <Text style={styles.dQuickLinkLabel}>{label}</Text>
+      <Ionicons
+        name="chevron-forward"
+        size={16}
+        color={colors.textMuted}
+        style={[hoverTransition, hovered && styles.dQuickLinkChevronHover] as any}
+      />
+    </TouchableOpacity>
+  );
+}
 
 export function AdminCourseProfileScreen({ navigation }: Props) {
   const colors = useThemeColors();
@@ -227,12 +278,12 @@ export function AdminCourseProfileScreen({ navigation }: Props) {
 
           <View style={{ flex: 1, gap: spacing.lg }}>
             <DesktopPanel title="Quick Links">
-              <PillButton label="Manage Staff" icon="people-outline" variant="outline" onPress={() => navigation.navigate('AdminStaffList')} />
-              <PillButton label="Club Admins" icon="person-add-outline" variant="outline" onPress={() => navigation.navigate('AdminClubAdmins')} />
-              <PillButton label="Manage Member List" icon="cloud-upload-outline" variant="outline" onPress={() => navigation.navigate('AdminMemberList')} />
-              <PillButton label="Products and Activities" icon="pricetags-outline" variant="outline" onPress={() => navigation.navigate('AdminCatalog')} />
-              <PillButton label="Flagged Receipts" icon="flag-outline" variant="outline" onPress={() => navigation.navigate('AdminFraudOversight')} />
-              <PillButton label="Contact Support" icon="headset-outline" variant="outline" onPress={() => navigation.navigate('AdminSupportTickets')} />
+              <QuickLinkButton label="Manage Staff" icon="people-outline" tone="green" onPress={() => navigation.navigate('AdminStaffList')} colors={colors} styles={styles} />
+              <QuickLinkButton label="Club Admins" icon="person-add-outline" tone="darkGreen" onPress={() => navigation.navigate('AdminClubAdmins')} colors={colors} styles={styles} />
+              <QuickLinkButton label="Manage Member List" icon="cloud-upload-outline" tone="green" onPress={() => navigation.navigate('AdminMemberList')} colors={colors} styles={styles} />
+              <QuickLinkButton label="Products and Activities" icon="pricetags-outline" tone="lime" onPress={() => navigation.navigate('AdminCatalog')} colors={colors} styles={styles} />
+              <QuickLinkButton label="Flagged Receipts" icon="flag-outline" tone="amber" onPress={() => navigation.navigate('AdminFraudOversight')} colors={colors} styles={styles} />
+              <QuickLinkButton label="Contact Support" icon="headset-outline" tone="lime" onPress={() => navigation.navigate('AdminSupportTickets')} colors={colors} styles={styles} />
             </DesktopPanel>
 
             <DesktopPanel title="Billing">
@@ -569,5 +620,19 @@ function createStyles(colors: ThemeColors) {
     paddingTop: spacing.sm,
   },
   dFooterLink: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.small, color: colors.clubGreen },
+  dQuickLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.pill,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  dQuickLinkHover: { borderColor: colors.clubGreen, backgroundColor: colors.mintBgAlt },
+  dQuickLinkIcon: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  dQuickLinkLabel: { flex: 1, fontFamily: fontFamily.headingDisplay, fontSize: fontSize.button, color: colors.textPrimary },
+  dQuickLinkChevronHover: { transform: [{ translateX: 2 }] },
 });
 }
