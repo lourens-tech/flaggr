@@ -3,6 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { fontFamily } from '../../../theme';
 import { useThemeColors, type ThemeColors } from '../../../context/ThemeContext';
 import { useAdmin } from '../../../context/AdminContext';
+import { useHover, hoverTransition } from '../../../hooks/useHover';
 import { actionLabel } from '../../../screens/superadmin/SuperAdminAuditLogScreen';
 
 function timeAgo(iso: string): string {
@@ -49,18 +50,33 @@ export function SuperAdminActivityRail() {
         <Text style={styles.empty}>Nothing yet.</Text>
       ) : (
         entries.map((e, i) => (
-          <View key={e.id} style={[styles.item, i === entries.length - 1 && styles.itemLast]}>
-            <View style={styles.dot} />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.text}>
-                <Text style={styles.textBold}>{e.adminName}</Text> — {actionLabel(e.action)}
-                {e.targetLabel ? ` (${e.targetLabel})` : ''}
-              </Text>
-              <Text style={styles.time}>{timeAgo(e.createdAt)}</Text>
-            </View>
-          </View>
+          <ActivityEntry key={e.id} e={e} isLast={i === entries.length - 1} styles={styles} />
         ))
       )}
+    </View>
+  );
+}
+
+function ActivityEntry({
+  e,
+  isLast,
+  styles,
+}: {
+  e: { id: string; action: string; adminName: string; targetLabel: string | null; createdAt: string };
+  isLast: boolean;
+  styles: ReturnType<typeof createStyles>;
+}) {
+  const [hovered, hoverHandlers] = useHover();
+  return (
+    <View style={[styles.item, hoverTransition, hovered && styles.itemHover, isLast && styles.itemLast]} {...hoverHandlers}>
+      <View style={styles.dot} />
+      <View style={{ flex: 1 }}>
+        <Text style={styles.text}>
+          <Text style={styles.textBold}>{e.adminName}</Text> — {actionLabel(e.action)}
+          {e.targetLabel ? ` (${e.targetLabel})` : ''}
+        </Text>
+        <Text style={styles.time}>{timeAgo(e.createdAt)}</Text>
+      </View>
     </View>
   );
 }
@@ -80,9 +96,13 @@ function createStyles(colors: ThemeColors) {
     flexDirection: 'row',
     gap: 10,
     paddingVertical: 10,
+    paddingHorizontal: 8,
+    marginHorizontal: -8,
+    borderRadius: 8,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
+  itemHover: { backgroundColor: colors.mintBgAlt },
   itemLast: { borderBottomWidth: 0 },
   dot: { width: 8, height: 8, borderRadius: 4, marginTop: 5, backgroundColor: colors.clubGreen },
   text: { fontFamily: fontFamily.body, fontSize: 12.5, lineHeight: 18, color: colors.textPrimary },

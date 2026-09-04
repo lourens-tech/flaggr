@@ -3,6 +3,7 @@ import { Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, useWi
 import { Ionicons } from '@expo/vector-icons';
 import { fontFamily, fontSize, radius, spacing } from '../../../theme';
 import { useThemeColors, type ThemeColors } from '../../../context/ThemeContext';
+import { useHover, hoverTransition } from '../../../hooks/useHover';
 import type { DesktopNavGroup, DesktopNavTarget } from '../../../navigation/adminNavConfig';
 
 const RAIL_BREAKPOINT = 1280;
@@ -23,6 +24,35 @@ function goTo(navigation: DesktopNavigator, target: DesktopNavTarget) {
 
 function initials(firstName: string, lastName: string) {
   return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase() || '?';
+}
+
+interface NavItemButtonProps {
+  item: DesktopNavGroup['items'][number];
+  isActive: boolean;
+  navigation: DesktopNavigator;
+  colors: ThemeColors;
+  styles: ReturnType<typeof createStyles>;
+}
+
+function NavItemButton({ item, isActive, navigation, colors, styles }: NavItemButtonProps) {
+  const [hovered, hoverHandlers] = useHover();
+  const lit = isActive || hovered;
+  return (
+    <TouchableOpacity
+      style={[styles.navItem, hoverTransition, isActive && styles.navItemActive, !isActive && hovered && styles.navItemHover]}
+      onPress={() => goTo(navigation, item.target)}
+      activeOpacity={0.7}
+      accessibilityRole="button"
+      accessibilityLabel={item.label}
+      {...hoverHandlers}
+    >
+      {isActive ? <View style={styles.navItemActiveBar} /> : null}
+      <Ionicons name={item.icon} size={17} color={lit ? colors.white : 'rgba(255,255,255,0.78)'} />
+      <Text style={[styles.navItemLabel, lit && styles.navItemLabelActive]} numberOfLines={1}>
+        {item.label}
+      </Text>
+    </TouchableOpacity>
+  );
 }
 
 interface Props {
@@ -83,7 +113,11 @@ export function DesktopShell({
   const { width } = useWindowDimensions();
   const showRail = !!rightRail && width >= RAIL_BREAKPOINT;
   const [search, setSearch] = useState('');
+  const [searchFocused, setSearchFocused] = useState(false);
   const userInitials = initials(userFirstName, userLastName);
+  const [footHovered, footHoverHandlers] = useHover();
+  const [bellHovered, bellHoverHandlers] = useHover();
+  const [avatarHovered, avatarHoverHandlers] = useHover();
 
   return (
     <View style={styles.shell}>
@@ -102,25 +136,16 @@ export function DesktopShell({
           {navGroups.map((group) => (
             <View key={group.label} style={styles.navGroup}>
               <Text style={styles.navGroupLabel}>{group.label}</Text>
-              {group.items.map((item) => {
-                const isActive = item.key === activeKey;
-                return (
-                  <TouchableOpacity
-                    key={item.key}
-                    style={[styles.navItem, isActive && styles.navItemActive]}
-                    onPress={() => goTo(navigation, item.target)}
-                    activeOpacity={0.7}
-                    accessibilityRole="button"
-                    accessibilityLabel={item.label}
-                  >
-                    {isActive ? <View style={styles.navItemActiveBar} /> : null}
-                    <Ionicons name={item.icon} size={17} color={isActive ? colors.white : 'rgba(255,255,255,0.78)'} />
-                    <Text style={[styles.navItemLabel, isActive && styles.navItemLabelActive]} numberOfLines={1}>
-                      {item.label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
+              {group.items.map((item) => (
+                <NavItemButton
+                  key={item.key}
+                  item={item}
+                  isActive={item.key === activeKey}
+                  navigation={navigation}
+                  colors={colors}
+                  styles={styles}
+                />
+              ))}
             </View>
           ))}
         </ScrollView>
@@ -129,7 +154,12 @@ export function DesktopShell({
           <Image source={{ uri: sidebarCoverImageUrl }} style={styles.sidebarCover} />
         ) : null}
 
-        <TouchableOpacity style={styles.sidebarFoot} onPress={onAvatarPress} activeOpacity={0.7}>
+        <TouchableOpacity
+          style={[styles.sidebarFoot, hoverTransition, footHovered && styles.sidebarFootHover]}
+          onPress={onAvatarPress}
+          activeOpacity={0.7}
+          {...footHoverHandlers}
+        >
           <View style={styles.footAvatar}>
             {avatarImageUrl ? (
               <Image source={{ uri: avatarImageUrl }} style={styles.footAvatarImage} />
@@ -149,11 +179,13 @@ export function DesktopShell({
           <Text style={styles.crumb} numberOfLines={1}>
             {brandName} <Text style={styles.crumbActive}>/ {breadcrumb}</Text>
           </Text>
-          <View style={styles.search}>
-            <Ionicons name="search" size={14} color={colors.textMuted} />
+          <View style={[styles.search, hoverTransition, searchFocused && styles.searchFocused]}>
+            <Ionicons name="search" size={14} color={searchFocused ? colors.clubGreen : colors.textMuted} />
             <TextInput
               value={search}
               onChangeText={setSearch}
+              onFocus={() => setSearchFocused(true)}
+              onBlur={() => setSearchFocused(false)}
               placeholder="Search"
               placeholderTextColor={colors.textMuted}
               style={[styles.searchInput, webNoOutline]}
@@ -162,8 +194,14 @@ export function DesktopShell({
           <View style={{ flex: 1 }} />
           {headerRight}
           {onBellPress ? (
-            <TouchableOpacity style={styles.iconBtn} onPress={onBellPress} accessibilityLabel="Notifications" accessibilityRole="button">
-              <Ionicons name="notifications-outline" size={17} color={colors.textSecondary} />
+            <TouchableOpacity
+              style={[styles.iconBtn, hoverTransition, bellHovered && styles.iconBtnHover]}
+              onPress={onBellPress}
+              accessibilityLabel="Notifications"
+              accessibilityRole="button"
+              {...bellHoverHandlers}
+            >
+              <Ionicons name="notifications-outline" size={17} color={bellHovered ? colors.clubGreen : colors.textSecondary} />
               {unreadNotificationCount > 0 ? (
                 <View style={styles.dot}>
                   <Text style={styles.dotText}>{unreadNotificationCount > 9 ? '9+' : unreadNotificationCount}</Text>
@@ -171,7 +209,13 @@ export function DesktopShell({
               ) : null}
             </TouchableOpacity>
           ) : null}
-          <TouchableOpacity style={styles.avatarBtn} onPress={onAvatarPress} accessibilityLabel="Profile" accessibilityRole="button">
+          <TouchableOpacity
+            style={[styles.avatarBtn, hoverTransition, avatarHovered && styles.avatarBtnHover]}
+            onPress={onAvatarPress}
+            accessibilityLabel="Profile"
+            accessibilityRole="button"
+            {...avatarHoverHandlers}
+          >
             {avatarImageUrl ? (
               <Image source={{ uri: avatarImageUrl }} style={styles.avatarBtnImage} />
             ) : (
@@ -245,6 +289,7 @@ function createStyles(colors: ThemeColors) {
     borderBottomRightRadius: 3,
     backgroundColor: colors.lime,
   },
+  navItemHover: { backgroundColor: 'rgba(255,255,255,0.08)' },
   navItemLabel: { fontFamily: fontFamily.bodyMedium, fontSize: 13.5, color: 'rgba(255,255,255,0.78)', flexShrink: 1 },
   navItemLabelActive: { color: colors.white },
   sidebarFoot: {
@@ -256,7 +301,9 @@ function createStyles(colors: ThemeColors) {
     marginTop: 8,
     borderTopWidth: 1,
     borderTopColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 10,
   },
+  sidebarFootHover: { backgroundColor: 'rgba(255,255,255,0.06)' },
   footAvatar: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.lime, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   footAvatarImage: { width: '100%', height: '100%' },
   footAvatarText: { fontFamily: fontFamily.bodySemiBold, fontSize: 12, color: colors.darkGreen },
@@ -295,6 +342,7 @@ function createStyles(colors: ThemeColors) {
     width: 240,
   },
   searchInput: { flex: 1, fontFamily: fontFamily.body, fontSize: 13, color: colors.textPrimary, padding: 0 },
+  searchFocused: { borderColor: colors.clubGreen, backgroundColor: colors.surface },
   iconBtn: {
     width: 36,
     height: 36,
@@ -304,6 +352,7 @@ function createStyles(colors: ThemeColors) {
     alignItems: 'center',
     justifyContent: 'center',
   },
+  iconBtnHover: { borderColor: colors.clubGreen, backgroundColor: colors.mintBg },
   dot: {
     position: 'absolute',
     top: -4,
@@ -320,6 +369,7 @@ function createStyles(colors: ThemeColors) {
   },
   dotText: { fontFamily: fontFamily.bodySemiBold, fontSize: 9, color: colors.white },
   avatarBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.mintBg, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  avatarBtnHover: { transform: [{ scale: 1.08 }] },
   avatarBtnImage: { width: '100%', height: '100%' },
   avatarBtnText: { fontFamily: fontFamily.bodySemiBold, fontSize: 13, color: colors.clubGreen },
   content: { padding: 28, paddingBottom: 60, gap: spacing.lg, maxWidth: 1160 },

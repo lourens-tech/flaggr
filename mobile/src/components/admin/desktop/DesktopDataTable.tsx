@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { fontFamily, fontSize, radius, spacing } from '../../../theme';
 import { useThemeColors, type ThemeColors } from '../../../context/ThemeContext';
+import { useHover, hoverTransition } from '../../../hooks/useHover';
 
 export interface DesktopTableColumn<T> {
   key: string;
@@ -53,16 +54,7 @@ export function DesktopDataTable<T>({ columns, rows, keyExtractor }: Props<T>) {
         </View>
         <ScrollView showsVerticalScrollIndicator style={styles.verticalScroll}>
           {rows.map((row, i) => (
-            <View key={keyExtractor(row, i)} style={[styles.dataRow, i === rows.length - 1 && styles.dataRowLast]}>
-              {columns.map((c) => (
-                <View
-                  key={c.key}
-                  style={[columnFlex(c), { paddingRight: spacing.sm }, c.align === 'right' && styles.cellAlignRight]}
-                >
-                  {c.render(row)}
-                </View>
-              ))}
-            </View>
+            <DataRow key={keyExtractor(row, i)} row={row} columns={columns} isLast={i === rows.length - 1} styles={styles} />
           ))}
         </ScrollView>
       </View>
@@ -72,6 +64,34 @@ export function DesktopDataTable<T>({ columns, rows, keyExtractor }: Props<T>) {
 
 function columnFlex(c: { width: number }) {
   return { flexGrow: c.width, flexShrink: 0, flexBasis: c.width };
+}
+
+// Subtle hover tint on each row — mainly a scanning aid (helps track which
+// row you're reading across a wide table), not an implied click affordance.
+function DataRow<T>({
+  row,
+  columns,
+  isLast,
+  styles,
+}: {
+  row: T;
+  columns: DesktopTableColumn<T>[];
+  isLast: boolean;
+  styles: ReturnType<typeof createStyles>;
+}) {
+  const [hovered, hoverHandlers] = useHover();
+  return (
+    <View
+      style={[styles.dataRow, hoverTransition, hovered && styles.dataRowHover, isLast && styles.dataRowLast]}
+      {...hoverHandlers}
+    >
+      {columns.map((c) => (
+        <View key={c.key} style={[columnFlex(c), { paddingRight: spacing.sm }, c.align === 'right' && styles.cellAlignRight]}>
+          {c.render(row)}
+        </View>
+      ))}
+    </View>
+  );
 }
 
 function initials(a: string, b?: string): string {
@@ -172,6 +192,7 @@ function createStyles(colors: ThemeColors) {
     borderBottomColor: colors.border,
   },
   dataRowLast: { borderBottomWidth: 0 },
+  dataRowHover: { backgroundColor: colors.mintBgAlt },
   cellAlignRight: { alignItems: 'flex-end' },
   plainText: { fontFamily: fontFamily.body, fontSize: 13, color: colors.textPrimary },
   plainTextMuted: { color: colors.textSecondary },

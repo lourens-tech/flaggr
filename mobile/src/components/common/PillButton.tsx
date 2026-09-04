@@ -10,6 +10,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { fontFamily, fontSize, radius } from '../../theme';
 import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
+import { useHover, hoverTransition } from '../../hooks/useHover';
 
 interface Props {
   label: string;
@@ -42,18 +43,23 @@ export function PillButton({
   const isOutline = variant === 'outline';
   const isOutlineLight = variant === 'outlineLight';
   const outlineColor = isOutlineLight ? colors.white : colors.textPrimary;
+  const [hovered, hoverHandlers] = useHover();
+  const canHover = hovered && !disabled && !loading;
 
   return (
     <TouchableOpacity
       activeOpacity={0.8}
       onPress={onPress}
       disabled={disabled || loading}
+      {...hoverHandlers}
       style={[
         styles.base,
+        hoverTransition,
         isPrimary && { backgroundColor: colors.lime },
         isDark && { backgroundColor: colors.darkGreen },
         (isOutline || isOutlineLight) && { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: outlineColor },
         fullWidth && { alignSelf: 'stretch' },
+        canHover && styles.hovered,
         disabled && styles.disabled,
       ]}
     >
@@ -100,6 +106,14 @@ function createStyles(colors: ThemeColors) {
     fontFamily: fontFamily.headingDisplay,
     fontSize: fontSize.button,
     textTransform: 'capitalize',
+  },
+  hovered: {
+    transform: [{ translateY: -2 }, { scale: 1.015 }],
+    shadowColor: colors.darkGreen,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.16,
+    shadowRadius: 10,
+    elevation: 3,
   },
   disabled: { opacity: 0.5 },
 });

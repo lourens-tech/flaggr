@@ -13,6 +13,7 @@ import { TextField } from '../../components/common/TextField';
 import { PillButton } from '../../components/common/PillButton';
 import { useAdmin } from '../../context/AdminContext';
 import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
+import { useHover, hoverTransition } from '../../hooks/useHover';
 import { AdminDesktopFrame } from '../../components/admin/desktop/AdminDesktopFrame';
 import { DesktopStatCard } from '../../components/admin/desktop/DesktopStatCard';
 import { DesktopPanel } from '../../components/admin/desktop/DesktopPanel';
@@ -106,28 +107,36 @@ export function AdminDashboardScreen({ navigation }: Props) {
     }
   };
 
-  const memberRow = (m: AdminMember, desktop: boolean) => (
-    <TouchableOpacity
-      key={m.id}
-      style={desktop ? styles.dMemberRow : styles.memberRow}
-      onPress={() => navigation.navigate('AdminMemberStats', { memberId: m.id })}
-    >
-      <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-        {desktop ? (
-          <View style={styles.dMemberAvatar}>
-            <Text style={styles.dMemberAvatarText}>{`${m.firstName.charAt(0)}${m.lastName.charAt(0)}`.toUpperCase()}</Text>
+  const MemberRow = ({ m, desktop }: { m: AdminMember; desktop: boolean }) => {
+    const [hovered, hoverHandlers] = useHover();
+    return (
+      <TouchableOpacity
+        style={[
+          desktop ? styles.dMemberRow : styles.memberRow,
+          desktop && hoverTransition,
+          desktop && hovered && styles.dMemberRowHover,
+        ]}
+        onPress={() => navigation.navigate('AdminMemberStats', { memberId: m.id })}
+        {...(desktop ? hoverHandlers : null)}
+      >
+        <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          {desktop ? (
+            <View style={styles.dMemberAvatar}>
+              <Text style={styles.dMemberAvatarText}>{`${m.firstName.charAt(0)}${m.lastName.charAt(0)}`.toUpperCase()}</Text>
+            </View>
+          ) : null}
+          <View style={{ flex: 1 }}>
+            <Text style={desktop ? styles.dMemberName : styles.memberName}>{m.firstName} {m.lastName}</Text>
+            <Text style={desktop ? styles.dMemberEmail : styles.memberEmail}>{m.email}</Text>
           </View>
-        ) : null}
-        <View style={{ flex: 1 }}>
-          <Text style={desktop ? styles.dMemberName : styles.memberName}>{m.firstName} {m.lastName}</Text>
-          <Text style={desktop ? styles.dMemberEmail : styles.memberEmail}>{m.email}</Text>
         </View>
-      </View>
-      <Text style={desktop ? styles.dMemberTier : styles.memberTier}>{m.tier}</Text>
-      <Text style={desktop ? styles.dMemberBalance : styles.memberBalance}>{m.balance.toLocaleString()} FC</Text>
-      {!desktop ? <Ionicons name="chevron-forward" size={18} color={colors.clubGreen} /> : null}
-    </TouchableOpacity>
-  );
+        <Text style={desktop ? styles.dMemberTier : styles.memberTier}>{m.tier}</Text>
+        <Text style={desktop ? styles.dMemberBalance : styles.memberBalance}>{m.balance.toLocaleString()} FC</Text>
+        {!desktop ? <Ionicons name="chevron-forward" size={18} color={colors.clubGreen} /> : null}
+      </TouchableOpacity>
+    );
+  };
+  const memberRow = (m: AdminMember, desktop: boolean) => <MemberRow key={m.id} m={m} desktop={desktop} />;
 
   if (isDesktop) {
     const periodToggle = (
@@ -682,9 +691,13 @@ function createStyles(colors: ThemeColors) {
     alignItems: 'center',
     gap: 10,
     paddingVertical: 10,
+    paddingHorizontal: 8,
+    marginHorizontal: -8,
+    borderRadius: 8,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
+  dMemberRowHover: { backgroundColor: colors.mintBgAlt },
   dMemberAvatar: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.mintBg, alignItems: 'center', justifyContent: 'center' },
   dMemberAvatarText: { fontFamily: fontFamily.bodySemiBold, fontSize: 12, color: colors.clubGreen },
   dMemberName: { fontFamily: fontFamily.bodyMedium, fontSize: 13.5, color: colors.textPrimary },

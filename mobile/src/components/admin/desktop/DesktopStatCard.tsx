@@ -3,6 +3,7 @@ import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { fontFamily } from '../../../theme';
 import { useThemeColors, type ThemeColors } from '../../../context/ThemeContext';
+import { useHover, hoverTransition } from '../../../hooks/useHover';
 
 interface Props {
   label: string;
@@ -20,11 +21,18 @@ export function DesktopStatCard({ label, value, icon, deltaPct = 0, showDelta = 
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const positive = deltaPct >= 0;
+  const [hovered, hoverHandlers] = useHover();
   return (
-    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={onPress ? 0.7 : 1} disabled={!onPress}>
+    <TouchableOpacity
+      style={[styles.card, hoverTransition, onPress && hovered && styles.cardHover]}
+      onPress={onPress}
+      activeOpacity={onPress ? 0.7 : 1}
+      disabled={!onPress}
+      {...(onPress ? hoverHandlers : null)}
+    >
       <View style={styles.top}>
-        <View style={styles.iconChip}>
-          <Ionicons name={icon} size={15} color={colors.clubGreen} />
+        <View style={[styles.iconChip, hoverTransition, onPress && hovered && styles.iconChipHover]}>
+          <Ionicons name={icon} size={15} color={onPress && hovered ? colors.white : colors.clubGreen} />
         </View>
         {showDelta ? (
           <View style={styles.deltaRow}>
@@ -32,7 +40,12 @@ export function DesktopStatCard({ label, value, icon, deltaPct = 0, showDelta = 
             <Text style={[styles.delta, { color: positive ? colors.clubGreen : colors.negative }]}>{Math.abs(deltaPct)}%</Text>
           </View>
         ) : onPress ? (
-          <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />
+          <Ionicons
+            name="chevron-forward"
+            size={14}
+            color={hovered ? colors.clubGreen : colors.textMuted}
+            style={[hoverTransition, hovered && styles.chevronHover] as any}
+          />
         ) : null}
       </View>
       <Text style={styles.label}>{label}</Text>
@@ -53,8 +66,19 @@ function createStyles(colors: ThemeColors) {
     padding: 16,
     gap: 10,
   },
+  cardHover: {
+    borderColor: colors.clubGreen,
+    transform: [{ translateY: -3 }],
+    shadowColor: colors.clubGreen,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.14,
+    shadowRadius: 12,
+    elevation: 4,
+  },
   top: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
   iconChip: { width: 30, height: 30, borderRadius: 8, backgroundColor: colors.mintBg, alignItems: 'center', justifyContent: 'center' },
+  iconChipHover: { backgroundColor: colors.clubGreen },
+  chevronHover: { transform: [{ translateX: 2 }] },
   deltaRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   delta: { fontFamily: fontFamily.bodySemiBold, fontSize: 11.5 },
   label: { fontFamily: fontFamily.bodyMedium, fontSize: 12, color: colors.textSecondary },

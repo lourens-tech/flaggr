@@ -8,6 +8,7 @@ import { useAdmin } from '../../../context/AdminContext';
 import { getAdminNavGroups } from '../../../navigation/adminNavConfig';
 import { DesktopShell, type DesktopNavigator } from './DesktopShell';
 import { AdminActivityRail } from './AdminActivityRail';
+import { useHover, hoverTransition } from '../../../hooks/useHover';
 import type { AdminNotification } from '../../../data/adminTypes';
 
 const ROLE_LABELS: Record<string, string> = {
@@ -42,6 +43,7 @@ export function AdminDesktopFrame({ activeKey, breadcrumb, headerRight, showRail
   const styles = useMemo(() => createStyles(colors), [colors]);
   const navigation = useNavigation() as unknown as DesktopNavigator;
   const { admin, course, notifications, unreadNotificationCount, markNotificationRead } = useAdmin();
+  const [supportHovered, supportHoverHandlers] = useHover();
 
   const handleActivityPress = (n: AdminNotification) => {
     if (!n.read) markNotificationRead(n.id);
@@ -64,9 +66,10 @@ export function AdminDesktopFrame({ activeKey, breadcrumb, headerRight, showRail
               : 'Managed by the Flagrr team. Contact support with any billing questions.'}
           </Text>
           <TouchableOpacity
-            style={styles.subSupportBtn}
+            style={[styles.subSupportBtn, hoverTransition, supportHovered && styles.subSupportBtnHover]}
             onPress={() => navigation.navigate('AdminSupportTickets')}
             activeOpacity={0.8}
+            {...supportHoverHandlers}
           >
             <Ionicons name="headset-outline" size={14} color={colors.darkGreen} />
             <Text style={styles.subSupportBtnText}>Contact Support</Text>
@@ -134,6 +137,7 @@ function createStyles(colors: ThemeColors) {
     paddingVertical: 9,
     marginTop: 8,
   },
+  subSupportBtnHover: { backgroundColor: colors.white, transform: [{ translateY: -1 }] },
   subSupportBtnText: { fontFamily: fontFamily.bodySemiBold, fontSize: 12.5, color: colors.darkGreen },
 });
 }

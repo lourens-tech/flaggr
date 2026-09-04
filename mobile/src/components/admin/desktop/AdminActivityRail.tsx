@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { fontFamily } from '../../../theme';
 import { useThemeColors, type ThemeColors } from '../../../context/ThemeContext';
+import { useHover, hoverTransition } from '../../../hooks/useHover';
 import type { AdminNotification } from '../../../data/adminTypes';
 
 // Older enquiry notifications can predate the enquiry_id linkage — fall
@@ -44,30 +45,48 @@ export function AdminActivityRail({ notifications, onPress, footer }: Props) {
         {recent.length === 0 ? (
           <Text style={styles.empty}>Nothing yet.</Text>
         ) : (
-          recent.map((n, i) => {
-            const dotColor = n.receiptId ? colors.warning : n.enquiryId ? colors.clubGreen : '#38468C';
-            return (
-              <TouchableOpacity
-                key={n.id}
-                style={[styles.item, i === recent.length - 1 && styles.itemLast]}
-                onPress={() => onPress(n)}
-                disabled={!isActionable(n)}
-                activeOpacity={0.7}
-              >
-                <View style={[styles.dot, { backgroundColor: dotColor }]} />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.text}>
-                    <Text style={styles.textBold}>{n.title}</Text> — {n.body}
-                  </Text>
-                  <Text style={styles.time}>{timeAgo(n.date)}</Text>
-                </View>
-              </TouchableOpacity>
-            );
-          })
+          recent.map((n, i) => (
+            <ActivityItem key={n.id} n={n} isLast={i === recent.length - 1} onPress={onPress} colors={colors} styles={styles} />
+          ))
         )}
       </View>
       {footer}
     </View>
+  );
+}
+
+function ActivityItem({
+  n,
+  isLast,
+  onPress,
+  colors,
+  styles,
+}: {
+  n: AdminNotification;
+  isLast: boolean;
+  onPress: (n: AdminNotification) => void;
+  colors: ThemeColors;
+  styles: ReturnType<typeof createStyles>;
+}) {
+  const [hovered, hoverHandlers] = useHover();
+  const actionable = isActionable(n);
+  const dotColor = n.receiptId ? colors.warning : n.enquiryId ? colors.clubGreen : '#38468C';
+  return (
+    <TouchableOpacity
+      style={[styles.item, hoverTransition, actionable && hovered && styles.itemHover, isLast && styles.itemLast]}
+      onPress={() => onPress(n)}
+      disabled={!actionable}
+      activeOpacity={0.7}
+      {...(actionable ? hoverHandlers : null)}
+    >
+      <View style={[styles.dot, { backgroundColor: dotColor }]} />
+      <View style={{ flex: 1 }}>
+        <Text style={styles.text}>
+          <Text style={styles.textBold}>{n.title}</Text> — {n.body}
+        </Text>
+        <Text style={styles.time}>{timeAgo(n.date)}</Text>
+      </View>
+    </TouchableOpacity>
   );
 }
 
@@ -86,9 +105,13 @@ function createStyles(colors: ThemeColors) {
     flexDirection: 'row',
     gap: 10,
     paddingVertical: 10,
+    paddingHorizontal: 8,
+    marginHorizontal: -8,
+    borderRadius: 8,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
+  itemHover: { backgroundColor: colors.mintBgAlt },
   itemLast: { borderBottomWidth: 0 },
   dot: { width: 8, height: 8, borderRadius: 4, marginTop: 5 },
   text: { fontFamily: fontFamily.body, fontSize: 12.5, lineHeight: 18, color: colors.textPrimary },

@@ -3,6 +3,7 @@ import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { fontFamily } from '../../../theme';
 import { useThemeColors, type ThemeColors } from '../../../context/ThemeContext';
+import { useHover, hoverTransition } from '../../../hooks/useHover';
 
 interface Props {
   title: string;
@@ -18,14 +19,20 @@ interface Props {
 export function DesktopPanel({ title, onViewAll, viewAllLabel = 'View all', children, style }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const [hovered, hoverHandlers] = useHover();
   return (
     <View style={[styles.panel, style]}>
       <View style={styles.head}>
         <Text style={styles.title}>{title}</Text>
         {onViewAll ? (
-          <TouchableOpacity style={styles.link} onPress={onViewAll} activeOpacity={0.7}>
-            <Text style={styles.linkText}>{viewAllLabel}</Text>
-            <Ionicons name="chevron-forward" size={12} color={colors.clubGreen} />
+          <TouchableOpacity style={styles.link} onPress={onViewAll} activeOpacity={0.7} {...hoverHandlers}>
+            <Text style={[styles.linkText, hoverTransition, hovered && styles.linkTextHover]}>{viewAllLabel}</Text>
+            <Ionicons
+              name="chevron-forward"
+              size={12}
+              color={colors.clubGreen}
+              style={[hoverTransition, hovered && styles.linkChevronHover] as any}
+            />
           </TouchableOpacity>
         ) : null}
       </View>
@@ -48,5 +55,7 @@ function createStyles(colors: ThemeColors) {
   title: { fontFamily: fontFamily.heading, fontSize: 16.5, color: colors.textPrimary },
   link: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   linkText: { fontFamily: fontFamily.bodySemiBold, fontSize: 12, color: colors.clubGreen },
+  linkTextHover: { color: colors.darkGreen, textDecorationLine: 'underline' },
+  linkChevronHover: { transform: [{ translateX: 2 }] },
 });
 }
