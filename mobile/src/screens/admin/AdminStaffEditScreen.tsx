@@ -8,6 +8,9 @@ import { ScreenHeader } from '../../components/common/ScreenHeader';
 import { TextField } from '../../components/common/TextField';
 import { PillButton } from '../../components/common/PillButton';
 import { useAdmin } from '../../context/AdminContext';
+import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
+import { AdminDesktopFrame } from '../../components/admin/desktop/AdminDesktopFrame';
+import { DesktopPanel } from '../../components/admin/desktop/DesktopPanel';
 import { AdminApiError } from '../../api/adminClient';
 import { showAlert } from '../../utils/alert';
 import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
@@ -22,6 +25,7 @@ const WIZARD_STEP_COUNT = 3;
 export function AdminStaffEditScreen({ navigation, route }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const isDesktop = useIsDesktopNav();
   const { staff, createStaff, updateStaff, deleteStaff } = useAdmin();
   const existing = staff.find((s) => s.id === route.params?.staffId);
 
@@ -119,6 +123,58 @@ export function AdminStaffEditScreen({ navigation, route }: Props) {
 
   // --- Editing an existing staff member: unchanged simple form ---
   if (existing) {
+    const editForm = (
+      <>
+        <TextField placeholder="First Name" variant="onLight" value={firstName} onChangeText={setFirstName} />
+        <View style={{ height: spacing.md }} />
+        <TextField placeholder="Last Name" variant="onLight" value={lastName} onChangeText={setLastName} />
+        <View style={{ height: spacing.md }} />
+        <TextField
+          placeholder="Email"
+          variant="onLight"
+          autoCapitalize="none"
+          keyboardType="email-address"
+          value={email}
+          onChangeText={setEmail}
+        />
+        <Text style={styles.helpText}>
+          Just used to send login details — staff log in with a username instead, so this can be shared by more
+          than one staff member (e.g. a shared shop inbox).
+        </Text>
+
+        <Text style={styles.sectionTitle}>Login Username</Text>
+        <View style={styles.usernameBox}>
+          <Text style={styles.usernameText}>{existing.username}</Text>
+        </View>
+        <Text style={styles.sectionTitle}>Reset Password</Text>
+        <TextField
+          placeholder="New Password (leave blank to keep current)"
+          variant="onLight"
+          isPassword
+          value={newPassword}
+          onChangeText={setNewPassword}
+        />
+
+        <View style={{ height: spacing.lg }} />
+        <PillButton label="Save Changes" onPress={handleSaveEdit} loading={saving} />
+
+        <TouchableOpacity onPress={handleDelete} style={styles.deleteButton} disabled={saving}>
+          <Text style={styles.deleteText}>Remove Staff Member</Text>
+        </TouchableOpacity>
+      </>
+    );
+
+    if (isDesktop) {
+      return (
+        <AdminDesktopFrame activeKey="AdminStaffList" breadcrumb="Edit Staff Member" showRail={false}>
+          <Text style={styles.dPageTitle}>Edit Staff Member</Text>
+          <DesktopPanel title=" " style={{ maxWidth: 480 }}>
+            {editForm}
+          </DesktopPanel>
+        </AdminDesktopFrame>
+      );
+    }
+
     return (
       <View style={styles.screen}>
         <StatusBar barStyle="light-content" />
@@ -127,62 +183,23 @@ export function AdminStaffEditScreen({ navigation, route }: Props) {
         </SafeAreaView>
 
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-          <TextField placeholder="First Name" variant="onLight" value={firstName} onChangeText={setFirstName} />
-          <View style={{ height: spacing.md }} />
-          <TextField placeholder="Last Name" variant="onLight" value={lastName} onChangeText={setLastName} />
-          <View style={{ height: spacing.md }} />
-          <TextField
-            placeholder="Email"
-            variant="onLight"
-            autoCapitalize="none"
-            keyboardType="email-address"
-            value={email}
-            onChangeText={setEmail}
-          />
-          <Text style={styles.helpText}>
-            Just used to send login details — staff log in with a username instead, so this can be shared by more
-            than one staff member (e.g. a shared shop inbox).
-          </Text>
-
-          <Text style={styles.sectionTitle}>Login Username</Text>
-          <View style={styles.usernameBox}>
-            <Text style={styles.usernameText}>{existing.username}</Text>
-          </View>
-          <Text style={styles.sectionTitle}>Reset Password</Text>
-          <TextField
-            placeholder="New Password (leave blank to keep current)"
-            variant="onLight"
-            isPassword
-            value={newPassword}
-            onChangeText={setNewPassword}
-          />
-
-          <View style={{ height: spacing.lg }} />
-          <PillButton label="Save Changes" onPress={handleSaveEdit} loading={saving} />
-
-          <TouchableOpacity onPress={handleDelete} style={styles.deleteButton} disabled={saving}>
-            <Text style={styles.deleteText}>Remove Staff Member</Text>
-          </TouchableOpacity>
+          {editForm}
         </ScrollView>
       </View>
     );
   }
 
   // --- Adding a new staff member: details -> review -> success wizard ---
-  return (
-    <View style={styles.screen}>
-      <StatusBar barStyle="light-content" />
-      <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
-        <ScreenHeader title="New Staff Member" onBack={() => navigation.goBack()} />
-      </SafeAreaView>
+  const progressRow = (
+    <View style={styles.progressRow}>
+      {Array.from({ length: WIZARD_STEP_COUNT }).map((_, i) => (
+        <View key={i} style={[styles.progressDot, i <= wizardStep && styles.progressDotActive]} />
+      ))}
+    </View>
+  );
 
-      <View style={styles.progressRow}>
-        {Array.from({ length: WIZARD_STEP_COUNT }).map((_, i) => (
-          <View key={i} style={[styles.progressDot, i <= wizardStep && styles.progressDotActive]} />
-        ))}
-      </View>
-
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+  const wizardBody = (
+    <>
         {wizardStep === 0 ? (
           <>
             <Text style={styles.title}>Staff Details</Text>
@@ -251,6 +268,32 @@ export function AdminStaffEditScreen({ navigation, route }: Props) {
             <PillButton label="Done" onPress={() => navigation.goBack()} />
           </>
         ) : null}
+    </>
+  );
+
+  if (isDesktop) {
+    return (
+      <AdminDesktopFrame activeKey="AdminStaffList" breadcrumb="New Staff Member" showRail={false}>
+        <Text style={styles.dPageTitle}>New Staff Member</Text>
+        <DesktopPanel title=" " style={{ maxWidth: 480 }}>
+          {progressRow}
+          {wizardBody}
+        </DesktopPanel>
+      </AdminDesktopFrame>
+    );
+  }
+
+  return (
+    <View style={styles.screen}>
+      <StatusBar barStyle="light-content" />
+      <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
+        <ScreenHeader title="New Staff Member" onBack={() => navigation.goBack()} />
+      </SafeAreaView>
+
+      {progressRow}
+
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        {wizardBody}
       </ScrollView>
     </View>
   );
@@ -305,5 +348,6 @@ function createStyles(colors: ThemeColors) {
   backButtonText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.textSecondary },
   deleteButton: { alignItems: 'center', marginTop: spacing.lg },
   deleteText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.negative },
+  dPageTitle: { fontFamily: fontFamily.heading, fontSize: 26, color: colors.textPrimary },
 });
 }

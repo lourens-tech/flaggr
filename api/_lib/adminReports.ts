@@ -106,6 +106,228 @@ export async function getDashboardReport(courseId: string, period: StatsPeriod):
   };
 }
 
+export type CourseReportKind = 'redemptions' | 'receipts' | 'members';
+
+export interface RedemptionReportRow {
+  code: string;
+  memberName: string;
+  memberEmail: string;
+  rewardTitle: string;
+  variantLabel: string;
+  cost: number;
+  status: string;
+  issuedAt: string;
+  redeemedAt: string | null;
+}
+
+// Shared by the Overview screen's "Flagrr Cash Redeemed" detail table and
+// its Excel download (exportReport, 'redemptions') — one query, so the two
+// can never drift apart.
+export async function listRedemptionsReport(courseId: string, period: StatsPeriod): Promise<RedemptionReportRow[]> {
+  const { currentStart } = periodWindow(period);
+  const rows = (await sql`
+    select v.code, u.first_name, u.last_name, u.email, r.title, v.variant_label, v.cost, v.status, v.issued_at, v.redeemed_at
+    from vouchers v
+    join rewards r on r.id = v.reward_id
+    join users u on u.id = v.user_id
+    where r.course_id = ${courseId} and v.issued_at >= ${currentStart}
+    order by v.issued_at desc
+  `) as Array<{
+    code: string;
+    first_name: string;
+    last_name: string;
+    email: string;
+    title: string;
+    variant_label: string;
+    cost: number;
+    status: string;
+    issued_at: string;
+    redeemed_at: string | null;
+  }>;
+  return rows.map((r) => ({
+    code: r.code,
+    memberName: `${r.first_name} ${r.last_name}`,
+    memberEmail: r.email,
+    rewardTitle: r.title,
+    variantLabel: r.variant_label,
+    cost: r.cost,
+    status: r.status,
+    issuedAt: r.issued_at,
+    redeemedAt: r.redeemed_at,
+  }));
+}
+
+export interface ReceiptReportRow {
+  receiptNumber: string | null;
+  memberName: string;
+  memberEmail: string;
+  whereScanned: string;
+  total: number;
+  pointsAwarded: number | null;
+  status: string;
+  submittedAt: string;
+}
+
+// Shared by the "Flagrr Cash Earned"/"Receipts Scanned" detail table (both
+// point at the same underlying receipts) and its Excel download.
+export async function listReceiptsReport(courseId: string, period: StatsPeriod): Promise<ReceiptReportRow[]> {
+  const { currentStart } = periodWindow(period);
+  const rows = (await sql`
+    select r.receipt_number, u.first_name, u.last_name, u.email, r.course_name, r.total, r.points_awarded, r.status, r.submitted_at
+    from receipts r
+    join users u on u.id = r.user_id
+    where r.course_id = ${courseId} and r.submitted_at >= ${currentStart}
+    order by r.submitted_at desc
+  `) as Array<{
+    receipt_number: string | null;
+    first_name: string;
+    last_name: string;
+    email: string;
+    course_name: string;
+    total: number;
+    points_awarded: number | null;
+    status: string;
+    submitted_at: string;
+  }>;
+  return rows.map((r) => ({
+    receiptNumber: r.receipt_number,
+    memberName: `${r.first_name} ${r.last_name}`,
+    memberEmail: r.email,
+    whereScanned: r.course_name,
+    total: Number(r.total),
+    pointsAwarded: r.points_awarded,
+    status: r.status,
+    submittedAt: r.submitted_at,
+  }));
+}
+
+export interface MemberReportRow {
+  firstName: string;
+  lastName: string;
+  email: string;
+  tier: string;
+  memberSince: string;
+  balance: number;
+  totalEarned: number;
+  totalRedeemed: number;
+}
+
+// Shared by the "Members"/"New Members" detail table and its Excel
+// download. period='all' matches "Members" (every member); any other
+// period filters to members who joined within that window, matching
+// "New Members" — the same currentStart floor used everywhere else.
+export async function listMembersReport(courseId: string, period: StatsPeriod): Promise<MemberReportRow[]> {
+  const { currentStart } = periodWindow(period);
+  const rows = (await sql`
+    select u.first_name, u.last_name, u.email, u.tier, u.member_since, p.balance, p.total_earned, p.total_redeemed
+    from users u join points_accounts p on p.user_id = u.id
+    where u.course_id = ${courseId} and (${period}::text = 'all' or u.member_since >= ${currentStart})
+    order by u.member_since desc
+  `) as Array<{
+    first_name: string;
+    last_name: string;
+    email: string;
+    tier: string;
+    member_since: string;
+    balance: number;
+    total_earned: number;
+    total_redeemed: number;
+  }>;
+  return rows.map((r) => ({
+    firstName: r.first_name,
+    lastName: r.last_name,
+    email: r.email,
+    tier: r.tier,
+    memberSince: r.member_since,
+    balance: r.balance,
+    totalEarned: r.total_earned,
+    totalRedeemed: r.total_redeemed,
+  }));
+}
+
+export interface SuperAdminMemberReportRow extends MemberReportRow {
+  courseName: string;
+}
+
+// Cross-club counterpart of listMembersReport, for super_admin's Tier
+// Distribution detail page (every member, every club, annotated with which
+// club they belong to).
+export async function listSuperAdminMembersReport(period: StatsPeriod): Promise<SuperAdminMemberReportRow[]> {
+  const { currentStart } = periodWindow(period);
+  const rows = (await sql`
+    select u.first_name, u.last_name, u.email, u.tier, u.member_since, p.balance, p.total_earned, p.total_redeemed, c.name as course_name
+    from users u
+    join points_accounts p on p.user_id = u.id
+    join courses c on c.id = u.course_id
+    where u.member_since >= ${currentStart}
+    order by u.member_since desc
+  `) as Array<{
+    first_name: string;
+    last_name: string;
+    email: string;
+    tier: string;
+    member_since: string;
+    balance: number;
+    total_earned: number;
+    total_redeemed: number;
+    course_name: string;
+  }>;
+  return rows.map((r) => ({
+    firstName: r.first_name,
+    lastName: r.last_name,
+    email: r.email,
+    tier: r.tier,
+    memberSince: r.member_since,
+    balance: r.balance,
+    totalEarned: r.total_earned,
+    totalRedeemed: r.total_redeemed,
+    courseName: r.course_name,
+  }));
+}
+
+export interface SuperAdminRedemptionReportRow extends RedemptionReportRow {
+  courseName: string;
+}
+
+// Cross-club counterpart of listRedemptionsReport, for super_admin's Top
+// Redeemed Rewards detail page (every redemption, every club).
+export async function listSuperAdminRedemptionsReport(period: StatsPeriod): Promise<SuperAdminRedemptionReportRow[]> {
+  const { currentStart } = periodWindow(period);
+  const rows = (await sql`
+    select v.code, u.first_name, u.last_name, u.email, r.title, v.variant_label, v.cost, v.status, v.issued_at, v.redeemed_at, c.name as course_name
+    from vouchers v
+    join rewards r on r.id = v.reward_id
+    join users u on u.id = v.user_id
+    join courses c on c.id = r.course_id
+    where v.issued_at >= ${currentStart}
+    order by v.issued_at desc
+  `) as Array<{
+    code: string;
+    first_name: string;
+    last_name: string;
+    email: string;
+    title: string;
+    variant_label: string;
+    cost: number;
+    status: string;
+    issued_at: string;
+    redeemed_at: string | null;
+    course_name: string;
+  }>;
+  return rows.map((r) => ({
+    code: r.code,
+    memberName: `${r.first_name} ${r.last_name}`,
+    memberEmail: r.email,
+    rewardTitle: r.title,
+    variantLabel: r.variant_label,
+    cost: r.cost,
+    status: r.status,
+    issuedAt: r.issued_at,
+    redeemedAt: r.redeemed_at,
+    courseName: r.course_name,
+  }));
+}
+
 export interface SuperAdminDashboardReport extends DashboardReport {
   totals: DashboardReport['totals'] & { clubs: number };
 }
@@ -195,49 +417,9 @@ export async function getSuperAdminDashboardReport(period: StatsPeriod): Promise
   };
 }
 
-export interface AdPerformanceRow {
-  adId: string;
-  courseId: string | null;
-  courseName: string;
-  title: string;
-  placement: string;
-  active: boolean;
-  clicks: number;
-}
-
-// Ad performance was deliberately excluded from the course-admin dashboard
-// (see the note above) — only a super_admin sees how ads perform across
-// every club that's running them. course_id null means a global ad (shown
-// to every club), hence the left join instead of an inner one.
-export async function getAdPerformanceReport(): Promise<AdPerformanceRow[]> {
-  const rows = (await sql`
-    select a.id as ad_id, a.course_id, coalesce(c.name, 'All Courses') as course_name, a.title, a.placement, a.active,
-           count(k.id)::int as clicks
-    from ads a
-    left join courses c on c.id = a.course_id
-    left join ad_clicks k on k.ad_id = a.id
-    group by a.id, c.name
-    order by clicks desc
-    limit 50
-  `) as Array<{
-    ad_id: string;
-    course_id: string | null;
-    course_name: string;
-    title: string;
-    placement: string;
-    active: boolean;
-    clicks: number;
-  }>;
-  return rows.map((r) => ({
-    adId: r.ad_id,
-    courseId: r.course_id,
-    courseName: r.course_name,
-    title: r.title,
-    placement: r.placement,
-    active: r.active,
-    clicks: r.clicks,
-  }));
-}
+// Ad performance reporting lives in api/_lib/adAnalytics.ts (its own file —
+// a genuinely separate feature area: impressions/clicks/CTR, trend
+// buckets, and a per-ad click log, not just another dashboard total).
 
 export type StatBreakdownMetric = 'members' | 'newMembers' | 'fcEarned' | 'fcRedeemed' | 'receiptsScanned';
 

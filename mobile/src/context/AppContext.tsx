@@ -24,9 +24,6 @@ import type {
   Stats,
   StatsPeriod,
   Streak,
-  SupportTicketMessage,
-  SupportTicketSummary,
-  SupportTicketThread,
   User,
   Voucher,
 } from '../data/types';
@@ -103,12 +100,9 @@ interface AppContextValue extends AppState {
   listMyEnquiries: () => Promise<MyEnquirySummary[]>;
   getEnquiryThread: (id: string) => Promise<MyEnquiryThread>;
   replyToEnquiry: (enquiryId: string, message: string) => Promise<EnquiryMessage[]>;
-  createSupportTicket: (subject: string, message: string) => Promise<string>;
-  listMySupportTickets: () => Promise<SupportTicketSummary[]>;
   getReceiptImage: (id: string) => Promise<string | null>;
-  getSupportTicketThread: (id: string) => Promise<SupportTicketThread>;
-  replyToSupportTicket: (ticketId: string, message: string) => Promise<SupportTicketMessage[]>;
   logAdClick: (adId: string) => void;
+  logAdImpression: (adId: string) => void;
   statsPeriod: StatsPeriod;
   setStatsPeriod: (period: StatsPeriod) => Promise<void>;
   unreadNotificationCount: number;
@@ -290,15 +284,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const getEnquiryThread = async (id: string) => api.enquiryThread(id);
   const replyToEnquiry = async (enquiryId: string, message: string) => api.replyToEnquiry(enquiryId, message);
 
-  const createSupportTicket = async (subject: string, message: string): Promise<string> => {
-    const res = await api.createSupportTicket(subject, message);
-    return res.ticketId;
-  };
-  const listMySupportTickets = async () => api.supportTickets();
-
   const getReceiptImage = async (id: string): Promise<string | null> => (await api.receiptImage(id)).imageData;
-  const getSupportTicketThread = async (id: string) => api.supportTicketThread(id);
-  const replyToSupportTicket = async (ticketId: string, message: string) => api.replyToSupportTicket(ticketId, message);
 
   // Rewards, ads, and vouchers are all scoped to the member's home club, so
   // switching clubs re-fetches everything rather than patching just the
@@ -311,6 +297,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const logAdClick = (adId: string) => {
     api.logAdClick(adId).catch(() => {
       // Best-effort — a failed click log should never block the ad from opening.
+    });
+  };
+
+  const logAdImpression = (adId: string) => {
+    api.logAdImpression(adId).catch(() => {
+      // Best-effort — the ad still shows either way.
     });
   };
 
@@ -370,12 +362,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     listMyEnquiries,
     getEnquiryThread,
     replyToEnquiry,
-    createSupportTicket,
-    listMySupportTickets,
     getReceiptImage,
-    getSupportTicketThread,
-    replyToSupportTicket,
     logAdClick,
+    logAdImpression,
     statsPeriod,
     setStatsPeriod,
     unreadNotificationCount,

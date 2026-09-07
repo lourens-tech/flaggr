@@ -8,6 +8,9 @@ import type { AdminStackParamList } from '../../navigation/types';
 import { ScreenHeader } from '../../components/common/ScreenHeader';
 import { PillButton } from '../../components/common/PillButton';
 import { useAdmin } from '../../context/AdminContext';
+import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
+import { AdminDesktopFrame } from '../../components/admin/desktop/AdminDesktopFrame';
+import { DesktopPanel } from '../../components/admin/desktop/DesktopPanel';
 import { AdminApiError } from '../../api/adminClient';
 import { pickMemberRosterFile, MemberRosterFileError } from '../../utils/pickMemberRosterFile';
 import { showAlert } from '../../utils/alert';
@@ -20,6 +23,7 @@ type Props = NativeStackScreenProps<AdminStackParamList, 'AdminMemberList'>;
 export function AdminMemberListScreen({ navigation }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const isDesktop = useIsDesktopNav();
   const { getMemberRosterStatus, uploadMemberRoster } = useAdmin();
   const [status, setStatus] = useState<MemberRosterStatus | null>(null);
   const [loading, setLoading] = useState(true);
@@ -78,6 +82,63 @@ export function AdminMemberListScreen({ navigation }: Props) {
     }
   };
 
+  const body = (
+    <>
+      <Text style={styles.helpText}>
+        Upload your club's membership list so Flagrr can confirm that new signups are actual members. CSV and Excel
+        (.xlsx) files are supported — First Name, Last Name, and Email columns are needed (Member Number optional).
+        Re-uploading replaces the previous list entirely.
+      </Text>
+      <Text style={styles.helpText}>
+        A member who doesn't match your list can still use the app fully, but stays capped at Bronze tier until
+        they're verified.
+      </Text>
+
+      <View style={{ height: spacing.lg }} />
+
+      {loading ? (
+        <ActivityIndicator color={colors.clubGreen} />
+      ) : (
+        <View style={styles.statusCard}>
+          <Ionicons name="people-outline" size={22} color={colors.clubGreen} />
+          <View style={{ flex: 1 }}>
+            {status && status.count > 0 ? (
+              <>
+                <Text style={styles.statusTitle}>{status.count.toLocaleString()} members on file</Text>
+                {status.lastUploadedAt ? (
+                  <Text style={styles.statusSubtitle}>
+                    Last uploaded {new Date(status.lastUploadedAt).toLocaleDateString()}
+                  </Text>
+                ) : null}
+              </>
+            ) : (
+              <Text style={styles.statusTitle}>No member list uploaded yet</Text>
+            )}
+          </View>
+        </View>
+      )}
+
+      <View style={{ height: spacing.lg }} />
+      <PillButton
+        label={status && status.count > 0 ? 'Upload New Member List' : 'Upload Member List'}
+        icon="cloud-upload-outline"
+        onPress={handleUpload}
+        loading={uploading}
+      />
+    </>
+  );
+
+  if (isDesktop) {
+    return (
+      <AdminDesktopFrame activeKey="AdminMemberList" breadcrumb="Member List" showRail={false}>
+        <Text style={styles.dPageTitle}>Member List</Text>
+        <DesktopPanel title=" " style={{ maxWidth: 560 }}>
+          {body}
+        </DesktopPanel>
+      </AdminDesktopFrame>
+    );
+  }
+
   return (
     <View style={styles.screen}>
       <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
@@ -85,47 +146,7 @@ export function AdminMemberListScreen({ navigation }: Props) {
       </SafeAreaView>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={styles.helpText}>
-          Upload your club's membership list so Flagrr can confirm that new signups are actual members. CSV and Excel
-          (.xlsx) files are supported — First Name, Last Name, and Email columns are needed (Member Number optional).
-          Re-uploading replaces the previous list entirely.
-        </Text>
-        <Text style={styles.helpText}>
-          A member who doesn't match your list can still use the app fully, but stays capped at Bronze tier until
-          they're verified.
-        </Text>
-
-        <View style={{ height: spacing.lg }} />
-
-        {loading ? (
-          <ActivityIndicator color={colors.clubGreen} />
-        ) : (
-          <View style={styles.statusCard}>
-            <Ionicons name="people-outline" size={22} color={colors.clubGreen} />
-            <View style={{ flex: 1 }}>
-              {status && status.count > 0 ? (
-                <>
-                  <Text style={styles.statusTitle}>{status.count.toLocaleString()} members on file</Text>
-                  {status.lastUploadedAt ? (
-                    <Text style={styles.statusSubtitle}>
-                      Last uploaded {new Date(status.lastUploadedAt).toLocaleDateString()}
-                    </Text>
-                  ) : null}
-                </>
-              ) : (
-                <Text style={styles.statusTitle}>No member list uploaded yet</Text>
-              )}
-            </View>
-          </View>
-        )}
-
-        <View style={{ height: spacing.lg }} />
-        <PillButton
-          label={status && status.count > 0 ? 'Upload New Member List' : 'Upload Member List'}
-          icon="cloud-upload-outline"
-          onPress={handleUpload}
-          loading={uploading}
-        />
+        {body}
       </ScrollView>
     </View>
   );
@@ -154,5 +175,6 @@ function createStyles(colors: ThemeColors) {
     },
     statusTitle: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.textPrimary },
     statusSubtitle: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary, marginTop: 2 },
+    dPageTitle: { fontFamily: fontFamily.heading, fontSize: 26, color: colors.textPrimary },
   });
 }

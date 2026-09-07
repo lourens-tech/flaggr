@@ -18,6 +18,8 @@ import type { AdminStackParamList } from '../../navigation/types';
 import { ScreenHeader } from '../../components/common/ScreenHeader';
 import { TextField } from '../../components/common/TextField';
 import { useAdmin } from '../../context/AdminContext';
+import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
+import { AdminDesktopFrame } from '../../components/admin/desktop/AdminDesktopFrame';
 import { AdminApiError } from '../../api/adminClient';
 import { showAlert } from '../../utils/alert';
 import { fontFamily, fontSize, radius, screenPadding, spacing, ticketStatusBadges } from '../../theme';
@@ -33,6 +35,7 @@ function formatTime(iso: string): string {
 export function AdminSupportTicketChatScreen({ route }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const isDesktop = useIsDesktopNav();
   const { ticketId } = route.params;
   const { getSupportTicketThread, replyToSupportTicket } = useAdmin();
   const [thread, setThread] = useState<SupportTicketThread | null>(null);
@@ -83,6 +86,61 @@ export function AdminSupportTicketChatScreen({ route }: Props) {
 
   const badge = thread ? ticketStatusBadges(colors)[thread.status] : null;
 
+  const body = loading || !thread ? (
+    <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
+  ) : (
+    <>
+      <View style={styles.statusRow}>
+        {badge ? (
+          <View style={[styles.badge, { backgroundColor: badge.bg }]}>
+            <Text style={[styles.badgeText, { color: badge.fg }]}>{badge.label}</Text>
+          </View>
+        ) : null}
+      </View>
+
+      <ScrollView ref={scrollRef} contentContainerStyle={styles.messages} showsVerticalScrollIndicator={false}>
+        {thread.messages.map((m) => (
+          <View
+            key={m.id}
+            style={[styles.bubbleRow, m.senderType === 'requester' ? styles.bubbleRowRight : styles.bubbleRowLeft]}
+          >
+            <View style={[styles.bubble, m.senderType === 'requester' ? styles.bubbleMine : styles.bubbleTheirs]}>
+              <Text style={[styles.bubbleText, m.senderType === 'requester' && styles.bubbleTextMine]}>{m.body}</Text>
+            </View>
+            <Text style={styles.bubbleTime}>{formatTime(m.createdAt)}</Text>
+          </View>
+        ))}
+      </ScrollView>
+
+      <View style={styles.composer}>
+        <View style={{ flex: 1 }}>
+          <TextField placeholder="Type a message…" variant="onLight" value={draft} onChangeText={setDraft} multiline />
+        </View>
+        <TouchableOpacity
+          onPress={handleSend}
+          disabled={sending || !draft.trim()}
+          style={styles.sendButton}
+          accessibilityLabel="Send message"
+          accessibilityRole="button"
+        >
+          {sending ? (
+            <ActivityIndicator color={colors.white} size="small" />
+          ) : (
+            <Ionicons name="send" size={18} color={colors.white} />
+          )}
+        </TouchableOpacity>
+      </View>
+    </>
+  );
+
+  if (isDesktop) {
+    return (
+      <AdminDesktopFrame activeKey="" breadcrumb={thread?.subject ?? 'Ticket'} showRail={false} scrollable={false}>
+        <View style={styles.dChatCard}>{body}</View>
+      </AdminDesktopFrame>
+    );
+  }
+
   return (
     <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <StatusBar barStyle="light-content" />
@@ -90,52 +148,7 @@ export function AdminSupportTicketChatScreen({ route }: Props) {
         <ScreenHeader title={thread?.subject ?? 'Ticket'} />
       </SafeAreaView>
 
-      {loading || !thread ? (
-        <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
-      ) : (
-        <>
-          <View style={styles.statusRow}>
-            {badge ? (
-              <View style={[styles.badge, { backgroundColor: badge.bg }]}>
-                <Text style={[styles.badgeText, { color: badge.fg }]}>{badge.label}</Text>
-              </View>
-            ) : null}
-          </View>
-
-          <ScrollView ref={scrollRef} contentContainerStyle={styles.messages} showsVerticalScrollIndicator={false}>
-            {thread.messages.map((m) => (
-              <View
-                key={m.id}
-                style={[styles.bubbleRow, m.senderType === 'requester' ? styles.bubbleRowRight : styles.bubbleRowLeft]}
-              >
-                <View style={[styles.bubble, m.senderType === 'requester' ? styles.bubbleMine : styles.bubbleTheirs]}>
-                  <Text style={[styles.bubbleText, m.senderType === 'requester' && styles.bubbleTextMine]}>{m.body}</Text>
-                </View>
-                <Text style={styles.bubbleTime}>{formatTime(m.createdAt)}</Text>
-              </View>
-            ))}
-          </ScrollView>
-
-          <View style={styles.composer}>
-            <View style={{ flex: 1 }}>
-              <TextField placeholder="Type a message…" variant="onLight" value={draft} onChangeText={setDraft} multiline />
-            </View>
-            <TouchableOpacity
-              onPress={handleSend}
-              disabled={sending || !draft.trim()}
-              style={styles.sendButton}
-              accessibilityLabel="Send message"
-              accessibilityRole="button"
-            >
-              {sending ? (
-                <ActivityIndicator color={colors.white} size="small" />
-              ) : (
-                <Ionicons name="send" size={18} color={colors.white} />
-              )}
-            </TouchableOpacity>
-          </View>
-        </>
-      )}
+      {body}
     </KeyboardAvoidingView>
   );
 }
@@ -172,6 +185,14 @@ function createStyles(colors: ThemeColors) {
     backgroundColor: colors.clubGreen,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  dChatCard: {
+    flex: 1,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 16,
+    overflow: 'hidden',
   },
 });
 }

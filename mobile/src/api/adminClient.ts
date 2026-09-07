@@ -16,22 +16,35 @@ import type {
   AdminVoucherLookup,
   AuditLogEntry,
   BroadcastTarget,
+  CatalogActivity,
+  CatalogActivitySavePayload,
+  CatalogProduct,
+  CatalogProductSavePayload,
+  CourseReportKind,
   DashboardReport,
   DuplicateReceiptAttempt,
   EnquiryMessage,
   EnquiryStatus,
   FlaggedReceipt,
+  MemberReportRow,
   MemberRosterStatus,
   MemberRosterUploadResult,
   MemberStats,
   MembersPage,
+  RedemptionReportRow,
+  ReceiptReportRow,
+  SuperAdminMemberReportRow,
+  SuperAdminRedemptionReportRow,
+  SuperAdminReportKind,
   SuperAdminBroadcast,
   SuperAdminBroadcastTarget,
   SuperAdminCourseSummary,
   SuperAdminDashboardReport,
   SuperAdminMemberSearchResult,
   SuperAdminMemberStats,
+  AdClickLogRow,
   AdPerformanceRow,
+  AdTrendPoint,
   StatBreakdownMetric,
   StatBreakdownRow,
   StaffRedemption,
@@ -190,6 +203,14 @@ export interface SuperAdminRewardSavePayload extends RewardSavePayload {
   courseId: string;
 }
 
+export interface SuperAdminCatalogProductSavePayload extends CatalogProductSavePayload {
+  courseId: string;
+}
+
+export interface SuperAdminCatalogActivitySavePayload extends CatalogActivitySavePayload {
+  courseId: string;
+}
+
 export interface SupportAgentCreatePayload {
   firstName: string;
   lastName: string;
@@ -220,10 +241,18 @@ export const adminApi = {
   dashboard: (period: 'month' | 'year' | 'all') =>
     request<DashboardReport>(`?action=dashboard&period=${period}`),
 
+  // Backs each Overview stat card's detail table — same underlying rows as
+  // downloadReport's Excel file for that report, just as JSON.
+  reportRows: <K extends CourseReportKind>(report: K, period: 'month' | 'year' | 'all') =>
+    request<K extends 'redemptions' ? RedemptionReportRow[] : K extends 'receipts' ? ReceiptReportRow[] : MemberReportRow[]>(
+      `?action=reportRows&report=${report}&period=${period}`,
+    ),
+
   // --- This club's own flagged-receipts review queue (course_admin only) ---
   flaggedReceipts: () => request<FlaggedReceipt[]>('?action=flaggedReceipts'),
-  confirmReceiptFraud: (id: string) => request<{ ok: boolean }>('?action=confirmReceiptFraud', { method: 'POST', body: { id } }),
-  clearReceiptFlag: (id: string) => request<{ ok: boolean }>('?action=clearReceiptFlag', { method: 'POST', body: { id } }),
+  confirmReceiptFraud: (id: string, reason: string) =>
+    request<{ ok: boolean }>('?action=confirmReceiptFraud', { method: 'POST', body: { id, reason } }),
+  approveReceipt: (id: string) => request<{ ok: boolean }>('?action=approveReceipt', { method: 'POST', body: { id } }),
   receiptImage: (id: string) => request<{ imageData: string | null }>(`?action=receiptImage&id=${encodeURIComponent(id)}`),
 
   changePassword: (currentPassword: string, newPassword: string) =>
@@ -288,6 +317,22 @@ export const adminApi = {
 
   deleteReward: (id: string) => request<{ ok: boolean }>('?action=rewardDelete', { method: 'POST', body: { id } }),
 
+  catalogProducts: () => request<CatalogProduct[]>('?action=catalogProducts'),
+
+  saveCatalogProduct: (payload: CatalogProductSavePayload) =>
+    request<{ id: string }>('?action=catalogProductSave', { method: 'POST', body: payload }),
+
+  deleteCatalogProduct: (id: string) =>
+    request<{ ok: boolean }>('?action=catalogProductDelete', { method: 'POST', body: { id } }),
+
+  catalogActivities: () => request<CatalogActivity[]>('?action=catalogActivities'),
+
+  saveCatalogActivity: (payload: CatalogActivitySavePayload) =>
+    request<{ id: string }>('?action=catalogActivitySave', { method: 'POST', body: payload }),
+
+  deleteCatalogActivity: (id: string) =>
+    request<{ ok: boolean }>('?action=catalogActivityDelete', { method: 'POST', body: { id } }),
+
   ads: () => request<AdminAd[]>('?action=ads'),
 
   saveAd: (payload: AdSavePayload) => request<{ id: string }>('?action=adSave', { method: 'POST', body: payload }),
@@ -308,6 +353,12 @@ export const adminApi = {
 
   superAdminMemberStats: (id: string, period: 'month' | 'year' | 'all') =>
     request<SuperAdminMemberStats>(`?action=superAdminMemberStats&id=${encodeURIComponent(id)}&period=${period}`),
+
+  superAdminGiftFlagrrCash: (userId: string, amount: number, reason: string) =>
+    request<{ ok: boolean; newBalance: number }>('?action=superAdminGiftFlagrrCash', {
+      method: 'POST',
+      body: { userId, amount, reason },
+    }),
 
   broadcasts: () => request<AdminBroadcast[]>('?action=broadcasts'),
 
@@ -350,6 +401,18 @@ export const adminApi = {
   superAdminAds: (courseId: string) =>
     request<AdminAd[]>(`?action=superAdminAds&courseId=${encodeURIComponent(courseId)}`),
 
+  // Read-only oversight into any club's own enquiries inbox (member <->
+  // course_admin) — a super_admin can't reply here, that stays with the club.
+  superAdminCourseEnquiries: (courseId: string, status?: EnquiryStatus) =>
+    request<AdminEnquirySummary[]>(
+      `?action=superAdminCourseEnquiries&courseId=${encodeURIComponent(courseId)}${status ? `&status=${status}` : ''}`,
+    ),
+
+  superAdminEnquiryThread: (courseId: string, id: string) =>
+    request<AdminEnquiryThread>(
+      `?action=superAdminEnquiryThread&courseId=${encodeURIComponent(courseId)}&id=${encodeURIComponent(id)}`,
+    ),
+
   saveSuperAdminAd: (payload: SuperAdminAdSavePayload) =>
     request<{ id: string }>('?action=superAdminAdSave', { method: 'POST', body: payload }),
 
@@ -359,7 +422,14 @@ export const adminApi = {
   superAdminDashboard: (period: 'month' | 'year' | 'all') =>
     request<SuperAdminDashboardReport>(`?action=superAdminDashboard&period=${period}`),
 
-  superAdminAdPerformance: () => request<AdPerformanceRow[]>('?action=superAdminAdPerformance'),
+  superAdminAdPerformance: (period: 'month' | 'year' | 'all') =>
+    request<AdPerformanceRow[]>(`?action=superAdminAdPerformance&period=${period}`),
+
+  superAdminAdTrend: (period: 'month' | 'year' | 'all', adId?: string) =>
+    request<AdTrendPoint[]>(`?action=superAdminAdTrend&period=${period}${adId ? `&adId=${encodeURIComponent(adId)}` : ''}`),
+
+  superAdminAdClickLog: (adId: string, period: 'month' | 'year' | 'all') =>
+    request<AdClickLogRow[]>(`?action=superAdminAdClickLog&adId=${encodeURIComponent(adId)}&period=${period}`),
 
   superAdminRewards: (courseId: string) =>
     request<AdminReward[]>(`?action=superAdminRewards&courseId=${encodeURIComponent(courseId)}`),
@@ -370,8 +440,38 @@ export const adminApi = {
   deleteSuperAdminReward: (courseId: string, id: string) =>
     request<{ ok: boolean }>('?action=superAdminRewardDelete', { method: 'POST', body: { courseId, id } }),
 
+  superAdminCatalogProducts: (courseId: string) =>
+    request<CatalogProduct[]>(`?action=superAdminCatalogProducts&courseId=${encodeURIComponent(courseId)}`),
+
+  saveSuperAdminCatalogProduct: (payload: SuperAdminCatalogProductSavePayload) =>
+    request<{ id: string }>('?action=superAdminCatalogProductSave', { method: 'POST', body: payload }),
+
+  deleteSuperAdminCatalogProduct: (courseId: string, id: string) =>
+    request<{ ok: boolean }>('?action=superAdminCatalogProductDelete', { method: 'POST', body: { courseId, id } }),
+
+  superAdminCatalogActivities: (courseId: string) =>
+    request<CatalogActivity[]>(`?action=superAdminCatalogActivities&courseId=${encodeURIComponent(courseId)}`),
+
+  saveSuperAdminCatalogActivity: (payload: SuperAdminCatalogActivitySavePayload) =>
+    request<{ id: string }>('?action=superAdminCatalogActivitySave', { method: 'POST', body: payload }),
+
+  deleteSuperAdminCatalogActivity: (courseId: string, id: string) =>
+    request<{ ok: boolean }>('?action=superAdminCatalogActivityDelete', { method: 'POST', body: { courseId, id } }),
+
   superAdminStatBreakdown: (metric: StatBreakdownMetric, period: 'month' | 'year' | 'all') =>
     request<StatBreakdownRow[]>(`?action=superAdminStatBreakdown&metric=${metric}&period=${period}`),
+
+  // Backs the per-club member table opened from a row on
+  // SuperAdminStatBreakdownScreen ('members'/'newMembers' cards).
+  superAdminClubMembers: (courseId: string, period: 'month' | 'year' | 'all') =>
+    request<MemberReportRow[]>(`?action=superAdminClubMembers&courseId=${encodeURIComponent(courseId)}&period=${period}`),
+
+  // Backs super_admin's Tier Distribution / Top Redeemed Rewards detail
+  // tables — cross-club counterpart of reportRows above.
+  superAdminReportRows: <K extends SuperAdminReportKind>(report: K, period: 'month' | 'year' | 'all') =>
+    request<K extends 'crossClubMembers' ? SuperAdminMemberReportRow[] : SuperAdminRedemptionReportRow[]>(
+      `?action=superAdminReportRows&report=${report}&period=${period}`,
+    ),
 
   cancelSuperAdminCourseSubscription: (courseId: string) =>
     request<{ ok: boolean }>('?action=superAdminCourseCancelSubscription', { method: 'POST', body: { courseId } }),
@@ -479,31 +579,25 @@ export const adminApi = {
 
   // --- Cross-club fraud oversight (super_admin only) ---
   superAdminFlaggedReceipts: () => request<FlaggedReceipt[]>('?action=superAdminFlaggedReceipts'),
-  superAdminConfirmReceiptFraud: (id: string) =>
-    request<{ ok: boolean }>('?action=superAdminConfirmReceiptFraud', { method: 'POST', body: { id } }),
-  superAdminClearReceiptFlag: (id: string) =>
-    request<{ ok: boolean }>('?action=superAdminClearReceiptFlag', { method: 'POST', body: { id } }),
+  superAdminConfirmReceiptFraud: (id: string, reason: string) =>
+    request<{ ok: boolean }>('?action=superAdminConfirmReceiptFraud', { method: 'POST', body: { id, reason } }),
+  superAdminApproveReceipt: (id: string) =>
+    request<{ ok: boolean }>('?action=superAdminApproveReceipt', { method: 'POST', body: { id } }),
   superAdminDuplicateAttempts: () => request<DuplicateReceiptAttempt[]>('?action=superAdminDuplicateAttempts'),
   superAdminReceiptImage: (id: string) =>
     request<{ imageData: string | null }>(`?action=superAdminReceiptImage&id=${encodeURIComponent(id)}`),
 };
 
-/** Downloads a CSV report. Only works on the web build (the only build that
- * exists today) — triggers a browser file download via a Blob + temporary
- * anchor, since a plain <a href> can't carry the Authorization header. */
-export async function downloadCsvReport(
-  report: 'redemptions' | 'receipts' | 'members' | 'memberActivity',
-  period: 'month' | 'year' | 'all',
-  options?: { userId?: string; filename?: string },
-): Promise<boolean> {
+/** Fetches a report action's response and triggers a browser file download
+ * via a Blob + temporary anchor (a plain <a href> can't carry the
+ * Authorization header). Only works on the web build (the only build that
+ * exists today) — shared by every "download this report" button below. */
+async function downloadFile(params: URLSearchParams, filename: string): Promise<boolean> {
   if (Platform.OS !== 'web') return false;
 
   const token = await getToken();
   const headers: Record<string, string> = {};
   if (token) headers.Authorization = `Bearer ${token}`;
-
-  const params = new URLSearchParams({ action: 'exportCsv', report, period });
-  if (options?.userId) params.set('userId', options.userId);
 
   const res = await fetch(`${API_BASE_URL}/api/admin?${params.toString()}`, {
     headers,
@@ -516,10 +610,76 @@ export async function downloadCsvReport(
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = options?.filename ?? `${report}-${period}.csv`;
+  link.download = filename;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
   return true;
+}
+
+/** Downloads a course_admin report as a .xlsx workbook. */
+export async function downloadReport(
+  report: 'redemptions' | 'receipts' | 'members' | 'memberActivity',
+  period: 'month' | 'year' | 'all',
+  options?: { userId?: string; filename?: string },
+): Promise<boolean> {
+  const params = new URLSearchParams({ action: 'exportReport', report, period });
+  if (options?.userId) params.set('userId', options.userId);
+  return downloadFile(params, options?.filename ?? `${report}-${period}.xlsx`);
+}
+
+/** Downloads the super_admin ads report for one course as a .xlsx workbook. */
+export async function downloadSuperAdminAdsReport(courseId: string, filename: string): Promise<boolean> {
+  const params = new URLSearchParams({ action: 'superAdminExportReport', report: 'ads', courseId });
+  return downloadFile(params, filename);
+}
+
+/** Downloads a per-club stat breakdown (the same rows shown on
+ * SuperAdminStatBreakdownScreen) as a .xlsx workbook. */
+export async function downloadSuperAdminStatBreakdown(
+  metric: StatBreakdownMetric,
+  period: 'month' | 'year' | 'all',
+  filename: string,
+): Promise<boolean> {
+  const params = new URLSearchParams({ action: 'superAdminExportReport', report: metric, period });
+  return downloadFile(params, filename);
+}
+
+/** Downloads one club's own member list (the same rows shown on
+ * SuperAdminClubMembersScreen) as a .xlsx workbook. */
+export async function downloadSuperAdminClubMembers(
+  courseId: string,
+  period: 'month' | 'year' | 'all',
+  filename: string,
+): Promise<boolean> {
+  const params = new URLSearchParams({ action: 'superAdminExportReport', report: 'clubMembers', courseId, period });
+  return downloadFile(params, filename);
+}
+
+/** Downloads a cross-club report (the same rows shown on
+ * SuperAdminReportDetailScreen) as a .xlsx workbook. */
+export async function downloadSuperAdminReport(
+  report: SuperAdminReportKind,
+  period: 'month' | 'year' | 'all',
+  filename: string,
+): Promise<boolean> {
+  const params = new URLSearchParams({ action: 'superAdminExportReport', report, period });
+  return downloadFile(params, filename);
+}
+
+/** Downloads the cross-club Ad Performance summary as a .xlsx workbook. */
+export async function downloadSuperAdminAdPerformance(period: 'month' | 'year' | 'all', filename: string): Promise<boolean> {
+  const params = new URLSearchParams({ action: 'superAdminExportReport', report: 'adPerformance', period });
+  return downloadFile(params, filename);
+}
+
+/** Downloads one ad's individual click log as a .xlsx workbook. */
+export async function downloadSuperAdminAdClickLog(
+  adId: string,
+  period: 'month' | 'year' | 'all',
+  filename: string,
+): Promise<boolean> {
+  const params = new URLSearchParams({ action: 'superAdminExportReport', report: 'adClickLog', adId, period });
+  return downloadFile(params, filename);
 }

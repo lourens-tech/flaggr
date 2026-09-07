@@ -12,13 +12,17 @@ import { AdminHeaderAvatar } from '../../components/common/AdminHeaderAvatar';
 import { TextField } from '../../components/common/TextField';
 import { PillButton } from '../../components/common/PillButton';
 import { useAdmin } from '../../context/AdminContext';
-import { downloadCsvReport, AdminApiError } from '../../api/adminClient';
-import { showAlert } from '../../utils/alert';
+import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
+import { useHover, hoverTransition } from '../../hooks/useHover';
+import { AdminDesktopFrame } from '../../components/admin/desktop/AdminDesktopFrame';
+import { DesktopStatCard } from '../../components/admin/desktop/DesktopStatCard';
+import { DesktopPanel } from '../../components/admin/desktop/DesktopPanel';
 import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
 import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 import type { AdminMember } from '../../data/adminTypes';
 
 const MEMBERS_PAGE_SIZE = 10;
+const TIER_ORDER = ['Bronze', 'Silver', 'Gold', 'Platinum'];
 
 type Period = 'month' | 'year' | 'all';
 const PERIOD_LABELS: Record<Period, string> = { month: 'Month', year: 'Year', all: 'All' };
@@ -28,18 +32,12 @@ const PERIODS: Period[] = ['month', 'year', 'all'];
 // there rather than a misleading "0%".
 const DELTA_LABELS: Record<Period, string> = { month: 'vs Last Month', year: 'vs Last Year', all: '' };
 
-type ReportKind = 'redemptions' | 'receipts' | 'members';
-const REPORT_KINDS: ReportKind[] = ['redemptions', 'receipts', 'members'];
-const REPORT_LABELS: Record<ReportKind, string> = {
-  redemptions: 'Redemptions',
-  receipts: 'Receipts',
-  members: 'Members',
-};
-const REPORT_ICONS: Record<ReportKind, keyof typeof Ionicons.glyphMap> = {
-  redemptions: 'pricetag-outline',
-  receipts: 'receipt-outline',
-  members: 'people-outline',
-};
+function greeting(): string {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Good morning';
+  if (hour < 18) return 'Good afternoon';
+  return 'Good evening';
+}
 
 type Props = CompositeScreenProps<
   BottomTabScreenProps<AdminTabParamList, 'AdminDashboard'>,
@@ -49,7 +47,9 @@ type Props = CompositeScreenProps<
 export function AdminDashboardScreen({ navigation }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const isDesktop = useIsDesktopNav();
   const {
+    admin,
     course,
     dashboard,
     dashboardPeriod,
@@ -60,7 +60,6 @@ export function AdminDashboardScreen({ navigation }: Props) {
     searchMembers,
     listAllMembers,
   } = useAdmin();
-  const [exporting, setExporting] = useState<string | null>(null);
   const [memberSearch, setMemberSearch] = useState('');
   const [memberResults, setMemberResults] = useState<AdminMember[]>([]);
   const [searchingMembers, setSearchingMembers] = useState(false);
@@ -108,20 +107,212 @@ export function AdminDashboardScreen({ navigation }: Props) {
     }
   };
 
-  const handleExport = async (report: ReportKind) => {
-    setExporting(report);
-    try {
-      const downloaded = await downloadCsvReport(report, dashboardPeriod);
-      if (!downloaded) {
-        showAlert('Web only for now', 'CSV export is available on the Flagrr web app — open your dashboard in a browser to download this report.');
-      }
-    } catch (err) {
-      const message = err instanceof AdminApiError ? err.message : 'Something went wrong. Please try again.';
-      showAlert('Couldn’t generate report', message);
-    } finally {
-      setExporting(null);
-    }
+  const MemberRow = ({ m, desktop }: { m: AdminMember; desktop: boolean }) => {
+    const [hovered, hoverHandlers] = useHover();
+    return (
+      <TouchableOpacity
+        style={[
+          desktop ? styles.dMemberRow : styles.memberRow,
+          desktop && hoverTransition,
+          desktop && hovered && styles.dMemberRowHover,
+        ]}
+        onPress={() => navigation.navigate('AdminMemberStats', { memberId: m.id })}
+        {...(desktop ? hoverHandlers : null)}
+      >
+        <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          {desktop ? (
+            <View style={styles.dMemberAvatar}>
+              <Text style={styles.dMemberAvatarText}>{`${m.firstName.charAt(0)}${m.lastName.charAt(0)}`.toUpperCase()}</Text>
+            </View>
+          ) : null}
+          <View style={{ flex: 1 }}>
+            <Text style={desktop ? styles.dMemberName : styles.memberName}>{m.firstName} {m.lastName}</Text>
+            <Text style={desktop ? styles.dMemberEmail : styles.memberEmail}>{m.email}</Text>
+          </View>
+        </View>
+        <Text style={desktop ? styles.dMemberTier : styles.memberTier}>{m.tier}</Text>
+        <Text style={desktop ? styles.dMemberBalance : styles.memberBalance}>{m.balance.toLocaleString()} FC</Text>
+        {!desktop ? <Ionicons name="chevron-forward" size={18} color={colors.clubGreen} /> : null}
+      </TouchableOpacity>
+    );
   };
+  const memberRow = (m: AdminMember, desktop: boolean) => <MemberRow key={m.id} m={m} desktop={desktop} />;
+
+  if (isDesktop) {
+    const periodToggle = (
+      <View style={styles.dPeriodToggle}>
+        {PERIODS.map((p) => (
+          <TouchableOpacity
+            key={p}
+            onPress={() => setDashboardPeriod(p)}
+            style={[styles.dPeriodPill, dashboardPeriod === p && styles.dPeriodPillActive]}
+          >
+            <Text style={[styles.dPeriodText, dashboardPeriod === p && styles.dPeriodTextActive]}>{PERIOD_LABELS[p]}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+    );
+
+    return (
+      <AdminDesktopFrame activeKey="AdminDashboard" breadcrumb="Dashboard" headerRight={periodToggle}>
+        <View>
+          <Text style={styles.dPageTitle}>{greeting()}, {admin.firstName}</Text>
+          <Text style={styles.dPageSubtitle}>Here's how {course.name || 'your club'} is tracking this {dashboardPeriod === 'all' ? 'period' : dashboardPeriod}.</Text>
+        </View>
+
+        {dashboardLoading && !dashboard ? (
+          <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
+        ) : dashboard ? (
+          <>
+            <View style={styles.dStatRow}>
+              <DesktopStatCard
+                label="Members"
+                value={dashboard.totals.members.toLocaleString()}
+                icon="people-outline"
+                onPress={() => navigation.navigate('AdminReportDetail', { report: 'members', label: 'Members', period: 'all' })}
+              />
+              <DesktopStatCard
+                label="New Members"
+                value={dashboard.totals.newMembers.toLocaleString()}
+                icon="person-add-outline"
+                onPress={() => navigation.navigate('AdminReportDetail', { report: 'members', label: 'New Members', period: dashboardPeriod })}
+              />
+              <DesktopStatCard
+                label="FC Earned"
+                value={dashboard.totals.fcEarned.toLocaleString()}
+                icon="trending-up-outline"
+                deltaPct={dashboard.totals.fcEarnedDeltaPct}
+                showDelta={dashboardPeriod !== 'all'}
+                onPress={() => navigation.navigate('AdminReportDetail', { report: 'receipts', label: 'Flagrr Cash Earned', period: dashboardPeriod })}
+              />
+              <DesktopStatCard
+                label="FC Redeemed"
+                value={dashboard.totals.fcRedeemed.toLocaleString()}
+                icon="swap-horizontal-outline"
+                deltaPct={dashboard.totals.fcRedeemedDeltaPct}
+                showDelta={dashboardPeriod !== 'all'}
+                onPress={() => navigation.navigate('AdminReportDetail', { report: 'redemptions', label: 'Flagrr Cash Redeemed', period: dashboardPeriod })}
+              />
+              <DesktopStatCard
+                label="Receipts Scanned"
+                value={dashboard.totals.receiptsScanned.toLocaleString()}
+                icon="receipt-outline"
+                deltaPct={dashboard.totals.receiptsScannedDeltaPct}
+                showDelta={dashboardPeriod !== 'all'}
+                onPress={() => navigation.navigate('AdminReportDetail', { report: 'receipts', label: 'Receipts Scanned', period: dashboardPeriod })}
+              />
+            </View>
+
+            <View style={styles.dGrid2}>
+              <DesktopPanel title="Members Joined This Year" style={{ flex: 1.35 }}>
+                <BarChart data={dashboard.signupsByMonth} height={130} />
+              </DesktopPanel>
+
+              <DesktopPanel
+                title="Tier Distribution"
+                style={{ flex: 1 }}
+                onViewAll={() => navigation.navigate('AdminReportDetail', { report: 'members', label: 'Tier Distribution', period: 'all' })}
+              >
+                {(() => {
+                  const counts = new Map(dashboard.tierDistribution.map((t) => [t.tier, t.count]));
+                  const rows = TIER_ORDER.map((tier) => ({ tier, count: counts.get(tier) ?? 0 }));
+                  const max = Math.max(...rows.map((r) => r.count), 1);
+                  return rows.map((t) => (
+                    <View key={t.tier} style={styles.dTierRow}>
+                      <Text style={styles.dTierTag}>{t.tier}</Text>
+                      <View style={styles.dBarTrack}>
+                        <View style={[styles.dBarFill, { width: `${Math.max(4, (t.count / max) * 100)}%` }]} />
+                      </View>
+                      <Text style={styles.dTierValue}>{t.count}</Text>
+                    </View>
+                  ));
+                })()}
+              </DesktopPanel>
+            </View>
+
+            <View style={styles.dGrid2}>
+              <DesktopPanel
+                title="Top Redeemed Rewards"
+                style={{ flex: 1 }}
+                onViewAll={() => navigation.navigate('AdminReportDetail', { report: 'redemptions', label: 'Top Redeemed Rewards', period: dashboardPeriod })}
+              >
+                {dashboard.topRewards.length === 0 ? (
+                  <Text style={styles.dEmptyText}>No redemptions in this period.</Text>
+                ) : (
+                  dashboard.topRewards.map((r) => (
+                    <View key={r.rewardId} style={styles.dRowLine}>
+                      <Text style={styles.dRowName} numberOfLines={1}>{r.title}</Text>
+                      <Text style={styles.dRowMeta}>{r.redemptions}× · {r.fcSpent.toLocaleString()} FC</Text>
+                    </View>
+                  ))
+                )}
+              </DesktopPanel>
+
+              <DesktopPanel title="Look Up a Member" style={{ flex: 1 }}>
+                <View style={styles.dLookupBar}>
+                  <View style={{ flex: 1 }}>
+                    <TextField
+                      placeholder="Search by name or email"
+                      variant="onLight"
+                      value={memberSearch}
+                      onChangeText={setMemberSearch}
+                      onSubmitEditing={handleSearchMembers}
+                      returnKeyType="search"
+                    />
+                  </View>
+                  <PillButton label="Search" icon="search" variant="outline" onPress={handleSearchMembers} loading={searchingMembers} fullWidth={false} />
+                </View>
+                {memberResults.map((m) => memberRow(m, true))}
+
+                <TouchableOpacity onPress={handleToggleAllMembers} style={styles.dViewAllRow} activeOpacity={0.7}>
+                  <Text style={styles.dViewAllText}>View All Members</Text>
+                  <Ionicons name={showAllMembers ? 'chevron-up' : 'chevron-down'} size={14} color={colors.clubGreen} />
+                </TouchableOpacity>
+
+                {showAllMembers ? (
+                  loadingAllMembers && allMembers.length === 0 ? (
+                    <ActivityIndicator color={colors.clubGreen} />
+                  ) : (
+                    <>
+                      {allMembers.length === 0 ? (
+                        <Text style={styles.dEmptyText}>No members yet.</Text>
+                      ) : (
+                        allMembers.map((m) => memberRow(m, true))
+                      )}
+                      <View style={styles.paginationRow}>
+                        <TouchableOpacity
+                          onPress={() => loadAllMembersPage(allMembersPage - 1)}
+                          disabled={allMembersPage <= 1 || loadingAllMembers}
+                          style={[styles.pageButton, (allMembersPage <= 1 || loadingAllMembers) && styles.pageButtonDisabled]}
+                          accessibilityLabel="Previous page"
+                        >
+                          <Ionicons name="chevron-back" size={16} color={colors.textPrimary} />
+                        </TouchableOpacity>
+                        <Text style={styles.pageIndicator}>
+                          Page {allMembersPage} of {Math.max(1, Math.ceil(allMembersTotal / MEMBERS_PAGE_SIZE))}
+                        </Text>
+                        <TouchableOpacity
+                          onPress={() => loadAllMembersPage(allMembersPage + 1)}
+                          disabled={allMembersPage >= Math.ceil(allMembersTotal / MEMBERS_PAGE_SIZE) || loadingAllMembers}
+                          style={[
+                            styles.pageButton,
+                            (allMembersPage >= Math.ceil(allMembersTotal / MEMBERS_PAGE_SIZE) || loadingAllMembers) && styles.pageButtonDisabled,
+                          ]}
+                          accessibilityLabel="Next page"
+                        >
+                          <Ionicons name="chevron-forward" size={16} color={colors.textPrimary} />
+                        </TouchableOpacity>
+                      </View>
+                    </>
+                  )
+                ) : null}
+              </DesktopPanel>
+            </View>
+          </>
+        ) : null}
+      </AdminDesktopFrame>
+    );
+  }
 
   return (
     <View style={styles.screen}>
@@ -179,8 +370,24 @@ export function AdminDashboardScreen({ navigation }: Props) {
           <>
             <View style={styles.statsGrid}>
               <View style={styles.statsRow}>
-                <StatCard label="Members" value={dashboard.totals.members} deltaPct={0} showDelta={false} fill backgroundColor={colors.mintBg} />
-                <StatCard label="New Members" value={dashboard.totals.newMembers} deltaPct={0} showDelta={false} fill backgroundColor={colors.mintBg} />
+                <StatCard
+                  label="Members"
+                  value={dashboard.totals.members}
+                  deltaPct={0}
+                  showDelta={false}
+                  fill
+                  backgroundColor={colors.mintBg}
+                  onPress={() => navigation.navigate('AdminReportDetail', { report: 'members', label: 'Members', period: 'all' })}
+                />
+                <StatCard
+                  label="New Members"
+                  value={dashboard.totals.newMembers}
+                  deltaPct={0}
+                  showDelta={false}
+                  fill
+                  backgroundColor={colors.mintBg}
+                  onPress={() => navigation.navigate('AdminReportDetail', { report: 'members', label: 'New Members', period: dashboardPeriod })}
+                />
               </View>
               <View style={styles.statsRow}>
                 <StatCard
@@ -191,6 +398,7 @@ export function AdminDashboardScreen({ navigation }: Props) {
                   showDelta={dashboardPeriod !== 'all'}
                   fill
                   backgroundColor={colors.mintBg}
+                  onPress={() => navigation.navigate('AdminReportDetail', { report: 'receipts', label: 'Flagrr Cash Earned', period: dashboardPeriod })}
                 />
                 <StatCard
                   label="Flagrr Cash Redeemed"
@@ -200,6 +408,7 @@ export function AdminDashboardScreen({ navigation }: Props) {
                   showDelta={dashboardPeriod !== 'all'}
                   fill
                   backgroundColor={colors.mintBg}
+                  onPress={() => navigation.navigate('AdminReportDetail', { report: 'redemptions', label: 'Flagrr Cash Redeemed', period: dashboardPeriod })}
                 />
               </View>
               <StatCard
@@ -210,6 +419,7 @@ export function AdminDashboardScreen({ navigation }: Props) {
                 showDelta={dashboardPeriod !== 'all'}
                 width="100%"
                 backgroundColor={colors.mintBg}
+                onPress={() => navigation.navigate('AdminReportDetail', { report: 'receipts', label: 'Receipts Scanned', period: dashboardPeriod })}
               />
             </View>
 
@@ -218,7 +428,14 @@ export function AdminDashboardScreen({ navigation }: Props) {
               <BarChart data={dashboard.signupsByMonth} />
             </View>
 
-            <Text style={styles.sectionTitle}>Tier Distribution</Text>
+            <TouchableOpacity
+              style={styles.sectionHeaderRow}
+              activeOpacity={0.7}
+              onPress={() => navigation.navigate('AdminReportDetail', { report: 'members', label: 'Tier Distribution', period: 'all' })}
+            >
+              <Text style={styles.sectionTitle}>Tier Distribution</Text>
+              <Ionicons name="chevron-forward" size={18} color={colors.clubGreen} />
+            </TouchableOpacity>
             <View style={styles.card}>
               {dashboard.tierDistribution.length === 0 ? (
                 <Text style={styles.emptyText}>No members yet.</Text>
@@ -232,7 +449,14 @@ export function AdminDashboardScreen({ navigation }: Props) {
               )}
             </View>
 
-            <Text style={styles.sectionTitle}>Top Redeemed Rewards</Text>
+            <TouchableOpacity
+              style={styles.sectionHeaderRow}
+              activeOpacity={0.7}
+              onPress={() => navigation.navigate('AdminReportDetail', { report: 'redemptions', label: 'Top Redeemed Rewards', period: dashboardPeriod })}
+            >
+              <Text style={styles.sectionTitle}>Top Redeemed Rewards</Text>
+              <Ionicons name="chevron-forward" size={18} color={colors.clubGreen} />
+            </TouchableOpacity>
             <View style={styles.card}>
               {dashboard.topRewards.length === 0 ? (
                 <Text style={styles.emptyText}>No redemptions in this period.</Text>
@@ -246,28 +470,6 @@ export function AdminDashboardScreen({ navigation }: Props) {
               )}
             </View>
 
-            <Text style={styles.sectionTitle}>Pull a Report</Text>
-            <View style={styles.card}>
-              <View style={styles.reportGrid}>
-                {REPORT_KINDS.map((report) => (
-                  <TouchableOpacity
-                    key={report}
-                    style={styles.reportTile}
-                    onPress={() => handleExport(report)}
-                    disabled={exporting === report}
-                  >
-                    <Ionicons name={REPORT_ICONS[report]} size={26} color={colors.clubGreen} />
-                    <Text style={styles.reportTileLabel}>{REPORT_LABELS[report]}</Text>
-                    {exporting === report ? (
-                      <View style={styles.reportTileOverlay}>
-                        <ActivityIndicator color={colors.clubGreen} size="small" />
-                      </View>
-                    ) : null}
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-
             <Text style={styles.sectionTitle}>Look Up a Member</Text>
             <View style={styles.card}>
               <TextField
@@ -279,23 +481,7 @@ export function AdminDashboardScreen({ navigation }: Props) {
                 returnKeyType="search"
               />
               <PillButton label="Search" icon="search" variant="outline" onPress={handleSearchMembers} loading={searchingMembers} />
-              {memberResults.map((m) => (
-                <TouchableOpacity
-                  key={m.id}
-                  style={styles.memberRow}
-                  onPress={() => navigation.navigate('AdminMemberStats', { memberId: m.id })}
-                >
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.memberName}>{m.firstName} {m.lastName}</Text>
-                    <Text style={styles.memberEmail}>{m.email}</Text>
-                  </View>
-                  <View style={{ alignItems: 'flex-end' }}>
-                    <Text style={styles.memberTier}>{m.tier}</Text>
-                    <Text style={styles.memberBalance}>{m.balance.toLocaleString()} FC</Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={18} color={colors.clubGreen} />
-                </TouchableOpacity>
-              ))}
+              {memberResults.map((m) => memberRow(m, false))}
             </View>
 
             <PillButton
@@ -314,23 +500,7 @@ export function AdminDashboardScreen({ navigation }: Props) {
                     {allMembers.length === 0 ? (
                       <Text style={styles.emptyText}>No members yet.</Text>
                     ) : (
-                      allMembers.map((m) => (
-                        <TouchableOpacity
-                          key={m.id}
-                          style={styles.memberRow}
-                          onPress={() => navigation.navigate('AdminMemberStats', { memberId: m.id })}
-                        >
-                          <View style={{ flex: 1 }}>
-                            <Text style={styles.memberName}>{m.firstName} {m.lastName}</Text>
-                            <Text style={styles.memberEmail}>{m.email}</Text>
-                          </View>
-                          <View style={{ alignItems: 'flex-end' }}>
-                            <Text style={styles.memberTier}>{m.tier}</Text>
-                            <Text style={styles.memberBalance}>{m.balance.toLocaleString()} FC</Text>
-                          </View>
-                          <Ionicons name="chevron-forward" size={18} color={colors.clubGreen} />
-                        </TouchableOpacity>
-                      ))
+                      allMembers.map((m) => memberRow(m, false))
                     )}
 
                     <View style={styles.paginationRow}>
@@ -422,6 +592,7 @@ function createStyles(colors: ThemeColors) {
   statsGrid: { gap: spacing.sm, marginBottom: spacing.lg },
   statsRow: { flexDirection: 'row', gap: 10 },
   sectionTitle: { fontFamily: fontFamily.heading, fontSize: fontSize.title, color: colors.textPrimary, marginBottom: spacing.sm },
+  sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   chartCard: {
     backgroundColor: colors.mintBg,
     borderWidth: 0.5,
@@ -444,27 +615,6 @@ function createStyles(colors: ThemeColors) {
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: spacing.sm },
   rowLabel: { flex: 1, fontFamily: fontFamily.body, fontSize: fontSize.body, color: colors.textPrimary },
   rowValue: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.textPrimary },
-  reportGrid: { flexDirection: 'row', gap: spacing.sm },
-  reportTile: {
-    flex: 1,
-    aspectRatio: 1,
-    backgroundColor: colors.background,
-    borderWidth: 0.5,
-    borderColor: colors.clubGreen,
-    borderRadius: radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.xs,
-    padding: spacing.sm,
-  },
-  reportTileLabel: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.tiny, color: colors.textPrimary, textAlign: 'center' },
-  reportTileOverlay: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(255,255,255,0.7)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radius.md,
-  },
   memberRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -496,5 +646,65 @@ function createStyles(colors: ThemeColors) {
   },
   pageButtonDisabled: { opacity: 0.4 },
   pageIndicator: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.tiny, color: colors.textPrimary },
+
+  // ---- desktop-web only (see useIsDesktopNav) ----
+  dPageTitle: { fontFamily: fontFamily.heading, fontSize: 26, color: colors.textPrimary },
+  dPageSubtitle: { fontFamily: fontFamily.body, fontSize: 13, color: colors.textSecondary, marginTop: 4 },
+  dPeriodToggle: { flexDirection: 'row', backgroundColor: colors.mintBg, borderRadius: radius.pill, padding: 3 },
+  dPeriodPill: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: radius.pill },
+  dPeriodPillActive: { backgroundColor: colors.darkGreen },
+  dPeriodText: { fontFamily: fontFamily.bodySemiBold, fontSize: 12.5, color: colors.darkGreen },
+  dPeriodTextActive: { color: colors.white },
+  dStatRow: { flexDirection: 'row', gap: 14, flexWrap: 'wrap' },
+  dGrid2: { flexDirection: 'row', gap: 18, alignItems: 'flex-start', flexWrap: 'wrap' },
+  dEmptyText: { fontFamily: fontFamily.body, fontSize: fontSize.body, color: colors.textSecondary },
+  dTierRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  dTierTag: {
+    fontFamily: fontFamily.bodySemiBold,
+    fontSize: 11,
+    color: colors.clubGreen,
+    backgroundColor: colors.mintBg,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 99,
+    overflow: 'hidden',
+    minWidth: 64,
+    textAlign: 'center',
+  },
+  dBarTrack: { flex: 1, height: 6, borderRadius: 99, backgroundColor: colors.mintBg, overflow: 'hidden' },
+  dBarFill: { height: '100%', borderRadius: 99, backgroundColor: colors.clubGreen },
+  dTierValue: { fontFamily: fontFamily.bodySemiBold, fontSize: 13.5, color: colors.textPrimary, minWidth: 34, textAlign: 'right' },
+  dRowLine: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  dRowName: { flex: 1, fontFamily: fontFamily.bodyMedium, fontSize: 13.5, color: colors.textPrimary },
+  dRowMeta: { fontFamily: fontFamily.body, fontSize: 12, color: colors.textSecondary },
+  dLookupBar: { flexDirection: 'row', gap: 10, alignItems: 'center' },
+  dMemberRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    marginHorizontal: -8,
+    borderRadius: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  dMemberRowHover: { backgroundColor: colors.mintBgAlt },
+  dMemberAvatar: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.mintBg, alignItems: 'center', justifyContent: 'center' },
+  dMemberAvatarText: { fontFamily: fontFamily.bodySemiBold, fontSize: 12, color: colors.clubGreen },
+  dMemberName: { fontFamily: fontFamily.bodyMedium, fontSize: 13.5, color: colors.textPrimary },
+  dMemberEmail: { fontFamily: fontFamily.body, fontSize: 11.5, color: colors.textSecondary },
+  dMemberTier: { fontFamily: fontFamily.bodySemiBold, fontSize: 12.5, color: colors.textPrimary, width: 70 },
+  dMemberBalance: { fontFamily: fontFamily.bodySemiBold, fontSize: 13, color: colors.textPrimary, width: 90, textAlign: 'right' },
+  dViewAllRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 8 },
+  dViewAllText: { fontFamily: fontFamily.bodySemiBold, fontSize: 12.5, color: colors.clubGreen },
 });
 }

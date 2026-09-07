@@ -8,6 +8,9 @@ import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AdminStackParamList, AdminTabParamList } from '../../navigation/types';
 import { useAdmin } from '../../context/AdminContext';
+import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
+import { AdminDesktopFrame } from '../../components/admin/desktop/AdminDesktopFrame';
+import { DesktopPanel } from '../../components/admin/desktop/DesktopPanel';
 import { AdminApiError } from '../../api/adminClient';
 import { TextField } from '../../components/common/TextField';
 import { showAlert } from '../../utils/alert';
@@ -48,6 +51,7 @@ function targetLabel(target: string): string {
 export function AdminPushScreen({ navigation }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const isDesktop = useIsDesktopNav();
   const { broadcasts, loadBroadcasts, sendBroadcast, deleteBroadcast } = useAdmin();
   const [loading, setLoading] = useState(true);
   const [resendingId, setResendingId] = useState<string | null>(null);
@@ -158,6 +162,55 @@ export function AdminPushScreen({ navigation }: Props) {
     </View>
   );
 
+  const searchAndFilters = (
+    <View style={styles.searchArea}>
+      <TextField placeholder="Search notifications" variant="onLight" icon="search" value={search} onChangeText={setSearch} />
+      <View style={styles.filterRow}>
+        {FILTERS.map((f) => (
+          <TouchableOpacity
+            key={f.value}
+            onPress={() => setFilter(f.value)}
+            style={[styles.filterPill, filter === f.value && styles.filterPillActive]}
+            accessibilityLabel={`Filter ${f.label}`}
+            accessibilityRole="button"
+          >
+            <Text style={[styles.filterText, filter === f.value && styles.filterTextActive]}>{f.label}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+    </View>
+  );
+
+  if (isDesktop) {
+    return (
+      <AdminDesktopFrame activeKey="AdminPush" breadcrumb="Push Notifications">
+        <View style={styles.dHeadRow}>
+          <Text style={styles.dPageTitle}>Push Notifications</Text>
+          <TouchableOpacity style={styles.dAddButton} onPress={() => navigation.navigate('AdminBroadcastCompose', undefined)}>
+            <Ionicons name="add" size={16} color={colors.darkGreen} />
+            <Text style={styles.dAddButtonText}>New Notification</Text>
+          </TouchableOpacity>
+        </View>
+        <DesktopPanel title="Sent Notifications">
+          {searchAndFilters}
+          {loading ? (
+            <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.md }} />
+          ) : filtered.length === 0 ? (
+            <Text style={styles.emptyText}>
+              {broadcasts.length === 0 ? 'No notifications sent yet.' : 'No notifications match your search.'}
+            </Text>
+          ) : (
+            <View style={{ gap: spacing.sm, marginTop: spacing.sm }}>
+              {filtered.map((item) => (
+                <React.Fragment key={item.id}>{renderItem({ item })}</React.Fragment>
+              ))}
+            </View>
+          )}
+        </DesktopPanel>
+      </AdminDesktopFrame>
+    );
+  }
+
   return (
     <View style={styles.screen}>
       <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
@@ -174,28 +227,7 @@ export function AdminPushScreen({ navigation }: Props) {
         </View>
       </SafeAreaView>
 
-      <View style={styles.searchArea}>
-        <TextField
-          placeholder="Search notifications"
-          variant="onLight"
-          icon="search"
-          value={search}
-          onChangeText={setSearch}
-        />
-        <View style={styles.filterRow}>
-          {FILTERS.map((f) => (
-            <TouchableOpacity
-              key={f.value}
-              onPress={() => setFilter(f.value)}
-              style={[styles.filterPill, filter === f.value && styles.filterPillActive]}
-              accessibilityLabel={`Filter ${f.label}`}
-              accessibilityRole="button"
-            >
-              <Text style={[styles.filterText, filter === f.value && styles.filterTextActive]}>{f.label}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </View>
+      {searchAndFilters}
 
       {loading ? (
         <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
@@ -262,5 +294,17 @@ function createStyles(colors: ThemeColors) {
     textAlign: 'center',
     marginTop: spacing.xl,
   },
+  dHeadRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  dPageTitle: { fontFamily: fontFamily.heading, fontSize: 26, color: colors.textPrimary },
+  dAddButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.lime,
+    borderRadius: radius.pill,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  dAddButtonText: { fontFamily: fontFamily.bodySemiBold, fontSize: 13, color: colors.darkGreen },
 });
 }

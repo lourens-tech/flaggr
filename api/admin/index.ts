@@ -8,11 +8,18 @@ import { fillMonthlyByNumber } from '../_lib/monthly';
 import {
   getDashboardReport,
   getSuperAdminDashboardReport,
-  getAdPerformanceReport,
   getSuperAdminStatBreakdown,
+  listMembersReport,
+  listReceiptsReport,
+  listRedemptionsReport,
+  listSuperAdminMembersReport,
+  listSuperAdminRedemptionsReport,
+  type CourseReportKind,
   type StatBreakdownMetric,
 } from '../_lib/adminReports';
-import { toCsv } from '../_lib/csv';
+import { getAdClickLog, getAdPerformanceReport, getAdTrend } from '../_lib/adAnalytics';
+import { giftFlagrrCash } from '../_lib/giftFlagrrCash';
+import { toXlsxBuffer } from '../_lib/xlsx';
 import {
   addAdminMessage,
   ENQUIRY_STATUSES,
@@ -37,7 +44,12 @@ import {
 import { getRosterStatus, replaceMemberRoster } from '../_lib/memberRoster';
 import { parseMemberRosterFile } from '../_lib/memberRosterFileParsing';
 import { logAudit } from '../_lib/auditLog';
-import { applyFraudConfirmationEffects, describeFraudReasons, resolveFlaggedReceipt } from '../_lib/fraudChecks';
+import {
+  applyApprovalEffects,
+  applyFraudConfirmationEffects,
+  describeFraudReasons,
+  resolveFlaggedReceipt,
+} from '../_lib/fraudChecks';
 import { consumePasswordResetCode, issuePasswordResetCode } from '../_lib/passwordReset';
 import { renderBrandedEmailHtml, emailParagraph } from '../_lib/emailTemplate';
 
@@ -120,6 +132,42 @@ interface SuperAdminRewardDeleteBody extends RewardDeleteBody {
   courseId?: string;
 }
 
+interface CatalogProductSaveBody {
+  id?: string;
+  name?: string;
+  brand?: string;
+  category?: string;
+  aliases?: string[];
+  randValue?: number;
+  pointsPerUnit?: boolean;
+  active?: boolean;
+}
+
+interface CatalogActivitySaveBody {
+  id?: string;
+  name?: string;
+  category?: string;
+  aliases?: string[];
+  randValue?: number;
+  active?: boolean;
+}
+
+interface CatalogIdBody {
+  id?: string;
+}
+
+interface SuperAdminCatalogProductSaveBody extends CatalogProductSaveBody {
+  courseId?: string;
+}
+
+interface SuperAdminCatalogActivitySaveBody extends CatalogActivitySaveBody {
+  courseId?: string;
+}
+
+interface SuperAdminCatalogIdBody extends CatalogIdBody {
+  courseId?: string;
+}
+
 interface SubscriptionActionBody {
   courseId?: string;
 }
@@ -190,6 +238,12 @@ interface SuperAdminAdSaveBody extends AdSaveBody {
 
 interface SuperAdminAdDeleteBody extends AdDeleteBody {
   courseId?: string;
+}
+
+interface SuperAdminGiftFlagrrCashBody {
+  userId?: string;
+  amount?: number;
+  reason?: string;
 }
 
 interface VoucherRedeemBody {
@@ -328,14 +382,25 @@ const SUPER_ADMIN_ALLOWED_ACTIONS = new Set([
   'superAdminCourses',
   'superAdminCourseCreate',
   'superAdminAds',
+  'superAdminExportReport',
+  'superAdminReportRows',
   'superAdminAdSave',
   'superAdminAdDelete',
   'superAdminDashboard',
   'superAdminAdPerformance',
+  'superAdminAdTrend',
+  'superAdminAdClickLog',
   'superAdminRewards',
   'superAdminRewardSave',
   'superAdminRewardDelete',
+  'superAdminCatalogProducts',
+  'superAdminCatalogProductSave',
+  'superAdminCatalogProductDelete',
+  'superAdminCatalogActivities',
+  'superAdminCatalogActivitySave',
+  'superAdminCatalogActivityDelete',
   'superAdminStatBreakdown',
+  'superAdminClubMembers',
   'superAdminCourseCancelSubscription',
   'superAdminCourseReactivateSubscription',
   'superAdminCourseArchive',
@@ -344,9 +409,10 @@ const SUPER_ADMIN_ALLOWED_ACTIONS = new Set([
   'superAdminMemberRosterUpload',
   'superAdminMembers',
   'superAdminMemberStats',
+  'superAdminGiftFlagrrCash',
   'superAdminFlaggedReceipts',
   'superAdminConfirmReceiptFraud',
-  'superAdminClearReceiptFlag',
+  'superAdminApproveReceipt',
   'superAdminDuplicateAttempts',
   'superAdminReceiptImage',
   'superAdminBroadcasts',
@@ -359,6 +425,8 @@ const SUPER_ADMIN_ALLOWED_ACTIONS = new Set([
   'superAdminCourseAdminReactivate',
   'superAdminCourseAdminDelete',
   'auditLog',
+  'superAdminCourseEnquiries',
+  'superAdminEnquiryThread',
   'supportInbox',
   'supportInboxThread',
   'supportAgentReply',
@@ -678,6 +746,73 @@ async function listAdsForCourse(courseId: string | null) {
   }));
 }
 
+// Shared by the course_admin path (implicit courseId from the session) and
+// the super_admin path (explicit courseId, for its read-only view into a
+// club's own enquiries inbox — see 'superAdminCourseEnquiries' below).
+async function listEnquiriesForCourse(courseId: string, statusFilter: string | null) {
+  const rows = (await sql`
+    select e.id, e.enquiry_type, e.status, e.created_at, e.updated_at,
+           u.first_name, u.last_name, u.email,
+           (select body from enquiry_messages m where m.enquiry_id = e.id order by m.created_at desc limit 1) as last_message,
+           exists(select 1 from enquiry_messages m where m.enquiry_id = e.id and m.read_by_admin = false) as has_unread
+    from enquiries e
+    join users u on u.id = e.user_id
+    where e.course_id = ${courseId}
+      and (${statusFilter}::text is null or e.status = ${statusFilter})
+    order by e.updated_at desc
+  `) as Array<{
+    id: string;
+    enquiry_type: string;
+    status: string;
+    created_at: string;
+    updated_at: string;
+    first_name: string;
+    last_name: string;
+    email: string;
+    last_message: string | null;
+    has_unread: boolean;
+  }>;
+  return rows.map((r) => ({
+    id: r.id,
+    enquiryType: r.enquiry_type,
+    status: r.status,
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
+    memberName: `${r.first_name} ${r.last_name}`,
+    memberEmail: r.email,
+    lastMessage: r.last_message,
+    hasUnread: r.has_unread,
+  }));
+}
+
+/** Ownership/DTO assembly shared the same way as listEnquiriesForCourse.
+ * Deliberately doesn't mark the thread read — the course_admin path does
+ * that itself right after calling this, since a super_admin's read-only
+ * glance shouldn't clear the actual course admin's unread badge. */
+async function fetchEnquiryThreadForCourse(id: string, courseId: string) {
+  const owned = (await sql`
+    select e.id, e.status, e.enquiry_type, u.first_name, u.last_name, u.email
+    from enquiries e join users u on u.id = e.user_id
+    where e.id = ${id} and e.course_id = ${courseId}
+  `) as Array<{ id: string; status: string; enquiry_type: string; first_name: string; last_name: string; email: string }>;
+  if (owned.length === 0) throw new HttpError(404, 'Enquiry not found');
+  const e = owned[0];
+  return {
+    id: e.id,
+    status: e.status,
+    enquiryType: e.enquiry_type,
+    memberName: `${e.first_name} ${e.last_name}`,
+    memberEmail: e.email,
+    messages: await listEnquiryMessages(id),
+  };
+}
+
+function requireCourseIdParam(req: VercelRequest): string {
+  const value = typeof req.query.courseId === 'string' ? req.query.courseId : '';
+  if (!value) throw new HttpError(400, 'courseId is required');
+  return value;
+}
+
 async function saveAdForCourse(courseId: string | null, body: AdSaveBody): Promise<{ id: string }> {
   const title = body.title?.trim();
   const placement = body.placement;
@@ -858,6 +993,138 @@ async function deleteRewardForCourse(courseId: string, id: string) {
     update reward_variants set active = false
     where reward_id in (select id from rewards where id = ${id} and course_id = ${courseId})
   `;
+}
+
+// --- Golf product/activity catalog — what the receipt scanner matches item
+// names against, and prices in Flagrr Cash from (rand_value * the club's own
+// fb_per_rand — see api/_lib/pointsEngine.ts). Every club manages its own,
+// mirroring the rewards pattern above: course_admin scoped to their own club
+// implicitly, super_admin with an explicit courseId for any club. ---
+async function listCatalogProductsForCourse(courseId: string) {
+  const rows = (await sql`
+    select id, name, brand, category, aliases, rand_value, points_per_unit, active
+    from golf_products where course_id = ${courseId}
+    order by active desc, name
+  `) as Array<{
+    id: string;
+    name: string;
+    brand: string;
+    category: string;
+    aliases: string[];
+    rand_value: number;
+    points_per_unit: boolean;
+    active: boolean;
+  }>;
+  return rows.map((r) => ({
+    id: r.id,
+    name: r.name,
+    brand: r.brand,
+    category: r.category,
+    aliases: r.aliases,
+    randValue: r.rand_value,
+    pointsPerUnit: r.points_per_unit,
+    active: r.active,
+  }));
+}
+
+async function saveCatalogProductForCourse(courseId: string, body: CatalogProductSaveBody): Promise<{ id: string }> {
+  const name = body.name?.trim();
+  if (!name) throw new HttpError(400, 'name is required');
+  if (typeof body.randValue !== 'number' || body.randValue < 0) {
+    throw new HttpError(400, 'A Rand value is required');
+  }
+  const randValue = Math.round(body.randValue);
+  const brand = body.brand?.trim() ?? '';
+  const category = body.category?.trim() ?? '';
+  const aliases = (body.aliases ?? []).map((a) => a.trim().toLowerCase()).filter(Boolean);
+  const pointsPerUnit = body.pointsPerUnit ?? true;
+  const active = body.active ?? true;
+
+  if (body.id) {
+    const owned = (await sql`select id from golf_products where id = ${body.id} and course_id = ${courseId}`) as Array<{
+      id: string;
+    }>;
+    if (owned.length === 0) throw new HttpError(404, 'Product not found');
+    await sql`
+      update golf_products
+      set name = ${name}, brand = ${brand}, category = ${category}, aliases = ${aliases},
+          rand_value = ${randValue}, points_per_unit = ${pointsPerUnit}, active = ${active}
+      where id = ${body.id}
+    `;
+    return { id: body.id };
+  }
+  const inserted = (await sql`
+    insert into golf_products (course_id, name, brand, category, aliases, rand_value, points_per_unit, active)
+    values (${courseId}, ${name}, ${brand}, ${category}, ${aliases}, ${randValue}, ${pointsPerUnit}, ${active})
+    returning id
+  `) as Array<{ id: string }>;
+  return { id: inserted[0].id };
+}
+
+async function deactivateCatalogProductForCourse(courseId: string, id: string) {
+  // Soft-delete: receipt_items.matched_product_id references this row with
+  // no cascade, so past receipts can still resolve which catalog entry
+  // earned their points. Deactivating removes it from scanner matching
+  // instead of hard-deleting.
+  await sql`update golf_products set active = false where id = ${id} and course_id = ${courseId}`;
+}
+
+async function listCatalogActivitiesForCourse(courseId: string) {
+  const rows = (await sql`
+    select id, name, category, aliases, rand_value, active
+    from golf_activities where course_id = ${courseId}
+    order by active desc, name
+  `) as Array<{
+    id: string;
+    name: string;
+    category: string;
+    aliases: string[];
+    rand_value: number;
+    active: boolean;
+  }>;
+  return rows.map((r) => ({
+    id: r.id,
+    name: r.name,
+    category: r.category,
+    aliases: r.aliases,
+    randValue: r.rand_value,
+    active: r.active,
+  }));
+}
+
+async function saveCatalogActivityForCourse(courseId: string, body: CatalogActivitySaveBody): Promise<{ id: string }> {
+  const name = body.name?.trim();
+  if (!name) throw new HttpError(400, 'name is required');
+  if (typeof body.randValue !== 'number' || body.randValue < 0) {
+    throw new HttpError(400, 'A Rand value is required');
+  }
+  const randValue = Math.round(body.randValue);
+  const category = body.category?.trim() ?? '';
+  const aliases = (body.aliases ?? []).map((a) => a.trim().toLowerCase()).filter(Boolean);
+  const active = body.active ?? true;
+
+  if (body.id) {
+    const owned = (await sql`select id from golf_activities where id = ${body.id} and course_id = ${courseId}`) as Array<{
+      id: string;
+    }>;
+    if (owned.length === 0) throw new HttpError(404, 'Activity not found');
+    await sql`
+      update golf_activities
+      set name = ${name}, category = ${category}, aliases = ${aliases}, rand_value = ${randValue}, active = ${active}
+      where id = ${body.id}
+    `;
+    return { id: body.id };
+  }
+  const inserted = (await sql`
+    insert into golf_activities (course_id, name, category, aliases, rand_value, active)
+    values (${courseId}, ${name}, ${category}, ${aliases}, ${randValue}, ${active})
+    returning id
+  `) as Array<{ id: string }>;
+  return { id: inserted[0].id };
+}
+
+async function deactivateCatalogActivityForCourse(courseId: string, id: string) {
+  await sql`update golf_activities set active = false where id = ${id} and course_id = ${courseId}`;
 }
 
 // A super_admin's ad actions carry a courseId that's either a real course
@@ -1288,6 +1555,15 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
 
         const newCourse = (await insertCourseWithUniqueSlug({ name: courseName, contactEmail }))[0];
 
+        // Without a merchants row, the receipt scanner could never recognise
+        // "this slip is from our own course" for this club — every one of
+        // their members' receipts would score as an away-club purchase (see
+        // matchMerchantAcrossLines in api/_lib/pointsEngine.ts).
+        await sql`
+          insert into merchants (name, aliases, merchant_type, course_id)
+          values (${courseName}, array[${courseName.toLowerCase()}], 'golf_course', ${newCourse.id})
+        `;
+
         const tempPassword = generateTempPassword();
         const passwordHash = await hashPassword(tempPassword);
         let createdAdmin: Array<{ id: string; first_name: string; last_name: string; email: string }>;
@@ -1612,6 +1888,45 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         return;
       }
 
+      // Manually credits or deducts a member's Flagrr Cash balance — a
+      // reason is required (becomes part of the member's own notification),
+      // and every gift/adjustment is audit-logged like any other super_admin
+      // mutation. Balance is floored at zero either direction.
+      if (action === 'superAdminGiftFlagrrCash') {
+        const body = req.body as SuperAdminGiftFlagrrCashBody;
+        const userId = body.userId;
+        const amount = body.amount;
+        const reason = body.reason?.trim();
+        if (!userId) throw new HttpError(400, 'userId is required');
+        if (typeof amount !== 'number' || !Number.isInteger(amount) || amount === 0) {
+          throw new HttpError(400, 'amount must be a non-zero whole number');
+        }
+        if (!reason) throw new HttpError(400, 'A reason is required');
+
+        const memberRows = (await sql`select first_name, last_name, email from users where id = ${userId}`) as Array<{
+          first_name: string;
+          last_name: string;
+          email: string;
+        }>;
+        if (memberRows.length === 0) throw new HttpError(404, 'Member not found');
+        const member = memberRows[0];
+
+        const { newBalance } = await giftFlagrrCash({ userId, amount, reason });
+
+        await logAudit({
+          adminId: authedAdmin.id,
+          adminName: `${authedAdmin.firstName} ${authedAdmin.lastName}`,
+          adminRole: authedAdmin.role,
+          action: 'superAdminGiftFlagrrCash',
+          targetType: 'member',
+          targetId: userId,
+          targetLabel: `${member.first_name} ${member.last_name} (${member.email}) — ${amount > 0 ? '+' : ''}${amount} FC: ${reason}`,
+        });
+
+        res.status(200).json({ ok: true, newBalance });
+        return;
+      }
+
       // --- Cross-club fraud oversight — a course_admin only ever sees
       // flagged receipts (and duplicate rejections) for their own club; this
       // is the platform-wide equivalent, plus the one signal no single club
@@ -1622,7 +1937,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         const rows = (await sql`
           select r.id, r.course_id, c.name as course_name, r.user_id, u.first_name, u.last_name, u.email,
             u.fraud_confirmed_count, r.course_name as merchant_name, r.total, r.points_awarded, r.submitted_at,
-            r.flag_reason,
+            r.flag_reason, r.points_credited,
             (select count(*) from receipts r2 where r2.flagged = true and r2.user_id = r.user_id) as member_flag_count
           from receipts r
           join users u on u.id = r.user_id
@@ -1644,6 +1959,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
           points_awarded: number | null;
           submitted_at: string;
           flag_reason: string | null;
+          points_credited: boolean;
           member_flag_count: number | string;
         }>;
         res.status(200).json(
@@ -1659,6 +1975,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
             pointsAwarded: r.points_awarded,
             submittedAt: r.submitted_at,
             flagReason: r.flag_reason ? describeFraudReasons(r.flag_reason.split(', ')) : null,
+            pointsCredited: r.points_credited,
             memberFlagCount: Number(r.member_flag_count),
             fraudConfirmedCount: r.fraud_confirmed_count,
           })),
@@ -1666,14 +1983,20 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         return;
       }
 
-      if (action === 'superAdminConfirmReceiptFraud' || action === 'superAdminClearReceiptFlag') {
-        const { id } = req.body as { id?: string };
+      if (action === 'superAdminConfirmReceiptFraud' || action === 'superAdminApproveReceipt') {
+        const { id, reason } = req.body as { id?: string; reason?: string };
         if (!id) throw new HttpError(400, 'id is required');
         const resolution = action === 'superAdminConfirmReceiptFraud' ? 'confirmed' : 'cleared';
+        const trimmedReason = reason?.trim();
+        if (resolution === 'confirmed' && !trimmedReason) {
+          throw new HttpError(400, 'A reason is required to mark a receipt as fraud');
+        }
         const receipt = await resolveFlaggedReceipt({ receiptId: id, resolution, adminId: authedAdmin.id });
         if (!receipt) throw new HttpError(404, 'Flagged receipt not found or already resolved');
         if (resolution === 'confirmed') {
-          await applyFraudConfirmationEffects(receipt);
+          await applyFraudConfirmationEffects(receipt, trimmedReason as string);
+        } else {
+          await applyApprovalEffects(receipt);
         }
         await logAudit({
           adminId: authedAdmin.id,
@@ -2087,6 +2410,128 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         return;
       }
 
+      // Only 'ads' today, mirroring the one download button that already
+      // existed on SuperAdminCourseAdsScreen (client-side CSV before this) —
+      // extend with more report types here if other super_admin screens grow
+      // their own download buttons.
+      // Cross-club counterpart of course_admin's reportRows — backs
+      // super_admin's Tier Distribution / Top Redeemed Rewards detail pages.
+      if (action === 'superAdminReportRows' && req.method === 'GET') {
+        const report = req.query.report;
+        const period: StatsPeriod = isStatsPeriod(req.query.period) ? req.query.period : 'month';
+        if (report === 'crossClubMembers') {
+          res.status(200).json(await listSuperAdminMembersReport(period));
+        } else if (report === 'crossClubRedemptions') {
+          res.status(200).json(await listSuperAdminRedemptionsReport(period));
+        } else {
+          throw new HttpError(400, 'report must be one of crossClubMembers, crossClubRedemptions');
+        }
+        return;
+      }
+
+      if (action === 'superAdminExportReport' && req.method === 'GET') {
+        const report = typeof req.query.report === 'string' ? req.query.report : '';
+        const period: StatsPeriod = isStatsPeriod(req.query.period) ? req.query.period : 'month';
+        let workbook: Buffer;
+        let filename: string;
+
+        if (report === 'crossClubMembers') {
+          const rows = await listSuperAdminMembersReport(period);
+          workbook = toXlsxBuffer(
+            ['First Name', 'Last Name', 'Email', 'Club', 'Tier', 'Member Since', 'FC Balance', 'FC Total Earned', 'FC Total Redeemed'],
+            rows.map((r) => [r.firstName, r.lastName, r.email, r.courseName, r.tier, r.memberSince, r.balance, r.totalEarned, r.totalRedeemed]),
+            'Members',
+          );
+          filename = `members-${period}.xlsx`;
+        } else if (report === 'crossClubRedemptions') {
+          const rows = await listSuperAdminRedemptionsReport(period);
+          workbook = toXlsxBuffer(
+            ['Code', 'Member', 'Email', 'Club', 'Reward', 'Variant', 'Flagrr Cash', 'Status', 'Issued At', 'Redeemed At'],
+            rows.map((r) => [r.code, r.memberName, r.memberEmail, r.courseName, r.rewardTitle, r.variantLabel, r.cost, r.status, r.issuedAt, r.redeemedAt]),
+            'Redemptions',
+          );
+          filename = `redemptions-${period}.xlsx`;
+        } else if (report === 'adPerformance') {
+          const rows = await getAdPerformanceReport(period);
+          const placementLabels: Record<string, string> = { home: 'Home', home_top: 'Home (Top Banner)', rewards_shop: 'Rewards Shop' };
+          workbook = toXlsxBuffer(
+            ['Title', 'Club', 'Placement', 'Media Type', 'Status', 'Clicks', 'Impressions', 'CTR (%)'],
+            rows.map((r) => [
+              r.title || '(untitled ad)',
+              r.courseName,
+              placementLabels[r.placement] ?? r.placement,
+              r.mediaType,
+              r.active ? 'Active' : 'Inactive',
+              r.clicks,
+              r.impressions,
+              r.ctr,
+            ]),
+            'Ad Performance',
+          );
+          filename = `ad-performance-${period}.xlsx`;
+        } else if (report === 'adClickLog') {
+          const adId = typeof req.query.adId === 'string' ? req.query.adId : '';
+          if (!adId) throw new HttpError(400, 'adId is required');
+          const rows = await getAdClickLog(adId, period);
+          workbook = toXlsxBuffer(
+            ['Member', 'Email', 'Clicked At'],
+            rows.map((r) => [r.memberName ?? '—', r.memberEmail ?? '—', r.clickedAt]),
+            'Ad Clicks',
+          );
+          filename = `ad-clicks-${period}.xlsx`;
+        } else if (report === 'ads') {
+          const targetCourseId = resolveAdCourseId(typeof req.query.courseId === 'string' ? req.query.courseId : undefined);
+          const ads = await listAdsForCourse(targetCourseId);
+          const placementLabels: Record<string, string> = { home: 'Home', home_top: 'Home (Top Banner)', rewards_shop: 'Rewards Shop' };
+          workbook = toXlsxBuffer(
+            ['Title', 'Placement', 'Status', 'Clicks', 'Starts', 'Ends'],
+            ads.map((a) => [
+              a.title || '(untitled ad)',
+              placementLabels[a.placement] ?? a.placement,
+              a.active ? 'Active' : 'Inactive',
+              a.clicks,
+              a.startsAt,
+              a.endsAt,
+            ]),
+            'Ads',
+          );
+          filename = 'ads-report.xlsx';
+        } else if (report === 'clubMembers') {
+          const courseId = typeof req.query.courseId === 'string' ? req.query.courseId : '';
+          if (!courseId) throw new HttpError(400, 'courseId is required');
+          const rows = await listMembersReport(courseId, period);
+          workbook = toXlsxBuffer(
+            ['First Name', 'Last Name', 'Email', 'Tier', 'Member Since', 'FC Balance', 'FC Total Earned', 'FC Total Redeemed'],
+            rows.map((r) => [r.firstName, r.lastName, r.email, r.tier, r.memberSince, r.balance, r.totalEarned, r.totalRedeemed]),
+            'Members',
+          );
+          filename = `members-${period}.xlsx`;
+        } else if (STAT_BREAKDOWN_METRICS.has(report)) {
+          const metricLabels: Record<string, string> = {
+            members: 'Members',
+            newMembers: 'New Members',
+            fcEarned: 'Flagrr Cash Earned',
+            fcRedeemed: 'Flagrr Cash Redeemed',
+            receiptsScanned: 'Receipts Scanned',
+          };
+          const valueLabel = metricLabels[report] ?? report;
+          const rows = await getSuperAdminStatBreakdown(period, report as StatBreakdownMetric);
+          workbook = toXlsxBuffer(
+            ['Club', valueLabel],
+            rows.map((r) => [r.courseName, r.value]),
+            valueLabel,
+          );
+          filename = `${report}-${period}.xlsx`;
+        } else {
+          throw new HttpError(400, 'Unknown report');
+        }
+
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        res.status(200).send(workbook);
+        return;
+      }
+
       if (action === 'superAdminAdSave') {
         const body = req.body as SuperAdminAdSaveBody;
         const targetCourseId = resolveAdCourseId(body.courseId);
@@ -2162,6 +2607,88 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         return;
       }
 
+      if (action === 'superAdminCatalogProducts' && req.method === 'GET') {
+        const targetCourseId = typeof req.query.courseId === 'string' ? req.query.courseId : undefined;
+        if (!targetCourseId) throw new HttpError(400, 'courseId is required');
+        res.status(200).json(await listCatalogProductsForCourse(targetCourseId));
+        return;
+      }
+
+      if (action === 'superAdminCatalogProductSave') {
+        const body = req.body as SuperAdminCatalogProductSaveBody;
+        if (!body.courseId) throw new HttpError(400, 'courseId is required');
+        const saved = await saveCatalogProductForCourse(body.courseId, body);
+        await logAudit({
+          adminId: authedAdmin.id,
+          adminName: `${authedAdmin.firstName} ${authedAdmin.lastName}`,
+          adminRole: authedAdmin.role,
+          action: 'superAdminCatalogProductSave',
+          targetType: 'golf_product',
+          targetId: saved.id,
+          targetLabel: body.name,
+        });
+        res.status(200).json(saved);
+        return;
+      }
+
+      if (action === 'superAdminCatalogProductDelete') {
+        const body = req.body as SuperAdminCatalogIdBody;
+        if (!body.courseId) throw new HttpError(400, 'courseId is required');
+        if (!body.id) throw new HttpError(400, 'id is required');
+        await deactivateCatalogProductForCourse(body.courseId, body.id);
+        await logAudit({
+          adminId: authedAdmin.id,
+          adminName: `${authedAdmin.firstName} ${authedAdmin.lastName}`,
+          adminRole: authedAdmin.role,
+          action: 'superAdminCatalogProductDelete',
+          targetType: 'golf_product',
+          targetId: body.id,
+        });
+        res.status(200).json({ ok: true });
+        return;
+      }
+
+      if (action === 'superAdminCatalogActivities' && req.method === 'GET') {
+        const targetCourseId = typeof req.query.courseId === 'string' ? req.query.courseId : undefined;
+        if (!targetCourseId) throw new HttpError(400, 'courseId is required');
+        res.status(200).json(await listCatalogActivitiesForCourse(targetCourseId));
+        return;
+      }
+
+      if (action === 'superAdminCatalogActivitySave') {
+        const body = req.body as SuperAdminCatalogActivitySaveBody;
+        if (!body.courseId) throw new HttpError(400, 'courseId is required');
+        const saved = await saveCatalogActivityForCourse(body.courseId, body);
+        await logAudit({
+          adminId: authedAdmin.id,
+          adminName: `${authedAdmin.firstName} ${authedAdmin.lastName}`,
+          adminRole: authedAdmin.role,
+          action: 'superAdminCatalogActivitySave',
+          targetType: 'golf_activity',
+          targetId: saved.id,
+          targetLabel: body.name,
+        });
+        res.status(200).json(saved);
+        return;
+      }
+
+      if (action === 'superAdminCatalogActivityDelete') {
+        const body = req.body as SuperAdminCatalogIdBody;
+        if (!body.courseId) throw new HttpError(400, 'courseId is required');
+        if (!body.id) throw new HttpError(400, 'id is required');
+        await deactivateCatalogActivityForCourse(body.courseId, body.id);
+        await logAudit({
+          adminId: authedAdmin.id,
+          adminName: `${authedAdmin.firstName} ${authedAdmin.lastName}`,
+          adminRole: authedAdmin.role,
+          action: 'superAdminCatalogActivityDelete',
+          targetType: 'golf_activity',
+          targetId: body.id,
+        });
+        res.status(200).json({ ok: true });
+        return;
+      }
+
       if (action === 'superAdminDashboard' && req.method === 'GET') {
         const period: StatsPeriod = isStatsPeriod(req.query.period) ? req.query.period : 'month';
         res.status(200).json(await getSuperAdminDashboardReport(period));
@@ -2169,7 +2696,26 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       }
 
       if (action === 'superAdminAdPerformance' && req.method === 'GET') {
-        res.status(200).json(await getAdPerformanceReport());
+        const period: StatsPeriod = isStatsPeriod(req.query.period) ? req.query.period : 'month';
+        res.status(200).json(await getAdPerformanceReport(period));
+        return;
+      }
+
+      // Clicks + impressions over time, for the trend chart on the Ad
+      // Performance report (all ads) or one ad's own detail page (adId set).
+      if (action === 'superAdminAdTrend' && req.method === 'GET') {
+        const period: StatsPeriod = isStatsPeriod(req.query.period) ? req.query.period : 'month';
+        const adId = typeof req.query.adId === 'string' ? req.query.adId : undefined;
+        res.status(200).json(await getAdTrend(period, adId));
+        return;
+      }
+
+      // Individual click log behind one ad's summary — who clicked, when.
+      if (action === 'superAdminAdClickLog' && req.method === 'GET') {
+        const adId = typeof req.query.adId === 'string' ? req.query.adId : '';
+        if (!adId) throw new HttpError(400, 'adId is required');
+        const period: StatsPeriod = isStatsPeriod(req.query.period) ? req.query.period : 'month';
+        res.status(200).json(await getAdClickLog(adId, period));
         return;
       }
 
@@ -2180,6 +2726,18 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
           throw new HttpError(400, 'metric must be one of members, newMembers, fcEarned, fcRedeemed, receiptsScanned');
         }
         res.status(200).json(await getSuperAdminStatBreakdown(period, metric as StatBreakdownMetric));
+        return;
+      }
+
+      // One club's own member list, tapped from a row on
+      // SuperAdminStatBreakdownScreen ('members'/'newMembers' cards) —
+      // reuses course_admin's own listMembersReport, just scoped to
+      // whichever club the super_admin tapped into.
+      if (action === 'superAdminClubMembers' && req.method === 'GET') {
+        const courseId = typeof req.query.courseId === 'string' ? req.query.courseId : '';
+        if (!courseId) throw new HttpError(400, 'courseId is required');
+        const period: StatsPeriod = isStatsPeriod(req.query.period) ? req.query.period : 'all';
+        res.status(200).json(await listMembersReport(courseId, period));
         return;
       }
 
@@ -2404,6 +2962,23 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         res.status(200).json({ ok: true });
         return;
       }
+
+      // Read-only oversight into any club's enquiries inbox (member <->
+      // course_admin) — a super_admin can see every course's threads, but
+      // can't reply into one; that stays between the member and their club.
+      if (action === 'superAdminCourseEnquiries' && req.method === 'GET') {
+        const targetCourseId = requireCourseIdParam(req);
+        const statusFilter = typeof req.query.status === 'string' ? req.query.status : null;
+        res.status(200).json(await listEnquiriesForCourse(targetCourseId, statusFilter));
+        return;
+      }
+
+      if (action === 'superAdminEnquiryThread' && req.method === 'GET') {
+        const targetCourseId = requireCourseIdParam(req);
+        const id = typeof req.query.id === 'string' ? req.query.id : '';
+        res.status(200).json(await fetchEnquiryThreadForCourse(id, targetCourseId));
+        return;
+      }
     }
 
     throw new HttpError(404, 'Unknown action');
@@ -2452,7 +3027,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     const course = await fetchCourse(courseId);
     const rows = (await sql`
       select r.id, r.user_id, u.first_name, u.last_name, u.email, u.fraud_confirmed_count,
-        r.course_name as merchant_name, r.total, r.points_awarded, r.submitted_at, r.flag_reason,
+        r.course_name as merchant_name, r.total, r.points_awarded, r.submitted_at, r.flag_reason, r.points_credited,
         (select count(*) from receipts r2 where r2.flagged = true and r2.user_id = r.user_id) as member_flag_count
       from receipts r
       join users u on u.id = r.user_id
@@ -2471,6 +3046,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       points_awarded: number | null;
       submitted_at: string;
       flag_reason: string | null;
+      points_credited: boolean;
       member_flag_count: number | string;
     }>;
     res.status(200).json(
@@ -2486,6 +3062,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         pointsAwarded: r.points_awarded,
         submittedAt: r.submitted_at,
         flagReason: r.flag_reason ? describeFraudReasons(r.flag_reason.split(', ')) : null,
+        pointsCredited: r.points_credited,
         memberFlagCount: Number(r.member_flag_count),
         fraudConfirmedCount: r.fraud_confirmed_count,
       })),
@@ -2493,14 +3070,20 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     return;
   }
 
-  if (action === 'confirmReceiptFraud' || action === 'clearReceiptFlag') {
-    const { id } = req.body as { id?: string };
+  if (action === 'confirmReceiptFraud' || action === 'approveReceipt') {
+    const { id, reason } = req.body as { id?: string; reason?: string };
     if (!id) throw new HttpError(400, 'id is required');
     const resolution = action === 'confirmReceiptFraud' ? 'confirmed' : 'cleared';
+    const trimmedReason = reason?.trim();
+    if (resolution === 'confirmed' && !trimmedReason) {
+      throw new HttpError(400, 'A reason is required to mark a receipt as fraud');
+    }
     const receipt = await resolveFlaggedReceipt({ receiptId: id, courseId, resolution, adminId: authed.id });
     if (!receipt) throw new HttpError(404, 'Flagged receipt not found or already resolved');
     if (resolution === 'confirmed') {
-      await applyFraudConfirmationEffects(receipt);
+      await applyFraudConfirmationEffects(receipt, trimmedReason as string);
+    } else {
+      await applyApprovalEffects(receipt);
     }
     await logAudit({
       adminId: authed.id,
@@ -2677,62 +3260,15 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
 
   if (action === 'enquiries' && req.method === 'GET') {
     const statusFilter = typeof req.query.status === 'string' ? req.query.status : null;
-    const rows = (await sql`
-      select e.id, e.enquiry_type, e.status, e.created_at, e.updated_at,
-             u.first_name, u.last_name, u.email,
-             (select body from enquiry_messages m where m.enquiry_id = e.id order by m.created_at desc limit 1) as last_message,
-             exists(select 1 from enquiry_messages m where m.enquiry_id = e.id and m.read_by_admin = false) as has_unread
-      from enquiries e
-      join users u on u.id = e.user_id
-      where e.course_id = ${courseId}
-        and (${statusFilter}::text is null or e.status = ${statusFilter})
-      order by e.updated_at desc
-    `) as Array<{
-      id: string;
-      enquiry_type: string;
-      status: string;
-      created_at: string;
-      updated_at: string;
-      first_name: string;
-      last_name: string;
-      email: string;
-      last_message: string | null;
-      has_unread: boolean;
-    }>;
-    res.status(200).json(
-      rows.map((r) => ({
-        id: r.id,
-        enquiryType: r.enquiry_type,
-        status: r.status,
-        createdAt: r.created_at,
-        updatedAt: r.updated_at,
-        memberName: `${r.first_name} ${r.last_name}`,
-        memberEmail: r.email,
-        lastMessage: r.last_message,
-        hasUnread: r.has_unread,
-      })),
-    );
+    res.status(200).json(await listEnquiriesForCourse(courseId, statusFilter));
     return;
   }
 
   if (action === 'enquiryThread' && req.method === 'GET') {
     const id = typeof req.query.id === 'string' ? req.query.id : '';
-    const owned = (await sql`
-      select e.id, e.status, e.enquiry_type, u.first_name, u.last_name, u.email
-      from enquiries e join users u on u.id = e.user_id
-      where e.id = ${id} and e.course_id = ${courseId}
-    `) as Array<{ id: string; status: string; enquiry_type: string; first_name: string; last_name: string; email: string }>;
-    if (owned.length === 0) throw new HttpError(404, 'Enquiry not found');
+    const thread = await fetchEnquiryThreadForCourse(id, courseId);
     await markThreadReadByAdmin(id);
-    const e = owned[0];
-    res.status(200).json({
-      id: e.id,
-      status: e.status,
-      enquiryType: e.enquiry_type,
-      memberName: `${e.first_name} ${e.last_name}`,
-      memberEmail: e.email,
-      messages: await listEnquiryMessages(id),
-    });
+    res.status(200).json(thread);
     return;
   }
 
@@ -3083,6 +3619,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         eyebrow: 'Welcome to Flagrr',
         heading: `Hi ${firstName}, you're on the team`,
         bodyHtml: emailParagraph(`${escapeHtml(authed.firstName)} ${escapeHtml(authed.lastName)} has set you up with staff access to the Flagrr app for <strong style="color:#1F1F1F;">${escapeHtml(course.name)}</strong>, so you can validate members' reward vouchers.`) +
+          emailParagraph(`Open the Flagrr app and tap <strong style="color:#1F1F1F;">Golf Course Admin Login</strong> on the welcome screen to sign in with the details below — not the member sign-up/login option.`) +
           emailParagraph(`You'll be asked to choose your own password the first time you log in.`),
         credentials: [
           { label: 'Username', value: created[0].username },
@@ -3191,6 +3728,42 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     const id = (req.body as RewardDeleteBody).id;
     if (!id) throw new HttpError(400, 'id is required');
     await deleteRewardForCourse(courseId, id);
+    res.status(200).json({ ok: true });
+    return;
+  }
+
+  if (action === 'catalogProducts' && req.method === 'GET') {
+    res.status(200).json(await listCatalogProductsForCourse(courseId));
+    return;
+  }
+
+  if (action === 'catalogProductSave') {
+    res.status(200).json(await saveCatalogProductForCourse(courseId, req.body as CatalogProductSaveBody));
+    return;
+  }
+
+  if (action === 'catalogProductDelete') {
+    const id = (req.body as CatalogIdBody).id;
+    if (!id) throw new HttpError(400, 'id is required');
+    await deactivateCatalogProductForCourse(courseId, id);
+    res.status(200).json({ ok: true });
+    return;
+  }
+
+  if (action === 'catalogActivities' && req.method === 'GET') {
+    res.status(200).json(await listCatalogActivitiesForCourse(courseId));
+    return;
+  }
+
+  if (action === 'catalogActivitySave') {
+    res.status(200).json(await saveCatalogActivityForCourse(courseId, req.body as CatalogActivitySaveBody));
+    return;
+  }
+
+  if (action === 'catalogActivityDelete') {
+    const id = (req.body as CatalogIdBody).id;
+    if (!id) throw new HttpError(400, 'id is required');
+    await deactivateCatalogActivityForCourse(courseId, id);
     res.status(200).json({ ok: true });
     return;
   }
@@ -3507,82 +4080,54 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     return;
   }
 
-  if (action === 'exportCsv' && req.method === 'GET') {
+  // Backs each Overview stat card's detail page — the exact same rows as
+  // exportReport below (via the same listXReport functions), just JSON for
+  // the on-screen table instead of an .xlsx buffer, so the two never drift.
+  if (action === 'reportRows' && req.method === 'GET') {
+    const report = req.query.report;
+    const period: StatsPeriod = isStatsPeriod(req.query.period) ? req.query.period : 'month';
+    if (report === 'redemptions') {
+      res.status(200).json(await listRedemptionsReport(courseId, period));
+    } else if (report === 'receipts') {
+      res.status(200).json(await listReceiptsReport(courseId, period));
+    } else if (report === 'members') {
+      res.status(200).json(await listMembersReport(courseId, period));
+    } else {
+      throw new HttpError(400, 'report must be one of redemptions, receipts, members');
+    }
+    return;
+  }
+
+  if (action === 'exportReport' && req.method === 'GET') {
     const report = typeof req.query.report === 'string' ? req.query.report : '';
     const period: StatsPeriod = isStatsPeriod(req.query.period) ? req.query.period : 'month';
-    const { currentStart } = periodWindow(period);
-    let csv: string;
+    let workbook: Buffer;
     let filename: string;
 
     if (report === 'redemptions') {
-      const rows = (await sql`
-        select v.code, u.first_name, u.last_name, u.email, r.title, v.variant_label, v.cost, v.status, v.issued_at, v.redeemed_at
-        from vouchers v
-        join rewards r on r.id = v.reward_id
-        join users u on u.id = v.user_id
-        where r.course_id = ${courseId} and v.issued_at >= ${currentStart}
-        order by v.issued_at desc
-      `) as Array<{
-        code: string;
-        first_name: string;
-        last_name: string;
-        email: string;
-        title: string;
-        variant_label: string;
-        cost: number;
-        status: string;
-        issued_at: string;
-        redeemed_at: string | null;
-      }>;
-      csv = toCsv(
+      const rows = await listRedemptionsReport(courseId, period);
+      workbook = toXlsxBuffer(
         ['Code', 'Member', 'Email', 'Reward', 'Variant', 'Flagrr Cash', 'Status', 'Issued At', 'Redeemed At'],
-        rows.map((r) => [r.code, `${r.first_name} ${r.last_name}`, r.email, r.title, r.variant_label, r.cost, r.status, r.issued_at, r.redeemed_at]),
+        rows.map((r) => [r.code, r.memberName, r.memberEmail, r.rewardTitle, r.variantLabel, r.cost, r.status, r.issuedAt, r.redeemedAt]),
+        'Redemptions',
       );
-      filename = `redemptions-${period}.csv`;
+      filename = `redemptions-${period}.xlsx`;
     } else if (report === 'receipts') {
-      const rows = (await sql`
-        select r.receipt_number, u.first_name, u.last_name, u.email, r.course_name, r.total, r.points_awarded, r.status, r.submitted_at
-        from receipts r
-        join users u on u.id = r.user_id
-        where r.course_id = ${courseId} and r.submitted_at >= ${currentStart}
-        order by r.submitted_at desc
-      `) as Array<{
-        receipt_number: string | null;
-        first_name: string;
-        last_name: string;
-        email: string;
-        course_name: string;
-        total: number;
-        points_awarded: number | null;
-        status: string;
-        submitted_at: string;
-      }>;
-      csv = toCsv(
+      const rows = await listReceiptsReport(courseId, period);
+      workbook = toXlsxBuffer(
         ['Receipt #', 'Member', 'Email', 'Where Scanned', 'Total (R)', 'Flagrr Cash Awarded', 'Status', 'Submitted At'],
-        rows.map((r) => [r.receipt_number, `${r.first_name} ${r.last_name}`, r.email, r.course_name, r.total, r.points_awarded, r.status, r.submitted_at]),
+        rows.map((r) => [r.receiptNumber, r.memberName, r.memberEmail, r.whereScanned, r.total, r.pointsAwarded, r.status, r.submittedAt]),
+        'Receipts',
       );
-      filename = `receipts-${period}.csv`;
+      filename = `receipts-${period}.xlsx`;
     } else if (report === 'members') {
-      const rows = (await sql`
-        select u.first_name, u.last_name, u.email, u.tier, u.member_since, p.balance, p.total_earned, p.total_redeemed
-        from users u join points_accounts p on p.user_id = u.id
-        where u.course_id = ${courseId}
-        order by u.member_since desc
-      `) as Array<{
-        first_name: string;
-        last_name: string;
-        email: string;
-        tier: string;
-        member_since: string;
-        balance: number;
-        total_earned: number;
-        total_redeemed: number;
-      }>;
-      csv = toCsv(
+      const rows = await listMembersReport(courseId, period);
+      workbook = toXlsxBuffer(
         ['First Name', 'Last Name', 'Email', 'Tier', 'Member Since', 'FC Balance', 'FC Total Earned', 'FC Total Redeemed'],
-        rows.map((r) => [r.first_name, r.last_name, r.email, r.tier, r.member_since, r.balance, r.total_earned, r.total_redeemed]),
+        rows.map((r) => [r.firstName, r.lastName, r.email, r.tier, r.memberSince, r.balance, r.totalEarned, r.totalRedeemed]),
+        'Members',
       );
-      filename = 'members.csv';
+      filename = `members-${period}.xlsx`;
     } else if (report === 'memberActivity') {
       const memberId = typeof req.query.userId === 'string' ? req.query.userId : '';
       if (!memberId) throw new HttpError(400, 'userId is required');
@@ -3593,18 +4138,19 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         from activity where user_id = ${memberId}
         order by date desc
       `) as Array<{ date: string; type: string; title: string; subtitle: string; amount: number }>;
-      csv = toCsv(
+      workbook = toXlsxBuffer(
         ['Date', 'Type', 'Title', 'Details', 'Flagrr Cash'],
         rows.map((r) => [r.date, r.type, r.title, r.subtitle, r.amount]),
+        'Activity',
       );
-      filename = `member-activity-${memberId}.csv`;
+      filename = `member-activity-${memberId}.xlsx`;
     } else {
       throw new HttpError(400, 'Unknown report');
     }
 
-    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-    res.status(200).send(csv);
+    res.status(200).send(workbook);
     return;
   }
 

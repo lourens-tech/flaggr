@@ -59,12 +59,15 @@ export function ReceiptHistoryScreen({ navigation }: Props) {
       <Text style={styles.cardMeta}>{formatDate(item.submittedAt)}</Text>
       <Text style={styles.cardBody}>
         R{item.total.toFixed(2)}
-        {item.pointsAwarded !== null ? ` · ${item.pointsAwarded} FC earned` : ''}
+        {item.pointsAwarded !== null
+          ? ` · ${item.pointsAwarded} FC ${item.status === 'pending' ? 'pending' : 'earned'}`
+          : ''}
       </Text>
       {item.flagged ? (
         <Text style={styles.reviewNote}>
-          Flagged for manual review{item.flagReason ? ` (${item.flagReason})` : ''} — your Flagrr Cash has already
-          been credited, no action is needed.
+          {item.status === 'pending'
+            ? `Flagged for manual review${item.flagReason ? ` (${item.flagReason})` : ''} — your Flagrr Cash will be added once it's approved.`
+            : `Flagged for manual review${item.flagReason ? ` (${item.flagReason})` : ''} — your Flagrr Cash has already been credited, no action is needed.`}
         </Text>
       ) : null}
       <TouchableOpacity

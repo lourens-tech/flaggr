@@ -11,6 +11,10 @@ export interface ParsedLineItem {
 
 export interface ParsedReceipt {
   merchantNameGuess: string | null;
+  // Every OCR'd line, trimmed of blanks — used by pointsEngine.ts to search
+  // the whole slip for a known club's name rather than trust a single
+  // positional guess (see matchMerchantAcrossLines there).
+  rawLines: string[];
   receiptNumber: string | null;
   transactionNumber: string | null;
   tillNumber: string | null;
@@ -57,23 +61,55 @@ function findAmount(text: string, keywordPatterns: RegExp[]): number | null {
   return null;
 }
 
-// Summary/payment lines conventionally lead with their keyword ("TOTAL:",
-// "VAT 15%", "CASH TENDERED", "VISA **** 1234") — anchoring to the start of
-// the line (rather than matching the keyword anywhere) means a real item
-// that merely mentions one of these words later in its name, e.g. a
-// "Titleist Card Holder", isn't mistaken for a summary line and dropped.
+// Summary/payment/metadata lines conventionally lead with their keyword
+// ("TOTAL:", "VAT 15%", "CASH TENDERED", "VISA **** 1234", "MEMBER NO:",
+// "BALANCE DUE") — anchoring to the start of the line (rather than matching
+// the keyword anywhere) means a real item that merely mentions one of these
+// words later in its name, e.g. a "Titleist Card Holder", isn't mistaken for
+// a summary line and dropped. The list is deliberately broad — it only ever
+// suppresses a line from being read as a purchasable item, so a false
+// positive here just means one fewer noise line getting misread as an item,
+// never a real item being scored wrong.
 const skipLinePattern =
-  /^\s*(?:sub\s*-?\s*total|vat|tax|grand\s*total|total|receipt|trans|till|thank you|change|cash|card|visa|mastercard)/i;
-const itemLinePattern = new RegExp(`^(.+?)\\s+${PRICE.source}$`);
-const priceOnlyLinePattern = new RegExp(`^${PRICE.source}$`);
+  /^\s*(?:sub\s*-?\s*total|vat\s*no|vat|tax|grand\s*total|nett?\s*total|amount\s*due|balance\s*due|total\s*due|total|receipt|invoice|trans|till|register|thank you|change|cash|card|visa|mastercard|eft|debit|credit|balance|account|acc\.?\s*no|member\s*(?:no|number)?|loyalty|points?\s*earned|signature|approved|auth(?:oris|oriz)ation|operator|cashier|served\s*by|waiter|table|covers|customer|copy|duplicate|original|qty\s+description|description\s+amount|date|time|tel|www\.|reg(?:istration)?\s*no|tip|gratuity|service\s*charge|delivery|levy|surcharge|round(?:ing)?|tender|terminal|merchant\s*copy)/i;
 
-// A leading number is a quantity prefix ("2 FootJoy Glove") UNLESS it's
-// immediately followed by "hole" — "9 Hole Round" / "18 Hole Round" are
-// golf activity names where the number isn't a multiplier.
+// Some tills print an "R" / "ZAR" / "$" right against the amount instead of
+// leaving it implicit — consumed here so it never leaks into the item
+// description or breaks a price-only line from being recognised as one.
+const CURRENCY_PREFIX = /(?:R|ZAR|\$)\s*/;
+const itemLinePattern = new RegExp(`^(.+?)\\s+(?:${CURRENCY_PREFIX.source})?${PRICE.source}$`);
+const priceOnlyLinePattern = new RegExp(`^(?:${CURRENCY_PREFIX.source})?${PRICE.source}$`);
+
+// Some tills mark an already-settled item with a word instead of a "0.00"
+// amount — a round paid for in advance, or comped by the pro shop. Checked
+// only as a fallback once the numeric patterns above have had first shot, so
+// a line that happens to include one of these words *and* a real price
+// (rare, but possible) still scores off the real price.
+const PAID_MARKER = /(?:pre-?paid|paid|comp(?:limentary)?|n\/c|no\s*charge)/i;
+const itemPaidLinePattern = new RegExp(`^(.+?)\\s+${PAID_MARKER.source}\\s*$`, 'i');
+const paidOnlyLinePattern = new RegExp(`^${PAID_MARKER.source}\\s*$`, 'i');
+
+// A leading number is usually a quantity prefix ("2 FootJoy Glove") UNLESS
+// what follows names something where the number is part of the product
+// itself, not a multiplier — hole counts ("9 Hole Round") and club/loft
+// descriptors ("3 Wood", "56 Wedge", "10.5 Degree Driver") are the common
+// golf-specific cases that would otherwise wildly inflate a matched
+// product's points.
+const QUANTITY_EXCEPTION = /^(?:holes?|irons?|woods?|wedges?|hybrids?|degrees?)\b/i;
+
 function splitQuantity(raw: string): { quantity: number; description: string } {
-  const m = raw.match(/^(\d+)\s*[xX]?\s+(.+)$/);
-  if (m && !/^holes?\b/i.test(m[2])) {
-    return { quantity: Number(m[1]), description: m[2] };
+  const leading = raw.match(/^(\d+)\s*[xX]?\s+(.+)$/);
+  if (leading && !QUANTITY_EXCEPTION.test(leading[2])) {
+    return { quantity: Number(leading[1]), description: leading[2] };
+  }
+  // Some POS layouts print the multiplier after the name instead of before
+  // it: "Titleist Pro V1 Dozen x2" / "Titleist Pro V1 Dozen (2)".
+  const trailing = raw.match(/^(.+?)\s*(?:[xX]\s*(\d+)|\((\d+)\))$/);
+  if (trailing) {
+    const qty = Number(trailing[2] ?? trailing[3]);
+    if (qty > 0 && trailing[1].trim().length >= 2) {
+      return { quantity: qty, description: trailing[1].trim() };
+    }
   }
   return { quantity: 1, description: raw };
 }
@@ -82,7 +118,12 @@ function toItem(descriptionRaw: string, priceRaw: string): ParsedLineItem | null
   const price = parseAmount(priceRaw);
   const { quantity, description: splitDescription } = splitQuantity(descriptionRaw);
   const description = splitDescription.replace(/\s{2,}/g, ' ').trim();
-  if (!price || !description || description.length < 2) return null;
+  // price === 0 is a valid, meaningful read (a member billed the item to
+  // their course account rather than paying at the till) — only a price
+  // that failed to parse at all should drop the item. Scoring never uses
+  // price anyway (see pointsEngine.ts): a matched catalog item earns its own
+  // fixed/per-unit points regardless of what was actually paid for it.
+  if (price === null || !description || description.length < 2) return null;
   return { description, quantity, price };
 }
 
@@ -121,6 +162,23 @@ function extractItems(lines: string[]): ParsedLineItem[] {
       continue;
     }
 
+    const paidSameLine = line.match(itemPaidLinePattern);
+    if (paidSameLine) {
+      const item = toItem(paidSameLine[1], '0.00');
+      if (item) items.push(item);
+      pendingDescription = null;
+      continue;
+    }
+
+    if (paidOnlyLinePattern.test(line)) {
+      if (pendingDescription) {
+        const item = toItem(pendingDescription, '0.00');
+        if (item) items.push(item);
+      }
+      pendingDescription = null;
+      continue;
+    }
+
     // A plausible wrapped description: has some letters, isn't just noise.
     pendingDescription = /[a-z]{2,}/i.test(line) ? line : null;
   }
@@ -133,6 +191,40 @@ function extractItems(lines: string[]): ParsedLineItem[] {
 // name — blindly taking the first line is wrong often enough to be worth
 // skipping past obvious non-name noise first.
 const GENERIC_HEADER_LINE = /^[\s*_=-]*(?:tax\s*invoice|invoice|receipt|slip|copy|original|duplicate)[\s*_=-]*$/i;
+
+// A line that's entirely a date or a time (nothing else on it) — excluded
+// from the name-only fallback below so a lone "03 Sep 2026" line, which does
+// contain letters ("Sep"), doesn't get mistaken for an item name.
+const DATE_OR_TIME_ONLY_LINE =
+  /^\s*(?:\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{2,4}|\d{4}[\/\-.]\d{1,2}[\/\-.]\d{1,2}|(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+\d{1,2},?\s+\d{4}|\d{1,2}:\d{2}(?::\d{2})?\s?(?:am|pm)?)\s*$/i;
+
+// Some clubs let a member charge their round/pro-shop items straight to
+// their course account instead of paying at the till — the slip totals
+// R0.00 and no line has a price on it at all, so extractItems (which needs
+// a price to recognise a line as an item) naturally finds nothing. This
+// fallback only runs when that happens: every remaining line that looks
+// like a real item name, rather than a header/summary/date line, becomes a
+// price-0 item instead. Scoring is unaffected either way — a matched
+// catalog item earns its own fixed/per-unit points value, never derived
+// from what (if anything) was actually paid for it (see pointsEngine.ts) —
+// and an unmatched line just scores 0, so a stray non-item line slipping
+// through here can't inflate points, only add a harmless zero-point row.
+function extractNameOnlyItems(lines: string[], merchantNameGuess: string | null): ParsedLineItem[] {
+  const items: ParsedLineItem[] = [];
+  for (const line of lines) {
+    if (line === merchantNameGuess) continue;
+    if (skipLinePattern.test(line)) continue;
+    if (GENERIC_HEADER_LINE.test(line)) continue;
+    if (DATE_OR_TIME_ONLY_LINE.test(line)) continue;
+    if (!/[a-z]{2,}/i.test(line)) continue;
+
+    const { quantity, description: splitDescription } = splitQuantity(line);
+    const description = splitDescription.replace(/\s{2,}/g, ' ').trim();
+    if (description.length < 2) continue;
+    items.push({ description, quantity, price: 0 });
+  }
+  return items;
+}
 
 function guessMerchantName(lines: string[]): string | null {
   for (const line of lines) {
@@ -151,14 +243,21 @@ export function parseReceiptText(rawText: string): ParsedReceipt {
     .filter(Boolean);
   const text = rawText;
 
+  // "Invoice No" / "Tax Invoice Nr" is at least as common as "Receipt No" on
+  // South African tills — this used to only look for "receipt"/"slip",
+  // which meant an invoice-numbered slip never got a receipt_number at all
+  // (so it could never be blocked from being redeemed twice) and the
+  // invoice-number line itself often got swept up as the "merchant name"
+  // guess instead, garbled and all. "nr" (Afrikaans/common local
+  // abbreviation for "number") is accepted anywhere "no" is.
+  const NUMBER_LABEL = '(?:no\\.?|number|nr\\.?|#)';
   const receiptNumber = firstMatch(text, [
-    /receipt\s*(?:no\.?|number|#)?\s*[:\-]?\s*([A-Z0-9][A-Z0-9\-\/]{3,})/i,
-    /slip\s*(?:no\.?|number|#)?\s*[:\-]?\s*([A-Z0-9][A-Z0-9\-\/]{3,})/i,
+    new RegExp(`(?:tax\\s*)?invoice\\s*${NUMBER_LABEL}?\\s*[:\\-]?\\s*([A-Z0-9][A-Z0-9\\-\\/]{3,})`, 'i'),
+    new RegExp(`receipt\\s*${NUMBER_LABEL}?\\s*[:\\-]?\\s*([A-Z0-9][A-Z0-9\\-\\/]{3,})`, 'i'),
+    new RegExp(`slip\\s*${NUMBER_LABEL}?\\s*[:\\-]?\\s*([A-Z0-9][A-Z0-9\\-\\/]{3,})`, 'i'),
   ]);
 
-  const transactionNumber = firstMatch(text, [
-    /trans(?:action)?\s*(?:no\.?|number|#)?\s*[:\-]?\s*([A-Z0-9\-\/]{2,})/i,
-  ]);
+  const transactionNumber = firstMatch(text, [new RegExp(`trans(?:action)?\\s*${NUMBER_LABEL}?\\s*[:\\-]?\\s*([A-Z0-9\\-\\/]{2,})`, 'i')]);
 
   const tillNumber = firstMatch(text, [/till\s*(?:no\.?|number|#)?\s*[:\-]?\s*(\d+)/i, /register\s*[:\-]?\s*(\d+)/i]);
 
@@ -174,20 +273,28 @@ export function parseReceiptText(rawText: string): ParsedReceipt {
   const vat = findAmount(text, [new RegExp(`\\b(?:vat|tax)\\b[^\\d\\n]{0,30}${PRICE.source}`, 'i')]);
   const grandTotal = findAmount(text, [
     new RegExp(`grand\\s*total[^\\d\\n]{0,30}${PRICE.source}`, 'i'),
-    new RegExp(`\\btotal\\b[^\\d\\n]{0,30}${PRICE.source}`, 'i'),
+    new RegExp(`(?:nett?\\s*total|amount\\s*due|balance\\s*due|total\\s*due)[^\\d\\n]{0,30}${PRICE.source}`, 'i'),
+    // Bare "total" as a last resort — but never "Total Tendered"/"Total
+    // Amount Tendered", the cash actually handed over (usually more than
+    // the bill, with change given back), which would otherwise get read as
+    // the receipt's total if it's the first "total"-labeled line the OCR
+    // text happens to contain.
+    new RegExp(`\\btotal\\b(?!\\s*(?:amount\\s*)?tender)[^\\d\\n]{0,30}${PRICE.source}`, 'i'),
   ]);
 
-  const items = extractItems(lines);
   const merchantNameGuess = guessMerchantName(lines);
+  const items = extractItems(lines);
+  const finalItems = items.length > 0 ? items : extractNameOnlyItems(lines, merchantNameGuess);
 
   return {
     merchantNameGuess,
+    rawLines: lines,
     receiptNumber,
     transactionNumber,
     tillNumber,
     date,
     time,
-    items,
+    items: finalItems,
     subtotal,
     vat,
     grandTotal,

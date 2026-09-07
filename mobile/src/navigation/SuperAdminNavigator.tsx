@@ -7,11 +7,18 @@ import { SuperAdminCourseAdsScreen } from '../screens/superadmin/SuperAdminCours
 import { SuperAdminAdEditScreen } from '../screens/superadmin/SuperAdminAdEditScreen';
 import { SuperAdminCourseRewardsScreen } from '../screens/superadmin/SuperAdminCourseRewardsScreen';
 import { SuperAdminRewardEditScreen } from '../screens/superadmin/SuperAdminRewardEditScreen';
+import { SuperAdminCourseCatalogScreen } from '../screens/superadmin/SuperAdminCourseCatalogScreen';
+import { SuperAdminCatalogItemEditScreen } from '../screens/superadmin/SuperAdminCatalogItemEditScreen';
 import { SuperAdminStatBreakdownScreen } from '../screens/superadmin/SuperAdminStatBreakdownScreen';
+import { SuperAdminClubMembersScreen } from '../screens/superadmin/SuperAdminClubMembersScreen';
+import { SuperAdminReportDetailScreen } from '../screens/superadmin/SuperAdminReportDetailScreen';
+import { SuperAdminAdDetailScreen } from '../screens/superadmin/SuperAdminAdDetailScreen';
 import { SuperAdminSupportTicketChatScreen } from '../screens/superadmin/SuperAdminSupportTicketChatScreen';
 import { SuperAdminAgentsScreen } from '../screens/superadmin/SuperAdminAgentsScreen';
 import { SuperAdminAgentCreateScreen } from '../screens/superadmin/SuperAdminAgentCreateScreen';
 import { SuperAdminCourseMemberListScreen } from '../screens/superadmin/SuperAdminCourseMemberListScreen';
+import { SuperAdminCourseEnquiriesScreen } from '../screens/superadmin/SuperAdminCourseEnquiriesScreen';
+import { SuperAdminEnquiryChatScreen } from '../screens/superadmin/SuperAdminEnquiryChatScreen';
 import { SuperAdminBroadcastComposeScreen } from '../screens/superadmin/SuperAdminBroadcastComposeScreen';
 import { SuperAdminCourseAdminsScreen } from '../screens/superadmin/SuperAdminCourseAdminsScreen';
 import { SuperAdminCourseAdminCreateScreen } from '../screens/superadmin/SuperAdminCourseAdminCreateScreen';
@@ -19,6 +26,7 @@ import { SuperAdminMemberStatsScreen } from '../screens/superadmin/SuperAdminMem
 import { SuperAdminAuditLogScreen } from '../screens/superadmin/SuperAdminAuditLogScreen';
 import { SuperAdminFraudOversightScreen } from '../screens/superadmin/SuperAdminFraudOversightScreen';
 import { TermsPrivacyScreen } from '../screens/profile/TermsPrivacyScreen';
+import { useIsDesktopNav } from '../hooks/useIsDesktopNav';
 
 const Stack = createNativeStackNavigator<SuperAdminStackParamList>();
 
@@ -26,19 +34,30 @@ const Stack = createNativeStackNavigator<SuperAdminStackParamList>();
 // inside SuperAdminTabNavigator (Support + Profile only), enforced there and
 // server-side (see SUPPORT_AGENT_ALLOWED_ACTIONS in api/admin/index.ts).
 export function SuperAdminNavigator() {
+  const isDesktop = useIsDesktopNav();
+  // Every screen renders its own instance of the desktop sidebar/topbar (see
+  // SuperAdminDesktopFrame) so it reads as persistent chrome — the default
+  // slide transition would otherwise visibly re-animate it on every nav.
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator screenOptions={{ headerShown: false, animation: isDesktop ? 'none' : 'default' }}>
       <Stack.Screen name="SuperAdminTabs" component={SuperAdminTabNavigator} />
       <Stack.Screen name="SuperAdminCourseCreate" component={SuperAdminCourseCreateScreen} />
       <Stack.Screen name="SuperAdminCourseAds" component={SuperAdminCourseAdsScreen} />
       <Stack.Screen name="SuperAdminAdEdit" component={SuperAdminAdEditScreen} />
       <Stack.Screen name="SuperAdminCourseRewards" component={SuperAdminCourseRewardsScreen} />
       <Stack.Screen name="SuperAdminRewardEdit" component={SuperAdminRewardEditScreen} />
+      <Stack.Screen name="SuperAdminCourseCatalog" component={SuperAdminCourseCatalogScreen} />
+      <Stack.Screen name="SuperAdminCatalogItemEdit" component={SuperAdminCatalogItemEditScreen} />
       <Stack.Screen name="SuperAdminStatBreakdown" component={SuperAdminStatBreakdownScreen} />
+      <Stack.Screen name="SuperAdminClubMembers" component={SuperAdminClubMembersScreen} />
+      <Stack.Screen name="SuperAdminReportDetail" component={SuperAdminReportDetailScreen} />
+      <Stack.Screen name="SuperAdminAdDetail" component={SuperAdminAdDetailScreen} />
       <Stack.Screen name="SuperAdminSupportTicketChat" component={SuperAdminSupportTicketChatScreen} />
       <Stack.Screen name="SuperAdminAgents" component={SuperAdminAgentsScreen} />
       <Stack.Screen name="SuperAdminAgentCreate" component={SuperAdminAgentCreateScreen} />
       <Stack.Screen name="SuperAdminCourseMemberList" component={SuperAdminCourseMemberListScreen} />
+      <Stack.Screen name="SuperAdminCourseEnquiries" component={SuperAdminCourseEnquiriesScreen} />
+      <Stack.Screen name="SuperAdminEnquiryChat" component={SuperAdminEnquiryChatScreen} />
       <Stack.Screen name="SuperAdminBroadcastCompose" component={SuperAdminBroadcastComposeScreen} />
       <Stack.Screen name="SuperAdminCourseAdmins" component={SuperAdminCourseAdminsScreen} />
       <Stack.Screen name="SuperAdminCourseAdminCreate" component={SuperAdminCourseAdminCreateScreen} />

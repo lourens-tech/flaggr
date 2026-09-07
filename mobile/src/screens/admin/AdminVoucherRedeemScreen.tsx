@@ -6,6 +6,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { TextField } from '../../components/common/TextField';
 import { PillButton } from '../../components/common/PillButton';
 import { useAdmin } from '../../context/AdminContext';
+import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
+import { AdminDesktopFrame } from '../../components/admin/desktop/AdminDesktopFrame';
+import { DesktopPanel } from '../../components/admin/desktop/DesktopPanel';
 import { AdminApiError } from '../../api/adminClient';
 import { showAlert } from '../../utils/alert';
 import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
@@ -23,6 +26,7 @@ const VOUCHER_QR_PREFIX = 'flagrr://voucher/';
 export function AdminVoucherRedeemScreen() {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const isDesktop = useIsDesktopNav();
   const { lookupVoucher, redeemVoucher } = useAdmin();
   const [permission, requestPermission] = useCameraPermissions();
   const [code, setCode] = useState('');
@@ -121,6 +125,82 @@ export function AdminVoucherRedeemScreen() {
     );
   }
 
+  const lookupForm = (
+    <>
+      <Text style={styles.helpText}>
+        Enter the voucher code, or scan the QR code shown on the member's screen, to check and redeem it.
+      </Text>
+
+      <PillButton label="Scan QR Code" icon="scan-outline" variant="dark" onPress={handleOpenScanner} />
+      <View style={{ height: spacing.md }} />
+
+      <View style={styles.dividerRow}>
+        <View style={styles.dividerLine} />
+        <Text style={styles.dividerText}>or enter manually</Text>
+        <View style={styles.dividerLine} />
+      </View>
+      <View style={{ height: spacing.md }} />
+
+      <View style={styles.searchRow}>
+        <View style={{ flex: 1 }}>
+          <TextField
+            placeholder="FLGR-XXXX-XXXX"
+            variant="onLight"
+            autoCapitalize="characters"
+            value={code}
+            onChangeText={setCode}
+            onSubmitEditing={handleLookup}
+            returnKeyType="search"
+          />
+        </View>
+      </View>
+      <View style={{ height: spacing.md }} />
+      <PillButton label="Look Up" icon="search" onPress={handleLookup} loading={looking} disabled={!code.trim()} />
+
+      {voucher ? (
+        <View style={styles.card}>
+          <Text style={styles.rewardTitle}>{voucher.rewardTitle}</Text>
+          <Text style={styles.variantLabel}>{voucher.variantLabel} · {voucher.cost.toLocaleString()} FC</Text>
+          <View style={styles.divider} />
+          <View style={styles.row}>
+            <Ionicons name="person-outline" size={16} color={colors.clubGreen} />
+            <Text style={styles.rowText}>{voucher.memberName} ({voucher.memberEmail})</Text>
+          </View>
+          <View style={styles.row}>
+            <Ionicons
+              name={voucher.status === 'active' ? 'checkmark-circle-outline' : 'alert-circle-outline'}
+              size={16}
+              color={voucher.status === 'active' ? colors.clubGreen : colors.negative}
+            />
+            <Text style={[styles.rowText, voucher.status !== 'active' && { color: colors.negative }]}>
+              {STATUS_LABEL[voucher.status]}
+            </Text>
+          </View>
+
+          {voucher.status === 'active' ? (
+            <>
+              <View style={{ height: spacing.md }} />
+              <PillButton label="Confirm Redeem" variant="dark" icon="checkmark" onPress={handleRedeem} loading={redeeming} />
+            </>
+          ) : null}
+        </View>
+      ) : looking ? (
+        <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
+      ) : null}
+    </>
+  );
+
+  if (isDesktop) {
+    return (
+      <AdminDesktopFrame activeKey="AdminVouchers" breadcrumb="Voucher Redemption" showRail={false}>
+        <Text style={styles.dPageTitle}>Redeem a Voucher</Text>
+        <DesktopPanel title="Look Up a Voucher" style={{ maxWidth: 480 }}>
+          {lookupForm}
+        </DesktopPanel>
+      </AdminDesktopFrame>
+    );
+  }
+
   return (
     <View style={styles.screen}>
       <StatusBar barStyle="light-content" />
@@ -130,68 +210,7 @@ export function AdminVoucherRedeemScreen() {
         </View>
       </SafeAreaView>
 
-      <View style={styles.content}>
-        <Text style={styles.helpText}>
-          Enter the voucher code, or scan the QR code shown on the member's screen, to check and redeem it.
-        </Text>
-
-        <PillButton label="Scan QR Code" icon="scan-outline" variant="dark" onPress={handleOpenScanner} />
-        <View style={{ height: spacing.md }} />
-
-        <View style={styles.dividerRow}>
-          <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>or enter manually</Text>
-          <View style={styles.dividerLine} />
-        </View>
-        <View style={{ height: spacing.md }} />
-
-        <View style={styles.searchRow}>
-          <View style={{ flex: 1 }}>
-            <TextField
-              placeholder="FLGR-XXXX-XXXX"
-              variant="onLight"
-              autoCapitalize="characters"
-              value={code}
-              onChangeText={setCode}
-              onSubmitEditing={handleLookup}
-              returnKeyType="search"
-            />
-          </View>
-        </View>
-        <View style={{ height: spacing.md }} />
-        <PillButton label="Look Up" icon="search" onPress={handleLookup} loading={looking} disabled={!code.trim()} />
-
-        {voucher ? (
-          <View style={styles.card}>
-            <Text style={styles.rewardTitle}>{voucher.rewardTitle}</Text>
-            <Text style={styles.variantLabel}>{voucher.variantLabel} · {voucher.cost.toLocaleString()} FC</Text>
-            <View style={styles.divider} />
-            <View style={styles.row}>
-              <Ionicons name="person-outline" size={16} color={colors.clubGreen} />
-              <Text style={styles.rowText}>{voucher.memberName} ({voucher.memberEmail})</Text>
-            </View>
-            <View style={styles.row}>
-              <Ionicons
-                name={voucher.status === 'active' ? 'checkmark-circle-outline' : 'alert-circle-outline'}
-                size={16}
-                color={voucher.status === 'active' ? colors.clubGreen : colors.negative}
-              />
-              <Text style={[styles.rowText, voucher.status !== 'active' && { color: colors.negative }]}>
-                {STATUS_LABEL[voucher.status]}
-              </Text>
-            </View>
-
-            {voucher.status === 'active' ? (
-              <>
-                <View style={{ height: spacing.md }} />
-                <PillButton label="Confirm Redeem" variant="dark" icon="checkmark" onPress={handleRedeem} loading={redeeming} />
-              </>
-            ) : null}
-          </View>
-        ) : looking ? (
-          <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
-        ) : null}
-      </View>
+      <View style={styles.content}>{lookupForm}</View>
     </View>
   );
 }
@@ -257,5 +276,6 @@ function createStyles(colors: ThemeColors) {
     textAlign: 'center',
     marginTop: spacing.sm,
   },
+  dPageTitle: { fontFamily: fontFamily.heading, fontSize: 26, color: colors.textPrimary },
 });
 }

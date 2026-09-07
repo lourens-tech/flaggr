@@ -1,5 +1,5 @@
 import type { ScanResult } from '../data/types';
-import type { StatBreakdownMetric } from '../data/adminTypes';
+import type { CourseReportKind, StatBreakdownMetric, SuperAdminReportKind } from '../data/adminTypes';
 
 export type AuthStackParamList = {
   Landing: undefined;
@@ -46,6 +46,9 @@ export type AdminStackParamList = {
   AdminSupportTicketChat: { ticketId: string };
   AdminMemberList: undefined;
   AdminFraudOversight: undefined;
+  AdminCatalog: undefined;
+  AdminCatalogItemEdit: { kind: 'product' | 'activity'; itemId?: string };
+  AdminReportDetail: { report: CourseReportKind; label: string; period: 'month' | 'year' | 'all' };
   TermsPrivacy: undefined;
 };
 
@@ -65,12 +68,25 @@ export type SuperAdminStackParamList = {
   SuperAdminAdEdit: { courseId: string; adId?: string };
   SuperAdminCourseRewards: { courseId: string; courseName: string; fbPerRand: number };
   SuperAdminRewardEdit: { courseId: string; fbPerRand: number; rewardId?: string };
+  SuperAdminCourseCatalog: { courseId: string; courseName: string; fbPerRand: number };
+  SuperAdminCatalogItemEdit: {
+    courseId: string;
+    courseName: string;
+    fbPerRand: number;
+    kind: 'product' | 'activity';
+    itemId?: string;
+  };
   SuperAdminStatBreakdown: { metric: StatBreakdownMetric; label: string; period: 'month' | 'year' | 'all' };
+  SuperAdminClubMembers: { courseId: string; courseName: string; period: 'month' | 'year' | 'all' };
+  SuperAdminReportDetail: { report: SuperAdminReportKind; label: string; period: 'month' | 'year' | 'all' };
+  SuperAdminAdDetail: { adId: string; adTitle: string; period: 'month' | 'year' | 'all' };
   SuperAdminSupportTicketChat: { ticketId: string };
   SuperAdminAgents: undefined;
   SuperAdminAgentCreate: undefined;
   SuperAdminBroadcastCompose: { title?: string; body?: string; target?: string } | undefined;
   SuperAdminCourseMemberList: { courseId: string; courseName: string };
+  SuperAdminCourseEnquiries: { courseId: string; courseName: string };
+  SuperAdminEnquiryChat: { courseId: string; enquiryId: string };
   SuperAdminCourseAdmins: { courseId: string; courseName: string };
   SuperAdminCourseAdminCreate: { courseId: string; courseName: string };
   SuperAdminMemberStats: { memberId: string };
@@ -110,9 +126,6 @@ export type RootStackParamList = {
   TermsPrivacy: undefined;
   MyEnquiries: undefined;
   EnquiryChat: { enquiryId: string };
-  SupportTickets: undefined;
-  SupportTicketCreate: undefined;
-  SupportTicketChat: { ticketId: string };
   NotificationPreferences: undefined;
 };
 

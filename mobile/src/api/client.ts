@@ -17,9 +17,6 @@ import type {
   Stats,
   StatsPeriod,
   Streak,
-  SupportTicketMessage,
-  SupportTicketSummary,
-  SupportTicketThread,
   User,
   Voucher,
 } from '../data/types';
@@ -214,24 +211,11 @@ export const api = {
   replyToEnquiry: (enquiryId: string, message: string) =>
     request<EnquiryMessage[]>('/profile?action=enquiryReply', { method: 'POST', body: { enquiryId, message } }),
 
-  createSupportTicket: (subject: string, message: string) =>
-    request<{ ok: boolean; ticketId: string }>('/profile?action=supportTicketCreate', {
-      method: 'POST',
-      body: { subject, message },
-    }),
-
-  supportTickets: () => request<SupportTicketSummary[]>('/profile?action=supportTickets'),
-
-  supportTicketThread: (id: string) => request<SupportTicketThread>(`/profile?action=supportTicketThread&id=${id}`),
-
-  replyToSupportTicket: (ticketId: string, message: string) =>
-    request<SupportTicketMessage[]>('/profile?action=supportTicketReply', {
-      method: 'POST',
-      body: { ticketId, message },
-    }),
-
   logAdClick: (adId: string) =>
     request<{ ok: boolean }>('/profile?action=adClick', { method: 'POST', body: { adId } }),
+
+  logAdImpression: (adId: string) =>
+    request<{ ok: boolean }>('/profile?action=adImpression', { method: 'POST', body: { adId } }),
 
   registerPushToken: (token: string, platform: 'ios' | 'android') =>
     request<{ ok: boolean }>('/profile?action=registerPushToken', { method: 'POST', body: { token, platform } }),
@@ -261,7 +245,7 @@ export const api = {
  * triggers a browser file download via a Blob + temporary anchor, since a
  * plain <a href> can't carry the Authorization header. On native, the file
  * is written to cache and handed to the system share sheet so the member can
- * save or send it. Mirrors adminClient.ts's downloadCsvReport. */
+ * save or send it. Mirrors adminClient.ts's downloadReport. */
 export async function downloadMyDataExport(): Promise<boolean> {
   const token = await getToken();
   const headers: Record<string, string> = {};

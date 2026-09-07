@@ -133,8 +133,27 @@ export interface AdPerformanceRow {
   courseName: string;
   title: string;
   placement: 'home' | 'home_top' | 'rewards_shop';
+  mediaType: 'image' | 'gif' | 'video';
   active: boolean;
   clicks: number;
+  impressions: number;
+  ctr: number; // percentage
+}
+
+// Clicks + impressions over time — the trend chart on the Ad Performance
+// report (every ad) or one ad's own detail page (SuperAdminAdDetailScreen).
+export interface AdTrendPoint {
+  label: string;
+  clicks: number;
+  impressions: number;
+}
+
+// The individual click log behind one ad's summary count.
+export interface AdClickLogRow {
+  id: string;
+  memberName: string | null;
+  memberEmail: string | null;
+  clickedAt: string;
 }
 
 export type StatBreakdownMetric = 'members' | 'newMembers' | 'fcEarned' | 'fcRedeemed' | 'receiptsScanned';
@@ -164,6 +183,49 @@ export interface AdminReward {
   category: string;
   active: boolean;
   variants: AdminRewardVariant[];
+}
+
+// What the receipt scanner matches item names against, per club — priced in
+// Flagrr Cash from randValue * the club's own fbPerRand (see
+// api/_lib/pointsEngine.ts), the same conversion Rewards already uses.
+export interface CatalogProduct {
+  id: string;
+  name: string;
+  brand: string;
+  category: string;
+  aliases: string[];
+  randValue: number;
+  pointsPerUnit: boolean;
+  active: boolean;
+}
+
+export interface CatalogActivity {
+  id: string;
+  name: string;
+  category: string;
+  aliases: string[];
+  randValue: number;
+  active: boolean;
+}
+
+export interface CatalogProductSavePayload {
+  id?: string;
+  name: string;
+  brand: string;
+  category: string;
+  aliases: string[];
+  randValue: number;
+  pointsPerUnit: boolean;
+  active: boolean;
+}
+
+export interface CatalogActivitySavePayload {
+  id?: string;
+  name: string;
+  category: string;
+  aliases: string[];
+  randValue: number;
+  active: boolean;
 }
 
 export interface AdminAd {
@@ -396,6 +458,57 @@ export interface MemberRosterUploadResult {
   verifiedCount: number;
 }
 
+// Backs the Overview stat cards' detail pages (AdminReportDetailScreen) —
+// one row shape per underlying report, matching the columns of its Excel
+// download exactly (see api/_lib/adminReports.ts).
+export type CourseReportKind = 'redemptions' | 'receipts' | 'members';
+
+export interface RedemptionReportRow {
+  code: string;
+  memberName: string;
+  memberEmail: string;
+  rewardTitle: string;
+  variantLabel: string;
+  cost: number;
+  status: string;
+  issuedAt: string;
+  redeemedAt: string | null;
+}
+
+export interface ReceiptReportRow {
+  receiptNumber: string | null;
+  memberName: string;
+  memberEmail: string;
+  whereScanned: string;
+  total: number;
+  pointsAwarded: number | null;
+  status: string;
+  submittedAt: string;
+}
+
+export interface MemberReportRow {
+  firstName: string;
+  lastName: string;
+  email: string;
+  tier: string;
+  memberSince: string;
+  balance: number;
+  totalEarned: number;
+  totalRedeemed: number;
+}
+
+// Cross-club counterparts — back super_admin's Tier Distribution / Top
+// Redeemed Rewards detail pages (SuperAdminReportDetailScreen).
+export type SuperAdminReportKind = 'crossClubMembers' | 'crossClubRedemptions';
+
+export interface SuperAdminMemberReportRow extends MemberReportRow {
+  courseName: string;
+}
+
+export interface SuperAdminRedemptionReportRow extends RedemptionReportRow {
+  courseName: string;
+}
+
 export interface AuditLogEntry {
   id: string;
   adminId: string | null;
@@ -420,6 +533,11 @@ export interface FlaggedReceipt {
   pointsAwarded: number | null;
   submittedAt: string;
   flagReason: string | null;
+  // false while this receipt's Flagrr Cash is still held pending review —
+  // Approve will credit it for the first time; true means it was already
+  // credited (either approved before, or flagged before the held-points
+  // behavior shipped), so Approve just closes the review.
+  pointsCredited: boolean;
   memberFlagCount: number;
   fraudConfirmedCount: number;
 }

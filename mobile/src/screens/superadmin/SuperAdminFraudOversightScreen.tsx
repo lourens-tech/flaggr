@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, Image, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, FlatList, Image, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
@@ -8,6 +8,9 @@ import type { SuperAdminStackParamList } from '../../navigation/types';
 import { ScreenHeader } from '../../components/common/ScreenHeader';
 import { TextField } from '../../components/common/TextField';
 import { useAdmin } from '../../context/AdminContext';
+import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
+import { SuperAdminDesktopFrame } from '../../components/admin/desktop/SuperAdminDesktopFrame';
+import { DesktopPanel } from '../../components/admin/desktop/DesktopPanel';
 import { showAlert } from '../../utils/alert';
 import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
 import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
@@ -29,10 +32,11 @@ const MATCH_TYPE_LABELS: Record<string, string> = {
 export function SuperAdminFraudOversightScreen({ navigation }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const isDesktop = useIsDesktopNav();
   const {
     getSuperAdminFlaggedReceipts,
     confirmSuperAdminReceiptFraud,
-    clearSuperAdminReceiptFlag,
+    approveSuperAdminReceipt,
     getSuperAdminDuplicateAttempts,
     getSuperAdminReceiptImage,
   } = useAdmin();
@@ -44,6 +48,8 @@ export function SuperAdminFraudOversightScreen({ navigation }: Props) {
   const [photoLoadingId, setPhotoLoadingId] = useState<string | null>(null);
   const [photoModal, setPhotoModal] = useState<{ imageData: string | null } | null>(null);
   const [resolvingId, setResolvingId] = useState<string | null>(null);
+  const [reasonModal, setReasonModal] = useState<FlaggedReceipt | null>(null);
+  const [reasonText, setReasonText] = useState('');
 
   useFocusEffect(
     useCallback(() => {
@@ -102,44 +108,48 @@ export function SuperAdminFraudOversightScreen({ navigation }: Props) {
     }
   };
 
-  const handleConfirmFraud = (item: FlaggedReceipt) => {
-    showAlert(
-      'Confirm this receipt as fraud?',
-      `This rejects the receipt and reverses the ${item.pointsAwarded ?? 0} Flagrr Cash it awarded from ` +
-        `${item.memberName}'s balance. They'll be notified. This can't be undone.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Confirm Fraud',
-          style: 'destructive',
-          onPress: async () => {
-            setResolvingId(item.id);
-            try {
-              await confirmSuperAdminReceiptFraud(item.id);
-              setFlagged((prev) => prev.filter((f) => f.id !== item.id));
-            } catch (err) {
-              showAlert('Couldn’t confirm fraud', 'Something went wrong. Please try again.');
-            } finally {
-              setResolvingId(null);
-            }
-          },
-        },
-      ],
-    );
+  const openReasonModal = (item: FlaggedReceipt) => {
+    setReasonText('');
+    setReasonModal(item);
   };
 
-  const handleClearFlag = (item: FlaggedReceipt) => {
+  const handleSubmitFraudReason = async () => {
+    const item = reasonModal;
+    const reason = reasonText.trim();
+    if (!item || !reason) return;
+    setReasonModal(null);
     setResolvingId(item.id);
-    (async () => {
-      try {
-        await clearSuperAdminReceiptFlag(item.id);
-        setFlagged((prev) => prev.filter((f) => f.id !== item.id));
-      } catch {
-        showAlert('Couldn’t clear flag', 'Something went wrong. Please try again.');
-      } finally {
-        setResolvingId(null);
-      }
-    })();
+    try {
+      await confirmSuperAdminReceiptFraud(item.id, reason);
+      setFlagged((prev) => prev.filter((f) => f.id !== item.id));
+    } catch {
+      showAlert('Couldn’t confirm fraud', 'Something went wrong. Please try again.');
+    } finally {
+      setResolvingId(null);
+    }
+  };
+
+  const handleApprove = (item: FlaggedReceipt) => {
+    const message = item.pointsCredited
+      ? `${item.memberName}'s Flagrr Cash for this receipt was already credited — approving just closes out the review.`
+      : `This adds the ${item.pointsAwarded ?? 0} Flagrr Cash it earned to ${item.memberName}'s balance.`;
+    showAlert('Approve this receipt?', message, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Approve',
+        onPress: async () => {
+          setResolvingId(item.id);
+          try {
+            await approveSuperAdminReceipt(item.id);
+            setFlagged((prev) => prev.filter((f) => f.id !== item.id));
+          } catch {
+            showAlert('Couldn’t approve receipt', 'Something went wrong. Please try again.');
+          } finally {
+            setResolvingId(null);
+          }
+        },
+      },
+    ]);
   };
 
   const renderFlagged = ({ item }: { item: FlaggedReceipt }) => (
@@ -160,7 +170,10 @@ export function SuperAdminFraudOversightScreen({ navigation }: Props) {
         </View>
       </View>
       <Text style={styles.cardMeta} numberOfLines={1}>{item.memberEmail} · {item.courseName}</Text>
-      <Text style={styles.cardBody} numberOfLines={1}>{item.merchantName || 'Unknown merchant'} — R{item.total.toFixed(2)}{item.pointsAwarded !== null ? ` · ${item.pointsAwarded} FC` : ''}</Text>
+      <Text style={styles.cardBody} numberOfLines={1}>
+        {item.merchantName || 'Unknown merchant'} — R{item.total.toFixed(2)}
+        {item.pointsAwarded !== null ? ` · ${item.pointsAwarded} FC${item.pointsCredited ? '' : ' pending'}` : ''}
+      </Text>
       {item.flagReason ? <Text style={styles.reasonText}>{item.flagReason}</Text> : null}
       <Text style={styles.cardTime}>{formatDate(item.submittedAt)}</Text>
       <View style={styles.actionRow}>
@@ -182,11 +195,11 @@ export function SuperAdminFraudOversightScreen({ navigation }: Props) {
           <ActivityIndicator color={colors.negative} size="small" />
         ) : (
           <>
-            <TouchableOpacity onPress={() => handleClearFlag(item)}>
-              <Text style={styles.clearText}>Clear</Text>
+            <TouchableOpacity onPress={() => handleApprove(item)}>
+              <Text style={styles.approveText}>Approve</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => handleConfirmFraud(item)}>
-              <Text style={styles.confirmFraudText}>Confirm Fraud</Text>
+            <TouchableOpacity onPress={() => openReasonModal(item)}>
+              <Text style={styles.confirmFraudText}>Mark as Fraud</Text>
             </TouchableOpacity>
           </>
         )}
@@ -227,33 +240,121 @@ export function SuperAdminFraudOversightScreen({ navigation }: Props) {
         ? 'No duplicate attempts yet.'
         : 'No duplicate attempts match your search.';
 
+  const searchAndTabs = (
+    <View style={styles.searchArea}>
+      <TextField placeholder="Search by member or club" variant="onLight" icon="search" value={search} onChangeText={setSearch} />
+      <View style={styles.tabRow}>
+        <TouchableOpacity style={[styles.tabButton, tab === 'flagged' && styles.tabButtonActive]} onPress={() => setTab('flagged')}>
+          <Text style={[styles.tabButtonText, tab === 'flagged' && styles.tabButtonTextActive]}>Flagged Receipts ({flagged.length})</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[styles.tabButton, tab === 'duplicates' && styles.tabButtonActive]} onPress={() => setTab('duplicates')}>
+          <Text style={[styles.tabButtonText, tab === 'duplicates' && styles.tabButtonTextActive]}>Duplicate Attempts ({duplicates.length})</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
+  const modals = (
+    <>
+      <Modal visible={photoModal !== null} transparent animationType="fade" onRequestClose={() => setPhotoModal(null)}>
+        <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={() => setPhotoModal(null)}>
+          <View style={styles.photoSheet}>
+            <View style={styles.photoSheetHeader}>
+              <Text style={styles.photoSheetTitle}>Receipt Photo</Text>
+              <TouchableOpacity onPress={() => setPhotoModal(null)} hitSlop={8}>
+                <Ionicons name="close" size={22} color={colors.textPrimary} />
+              </TouchableOpacity>
+            </View>
+            {photoModal?.imageData ? (
+              <Image source={{ uri: photoModal.imageData }} style={styles.photoImage} resizeMode="contain" />
+            ) : (
+              <Text style={styles.emptyText}>No photo was saved for this receipt.</Text>
+            )}
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      <Modal visible={reasonModal !== null} transparent animationType="fade" onRequestClose={() => setReasonModal(null)}>
+        <View style={styles.backdrop}>
+          <View style={styles.photoSheet}>
+            <View style={styles.photoSheetHeader}>
+              <Text style={styles.photoSheetTitle}>Mark as Fraud</Text>
+              <TouchableOpacity onPress={() => setReasonModal(null)} hitSlop={8}>
+                <Ionicons name="close" size={22} color={colors.textPrimary} />
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.reasonModalHint}>
+              This rejects the receipt{reasonModal && !reasonModal.pointsCredited ? '' : " and reverses any Flagrr Cash it already awarded"}.
+              {reasonModal?.memberName ? ` ${reasonModal.memberName}` : 'The member'} will be sent the reason below. This can't be undone.
+            </Text>
+            <TextInput
+              placeholder="Explain why this receipt is fraudulent…"
+              placeholderTextColor={colors.textSecondary}
+              value={reasonText}
+              onChangeText={setReasonText}
+              multiline
+              style={styles.reasonInput}
+            />
+            <View style={styles.reasonModalActions}>
+              <TouchableOpacity style={styles.reasonCancelButton} onPress={() => setReasonModal(null)}>
+                <Text style={styles.reasonCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.reasonSubmitButton, !reasonText.trim() && styles.reasonSubmitButtonDisabled]}
+                onPress={handleSubmitFraudReason}
+                disabled={!reasonText.trim()}
+              >
+                <Text style={styles.reasonSubmitText}>Mark as Fraud</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    </>
+  );
+
+  if (isDesktop) {
+    return (
+      <>
+        <SuperAdminDesktopFrame activeKey="SuperAdminFraudOversight" breadcrumb="Fraud Oversight" showRail={false}>
+          <Text style={styles.dPageTitle}>Fraud Oversight</Text>
+          <DesktopPanel title={tab === 'flagged' ? 'Flagged Receipts' : 'Duplicate Attempts'}>
+            {searchAndTabs}
+            {loading ? (
+              <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.md }} />
+            ) : tab === 'flagged' ? (
+              filteredFlagged.length === 0 ? (
+                <Text style={styles.emptyText}>{emptyText}</Text>
+              ) : (
+                <View style={{ gap: spacing.sm, marginTop: spacing.sm }}>
+                  {filteredFlagged.map((item) => (
+                    <React.Fragment key={item.id}>{renderFlagged({ item })}</React.Fragment>
+                  ))}
+                </View>
+              )
+            ) : filteredDuplicates.length === 0 ? (
+              <Text style={styles.emptyText}>{emptyText}</Text>
+            ) : (
+              <View style={{ gap: spacing.sm, marginTop: spacing.sm }}>
+                {filteredDuplicates.map((item) => (
+                  <React.Fragment key={item.id}>{renderDuplicate({ item })}</React.Fragment>
+                ))}
+              </View>
+            )}
+          </DesktopPanel>
+        </SuperAdminDesktopFrame>
+        {modals}
+      </>
+    );
+  }
+
   return (
     <View style={styles.screen}>
       <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
         <ScreenHeader title="Fraud Oversight" onBack={() => navigation.goBack()} />
       </SafeAreaView>
 
-      <View style={styles.searchArea}>
-        <TextField placeholder="Search by member or club" variant="onLight" icon="search" value={search} onChangeText={setSearch} />
-        <View style={styles.tabRow}>
-          <TouchableOpacity
-            style={[styles.tabButton, tab === 'flagged' && styles.tabButtonActive]}
-            onPress={() => setTab('flagged')}
-          >
-            <Text style={[styles.tabButtonText, tab === 'flagged' && styles.tabButtonTextActive]}>
-              Flagged Receipts ({flagged.length})
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.tabButton, tab === 'duplicates' && styles.tabButtonActive]}
-            onPress={() => setTab('duplicates')}
-          >
-            <Text style={[styles.tabButtonText, tab === 'duplicates' && styles.tabButtonTextActive]}>
-              Duplicate Attempts ({duplicates.length})
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </View>
+      {searchAndTabs}
 
       {loading ? (
         <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
@@ -291,6 +392,43 @@ export function SuperAdminFraudOversightScreen({ navigation }: Props) {
             )}
           </View>
         </TouchableOpacity>
+      </Modal>
+
+      <Modal visible={reasonModal !== null} transparent animationType="fade" onRequestClose={() => setReasonModal(null)}>
+        <View style={styles.backdrop}>
+          <View style={styles.photoSheet}>
+            <View style={styles.photoSheetHeader}>
+              <Text style={styles.photoSheetTitle}>Mark as Fraud</Text>
+              <TouchableOpacity onPress={() => setReasonModal(null)} hitSlop={8}>
+                <Ionicons name="close" size={22} color={colors.textPrimary} />
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.reasonModalHint}>
+              This rejects the receipt{reasonModal && !reasonModal.pointsCredited ? '' : " and reverses any Flagrr Cash it already awarded"}.
+              {reasonModal?.memberName ? ` ${reasonModal.memberName}` : 'The member'} will be sent the reason below. This can't be undone.
+            </Text>
+            <TextInput
+              placeholder="Explain why this receipt is fraudulent…"
+              placeholderTextColor={colors.textSecondary}
+              value={reasonText}
+              onChangeText={setReasonText}
+              multiline
+              style={styles.reasonInput}
+            />
+            <View style={styles.reasonModalActions}>
+              <TouchableOpacity style={styles.reasonCancelButton} onPress={() => setReasonModal(null)}>
+                <Text style={styles.reasonCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.reasonSubmitButton, !reasonText.trim() && styles.reasonSubmitButtonDisabled]}
+                onPress={handleSubmitFraudReason}
+                disabled={!reasonText.trim()}
+              >
+                <Text style={styles.reasonSubmitText}>Mark as Fraud</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
       </Modal>
     </View>
   );
@@ -330,7 +468,7 @@ function createStyles(colors: ThemeColors) {
   actionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.xs, gap: spacing.sm },
   viewPhotoButton: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start' },
   viewPhotoText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.tiny, color: colors.clubGreen },
-  clearText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.tiny, color: colors.textSecondary },
+  approveText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.tiny, color: colors.clubGreen },
   confirmFraudText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.tiny, color: colors.negative },
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center', padding: screenPadding },
   photoSheet: {
@@ -344,6 +482,25 @@ function createStyles(colors: ThemeColors) {
   photoSheetHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.sm },
   photoSheetTitle: { fontFamily: fontFamily.heading, fontSize: fontSize.cardTitle, color: colors.textPrimary },
   photoImage: { width: '100%', height: 420, borderRadius: radius.sm },
+  reasonModalHint: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary, marginBottom: spacing.sm, lineHeight: 17 },
+  reasonInput: {
+    backgroundColor: colors.inputBg,
+    borderWidth: 1,
+    borderColor: colors.inputBorder,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    minHeight: 100,
+    fontFamily: fontFamily.body,
+    fontSize: fontSize.body,
+    color: colors.textPrimary,
+    textAlignVertical: 'top',
+  },
+  reasonModalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: spacing.sm, marginTop: spacing.md },
+  reasonCancelButton: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
+  reasonCancelText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.small, color: colors.textSecondary },
+  reasonSubmitButton: { backgroundColor: colors.negative, borderRadius: radius.pill, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm },
+  reasonSubmitButtonDisabled: { opacity: 0.5 },
+  reasonSubmitText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.small, color: colors.white },
   emptyText: {
     fontFamily: fontFamily.body,
     fontSize: fontSize.body,
@@ -351,5 +508,6 @@ function createStyles(colors: ThemeColors) {
     textAlign: 'center',
     marginTop: spacing.xl,
   },
+  dPageTitle: { fontFamily: fontFamily.heading, fontSize: 26, color: colors.textPrimary },
 });
 }

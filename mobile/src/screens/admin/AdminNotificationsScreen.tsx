@@ -121,11 +121,12 @@ export function AdminNotificationsScreen({ navigation }: Props) {
                   <TouchableOpacity
                     key={n.id}
                     style={[styles.row, i !== group.entries.length - 1 && styles.rowDivider]}
-                    activeOpacity={n.enquiryId ? 0.7 : 1}
-                    disabled={!n.enquiryId}
+                    activeOpacity={n.enquiryId || n.receiptId ? 0.7 : 1}
+                    disabled={!n.enquiryId && !n.receiptId}
                     onPress={() => {
                       if (!n.read) markNotificationRead(n.id);
                       if (n.enquiryId) navigation.navigate('AdminEnquiryChat', { enquiryId: n.enquiryId });
+                      else if (n.receiptId) navigation.navigate('AdminFraudOversight');
                     }}
                   >
                     <Ionicons
@@ -138,11 +139,11 @@ export function AdminNotificationsScreen({ navigation }: Props) {
                       <Text style={styles.rowTitle}>{n.title}</Text>
                       <Text style={styles.rowBody}>{n.body}</Text>
                     </View>
-                    {!n.read && !n.enquiryId ? (
+                    {!n.read && !n.enquiryId && !n.receiptId ? (
                       <TouchableOpacity onPress={() => markNotificationRead(n.id)}>
                         <Text style={styles.viewLink}>Mark read</Text>
                       </TouchableOpacity>
-                    ) : n.enquiryId ? (
+                    ) : n.enquiryId || n.receiptId ? (
                       <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
                     ) : null}
                   </TouchableOpacity>

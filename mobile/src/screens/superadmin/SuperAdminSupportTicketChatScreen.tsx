@@ -18,6 +18,8 @@ import type { SuperAdminStackParamList } from '../../navigation/types';
 import { ScreenHeader } from '../../components/common/ScreenHeader';
 import { TextField } from '../../components/common/TextField';
 import { useAdmin } from '../../context/AdminContext';
+import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
+import { SuperAdminDesktopFrame } from '../../components/admin/desktop/SuperAdminDesktopFrame';
 import { AdminApiError } from '../../api/adminClient';
 import { showAlert } from '../../utils/alert';
 import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
@@ -52,6 +54,7 @@ function formatTime(iso: string): string {
 export function SuperAdminSupportTicketChatScreen({ route }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const isDesktop = useIsDesktopNav();
   const { ticketId } = route.params;
   const {
     admin,
@@ -179,17 +182,10 @@ export function SuperAdminSupportTicketChatScreen({ route }: Props) {
     }
   };
 
-  return (
-    <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <StatusBar barStyle="light-content" />
-      <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
-        <ScreenHeader title={thread?.subject ?? 'Ticket'} />
-      </SafeAreaView>
-
-      {loading || !thread ? (
-        <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
-      ) : (
-        <>
+  const body = loading || !thread ? (
+    <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
+  ) : (
+    <>
           <View style={styles.requesterInfo}>
             <Text style={styles.requesterName}>{thread.requesterName}</Text>
             <Text style={styles.requesterEmail}>{thread.requesterEmail}</Text>
@@ -280,8 +276,25 @@ export function SuperAdminSupportTicketChatScreen({ route }: Props) {
               )}
             </TouchableOpacity>
           </View>
-        </>
-      )}
+    </>
+  );
+
+  if (isDesktop) {
+    return (
+      <SuperAdminDesktopFrame activeKey="SuperAdminSupport" breadcrumb={thread?.subject ?? 'Ticket'} showRail={false} scrollable={false}>
+        <View style={styles.dChatCard}>{body}</View>
+      </SuperAdminDesktopFrame>
+    );
+  }
+
+  return (
+    <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <StatusBar barStyle="light-content" />
+      <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
+        <ScreenHeader title={thread?.subject ?? 'Ticket'} />
+      </SafeAreaView>
+
+      {body}
     </KeyboardAvoidingView>
   );
 }
@@ -339,6 +352,14 @@ function createStyles(colors: ThemeColors) {
     backgroundColor: colors.clubGreen,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  dChatCard: {
+    flex: 1,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 16,
+    overflow: 'hidden',
   },
 });
 }

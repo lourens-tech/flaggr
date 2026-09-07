@@ -27,21 +27,26 @@ export function ReceiptSuccessScreen({ route, navigation }: Props) {
         </View>
 
         <Text style={styles.title}>Receipt Scanned{'\n'}Successfully!</Text>
-        <Text style={styles.subtitle}>
-          +{route.params.pointsAwarded} Flagrr Cash have been added to your wallet!
-        </Text>
+        {route.params.flagged ? (
+          <Text style={styles.subtitle}>Your receipt is being reviewed</Text>
+        ) : (
+          <Text style={styles.subtitle}>
+            +{route.params.pointsAwarded} Flagrr Cash have been added to your wallet!
+          </Text>
+        )}
         <Text style={styles.body}>
-          Your new Flagrr Cash balance is now available in your wallet and ready to redeem on rewards.{'\n\n'}
-          Play more rounds, scan your receipts, and redeem rewards to unlock higher membership tiers and exclusive
-          benefits.
+          {route.params.flagged
+            ? "We're double-checking a few details on this receipt before crediting your Flagrr Cash — this usually only takes a short while."
+            : 'Your new Flagrr Cash balance is now available in your wallet and ready to redeem on rewards.\n\nPlay more rounds, scan your receipts, and redeem rewards to unlock higher membership tiers and exclusive benefits.'}
         </Text>
 
         {route.params.flagged ? (
           <View style={styles.reviewNotice}>
             <Ionicons name="alert-circle-outline" size={18} color={colors.warning} />
             <Text style={styles.reviewNoticeText}>
-              This receipt was flagged for manual review. Your Flagrr Cash has already been credited — no action is
-              needed from you. You can check its status anytime under Profile &gt; Receipt History.
+              This receipt was flagged for manual review. Once approved, {route.params.pointsAwarded} Flagrr Cash
+              will be added to your balance — no action is needed from you. You can check its status anytime under
+              Profile &gt; Receipt History.
             </Text>
           </View>
         ) : null}

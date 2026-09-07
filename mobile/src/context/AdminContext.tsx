@@ -12,6 +12,8 @@ import {
   type SuperAdminCourseCreateResponse,
   type SuperAdminAdSavePayload,
   type SuperAdminRewardSavePayload,
+  type SuperAdminCatalogProductSavePayload,
+  type SuperAdminCatalogActivitySavePayload,
   type SupportAgentCreatePayload,
 } from '../api/adminClient';
 import { registerForPushNotificationsAsync } from '../utils/pushNotifications';
@@ -31,22 +33,35 @@ import type {
   AdminVoucherLookup,
   AuditLogEntry,
   BroadcastTarget,
+  CatalogActivity,
+  CatalogActivitySavePayload,
+  CatalogProduct,
+  CatalogProductSavePayload,
+  CourseReportKind,
   DashboardReport,
   DuplicateReceiptAttempt,
   EnquiryMessage,
   EnquiryStatus,
   FlaggedReceipt,
+  MemberReportRow,
   MemberRosterStatus,
   MemberRosterUploadResult,
   MemberStats,
   MembersPage,
+  RedemptionReportRow,
+  ReceiptReportRow,
   SuperAdminBroadcast,
   SuperAdminBroadcastTarget,
   SuperAdminCourseSummary,
   SuperAdminDashboardReport,
+  SuperAdminMemberReportRow,
   SuperAdminMemberSearchResult,
   SuperAdminMemberStats,
+  SuperAdminRedemptionReportRow,
+  SuperAdminReportKind,
+  AdClickLogRow,
   AdPerformanceRow,
+  AdTrendPoint,
   StatBreakdownMetric,
   StatBreakdownRow,
   StaffRedemption,
@@ -99,6 +114,8 @@ interface AdminContextValue {
   dashboardLoading: boolean;
   rewards: AdminReward[];
   ads: AdminAd[];
+  catalogProducts: CatalogProduct[];
+  catalogActivities: CatalogActivity[];
   notifications: AdminNotification[];
   unreadNotificationCount: number;
   loadNotifications: () => Promise<void>;
@@ -118,6 +135,21 @@ interface AdminContextValue {
   loadAds: () => Promise<void>;
   saveAd: (payload: AdSavePayload) => Promise<void>;
   deleteAd: (id: string) => Promise<void>;
+  loadCatalogProducts: () => Promise<void>;
+  saveCatalogProduct: (payload: CatalogProductSavePayload) => Promise<void>;
+  deleteCatalogProduct: (id: string) => Promise<void>;
+  loadCatalogActivities: () => Promise<void>;
+  saveCatalogActivity: (payload: CatalogActivitySavePayload) => Promise<void>;
+  deleteCatalogActivity: (id: string) => Promise<void>;
+  // super_admin only — per-club catalog management, fetched on demand
+  // (mirrors getSuperAdminRewards's pattern: no shared state, the screen
+  // manages its own list for whichever courseId it was opened with).
+  getSuperAdminCatalogProducts: (courseId: string) => Promise<CatalogProduct[]>;
+  saveSuperAdminCatalogProduct: (payload: SuperAdminCatalogProductSavePayload) => Promise<{ id: string }>;
+  deleteSuperAdminCatalogProduct: (courseId: string, id: string) => Promise<void>;
+  getSuperAdminCatalogActivities: (courseId: string) => Promise<CatalogActivity[]>;
+  saveSuperAdminCatalogActivity: (payload: SuperAdminCatalogActivitySavePayload) => Promise<{ id: string }>;
+  deleteSuperAdminCatalogActivity: (courseId: string, id: string) => Promise<void>;
   searchMembers: (query: string) => Promise<AdminMember[]>;
   listAllMembers: (page: number, pageSize: number) => Promise<MembersPage>;
   getMemberStats: (id: string, period: DashboardPeriod) => Promise<MemberStats>;
@@ -125,6 +157,7 @@ interface AdminContextValue {
   // getSuperAdminMemberRosterStatus for the general pattern this follows).
   searchSuperAdminMembers: (search: string) => Promise<SuperAdminMemberSearchResult[]>;
   getSuperAdminMemberStats: (id: string, period: DashboardPeriod) => Promise<SuperAdminMemberStats>;
+  giftFlagrrCash: (userId: string, amount: number, reason: string) => Promise<{ newBalance: number }>;
   lookupVoucher: (code: string) => Promise<AdminVoucherLookup>;
   redeemVoucher: (code: string) => Promise<AdminVoucherLookup>;
   listEnquiries: (status?: EnquiryStatus) => Promise<AdminEnquirySummary[]>;
@@ -189,6 +222,10 @@ interface AdminContextValue {
   getSuperAdminAds: (courseId: string) => Promise<AdminAd[]>;
   saveSuperAdminAd: (payload: SuperAdminAdSavePayload) => Promise<{ id: string }>;
   deleteSuperAdminAd: (courseId: string, id: string) => Promise<void>;
+  // Read-only oversight into any club's own enquiries inbox — a super_admin
+  // can see the conversation but can't reply into it (see adminClient.ts).
+  getSuperAdminCourseEnquiries: (courseId: string, status?: EnquiryStatus) => Promise<AdminEnquirySummary[]>;
+  getSuperAdminEnquiryThread: (courseId: string, id: string) => Promise<AdminEnquiryThread>;
   getSuperAdminRewards: (courseId: string) => Promise<AdminReward[]>;
   saveSuperAdminReward: (payload: SuperAdminRewardSavePayload) => Promise<{ id: string }>;
   deleteSuperAdminReward: (courseId: string, id: string) => Promise<void>;
@@ -216,8 +253,17 @@ interface AdminContextValue {
   reactivateSuperAdminCourseAdmin: (id: string) => Promise<void>;
   deleteSuperAdminCourseAdmin: (id: string) => Promise<void>;
   getSuperAdminDashboard: (period: DashboardPeriod) => Promise<SuperAdminDashboardReport>;
-  getSuperAdminAdPerformance: () => Promise<AdPerformanceRow[]>;
+  getSuperAdminAdPerformance: (period: DashboardPeriod) => Promise<AdPerformanceRow[]>;
+  getSuperAdminAdTrend: (period: DashboardPeriod, adId?: string) => Promise<AdTrendPoint[]>;
+  getSuperAdminAdClickLog: (adId: string, period: DashboardPeriod) => Promise<AdClickLogRow[]>;
   getSuperAdminStatBreakdown: (metric: StatBreakdownMetric, period: DashboardPeriod) => Promise<StatBreakdownRow[]>;
+  // One club's own member list, tapped from a row on the stat breakdown page.
+  getSuperAdminClubMembers: (courseId: string, period: DashboardPeriod) => Promise<MemberReportRow[]>;
+  // Cross-club Tier Distribution / Top Redeemed Rewards detail pages.
+  getSuperAdminReportRows: <K extends SuperAdminReportKind>(
+    report: K,
+    period: DashboardPeriod,
+  ) => Promise<K extends 'crossClubMembers' ? SuperAdminMemberReportRow[] : SuperAdminRedemptionReportRow[]>;
   // Support Centre (course_admin/staff requester side — a ticket to the
   // Flagrr team, distinct from the per-club 'enquiries' above).
   createSupportTicket: (subject: string, message: string) => Promise<string>;
@@ -249,15 +295,20 @@ interface AdminContextValue {
   getAuditLog: () => Promise<AuditLogEntry[]>;
   // Cross-club fraud oversight (super_admin only) — same thin-passthrough pattern.
   getSuperAdminFlaggedReceipts: () => Promise<FlaggedReceipt[]>;
-  confirmSuperAdminReceiptFraud: (id: string) => Promise<void>;
-  clearSuperAdminReceiptFlag: (id: string) => Promise<void>;
+  confirmSuperAdminReceiptFraud: (id: string, reason: string) => Promise<void>;
+  approveSuperAdminReceipt: (id: string) => Promise<void>;
   getSuperAdminDuplicateAttempts: () => Promise<DuplicateReceiptAttempt[]>;
   getSuperAdminReceiptImage: (id: string) => Promise<string | null>;
   // This club's own flagged-receipts review queue (course_admin only).
   getFlaggedReceipts: () => Promise<FlaggedReceipt[]>;
-  confirmReceiptFraud: (id: string) => Promise<void>;
-  clearReceiptFlag: (id: string) => Promise<void>;
+  confirmReceiptFraud: (id: string, reason: string) => Promise<void>;
+  approveReceipt: (id: string) => Promise<void>;
   getReceiptImage: (id: string) => Promise<string | null>;
+  // Backs each Overview stat card's detail page (AdminReportDetailScreen).
+  getReportRows: <K extends CourseReportKind>(
+    report: K,
+    period: 'month' | 'year' | 'all',
+  ) => Promise<K extends 'redemptions' ? RedemptionReportRow[] : K extends 'receipts' ? ReceiptReportRow[] : MemberReportRow[]>;
 }
 
 const AdminContext = createContext<AdminContextValue | undefined>(undefined);
@@ -273,6 +324,8 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
   const [dashboardLoading, setDashboardLoading] = useState(false);
   const [rewards, setRewards] = useState<AdminReward[]>([]);
   const [ads, setAds] = useState<AdminAd[]>([]);
+  const [catalogProducts, setCatalogProducts] = useState<CatalogProduct[]>([]);
+  const [catalogActivities, setCatalogActivities] = useState<CatalogActivity[]>([]);
   const [notifications, setNotifications] = useState<AdminNotification[]>([]);
   const [broadcasts, setBroadcasts] = useState<AdminBroadcast[]>([]);
   const [staff, setStaff] = useState<AdminStaff[]>([]);
@@ -432,11 +485,54 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     await loadAds();
   };
 
+  const loadCatalogProducts = useCallback(async () => {
+    setCatalogProducts(await adminApi.catalogProducts());
+  }, []);
+
+  const saveCatalogProduct = async (payload: CatalogProductSavePayload) => {
+    await adminApi.saveCatalogProduct(payload);
+    await loadCatalogProducts();
+  };
+
+  const deleteCatalogProduct = async (id: string) => {
+    await adminApi.deleteCatalogProduct(id);
+    await loadCatalogProducts();
+  };
+
+  const loadCatalogActivities = useCallback(async () => {
+    setCatalogActivities(await adminApi.catalogActivities());
+  }, []);
+
+  const saveCatalogActivity = async (payload: CatalogActivitySavePayload) => {
+    await adminApi.saveCatalogActivity(payload);
+    await loadCatalogActivities();
+  };
+
+  const deleteCatalogActivity = async (id: string) => {
+    await adminApi.deleteCatalogActivity(id);
+    await loadCatalogActivities();
+  };
+
+  const getSuperAdminCatalogProducts = async (courseId: string) => adminApi.superAdminCatalogProducts(courseId);
+  const saveSuperAdminCatalogProduct = async (payload: SuperAdminCatalogProductSavePayload) =>
+    adminApi.saveSuperAdminCatalogProduct(payload);
+  const deleteSuperAdminCatalogProduct = async (courseId: string, id: string) => {
+    await adminApi.deleteSuperAdminCatalogProduct(courseId, id);
+  };
+  const getSuperAdminCatalogActivities = async (courseId: string) => adminApi.superAdminCatalogActivities(courseId);
+  const saveSuperAdminCatalogActivity = async (payload: SuperAdminCatalogActivitySavePayload) =>
+    adminApi.saveSuperAdminCatalogActivity(payload);
+  const deleteSuperAdminCatalogActivity = async (courseId: string, id: string) => {
+    await adminApi.deleteSuperAdminCatalogActivity(courseId, id);
+  };
+
   const searchMembers = async (query: string) => adminApi.members(query);
   const listAllMembers = async (page: number, pageSize: number) => adminApi.membersList(page, pageSize);
   const getMemberStats = async (id: string, period: DashboardPeriod) => adminApi.memberStats(id, period);
   const searchSuperAdminMembers = async (search: string) => adminApi.superAdminMembers(search);
   const getSuperAdminMemberStats = async (id: string, period: DashboardPeriod) => adminApi.superAdminMemberStats(id, period);
+  const giftFlagrrCash = async (userId: string, amount: number, reason: string) =>
+    adminApi.superAdminGiftFlagrrCash(userId, amount, reason);
 
   const lookupVoucher = async (code: string) => adminApi.lookupVoucher(code);
   const redeemVoucher = async (code: string) => adminApi.redeemVoucher(code);
@@ -579,6 +675,10 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     await adminApi.deleteSuperAdminAd(courseId, id);
   };
 
+  const getSuperAdminCourseEnquiries = async (courseId: string, status?: EnquiryStatus) =>
+    adminApi.superAdminCourseEnquiries(courseId, status);
+  const getSuperAdminEnquiryThread = async (courseId: string, id: string) => adminApi.superAdminEnquiryThread(courseId, id);
+
   const getSuperAdminRewards = async (courseId: string) => adminApi.superAdminRewards(courseId);
   const saveSuperAdminReward = async (payload: SuperAdminRewardSavePayload) => adminApi.saveSuperAdminReward(payload);
   const deleteSuperAdminReward = async (courseId: string, id: string) => {
@@ -640,10 +740,16 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
   };
 
   const getSuperAdminDashboard = async (period: DashboardPeriod) => adminApi.superAdminDashboard(period);
-  const getSuperAdminAdPerformance = async () => adminApi.superAdminAdPerformance();
+  const getSuperAdminAdPerformance = async (period: DashboardPeriod) => adminApi.superAdminAdPerformance(period);
+  const getSuperAdminAdTrend = async (period: DashboardPeriod, adId?: string) => adminApi.superAdminAdTrend(period, adId);
+  const getSuperAdminAdClickLog = async (adId: string, period: DashboardPeriod) => adminApi.superAdminAdClickLog(adId, period);
 
   const getSuperAdminStatBreakdown = async (metric: StatBreakdownMetric, period: DashboardPeriod) =>
     adminApi.superAdminStatBreakdown(metric, period);
+  const getSuperAdminClubMembers = async (courseId: string, period: DashboardPeriod) =>
+    adminApi.superAdminClubMembers(courseId, period);
+  const getSuperAdminReportRows = <K extends SuperAdminReportKind>(report: K, period: DashboardPeriod) =>
+    adminApi.superAdminReportRows(report, period);
 
   const createSupportTicket = async (subject: string, message: string) => {
     const res = await adminApi.createSupportTicket(subject, message);
@@ -701,24 +807,26 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
   const getAuditLog = async (): Promise<AuditLogEntry[]> => adminApi.auditLog();
 
   const getSuperAdminFlaggedReceipts = async (): Promise<FlaggedReceipt[]> => adminApi.superAdminFlaggedReceipts();
-  const confirmSuperAdminReceiptFraud = async (id: string) => {
-    await adminApi.superAdminConfirmReceiptFraud(id);
+  const confirmSuperAdminReceiptFraud = async (id: string, reason: string) => {
+    await adminApi.superAdminConfirmReceiptFraud(id, reason);
   };
-  const clearSuperAdminReceiptFlag = async (id: string) => {
-    await adminApi.superAdminClearReceiptFlag(id);
+  const approveSuperAdminReceipt = async (id: string) => {
+    await adminApi.superAdminApproveReceipt(id);
   };
   const getSuperAdminDuplicateAttempts = async (): Promise<DuplicateReceiptAttempt[]> => adminApi.superAdminDuplicateAttempts();
   const getSuperAdminReceiptImage = async (id: string): Promise<string | null> =>
     (await adminApi.superAdminReceiptImage(id)).imageData;
 
   const getFlaggedReceipts = async (): Promise<FlaggedReceipt[]> => adminApi.flaggedReceipts();
-  const confirmReceiptFraud = async (id: string) => {
-    await adminApi.confirmReceiptFraud(id);
+  const confirmReceiptFraud = async (id: string, reason: string) => {
+    await adminApi.confirmReceiptFraud(id, reason);
   };
-  const clearReceiptFlag = async (id: string) => {
-    await adminApi.clearReceiptFlag(id);
+  const approveReceipt = async (id: string) => {
+    await adminApi.approveReceipt(id);
   };
   const getReceiptImage = async (id: string): Promise<string | null> => (await adminApi.receiptImage(id)).imageData;
+  const getReportRows = <K extends CourseReportKind>(report: K, period: 'month' | 'year' | 'all') =>
+    adminApi.reportRows(report, period);
 
   const value: AdminContextValue = {
     isAdminAuthenticated,
@@ -730,6 +838,8 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     dashboardLoading,
     rewards,
     ads,
+    catalogProducts,
+    catalogActivities,
     notifications,
     unreadNotificationCount,
     loadNotifications,
@@ -749,11 +859,24 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     loadAds,
     saveAd,
     deleteAd,
+    loadCatalogProducts,
+    saveCatalogProduct,
+    deleteCatalogProduct,
+    loadCatalogActivities,
+    saveCatalogActivity,
+    deleteCatalogActivity,
+    getSuperAdminCatalogProducts,
+    saveSuperAdminCatalogProduct,
+    deleteSuperAdminCatalogProduct,
+    getSuperAdminCatalogActivities,
+    saveSuperAdminCatalogActivity,
+    deleteSuperAdminCatalogActivity,
     searchMembers,
     listAllMembers,
     getMemberStats,
     searchSuperAdminMembers,
     getSuperAdminMemberStats,
+    giftFlagrrCash,
     lookupVoucher,
     redeemVoucher,
     listEnquiries,
@@ -796,6 +919,8 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     getSuperAdminAds,
     saveSuperAdminAd,
     deleteSuperAdminAd,
+    getSuperAdminCourseEnquiries,
+    getSuperAdminEnquiryThread,
     getSuperAdminRewards,
     saveSuperAdminReward,
     deleteSuperAdminReward,
@@ -817,7 +942,11 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     deleteSuperAdminCourseAdmin,
     getSuperAdminDashboard,
     getSuperAdminAdPerformance,
+    getSuperAdminAdTrend,
+    getSuperAdminAdClickLog,
     getSuperAdminStatBreakdown,
+    getSuperAdminClubMembers,
+    getSuperAdminReportRows,
     createSupportTicket,
     listSupportTickets,
     getSupportTicketThread,
@@ -839,13 +968,14 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     getAuditLog,
     getSuperAdminFlaggedReceipts,
     confirmSuperAdminReceiptFraud,
-    clearSuperAdminReceiptFlag,
+    approveSuperAdminReceipt,
     getSuperAdminDuplicateAttempts,
     getSuperAdminReceiptImage,
     getFlaggedReceipts,
     confirmReceiptFraud,
-    clearReceiptFlag,
+    approveReceipt,
     getReceiptImage,
+    getReportRows,
   };
 
   return <AdminContext.Provider value={value}>{children}</AdminContext.Provider>;

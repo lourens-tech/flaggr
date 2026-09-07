@@ -17,7 +17,7 @@ import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Contact'>;
 
-const ENQUIRY_TYPES = ['Rewards & Points', 'Receipts', 'Membership', 'Technical Issue', 'Other'];
+const ENQUIRY_TYPES = ['Rewards and Points', 'Receipts', 'Membership', 'Technical Issue', 'Other'];
 
 export function ContactScreen({ navigation }: Props) {
   const colors = useThemeColors();

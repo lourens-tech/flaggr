@@ -8,6 +8,9 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SuperAdminStackParamList, SuperAdminTabParamList } from '../../navigation/types';
 import { TextField } from '../../components/common/TextField';
 import { useAdmin } from '../../context/AdminContext';
+import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
+import { SuperAdminDesktopFrame } from '../../components/admin/desktop/SuperAdminDesktopFrame';
+import { DesktopPanel } from '../../components/admin/desktop/DesktopPanel';
 import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
 import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 
@@ -24,6 +27,7 @@ type Props = CompositeScreenProps<
 export function SuperAdminAdsScreen({ navigation }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const isDesktop = useIsDesktopNav();
   const { superAdminCourses, loadSuperAdminCourses } = useAdmin();
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -54,6 +58,54 @@ export function SuperAdminAdsScreen({ navigation }: Props) {
     }, []),
   );
 
+  const allCoursesRow = (
+    <TouchableOpacity
+      style={styles.allCoursesRow}
+      onPress={() => navigation.navigate('SuperAdminCourseAds', { courseId: 'global', courseName: 'All Courses' })}
+      activeOpacity={0.85}
+    >
+      <Ionicons name="globe-outline" size={20} color={colors.clubGreen} />
+      <View style={{ flex: 1 }}>
+        <Text style={styles.allCoursesTitle}>All Courses</Text>
+        <Text style={styles.allCoursesSubtitle}>Shown to every club's members</Text>
+      </View>
+      <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
+    </TouchableOpacity>
+  );
+
+  const courseRow = (item: (typeof filtered)[number]) => (
+    <TouchableOpacity
+      key={item.id}
+      style={styles.courseRow}
+      onPress={() => navigation.navigate('SuperAdminCourseAds', { courseId: item.id, courseName: item.name })}
+      activeOpacity={0.85}
+    >
+      <Ionicons name="business-outline" size={18} color={colors.clubGreen} />
+      <Text style={styles.courseTitle} numberOfLines={1}>{item.name}</Text>
+      <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
+    </TouchableOpacity>
+  );
+
+  if (isDesktop) {
+    return (
+      <SuperAdminDesktopFrame activeKey="SuperAdminAds" breadcrumb="Ads">
+        <Text style={styles.dPageTitle}>Ads</Text>
+        <Text style={styles.dPageSubtitle}>Pick a club, or All Courses for a platform-wide ad</Text>
+        {allCoursesRow}
+        <DesktopPanel title="Specific Club">
+          <TextField placeholder="Search courses" variant="onLight" icon="search" value={search} onChangeText={setSearch} />
+          {loading ? (
+            <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.md }} />
+          ) : filtered.length === 0 ? (
+            <Text style={styles.emptyText}>{superAdminCourses.length === 0 ? 'No courses yet.' : 'No courses match your search.'}</Text>
+          ) : (
+            <View style={{ gap: spacing.sm, marginTop: spacing.sm }}>{filtered.map(courseRow)}</View>
+          )}
+        </DesktopPanel>
+      </SuperAdminDesktopFrame>
+    );
+  }
+
   return (
     <View style={styles.screen}>
       <StatusBar barStyle="light-content" />
@@ -64,18 +116,7 @@ export function SuperAdminAdsScreen({ navigation }: Props) {
         </View>
       </SafeAreaView>
 
-      <TouchableOpacity
-        style={styles.allCoursesRow}
-        onPress={() => navigation.navigate('SuperAdminCourseAds', { courseId: 'global', courseName: 'All Courses' })}
-        activeOpacity={0.85}
-      >
-        <Ionicons name="globe-outline" size={20} color={colors.clubGreen} />
-        <View style={{ flex: 1 }}>
-          <Text style={styles.allCoursesTitle}>All Courses</Text>
-          <Text style={styles.allCoursesSubtitle}>Shown to every club's members</Text>
-        </View>
-        <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
-      </TouchableOpacity>
+      {allCoursesRow}
 
       <View style={styles.searchArea}>
         <TextField placeholder="Search courses" variant="onLight" icon="search" value={search} onChangeText={setSearch} />
@@ -89,17 +130,7 @@ export function SuperAdminAdsScreen({ navigation }: Props) {
           keyExtractor={(c) => c.id}
           contentContainerStyle={styles.listContent}
           ListHeaderComponent={<Text style={styles.sectionTitle}>Specific Club</Text>}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={styles.courseRow}
-              onPress={() => navigation.navigate('SuperAdminCourseAds', { courseId: item.id, courseName: item.name })}
-              activeOpacity={0.85}
-            >
-              <Ionicons name="business-outline" size={18} color={colors.clubGreen} />
-              <Text style={styles.courseTitle} numberOfLines={1}>{item.name}</Text>
-              <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
-            </TouchableOpacity>
-          )}
+          renderItem={({ item }) => courseRow(item)}
           ListEmptyComponent={
             <Text style={styles.emptyText}>
               {superAdminCourses.length === 0 ? 'No courses yet.' : 'No courses match your search.'}
@@ -160,5 +191,7 @@ function createStyles(colors: ThemeColors) {
     textAlign: 'center',
     marginTop: spacing.xl,
   },
+  dPageTitle: { fontFamily: fontFamily.heading, fontSize: 26, color: colors.textPrimary },
+  dPageSubtitle: { fontFamily: fontFamily.body, fontSize: 13, color: colors.textSecondary, marginTop: 2, marginBottom: spacing.sm },
 });
 }

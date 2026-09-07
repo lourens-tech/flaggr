@@ -7,9 +7,11 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SuperAdminStackParamList } from '../../navigation/types';
 import { ScreenHeader } from '../../components/common/ScreenHeader';
 import { useAdmin } from '../../context/AdminContext';
-import { AdminApiError } from '../../api/adminClient';
+import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
+import { SuperAdminDesktopFrame } from '../../components/admin/desktop/SuperAdminDesktopFrame';
+import { DesktopPanel } from '../../components/admin/desktop/DesktopPanel';
+import { AdminApiError, downloadSuperAdminAdsReport } from '../../api/adminClient';
 import { showAlert } from '../../utils/alert';
-import { toCsv, exportCsv } from '../../utils/csv';
 import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
 import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 import type { AdminAd } from '../../data/adminTypes';
@@ -22,12 +24,6 @@ const PLACEMENTS: Array<{ label: string; value: AdminAd['placement'] }> = [
   { label: 'Rewards Shop', value: 'rewards_shop' },
 ];
 
-const PLACEMENT_LABELS: Record<AdminAd['placement'], string> = {
-  home: 'Home',
-  home_top: 'Home (Top Banner)',
-  rewards_shop: 'Rewards Shop',
-};
-
 // Same list/edit shape as the course-admin AdminAdsListScreen/AdminAdEditScreen
 // (currently unreachable — the Ads tab was removed from the course-admin nav
 // specifically to reserve ad management for super_admin), rewired for an
@@ -35,6 +31,7 @@ const PLACEMENT_LABELS: Record<AdminAd['placement'], string> = {
 export function SuperAdminCourseAdsScreen({ navigation, route }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const isDesktop = useIsDesktopNav();
   const { courseId, courseName } = route.params;
   const { getSuperAdminAds } = useAdmin();
   const [ads, setAds] = useState<AdminAd[]>([]);
@@ -76,22 +73,14 @@ export function SuperAdminCourseAdsScreen({ navigation, route }: Props) {
   }, [ads]);
 
   const handleExport = async () => {
-    const csv = toCsv(
-      ['Title', 'Placement', 'Status', 'Clicks', 'Starts', 'Ends'],
-      ads.map((a) => [
-        a.title || '(untitled ad)',
-        PLACEMENT_LABELS[a.placement],
-        a.active ? 'Active' : 'Inactive',
-        a.clicks,
-        a.startsAt ?? '',
-        a.endsAt ?? '',
-      ]),
-    );
     const safeName = courseName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'course';
     try {
-      await exportCsv(`${safeName}-ads-report.csv`, csv);
+      const downloaded = await downloadSuperAdminAdsReport(courseId, `${safeName}-ads-report.xlsx`);
+      if (!downloaded) {
+        showAlert('Web only for now', 'Excel export is available on the Flagrr web app — open this screen in a browser to download this report.');
+      }
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Something went wrong. Please try again.';
+      const message = err instanceof AdminApiError ? err.message : 'Something went wrong. Please try again.';
       showAlert('Couldn’t export report', message);
     }
   };
@@ -116,6 +105,72 @@ export function SuperAdminCourseAdsScreen({ navigation, route }: Props) {
       <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
     </TouchableOpacity>
   );
+
+  const reportCard = (
+    <View style={styles.reportCard}>
+      <View style={styles.reportStat}>
+        <Text style={styles.reportValue}>{report.totalAds}</Text>
+        <Text style={styles.reportLabel}>Total Ads</Text>
+      </View>
+      <View style={styles.reportStat}>
+        <Text style={styles.reportValue}>{report.activeAds}</Text>
+        <Text style={styles.reportLabel}>Active</Text>
+      </View>
+      <View style={styles.reportStat}>
+        <Text style={styles.reportValue}>{report.totalClicks}</Text>
+        <Text style={styles.reportLabel}>Total Clicks</Text>
+      </View>
+    </View>
+  );
+
+  const placementToggle = (
+    <View style={styles.placementToggle}>
+      {PLACEMENTS.map((p) => (
+        <TouchableOpacity
+          key={p.value}
+          onPress={() => setPlacement(p.value)}
+          style={[styles.placementPill, placement === p.value && styles.placementPillActive]}
+        >
+          <Text style={[styles.placementText, placement === p.value && styles.placementTextActive]}>{p.label}</Text>
+        </TouchableOpacity>
+      ))}
+    </View>
+  );
+
+  if (isDesktop) {
+    return (
+      <SuperAdminDesktopFrame activeKey="SuperAdminCourses" breadcrumb={`${courseName} Ads`} showRail={false}>
+        <View style={styles.dHeadRow}>
+          <Text style={styles.dPageTitle}>{courseName} — Ads</Text>
+          <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+            <TouchableOpacity style={styles.dSecondaryButton} onPress={handleExport}>
+              <Ionicons name="download-outline" size={15} color={colors.textPrimary} />
+              <Text style={styles.dSecondaryButtonText}>Export</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.dAddButton} onPress={() => navigation.navigate('SuperAdminAdEdit', { courseId })}>
+              <Ionicons name="add" size={16} color={colors.darkGreen} />
+              <Text style={styles.dAddButtonText}>Add Ad</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+        {reportCard}
+        <DesktopPanel title=" ">
+          {placementToggle}
+          {loading ? (
+            <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.md }} />
+          ) : filtered.length === 0 ? (
+            <Text style={styles.emptyText}>No ads in this slot yet — add one.</Text>
+          ) : (
+            <View style={{ gap: spacing.sm, marginTop: spacing.sm }}>
+              {filtered.map((item) => (
+                <React.Fragment key={item.id}>{renderItem({ item })}</React.Fragment>
+              ))}
+            </View>
+          )}
+        </DesktopPanel>
+      </SuperAdminDesktopFrame>
+    );
+  }
 
   return (
     <View style={styles.screen}>
@@ -147,32 +202,8 @@ export function SuperAdminCourseAdsScreen({ navigation, route }: Props) {
         />
       </SafeAreaView>
 
-      <View style={styles.reportCard}>
-        <View style={styles.reportStat}>
-          <Text style={styles.reportValue}>{report.totalAds}</Text>
-          <Text style={styles.reportLabel}>Total Ads</Text>
-        </View>
-        <View style={styles.reportStat}>
-          <Text style={styles.reportValue}>{report.activeAds}</Text>
-          <Text style={styles.reportLabel}>Active</Text>
-        </View>
-        <View style={styles.reportStat}>
-          <Text style={styles.reportValue}>{report.totalClicks}</Text>
-          <Text style={styles.reportLabel}>Total Clicks</Text>
-        </View>
-      </View>
-
-      <View style={styles.placementToggle}>
-        {PLACEMENTS.map((p) => (
-          <TouchableOpacity
-            key={p.value}
-            onPress={() => setPlacement(p.value)}
-            style={[styles.placementPill, placement === p.value && styles.placementPillActive]}
-          >
-            <Text style={[styles.placementText, placement === p.value && styles.placementTextActive]}>{p.label}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+      {reportCard}
+      {placementToggle}
 
       {loading ? (
         <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
@@ -235,5 +266,28 @@ function createStyles(colors: ThemeColors) {
     textAlign: 'center',
     marginTop: spacing.xl,
   },
+  dHeadRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  dPageTitle: { fontFamily: fontFamily.heading, fontSize: 26, color: colors.textPrimary },
+  dSecondaryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.pill,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+  },
+  dSecondaryButtonText: { fontFamily: fontFamily.bodySemiBold, fontSize: 12.5, color: colors.textPrimary },
+  dAddButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.lime,
+    borderRadius: radius.pill,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  dAddButtonText: { fontFamily: fontFamily.bodySemiBold, fontSize: 13, color: colors.darkGreen },
 });
 }

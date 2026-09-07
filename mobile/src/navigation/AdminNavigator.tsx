@@ -16,19 +16,27 @@ import { AdminSupportTicketCreateScreen } from '../screens/admin/AdminSupportTic
 import { AdminSupportTicketChatScreen } from '../screens/admin/AdminSupportTicketChatScreen';
 import { AdminMemberListScreen } from '../screens/admin/AdminMemberListScreen';
 import { AdminFraudOversightScreen } from '../screens/admin/AdminFraudOversightScreen';
+import { AdminCatalogScreen } from '../screens/admin/AdminCatalogScreen';
+import { AdminCatalogItemEditScreen } from '../screens/admin/AdminCatalogItemEditScreen';
+import { AdminReportDetailScreen } from '../screens/admin/AdminReportDetailScreen';
 import { AdminStaffActivityScreen } from '../screens/admin/AdminStaffActivityScreen';
 import { TermsPrivacyScreen } from '../screens/profile/TermsPrivacyScreen';
 import { AdminOnboardingWizard } from '../components/admin/AdminOnboardingWizard';
 import { AdminStaffOnboardingWizard } from '../components/admin/AdminStaffOnboardingWizard';
 import { useAdmin } from '../context/AdminContext';
+import { useIsDesktopNav } from '../hooks/useIsDesktopNav';
 
 const Stack = createNativeStackNavigator<AdminStackParamList>();
 
 export function AdminNavigator() {
   const { showOnboardingWizard, showStaffOnboardingWizard } = useAdmin();
+  const isDesktop = useIsDesktopNav();
+  // Every screen renders its own instance of the desktop sidebar/topbar (see
+  // AdminDesktopFrame) so it reads as persistent chrome — the default slide
+  // transition would otherwise visibly re-animate it on every navigation.
   return (
     <>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Navigator screenOptions={{ headerShown: false, animation: isDesktop ? 'none' : 'default' }}>
         <Stack.Screen name="AdminTabs" component={AdminTabNavigator} />
         <Stack.Screen name="AdminRewardEdit" component={AdminRewardEditScreen} />
         <Stack.Screen name="AdminAdEdit" component={AdminAdEditScreen} />
@@ -45,6 +53,9 @@ export function AdminNavigator() {
         <Stack.Screen name="AdminSupportTicketChat" component={AdminSupportTicketChatScreen} />
         <Stack.Screen name="AdminMemberList" component={AdminMemberListScreen} />
         <Stack.Screen name="AdminFraudOversight" component={AdminFraudOversightScreen} />
+        <Stack.Screen name="AdminCatalog" component={AdminCatalogScreen} />
+        <Stack.Screen name="AdminCatalogItemEdit" component={AdminCatalogItemEditScreen} />
+        <Stack.Screen name="AdminReportDetail" component={AdminReportDetailScreen} />
         <Stack.Screen name="TermsPrivacy" component={TermsPrivacyScreen} />
       </Stack.Navigator>
       {showOnboardingWizard ? <AdminOnboardingWizard /> : null}
