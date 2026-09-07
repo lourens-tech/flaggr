@@ -90,7 +90,7 @@ export function AdminDesktopFrame({ activeKey, breadcrumb, headerRight, showRail
       userLastName={admin.lastName}
       userRoleLabel={ROLE_LABELS[admin.role] ?? 'Course Admin'}
       avatarImageUrl={course.logoUrl}
-      onAvatarPress={() => navigation.navigate(admin.role === 'staff' ? 'AdminStaffProfile' : 'AdminCourseProfile')}
+      onAvatarPress={() => navigation.navigate('AdminTabs', { screen: admin.role === 'staff' ? 'AdminStaffProfile' : 'AdminCourseProfile' })}
       breadcrumb={breadcrumb}
       headerRight={headerRight}
       unreadNotificationCount={unreadNotificationCount}
