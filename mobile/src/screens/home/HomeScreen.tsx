@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import {
   Image,
   ScrollView,
@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -25,9 +26,14 @@ import { HeaderAvatar } from '../../components/common/HeaderAvatar';
 import { AdSpace } from '../../components/common/AdSpace';
 import { FlagrrLogo } from '../../components/common/FlagrrLogo';
 import { useApp } from '../../context/AppContext';
+import { showAlert } from '../../utils/alert';
 import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
 import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 import type { StatsPeriod } from '../../data/types';
+
+const NOT_LISTED_POPUP_TITLE = "You're Almost In the Family";
+const NOT_LISTED_POPUP_BODY =
+  "We couldn't find your golf club on Flagrr yet, so there's no rewards catalogue to show you just yet. Ask your club to join Flagrr, or get in touch with our support team and we'll help make it happen.";
 
 type Props = CompositeScreenProps<
   BottomTabScreenProps<MainTabParamList, 'Home'>,
@@ -48,6 +54,31 @@ export function HomeScreen({ navigation }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { user, points, streak, stats, rewards, unreadNotificationCount, statsPeriod, setStatsPeriod } = useApp();
+
+  // Shows every second app open rather than every single one, so it's a
+  // standing reminder without nagging on every launch — see RewardsShopScreen
+  // for the same club, which shows it on every visit instead (there, the
+  // alternative is a silently empty shop, which needs explaining every time).
+  useEffect(() => {
+    if (!user.id || !user.isPlaceholderClub) return;
+    (async () => {
+      const key = `flagrr_not_listed_popup_opens_${user.id}`;
+      try {
+        const raw = await AsyncStorage.getItem(key);
+        const openCount = (raw ? parseInt(raw, 10) : 0) + 1;
+        await AsyncStorage.setItem(key, String(openCount));
+        if (openCount % 2 === 1) {
+          showAlert(NOT_LISTED_POPUP_TITLE, NOT_LISTED_POPUP_BODY, [
+            { text: 'Contact Support', onPress: () => navigation.navigate('Contact') },
+            { text: 'Close', style: 'cancel' },
+          ]);
+        }
+      } catch {
+        // Best-effort — skip the popup rather than blocking Home on a storage error.
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user.id, user.isPlaceholderClub]);
 
   return (
     <View style={styles.screen}>

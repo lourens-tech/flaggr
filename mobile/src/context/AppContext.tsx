@@ -43,6 +43,7 @@ const EMPTY_USER: User = {
   memberSince: '',
   themePreference: 'system',
   verifiedMember: true,
+  isPlaceholderClub: false,
 };
 const EMPTY_POINTS: PointsAccount = {
   balance: 0,

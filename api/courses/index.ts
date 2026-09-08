@@ -311,9 +311,12 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     res.status(405).json({ error: 'Method not allowed' });
     return;
   }
+  // The sentinel "My Club Isn't Listed Yet" row sorts after every real club
+  // (is_placeholder false < true) instead of wherever its name happens to
+  // fall alphabetically — see 043_placeholder_club.sql.
   const rows = (await sql`
-    select id, name, slug, logo_url from courses order by name
-  `) as Array<{ id: string; name: string; slug: string; logo_url: string | null }>;
+    select id, name, slug, logo_url, is_placeholder from courses order by is_placeholder, name
+  `) as Array<{ id: string; name: string; slug: string; logo_url: string | null; is_placeholder: boolean }>;
 
   res.status(200).json(
     rows.map((r) => ({
@@ -321,6 +324,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       name: r.name,
       slug: r.slug,
       logoUrl: r.logo_url,
+      isPlaceholder: r.is_placeholder,
     })),
   );
 });
