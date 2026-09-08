@@ -24,6 +24,10 @@ export interface User {
   // roster (or hasn't uploaded one at all) — they can still use the app
   // fully, but stay capped at Bronze tier until their club verifies them.
   verifiedMember: boolean;
+  // True when the member picked "My Club Isn't Listed Yet" at sign-up
+  // instead of a real club — see HomeScreen's popup and RewardsShopScreen's
+  // empty state, both gated on this.
+  isPlaceholderClub: boolean;
 }
 
 export interface PointsAccount {

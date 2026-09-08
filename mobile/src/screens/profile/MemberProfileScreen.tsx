@@ -49,22 +49,48 @@ function ProfileField({ label, value, onPress }: { label: string; value: string;
   );
 }
 
+type LinkTone = 'green' | 'darkGreen' | 'lime' | 'amber' | 'red';
+
+// Same tone language as the admin desktop QuickLinkButton — a colored icon
+// chip instead of a plain icon, ported here for the member Profile screen's
+// account-list rows.
+function linkTone(tone: LinkTone, colors: ThemeColors): { bg: string; fg: string } {
+  switch (tone) {
+    case 'darkGreen':
+      return { bg: 'rgba(31,66,52,0.08)', fg: colors.darkGreen };
+    case 'lime':
+      return { bg: 'rgba(205,222,92,0.25)', fg: colors.darkGreen };
+    case 'amber':
+      return { bg: colors.warningBg, fg: colors.warning };
+    case 'red':
+      return { bg: colors.dangerBg, fg: colors.negative };
+    case 'green':
+    default:
+      return { bg: colors.mintBg, fg: colors.clubGreen };
+  }
+}
+
 function LinkRow({
   icon,
   label,
+  tone = 'green',
   onPress,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
+  tone?: LinkTone;
   onPress: () => void;
 }) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const t = linkTone(tone, colors);
   return (
-    <TouchableOpacity style={styles.linkRow} onPress={onPress}>
-      <Ionicons name={icon} size={18} color={colors.clubGreen} />
-      <Text style={styles.linkLabel}>{label}</Text>
-      <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
+    <TouchableOpacity style={styles.linkRow} onPress={onPress} activeOpacity={0.7}>
+      <View style={[styles.linkIconChip, { backgroundColor: t.bg }]}>
+        <Ionicons name={icon} size={16} color={t.fg} />
+      </View>
+      <Text style={[styles.linkLabel, tone === 'red' && { color: colors.negative }]}>{label}</Text>
+      {tone === 'red' ? null : <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />}
     </TouchableOpacity>
   );
 }
@@ -74,6 +100,9 @@ export function MemberProfileScreen({ navigation }: Props) {
   const styles = useMemo(() => createStyles(colors), [colors]);
   const {
     user,
+    points,
+    streak,
+    stats,
     unreadNotificationCount,
     logout,
     updateAvatar,
@@ -292,6 +321,23 @@ export function MemberProfileScreen({ navigation }: Props) {
           </Text>
           <Text style={styles.club}>{user.homeClub}</Text>
 
+          <View style={styles.miniStatRow}>
+            <View style={styles.miniStat}>
+              <Text style={styles.miniStatValue}>{points.balance.toLocaleString()}</Text>
+              <Text style={styles.miniStatLabel}>Flagrr Cash</Text>
+            </View>
+            <View style={styles.miniStatDivider} />
+            <View style={styles.miniStat}>
+              <Text style={styles.miniStatValue}>{streak.weeks}</Text>
+              <Text style={styles.miniStatLabel}>Week Streak</Text>
+            </View>
+            <View style={styles.miniStatDivider} />
+            <View style={styles.miniStat}>
+              <Text style={styles.miniStatValue}>{stats.roundsPlayed9 + stats.roundsPlayed18}</Text>
+              <Text style={styles.miniStatLabel}>Rounds Played</Text>
+            </View>
+          </View>
+
           <View style={styles.fieldsWrapper}>
             <ProfileField
               label="Name"
@@ -330,18 +376,19 @@ export function MemberProfileScreen({ navigation }: Props) {
         </View>
 
         <Text style={styles.sectionLabel}>Activity</Text>
-        <View style={styles.linksCard}>
-          <LinkRow icon="receipt-outline" label="Receipt History" onPress={() => navigation.navigate('ReceiptHistory')} />
+        <View style={styles.linksGroup}>
+          <LinkRow icon="receipt-outline" label="Receipt History" tone="darkGreen" onPress={() => navigation.navigate('ReceiptHistory')} />
         </View>
 
         <Text style={styles.sectionLabel}>Support</Text>
-        <View style={styles.linksCard}>
-          <LinkRow icon="help-circle-outline" label="Help Center" onPress={() => navigation.navigate('HelpCenter')} />
-          <LinkRow icon="headset-outline" label="Contact Your Club" onPress={() => navigation.navigate('Contact')} />
-          <LinkRow icon="chatbubbles-outline" label="My Enquiries" onPress={() => navigation.navigate('MyEnquiries')} />
+        <View style={styles.linksGroup}>
+          <LinkRow icon="help-circle-outline" label="Help Center" tone="green" onPress={() => navigation.navigate('HelpCenter')} />
+          <LinkRow icon="headset-outline" label="Contact Your Club" tone="amber" onPress={() => navigation.navigate('Contact')} />
+          <LinkRow icon="chatbubbles-outline" label="My Enquiries" tone="green" onPress={() => navigation.navigate('MyEnquiries')} />
           <LinkRow
             icon="notifications-outline"
             label="Notification Preferences"
+            tone="lime"
             onPress={() => navigation.navigate('NotificationPreferences')}
           />
         </View>
@@ -399,18 +446,18 @@ export function MemberProfileScreen({ navigation }: Props) {
         </View>
 
         <Text style={styles.sectionLabel}>Legal</Text>
-        <View style={styles.linksCard}>
+        <View style={styles.linksGroup}>
           <LinkRow
             icon="shield-checkmark-outline"
             label="Terms and Privacy"
+            tone="green"
             onPress={() => navigation.navigate('TermsPrivacy')}
           />
         </View>
 
-        <TouchableOpacity style={styles.logoutRow} onPress={logout}>
-          <Ionicons name="log-out-outline" size={18} color={colors.negative} />
-          <Text style={styles.logoutText}>Log Out</Text>
-        </TouchableOpacity>
+        <View style={styles.linksGroup}>
+          <LinkRow icon="log-out-outline" label="Log Out" tone="red" onPress={logout} />
+        </View>
 
         <View style={{ height: 120 }} />
       </ScrollView>
@@ -523,6 +570,21 @@ function createStyles(colors: ThemeColors) {
   tierBadgeText: { fontFamily: fontFamily.heading, fontSize: 11, color: colors.white, textTransform: 'uppercase' },
   name: { fontFamily: fontFamily.heading, fontSize: fontSize.title, color: colors.textPrimary, marginTop: spacing.sm },
   club: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary, marginTop: 2 },
+  miniStatRow: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    marginTop: spacing.lg,
+  },
+  miniStat: { flex: 1, alignItems: 'center' },
+  miniStatValue: { fontFamily: fontFamily.heading, fontSize: 19, color: colors.textPrimary },
+  miniStatLabel: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary, marginTop: 2 },
+  miniStatDivider: { width: 1, height: 32, backgroundColor: colors.border },
   fieldsWrapper: { width: '100%', marginTop: spacing.lg, gap: spacing.sm },
   fieldRow: {
     flexDirection: 'row',
@@ -542,26 +604,33 @@ function createStyles(colors: ThemeColors) {
     marginTop: spacing.xl,
     marginBottom: spacing.sm,
   },
-  linksCard: { marginHorizontal: screenPadding, backgroundColor: colors.mintBgAlt, borderRadius: radius.md },
+  linksCard: {
+    marginHorizontal: screenPadding,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+  },
+  // Transparent wrapper for a group of standalone LinkRow pills (Activity,
+  // Support, Legal, Log Out) — each row carries its own border/background,
+  // matching the admin desktop QuickLinkButton pattern, rather than being
+  // grouped inside one flat card the way linksCard's other sections are.
+  linksGroup: { marginHorizontal: screenPadding, gap: spacing.sm },
   linkRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
+    gap: spacing.sm + 4,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.pill,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm + 6,
+    paddingVertical: spacing.sm + 4,
   },
-  linkLabel: { flex: 1, fontFamily: fontFamily.bodyMedium, fontSize: fontSize.small, color: colors.textPrimary },
+  linkIconChip: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  linkLabel: { flex: 1, fontFamily: fontFamily.heading, fontSize: 14.5, color: colors.textPrimary },
   helpText: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary },
   deleteAccountButton: { alignItems: 'center', justifyContent: 'center', height: 44 },
   deleteAccountText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.small, color: colors.negative },
-  logoutRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    marginTop: spacing.xl,
-  },
-  logoutText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.small, color: colors.negative },
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
   sheet: {
     backgroundColor: colors.background,

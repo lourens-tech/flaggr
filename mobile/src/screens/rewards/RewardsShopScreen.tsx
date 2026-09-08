@@ -1,19 +1,52 @@
-import React, { useMemo } from 'react';
-import { ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useMemo, useState } from 'react';
+import { ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import type { CompositeScreenProps } from '@react-navigation/native';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MainTabParamList, RootStackParamList } from '../../navigation/types';
 import { useApp } from '../../context/AppContext';
 import { HeaderAvatar } from '../../components/common/HeaderAvatar';
-import { RewardCard } from '../../components/common/RewardCard';
+import { RewardCard, REWARD_CATEGORY_LABELS } from '../../components/common/RewardCard';
 import { AdSpace } from '../../components/common/AdSpace';
 import { showAlert } from '../../utils/alert';
-import { fontFamily, fontSize, screenPadding, spacing } from '../../theme';
+import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
 import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
-import type { Reward } from '../../data/types';
+import type { Reward, RewardCategory } from '../../data/types';
+
+const NOT_LISTED_POPUP_TITLE = "You're Almost In the Family";
+const NOT_LISTED_POPUP_BODY =
+  "We couldn't find your golf club on Flagrr yet, so there's no rewards catalogue to show you just yet. Ask your club to join Flagrr, or get in touch with our support team and we'll help make it happen.";
+
+// Filter-pill icon/tone per category — the "all" entry (darkGreen, solid)
+// mirrors the active state; every category pill instead uses a light tint
+// (the same tone language as the admin desktop quick links) so the active
+// "All" pill reads as the one currently selected.
+const CATEGORY_FILTERS: Array<{ key: RewardCategory; icon: keyof typeof Ionicons.glyphMap }> = [
+  { key: 'rounds', icon: 'flag-outline' },
+  { key: 'dining', icon: 'restaurant-outline' },
+  { key: 'practice', icon: 'locate-outline' },
+  { key: 'pro-shop', icon: 'bag-outline' },
+  { key: 'experiences', icon: 'sparkles-outline' },
+];
+
+function categoryPillTone(category: RewardCategory, colors: ThemeColors): { bg: string; fg: string } {
+  switch (category) {
+    case 'rounds':
+      return { bg: colors.mintBg, fg: colors.clubGreen };
+    case 'dining':
+      return { bg: colors.warningBg, fg: colors.textPrimary };
+    case 'practice':
+      return { bg: 'rgba(205,222,92,0.25)', fg: colors.textPrimary };
+    case 'pro-shop':
+      return { bg: 'rgba(31,66,52,0.08)', fg: colors.darkGreen };
+    case 'experiences':
+    default:
+      return { bg: colors.mintBg, fg: colors.clubGreen };
+  }
+}
 
 type Props = CompositeScreenProps<
   BottomTabScreenProps<MainTabParamList, 'Rewards'>,
@@ -23,7 +56,37 @@ type Props = CompositeScreenProps<
 export function RewardsShopScreen({ navigation }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const { rewards, points, redeemReward, unreadNotificationCount } = useApp();
+  const { user, rewards, points, redeemReward, unreadNotificationCount } = useApp();
+  const [search, setSearch] = useState('');
+  const [category, setCategory] = useState<RewardCategory | 'all'>('all');
+
+  const availableCategories = useMemo(
+    () => CATEGORY_FILTERS.filter((c) => rewards.some((r) => r.category === c.key)),
+    [rewards],
+  );
+
+  const filteredRewards = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return rewards.filter((r) => {
+      if (category !== 'all' && r.category !== category) return false;
+      if (q && !r.title.toLowerCase().includes(q)) return false;
+      return true;
+    });
+  }, [rewards, search, category]);
+
+  // Unlike Home's every-second-open popup, this shows on every visit here —
+  // an empty shop needs explaining every time, not just as a standing
+  // reminder (see HomeScreen for the alternating version of the same copy).
+  useFocusEffect(
+    useCallback(() => {
+      if (!user.isPlaceholderClub) return;
+      showAlert(NOT_LISTED_POPUP_TITLE, NOT_LISTED_POPUP_BODY, [
+        { text: 'Contact Support', onPress: () => navigation.navigate('Contact') },
+        { text: 'Close', style: 'cancel' },
+      ]);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [user.isPlaceholderClub]),
+  );
 
   const handleRedeem = (reward: Reward, variantId: string) => {
     const variant = reward.variants.find((v) => v.id === variantId);
@@ -65,18 +128,77 @@ export function RewardsShopScreen({ navigation }: Props) {
       </SafeAreaView>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.grid}>
-          {rewards.map((reward, i) => (
-            <React.Fragment key={reward.id}>
-              <RewardCard
-                reward={reward}
-                style={styles.card}
-                onRedeem={(variantId) => handleRedeem(reward, variantId)}
+        {rewards.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Ionicons name="golf-outline" size={32} color={colors.clubGreen} />
+            <Text style={styles.emptyTitle}>
+              {user.isPlaceholderClub ? 'Nothing Here Yet' : 'No Rewards Yet'}
+            </Text>
+            <Text style={styles.emptyBody}>
+              {user.isPlaceholderClub
+                ? "Your golf club hasn't joined the Flagrr family yet — that's why there's nothing to redeem here."
+                : "Your club hasn't added any rewards yet — check back soon."}
+            </Text>
+            <AdSpace placement="rewardsShop" style={styles.adSpace} />
+          </View>
+        ) : (
+          <>
+            <View style={styles.searchBox}>
+              <Ionicons name="search" size={17} color={colors.textMuted} />
+              <TextInput
+                placeholder="Search rewards…"
+                placeholderTextColor={colors.textMuted}
+                value={search}
+                onChangeText={setSearch}
+                style={styles.searchInput}
               />
-              {i === 1 ? <AdSpace placement="rewardsShop" style={styles.adSpace} /> : null}
-            </React.Fragment>
-          ))}
-        </View>
+            </View>
+
+            {availableCategories.length > 0 ? (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
+                <TouchableOpacity
+                  style={[styles.filterPill, category === 'all' && styles.filterPillActive]}
+                  onPress={() => setCategory('all')}
+                >
+                  <Text style={[styles.filterTextActive, category !== 'all' && { color: colors.textPrimary }]}>All</Text>
+                </TouchableOpacity>
+                {availableCategories.map((c) => {
+                  const tone = categoryPillTone(c.key, colors);
+                  const active = category === c.key;
+                  return (
+                    <TouchableOpacity
+                      key={c.key}
+                      style={[styles.filterPill, { backgroundColor: active ? colors.darkGreen : tone.bg }]}
+                      onPress={() => setCategory(active ? 'all' : c.key)}
+                    >
+                      <Ionicons name={c.icon} size={13} color={active ? colors.white : tone.fg} />
+                      <Text style={active ? styles.filterTextActive : [styles.filterText, { color: colors.textPrimary }]}>
+                        {REWARD_CATEGORY_LABELS[c.key]}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            ) : null}
+
+            {filteredRewards.length === 0 ? (
+              <Text style={styles.noResultsText}>No rewards match your search.</Text>
+            ) : (
+              <View style={styles.grid}>
+                {filteredRewards.map((reward, i) => (
+                  <React.Fragment key={reward.id}>
+                    <RewardCard
+                      reward={reward}
+                      style={styles.card}
+                      onRedeem={(variantId) => handleRedeem(reward, variantId)}
+                    />
+                    {i === 1 ? <AdSpace placement="rewardsShop" style={styles.adSpace} /> : null}
+                  </React.Fragment>
+                ))}
+              </View>
+            )}
+          </>
+        )}
         <View style={{ height: 120 }} />
       </ScrollView>
     </View>
@@ -106,8 +228,47 @@ function createStyles(colors: ThemeColors) {
     backgroundColor: colors.lime,
   },
   content: { paddingHorizontal: screenPadding, paddingTop: spacing.lg },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: spacing.md },
+  searchBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.inputBg,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm + 4,
+  },
+  searchInput: { flex: 1, fontFamily: fontFamily.body, fontSize: fontSize.small, color: colors.textPrimary, padding: 0 },
+  filterRow: { gap: spacing.sm, paddingTop: spacing.md },
+  filterPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: radius.pill,
+    backgroundColor: colors.mintBgAlt,
+  },
+  filterPillActive: { backgroundColor: colors.darkGreen },
+  filterText: { fontFamily: fontFamily.bodyMedium, fontSize: fontSize.small - 1 },
+  filterTextActive: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.small - 1, color: colors.white },
+  noResultsText: {
+    fontFamily: fontFamily.body,
+    fontSize: fontSize.body,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginTop: spacing.xl,
+  },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: spacing.md, marginTop: spacing.lg },
   card: { width: '47%' },
   adSpace: { width: '100%' },
+  emptyState: { alignItems: 'center', paddingTop: spacing.xl, paddingHorizontal: spacing.lg, gap: spacing.xs },
+  emptyTitle: { fontFamily: fontFamily.heading, fontSize: fontSize.cardTitle, color: colors.textPrimary, marginTop: spacing.sm },
+  emptyBody: {
+    fontFamily: fontFamily.body,
+    fontSize: fontSize.body,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: spacing.lg,
+  },
 });
 }

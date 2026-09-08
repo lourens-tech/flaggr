@@ -23,7 +23,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     select
       u.id, u.first_name, u.last_name, u.email, u.phone, u.date_of_birth, u.member_since, u.avatar_url, u.theme_preference,
       u.verified_member,
-      c.name as course_name, c.logo_url as course_logo_url,
+      c.name as course_name, c.logo_url as course_logo_url, c.is_placeholder as course_is_placeholder,
       p.balance, p.total_earned, p.total_redeemed
     from users u
     join courses c on c.id = u.course_id
@@ -42,6 +42,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     verified_member: boolean;
     course_name: string;
     course_logo_url: string | null;
+    course_is_placeholder: boolean;
     balance: number;
     total_earned: number;
     total_redeemed: number;
@@ -136,6 +137,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       avatarUrl: r.avatar_url,
       themePreference: r.theme_preference,
       verifiedMember: r.verified_member,
+      isPlaceholderClub: r.course_is_placeholder,
     },
     points: {
       balance: r.balance,

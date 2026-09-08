@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import {
   Image,
   ScrollView,
@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -18,21 +19,94 @@ import type { MainTabParamList } from '../../navigation/types';
 import type { RootStackParamList } from '../../navigation/types';
 import { ProgressBar } from '../../components/common/ProgressBar';
 import { PillButton } from '../../components/common/PillButton';
-import { StatCard } from '../../components/common/StatCard';
 import { BarChart } from '../../components/common/BarChart';
 import { RewardCard } from '../../components/common/RewardCard';
 import { HeaderAvatar } from '../../components/common/HeaderAvatar';
 import { AdSpace } from '../../components/common/AdSpace';
 import { FlagrrLogo } from '../../components/common/FlagrrLogo';
 import { useApp } from '../../context/AppContext';
+import { showAlert } from '../../utils/alert';
 import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
 import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 import type { StatsPeriod } from '../../data/types';
+
+const NOT_LISTED_POPUP_TITLE = "You're Almost In the Family";
+const NOT_LISTED_POPUP_BODY =
+  "We couldn't find your golf club on Flagrr yet, so there's no rewards catalogue to show you just yet. Ask your club to join Flagrr, or get in touch with our support team and we'll help make it happen.";
 
 type Props = CompositeScreenProps<
   BottomTabScreenProps<MainTabParamList, 'Home'>,
   NativeStackScreenProps<RootStackParamList>
 >;
+
+// Home-local stat card — an icon-chip + delta-pill treatment matching the
+// admin desktop dashboard's cards. Kept local rather than folded into the
+// shared StatCard component, since that component is also rendered on the
+// (untouched) course-admin/super-admin mobile screens.
+function HomeStatCard({
+  icon,
+  label,
+  value,
+  deltaPct,
+  deltaLabel,
+  showDelta,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  value: string | number;
+  deltaPct: number;
+  deltaLabel: string;
+  showDelta: boolean;
+}) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStatCardStyles(colors), [colors]);
+  const positive = deltaPct >= 0;
+  return (
+    <View style={styles.card}>
+      <View style={styles.topRow}>
+        <View style={styles.iconChip}>
+          <Ionicons name={icon} size={14} color={colors.clubGreen} />
+        </View>
+        {showDelta ? (
+          <View style={styles.deltaRow}>
+            <Ionicons
+              name={positive ? 'arrow-up' : 'arrow-down'}
+              size={10}
+              color={positive ? colors.positive : colors.negative}
+            />
+            <Text style={[styles.delta, { color: positive ? colors.positive : colors.negative }]}>
+              {Math.abs(deltaPct)}%
+            </Text>
+          </View>
+        ) : null}
+      </View>
+      <Text style={styles.label}>{label}</Text>
+      <Text style={styles.value}>{value}</Text>
+      {showDelta && deltaLabel ? <Text style={styles.deltaLabel}>{deltaLabel}</Text> : null}
+    </View>
+  );
+}
+
+function createStatCardStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    card: {
+      width: '47%',
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: radius.md,
+      padding: spacing.sm + 4,
+      gap: spacing.xs,
+    },
+    topRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
+    iconChip: { width: 30, height: 30, borderRadius: 8, backgroundColor: colors.mintBg, alignItems: 'center', justifyContent: 'center' },
+    deltaRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+    delta: { fontFamily: fontFamily.bodySemiBold, fontSize: 11.5 },
+    label: { fontFamily: fontFamily.bodyMedium, fontSize: fontSize.small - 1, color: colors.textSecondary },
+    value: { fontFamily: fontFamily.heading, fontSize: fontSize.title, color: colors.textPrimary },
+    deltaLabel: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textMuted },
+  });
+}
 
 const PERIOD_LABELS: Record<StatsPeriod, string> = { month: 'Month', year: 'Year', all: 'All' };
 const PERIODS: StatsPeriod[] = ['month', 'year', 'all'];
@@ -48,6 +122,31 @@ export function HomeScreen({ navigation }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { user, points, streak, stats, rewards, unreadNotificationCount, statsPeriod, setStatsPeriod } = useApp();
+
+  // Shows every second app open rather than every single one, so it's a
+  // standing reminder without nagging on every launch — see RewardsShopScreen
+  // for the same club, which shows it on every visit instead (there, the
+  // alternative is a silently empty shop, which needs explaining every time).
+  useEffect(() => {
+    if (!user.id || !user.isPlaceholderClub) return;
+    (async () => {
+      const key = `flagrr_not_listed_popup_opens_${user.id}`;
+      try {
+        const raw = await AsyncStorage.getItem(key);
+        const openCount = (raw ? parseInt(raw, 10) : 0) + 1;
+        await AsyncStorage.setItem(key, String(openCount));
+        if (openCount % 2 === 1) {
+          showAlert(NOT_LISTED_POPUP_TITLE, NOT_LISTED_POPUP_BODY, [
+            { text: 'Contact Support', onPress: () => navigation.navigate('Contact') },
+            { text: 'Close', style: 'cancel' },
+          ]);
+        }
+      } catch {
+        // Best-effort — skip the popup rather than blocking Home on a storage error.
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user.id, user.isPlaceholderClub]);
 
   return (
     <View style={styles.screen}>
@@ -147,19 +246,20 @@ export function HomeScreen({ navigation }: Props) {
           </View>
         </View>
 
-        <View style={styles.clubCard}>
+        <TouchableOpacity style={styles.clubCard} onPress={() => navigation.navigate('Profile')} activeOpacity={0.7}>
           {user.courseLogoUrl ? (
             <Image source={{ uri: user.courseLogoUrl }} style={styles.clubLogo} />
           ) : (
             <View style={[styles.clubLogo, styles.clubLogoFallback]}>
-              <Ionicons name="golf-outline" size={20} color={colors.clubGreen} />
+              <Ionicons name="golf-outline" size={17} color={colors.clubGreen} />
             </View>
           )}
           <View style={{ flex: 1 }}>
             <Text style={styles.clubLabel}>Your Club</Text>
             <Text style={styles.clubName} numberOfLines={1}>{user.homeClub || 'Not specified'}</Text>
           </View>
-        </View>
+          <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+        </TouchableOpacity>
 
         <AdSpace placement="homeTop" style={styles.adSpace} />
 
@@ -181,37 +281,37 @@ export function HomeScreen({ navigation }: Props) {
         </View>
 
         <View style={styles.statsGrid}>
-          <StatCard
-            label="Rounds Played (9 Holes)"
+          <HomeStatCard
+            icon="flag-outline"
+            label="Rounds (9 Holes)"
             value={stats.roundsPlayed9}
             deltaPct={stats.roundsPlayed9DeltaPct}
             deltaLabel={DELTA_LABELS[statsPeriod]}
             showDelta={statsPeriod !== 'all'}
-            backgroundColor={colors.mintBg}
           />
-          <StatCard
-            label="Rounds Played (18 Holes)"
+          <HomeStatCard
+            icon="flag-outline"
+            label="Rounds (18 Holes)"
             value={stats.roundsPlayed18}
             deltaPct={stats.roundsPlayed18DeltaPct}
             deltaLabel={DELTA_LABELS[statsPeriod]}
             showDelta={statsPeriod !== 'all'}
-            backgroundColor={colors.mintBg}
           />
-          <StatCard
-            label="Flagrr Cash Earned"
+          <HomeStatCard
+            icon="card-outline"
+            label="Cash Earned"
             value={stats.bucksEarned.toLocaleString()}
             deltaPct={stats.bucksEarnedDeltaPct}
             deltaLabel={DELTA_LABELS[statsPeriod]}
             showDelta={statsPeriod !== 'all'}
-            backgroundColor={colors.mintBg}
           />
-          <StatCard
-            label="Flagrr Cash Redeemed"
+          <HomeStatCard
+            icon="receipt-outline"
+            label="Cash Redeemed"
             value={stats.bucksRedeemed.toLocaleString()}
             deltaPct={stats.bucksRedeemedDeltaPct}
             deltaLabel={DELTA_LABELS[statsPeriod]}
             showDelta={statsPeriod !== 'all'}
-            backgroundColor={colors.mintBg}
           />
         </View>
 
@@ -339,16 +439,17 @@ function createStyles(colors: ThemeColors) {
   clubCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    backgroundColor: colors.mintBg,
-    borderWidth: 0.5,
-    borderColor: colors.clubGreen,
+    gap: spacing.sm + 4,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
     borderRadius: radius.md,
-    padding: spacing.sm + 4,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm + 4,
     marginHorizontal: screenPadding,
     marginTop: spacing.lg,
   },
-  clubLogo: { width: 40, height: 40, borderRadius: radius.sm, backgroundColor: colors.imagePlaceholder },
+  clubLogo: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.mintBg },
   clubLogoFallback: { alignItems: 'center', justifyContent: 'center' },
   clubLabel: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary },
   clubName: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.textPrimary, marginTop: 1 },
@@ -381,10 +482,10 @@ function createStyles(colors: ThemeColors) {
   chartCard: {
     marginHorizontal: screenPadding,
     marginTop: spacing.md,
-    backgroundColor: colors.mintBg,
-    borderWidth: 0.5,
-    borderColor: colors.clubGreen,
-    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
     padding: spacing.md,
   },
   chartTitle: { fontFamily: fontFamily.heading, fontSize: fontSize.small, color: colors.textPrimary, marginBottom: spacing.md },

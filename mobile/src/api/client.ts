@@ -92,6 +92,9 @@ export interface Course {
   name: string;
   slug: string;
   logoUrl: string | null;
+  // The sentinel "My Club Isn't Listed Yet" row — the sign-up picker sorts
+  // it after every real club rather than mixing it in alphabetically.
+  isPlaceholder: boolean;
 }
 
 export interface AuthResponse {

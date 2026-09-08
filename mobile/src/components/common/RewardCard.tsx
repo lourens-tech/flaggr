@@ -3,7 +3,7 @@ import { Image, StyleProp, StyleSheet, Text, TouchableOpacity, View, ViewStyle }
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { fontFamily, fontSize, radius, spacing } from '../../theme';
 import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
-import type { Reward } from '../../data/types';
+import type { Reward, RewardCategory } from '../../data/types';
 
 interface Props {
   reward: Reward;
@@ -25,6 +25,33 @@ function iconForReward(title: string): keyof typeof MaterialCommunityIcons.glyph
   return 'gift';
 }
 
+export const REWARD_CATEGORY_LABELS: Record<RewardCategory, string> = {
+  rounds: 'Rounds',
+  experiences: 'Experiences',
+  'pro-shop': 'Pro Shop',
+  practice: 'Practice',
+  dining: 'Dining',
+};
+
+// Tag-pill background/text pairing per category — the same tone language as
+// the admin desktop dashboard's status tags, applied to a reward photo's
+// overlay chip instead of a table cell.
+function categoryTagStyle(category: RewardCategory, colors: ThemeColors): { bg: string; text: string } {
+  switch (category) {
+    case 'rounds':
+      return { bg: 'rgba(31,66,52,0.85)', text: colors.lime };
+    case 'dining':
+      return { bg: 'rgba(138,90,0,0.85)', text: colors.warningBg };
+    case 'practice':
+      return { bg: 'rgba(0,128,90,0.9)', text: colors.white };
+    case 'pro-shop':
+      return { bg: 'rgba(0,128,90,0.85)', text: colors.white };
+    case 'experiences':
+    default:
+      return { bg: 'rgba(31,66,52,0.85)', text: colors.lime };
+  }
+}
+
 export function RewardCard({ reward, width, style, onPress, onRedeem }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -33,19 +60,26 @@ export function RewardCard({ reward, width, style, onPress, onRedeem }: Props) {
   const variant = reward.variants[selectedIndex] ?? reward.variants[0];
   const showVariantPicker = onRedeem && reward.variants.length > 1;
 
+  const tag = categoryTagStyle(reward.category, colors);
+
   const body = (
     <>
-      {reward.imageUrl && !imageFailed ? (
-        <Image
-          source={{ uri: reward.imageUrl }}
-          style={styles.image}
-          onError={() => setImageFailed(true)}
-        />
-      ) : (
-        <View style={[styles.image, styles.imageFallback]}>
-          <MaterialCommunityIcons name={iconForReward(reward.title)} size={40} color={colors.lime} />
+      <View style={styles.imageWrap}>
+        {reward.imageUrl && !imageFailed ? (
+          <Image
+            source={{ uri: reward.imageUrl }}
+            style={styles.image}
+            onError={() => setImageFailed(true)}
+          />
+        ) : (
+          <View style={[styles.image, styles.imageFallback]}>
+            <MaterialCommunityIcons name={iconForReward(reward.title)} size={40} color={colors.lime} />
+          </View>
+        )}
+        <View style={[styles.categoryTag, { backgroundColor: tag.bg }]}>
+          <Text style={[styles.categoryTagText, { color: tag.text }]}>{REWARD_CATEGORY_LABELS[reward.category]}</Text>
         </View>
-      )}
+      </View>
       <View style={styles.body}>
         <Text style={styles.title} numberOfLines={1}>
           {reward.title}
@@ -98,14 +132,24 @@ export function RewardCard({ reward, width, style, onPress, onRedeem }: Props) {
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
   card: {
-    backgroundColor: colors.background,
+    backgroundColor: colors.surface,
     borderRadius: radius.md,
-    borderWidth: 0.5,
-    borderColor: colors.clubGreen,
+    borderWidth: 1,
+    borderColor: colors.border,
     overflow: 'hidden',
   },
+  imageWrap: { position: 'relative' },
   image: { width: '100%', height: 112, backgroundColor: colors.imagePlaceholder },
   imageFallback: { backgroundColor: colors.darkGreen, alignItems: 'center', justifyContent: 'center' },
+  categoryTag: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radius.pill,
+  },
+  categoryTagText: { fontFamily: fontFamily.bodySemiBold, fontSize: 9 },
   body: { padding: spacing.sm + 4, gap: 4 },
   title: { fontFamily: fontFamily.heading, fontSize: fontSize.cardTitle, color: colors.textPrimary },
   description: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary },
