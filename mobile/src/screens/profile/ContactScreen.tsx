@@ -75,7 +75,7 @@ export function ContactScreen({ navigation }: Props) {
               <TextField variant="onLight" placeholder="Surname" value={surname} onChangeText={setSurname} />
             </View>
           </View>
-          <View style={{ height: spacing.sm }} />
+          <View style={{ height: spacing.md }} />
           <View style={styles.row}>
             <View style={{ flex: 1 }}>
               <TextField variant="onLight" placeholder="Phone" keyboardType="phone-pad" value={phone} onChangeText={setPhone} />
@@ -84,7 +84,7 @@ export function ContactScreen({ navigation }: Props) {
               <TextField variant="onLight" placeholder="Email" autoCapitalize="none" value={email} onChangeText={setEmail} />
             </View>
           </View>
-          <View style={{ height: spacing.sm }} />
+          <View style={{ height: spacing.md }} />
 
           <TouchableOpacity style={styles.dropdown} onPress={() => setShowTypes((v) => !v)}>
             <Text style={[styles.dropdownText, !enquiryType && { color: colors.textSecondary }]}>
@@ -109,7 +109,7 @@ export function ContactScreen({ navigation }: Props) {
             </View>
           ) : null}
 
-          <View style={{ height: spacing.sm }} />
+          <View style={{ height: spacing.md }} />
           <TextInput
             placeholder="Type Your Message Here"
             placeholderTextColor={colors.textSecondary}
@@ -144,11 +144,10 @@ function createStyles(colors: ThemeColors) {
     alignItems: 'center',
     gap: 6,
     alignSelf: 'flex-start',
-    marginTop: -spacing.lg,
-    marginBottom: spacing.md,
+    marginBottom: spacing.lg,
   },
   myEnquiriesText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.small, color: colors.clubGreen },
-  formCard: { backgroundColor: colors.background, marginTop: -spacing.xl },
+  formCard: { backgroundColor: colors.background },
   row: { flexDirection: 'row', gap: spacing.sm },
   dropdown: {
     flexDirection: 'row',
