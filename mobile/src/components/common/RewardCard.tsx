@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Image, StyleProp, StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
+import { Image, ScrollView, StyleProp, StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { fontFamily, fontSize, radius, spacing } from '../../theme';
 import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
@@ -89,7 +89,12 @@ export function RewardCard({ reward, width, style, onPress, onRedeem }: Props) {
         </Text>
 
         {showVariantPicker ? (
-          <View style={styles.variantRow}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.variantRow}
+            style={styles.variantScroll}
+          >
             {reward.variants.map((v, i) => (
               <TouchableOpacity
                 key={v.id}
@@ -102,7 +107,7 @@ export function RewardCard({ reward, width, style, onPress, onRedeem }: Props) {
                 </Text>
               </TouchableOpacity>
             ))}
-          </View>
+          </ScrollView>
         ) : null}
 
         <Text style={styles.cost}>{variant.cost} Flagrr Cash</Text>
@@ -154,7 +159,8 @@ function createStyles(colors: ThemeColors) {
   title: { fontFamily: fontFamily.heading, fontSize: fontSize.cardTitle, color: colors.textPrimary },
   description: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary },
   cost: { fontFamily: fontFamily.heading, fontSize: fontSize.label, color: colors.textPrimary, marginTop: 2 },
-  variantRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 2 },
+  variantScroll: { marginTop: 2 },
+  variantRow: { flexDirection: 'row', gap: 6 },
   variantChip: {
     paddingHorizontal: spacing.sm,
     paddingVertical: 4,

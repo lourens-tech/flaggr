@@ -16,6 +16,12 @@ import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../them
 import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 import type { Reward, RewardCategory } from '../../data/types';
 
+function chunk<T>(items: T[], size: number): T[][] {
+  const rows: T[][] = [];
+  for (let i = 0; i < items.length; i += size) rows.push(items.slice(i, i + size));
+  return rows;
+}
+
 const NOT_LISTED_POPUP_TITLE = "You're Almost In the Family";
 const NOT_LISTED_POPUP_BODY =
   "We couldn't find your golf club on Flagrr yet, so there's no rewards catalogue to show you just yet. Ask your club to join Flagrr, or get in touch with our support team and we'll help make it happen.";
@@ -185,14 +191,26 @@ export function RewardsShopScreen({ navigation }: Props) {
               <Text style={styles.noResultsText}>No rewards match your search.</Text>
             ) : (
               <View style={styles.grid}>
-                {filteredRewards.map((reward, i) => (
-                  <React.Fragment key={reward.id}>
-                    <RewardCard
-                      reward={reward}
-                      style={styles.card}
-                      onRedeem={(variantId) => handleRedeem(reward, variantId)}
-                    />
-                    {i === 1 ? <AdSpace placement="rewardsShop" style={styles.adSpace} /> : null}
+                {/* Paired rows with stretch alignment, rather than a flex-wrap grid of
+                    fixed-width cards, so two cards in the same row always match height —
+                    a flex-wrap grid leaves a reward with many redeem-price options
+                    (more variant chips) visibly taller than its row neighbor. */}
+                {chunk(filteredRewards, 2).map((pair, rowIndex) => (
+                  <React.Fragment key={pair[0].id}>
+                    <View style={styles.gridRow}>
+                      {pair.map((reward) => (
+                        <RewardCard
+                          key={reward.id}
+                          reward={reward}
+                          style={styles.card}
+                          onRedeem={(variantId) => handleRedeem(reward, variantId)}
+                        />
+                      ))}
+                      {/* Odd one out: reserve the second column's space so a lone
+                          trailing card stays half-width instead of stretching full-row. */}
+                      {pair.length === 1 ? <View style={styles.card} /> : null}
+                    </View>
+                    {rowIndex === 0 ? <AdSpace placement="rewardsShop" style={styles.adSpace} /> : null}
                   </React.Fragment>
                 ))}
               </View>
@@ -258,8 +276,9 @@ function createStyles(colors: ThemeColors) {
     textAlign: 'center',
     marginTop: spacing.xl,
   },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: spacing.md, marginTop: spacing.lg },
-  card: { width: '47%' },
+  grid: { gap: spacing.md, marginTop: spacing.lg },
+  gridRow: { flexDirection: 'row', gap: spacing.md, alignItems: 'stretch' },
+  card: { flex: 1 },
   adSpace: { width: '100%' },
   emptyState: { alignItems: 'center', paddingTop: spacing.xl, paddingHorizontal: spacing.lg, gap: spacing.xs },
   emptyTitle: { fontFamily: fontFamily.heading, fontSize: fontSize.cardTitle, color: colors.textPrimary, marginTop: spacing.sm },
