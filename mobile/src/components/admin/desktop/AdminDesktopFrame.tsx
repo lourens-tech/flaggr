@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -42,8 +42,21 @@ export function AdminDesktopFrame({ activeKey, breadcrumb, headerRight, showRail
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const navigation = useNavigation() as unknown as DesktopNavigator;
-  const { admin, course, notifications, unreadNotificationCount, markNotificationRead } = useAdmin();
+  const { admin, course, notifications, unreadNotificationCount, markNotificationRead, loadNotifications } = useAdmin();
   const [supportHovered, supportHoverHandlers] = useHover();
+
+  // The Recent Activity rail's notifications are otherwise only loaded once,
+  // at login — a long-lived desktop session (this frame wraps every admin
+  // screen) would never pick up a new member enquiry/receipt without a
+  // manual re-login. Poll while any admin screen is open, on top of the
+  // login-time load.
+  useEffect(() => {
+    if (!showRail) return;
+    const interval = setInterval(() => {
+      loadNotifications().catch(() => {});
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [showRail, loadNotifications]);
 
   const handleActivityPress = (n: AdminNotification) => {
     if (!n.read) markNotificationRead(n.id);
