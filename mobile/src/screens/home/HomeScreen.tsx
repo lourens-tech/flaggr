@@ -19,7 +19,6 @@ import type { MainTabParamList } from '../../navigation/types';
 import type { RootStackParamList } from '../../navigation/types';
 import { ProgressBar } from '../../components/common/ProgressBar';
 import { PillButton } from '../../components/common/PillButton';
-import { StatCard } from '../../components/common/StatCard';
 import { BarChart } from '../../components/common/BarChart';
 import { RewardCard } from '../../components/common/RewardCard';
 import { HeaderAvatar } from '../../components/common/HeaderAvatar';
@@ -39,6 +38,75 @@ type Props = CompositeScreenProps<
   BottomTabScreenProps<MainTabParamList, 'Home'>,
   NativeStackScreenProps<RootStackParamList>
 >;
+
+// Home-local stat card — an icon-chip + delta-pill treatment matching the
+// admin desktop dashboard's cards. Kept local rather than folded into the
+// shared StatCard component, since that component is also rendered on the
+// (untouched) course-admin/super-admin mobile screens.
+function HomeStatCard({
+  icon,
+  label,
+  value,
+  deltaPct,
+  deltaLabel,
+  showDelta,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  value: string | number;
+  deltaPct: number;
+  deltaLabel: string;
+  showDelta: boolean;
+}) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStatCardStyles(colors), [colors]);
+  const positive = deltaPct >= 0;
+  return (
+    <View style={styles.card}>
+      <View style={styles.topRow}>
+        <View style={styles.iconChip}>
+          <Ionicons name={icon} size={14} color={colors.clubGreen} />
+        </View>
+        {showDelta ? (
+          <View style={styles.deltaRow}>
+            <Ionicons
+              name={positive ? 'arrow-up' : 'arrow-down'}
+              size={10}
+              color={positive ? colors.positive : colors.negative}
+            />
+            <Text style={[styles.delta, { color: positive ? colors.positive : colors.negative }]}>
+              {Math.abs(deltaPct)}%
+            </Text>
+          </View>
+        ) : null}
+      </View>
+      <Text style={styles.label}>{label}</Text>
+      <Text style={styles.value}>{value}</Text>
+      {showDelta && deltaLabel ? <Text style={styles.deltaLabel}>{deltaLabel}</Text> : null}
+    </View>
+  );
+}
+
+function createStatCardStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    card: {
+      width: '47%',
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: radius.md,
+      padding: spacing.sm + 4,
+      gap: spacing.xs,
+    },
+    topRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
+    iconChip: { width: 30, height: 30, borderRadius: 8, backgroundColor: colors.mintBg, alignItems: 'center', justifyContent: 'center' },
+    deltaRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+    delta: { fontFamily: fontFamily.bodySemiBold, fontSize: 11.5 },
+    label: { fontFamily: fontFamily.bodyMedium, fontSize: fontSize.small - 1, color: colors.textSecondary },
+    value: { fontFamily: fontFamily.heading, fontSize: fontSize.title, color: colors.textPrimary },
+    deltaLabel: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textMuted },
+  });
+}
 
 const PERIOD_LABELS: Record<StatsPeriod, string> = { month: 'Month', year: 'Year', all: 'All' };
 const PERIODS: StatsPeriod[] = ['month', 'year', 'all'];
@@ -178,19 +246,20 @@ export function HomeScreen({ navigation }: Props) {
           </View>
         </View>
 
-        <View style={styles.clubCard}>
+        <TouchableOpacity style={styles.clubCard} onPress={() => navigation.navigate('Profile')} activeOpacity={0.7}>
           {user.courseLogoUrl ? (
             <Image source={{ uri: user.courseLogoUrl }} style={styles.clubLogo} />
           ) : (
             <View style={[styles.clubLogo, styles.clubLogoFallback]}>
-              <Ionicons name="golf-outline" size={20} color={colors.clubGreen} />
+              <Ionicons name="golf-outline" size={17} color={colors.clubGreen} />
             </View>
           )}
           <View style={{ flex: 1 }}>
             <Text style={styles.clubLabel}>Your Club</Text>
             <Text style={styles.clubName} numberOfLines={1}>{user.homeClub || 'Not specified'}</Text>
           </View>
-        </View>
+          <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+        </TouchableOpacity>
 
         <AdSpace placement="homeTop" style={styles.adSpace} />
 
@@ -212,37 +281,37 @@ export function HomeScreen({ navigation }: Props) {
         </View>
 
         <View style={styles.statsGrid}>
-          <StatCard
-            label="Rounds Played (9 Holes)"
+          <HomeStatCard
+            icon="flag-outline"
+            label="Rounds (9 Holes)"
             value={stats.roundsPlayed9}
             deltaPct={stats.roundsPlayed9DeltaPct}
             deltaLabel={DELTA_LABELS[statsPeriod]}
             showDelta={statsPeriod !== 'all'}
-            backgroundColor={colors.mintBg}
           />
-          <StatCard
-            label="Rounds Played (18 Holes)"
+          <HomeStatCard
+            icon="flag-outline"
+            label="Rounds (18 Holes)"
             value={stats.roundsPlayed18}
             deltaPct={stats.roundsPlayed18DeltaPct}
             deltaLabel={DELTA_LABELS[statsPeriod]}
             showDelta={statsPeriod !== 'all'}
-            backgroundColor={colors.mintBg}
           />
-          <StatCard
-            label="Flagrr Cash Earned"
+          <HomeStatCard
+            icon="card-outline"
+            label="Cash Earned"
             value={stats.bucksEarned.toLocaleString()}
             deltaPct={stats.bucksEarnedDeltaPct}
             deltaLabel={DELTA_LABELS[statsPeriod]}
             showDelta={statsPeriod !== 'all'}
-            backgroundColor={colors.mintBg}
           />
-          <StatCard
-            label="Flagrr Cash Redeemed"
+          <HomeStatCard
+            icon="receipt-outline"
+            label="Cash Redeemed"
             value={stats.bucksRedeemed.toLocaleString()}
             deltaPct={stats.bucksRedeemedDeltaPct}
             deltaLabel={DELTA_LABELS[statsPeriod]}
             showDelta={statsPeriod !== 'all'}
-            backgroundColor={colors.mintBg}
           />
         </View>
 
@@ -370,16 +439,17 @@ function createStyles(colors: ThemeColors) {
   clubCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    backgroundColor: colors.mintBg,
-    borderWidth: 0.5,
-    borderColor: colors.clubGreen,
+    gap: spacing.sm + 4,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
     borderRadius: radius.md,
-    padding: spacing.sm + 4,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm + 4,
     marginHorizontal: screenPadding,
     marginTop: spacing.lg,
   },
-  clubLogo: { width: 40, height: 40, borderRadius: radius.sm, backgroundColor: colors.imagePlaceholder },
+  clubLogo: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.mintBg },
   clubLogoFallback: { alignItems: 'center', justifyContent: 'center' },
   clubLabel: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary },
   clubName: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.textPrimary, marginTop: 1 },
@@ -412,10 +482,10 @@ function createStyles(colors: ThemeColors) {
   chartCard: {
     marginHorizontal: screenPadding,
     marginTop: spacing.md,
-    backgroundColor: colors.mintBg,
-    borderWidth: 0.5,
-    borderColor: colors.clubGreen,
-    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
     padding: spacing.md,
   },
   chartTitle: { fontFamily: fontFamily.heading, fontSize: fontSize.small, color: colors.textPrimary, marginBottom: spacing.md },
