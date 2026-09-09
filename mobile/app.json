@@ -20,7 +20,7 @@
     },
     "android": {
       "package": "com.flagrr.loyalty",
-      "versionCode": 5,
+      "versionCode": 7,
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#1F4234",
