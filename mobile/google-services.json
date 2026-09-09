@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "913540154421",
+    "project_id": "flagrr-8b915",
+    "storage_bucket": "flagrr-8b915.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:913540154421:android:d76a1fde119a820c4fdd7c",
+        "android_client_info": {
+          "package_name": "com.flagrr.loyalty"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyArbDhOiz4jBVx0Ibs7fwAVEPYv_8l8ITs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

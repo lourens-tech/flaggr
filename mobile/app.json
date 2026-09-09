@@ -21,6 +21,7 @@
     "android": {
       "package": "com.flagrr.loyalty",
       "versionCode": 5,
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#1F4234",
         "foregroundImage": "./assets/android-icon-foreground.png",
