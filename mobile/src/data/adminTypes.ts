@@ -185,9 +185,10 @@ export interface AdminReward {
   variants: AdminRewardVariant[];
 }
 
-// What the receipt scanner matches item names against, per club — priced in
-// Flagrr Cash from randValue * the club's own fbPerRand (see
-// api/_lib/pointsEngine.ts), the same conversion Rewards already uses.
+// What the receipt scanner matches item names against, per club — earns 1
+// Flagrr Cash per R1 of randValue (see api/_lib/pointsEngine.ts); the
+// member's loyalty tier is the only scaling on top. Unlike Rewards, this
+// does NOT use the club's fbPerRand conversion rate.
 export interface CatalogProduct {
   id: string;
   name: string;

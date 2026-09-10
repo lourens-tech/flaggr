@@ -27,11 +27,19 @@ export function SuperAdminCourseCatalogScreen({ navigation, route }: Props) {
   const styles = useMemo(() => createStyles(colors), [colors]);
   const isDesktop = useIsDesktopNav();
   const { courseId, courseName, fbPerRand } = route.params;
-  const { getSuperAdminCatalogProducts, getSuperAdminCatalogActivities } = useAdmin();
+  const {
+    getSuperAdminCatalogProducts,
+    getSuperAdminCatalogActivities,
+    saveSuperAdminCatalogProduct,
+    hardDeleteSuperAdminCatalogProduct,
+    saveSuperAdminCatalogActivity,
+    hardDeleteSuperAdminCatalogActivity,
+  } = useAdmin();
   const [kind, setKind] = useState<Kind>('product');
   const [products, setProducts] = useState<CatalogProduct[]>([]);
   const [activities, setActivities] = useState<CatalogActivity[]>([]);
   const [loading, setLoading] = useState(true);
+  const [busyId, setBusyId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -67,52 +75,184 @@ export function SuperAdminCourseCatalogScreen({ navigation, route }: Props) {
   // reward-redemption costs, not to earn Flagrr Cash from a purchase.
   const fcFor = (randValue: number) => Math.round(randValue);
 
+  const handleDuplicateProduct = async (item: CatalogProduct) => {
+    setBusyId(item.id);
+    try {
+      await saveSuperAdminCatalogProduct({
+        courseId,
+        name: `${item.name} (Copy)`,
+        brand: item.brand,
+        category: item.category,
+        aliases: item.aliases,
+        randValue: item.randValue,
+        pointsPerUnit: item.pointsPerUnit,
+        active: item.active,
+      });
+      await load();
+    } catch (err) {
+      const message = err instanceof AdminApiError ? err.message : 'Something went wrong. Please try again.';
+      showAlert('Couldn’t duplicate product', message);
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const handleDeleteProduct = (item: CatalogProduct) => {
+    showAlert('Permanently remove this product?', `"${item.name}" will be deleted for good — this can’t be undone. Points already awarded from past receipts are kept.`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete Permanently',
+        style: 'destructive',
+        onPress: async () => {
+          setBusyId(item.id);
+          try {
+            await hardDeleteSuperAdminCatalogProduct(courseId, item.id);
+            await load();
+          } catch (err) {
+            const message = err instanceof AdminApiError ? err.message : 'Something went wrong. Please try again.';
+            showAlert('Couldn’t remove product', message);
+          } finally {
+            setBusyId(null);
+          }
+        },
+      },
+    ]);
+  };
+
+  const handleDuplicateActivity = async (item: CatalogActivity) => {
+    setBusyId(item.id);
+    try {
+      await saveSuperAdminCatalogActivity({
+        courseId,
+        name: `${item.name} (Copy)`,
+        category: item.category,
+        aliases: item.aliases,
+        randValue: item.randValue,
+        active: item.active,
+      });
+      await load();
+    } catch (err) {
+      const message = err instanceof AdminApiError ? err.message : 'Something went wrong. Please try again.';
+      showAlert('Couldn’t duplicate activity', message);
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const handleDeleteActivity = (item: CatalogActivity) => {
+    showAlert('Permanently remove this activity?', `"${item.name}" will be deleted for good — this can’t be undone. Points already awarded from past receipts are kept.`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete Permanently',
+        style: 'destructive',
+        onPress: async () => {
+          setBusyId(item.id);
+          try {
+            await hardDeleteSuperAdminCatalogActivity(courseId, item.id);
+            await load();
+          } catch (err) {
+            const message = err instanceof AdminApiError ? err.message : 'Something went wrong. Please try again.';
+            showAlert('Couldn’t remove activity', message);
+          } finally {
+            setBusyId(null);
+          }
+        },
+      },
+    ]);
+  };
+
   const renderProductRow = (item: CatalogProduct) => (
-    <TouchableOpacity
-      key={item.id}
-      style={styles.row}
-      activeOpacity={0.85}
-      onPress={() =>
-        navigation.navigate('SuperAdminCatalogItemEdit', { courseId, courseName, fbPerRand, kind: 'product', itemId: item.id })
-      }
-    >
-      <View style={{ flex: 1 }}>
-        <Text style={styles.rowTitle} numberOfLines={1}>{item.name}</Text>
-        <Text style={styles.rowSubtitle} numberOfLines={1}>
-          R{item.randValue.toLocaleString()} {item.pointsPerUnit ? 'per unit' : 'flat'} = {fcFor(item.randValue).toLocaleString()} FC
-        </Text>
-      </View>
-      {!item.active ? (
-        <View style={styles.inactiveBadge}>
-          <Text style={styles.inactiveBadgeText}>Inactive</Text>
+    <View key={item.id} style={styles.row}>
+      <TouchableOpacity
+        style={styles.rowContent}
+        activeOpacity={0.85}
+        onPress={() =>
+          navigation.navigate('SuperAdminCatalogItemEdit', { courseId, courseName, fbPerRand, kind: 'product', itemId: item.id })
+        }
+      >
+        <View style={{ flex: 1 }}>
+          <Text style={styles.rowTitle} numberOfLines={1}>{item.name}</Text>
+          <Text style={styles.rowSubtitle} numberOfLines={1}>
+            R{item.randValue.toLocaleString()} {item.pointsPerUnit ? 'per unit' : 'flat'} = {fcFor(item.randValue).toLocaleString()} FC
+          </Text>
         </View>
-      ) : null}
-      <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
-    </TouchableOpacity>
+        {!item.active ? (
+          <View style={styles.inactiveBadge}>
+            <Text style={styles.inactiveBadgeText}>Inactive</Text>
+          </View>
+        ) : null}
+        <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
+      </TouchableOpacity>
+      <View style={styles.rowActions}>
+        <TouchableOpacity
+          onPress={() => handleDuplicateProduct(item)}
+          style={styles.rowActionBtn}
+          hitSlop={8}
+          disabled={busyId === item.id}
+          accessibilityLabel={`Duplicate ${item.name}`}
+        >
+          <Ionicons name="copy-outline" size={16} color={colors.textSecondary} />
+          <Text style={styles.rowActionText}>Duplicate</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => handleDeleteProduct(item)}
+          style={styles.rowActionBtn}
+          hitSlop={8}
+          disabled={busyId === item.id}
+          accessibilityLabel={`Permanently delete ${item.name}`}
+        >
+          <Ionicons name="trash-outline" size={16} color={colors.negative} />
+          <Text style={[styles.rowActionText, { color: colors.negative }]}>Delete</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
   );
 
   const renderActivityRow = (item: CatalogActivity) => (
-    <TouchableOpacity
-      key={item.id}
-      style={styles.row}
-      activeOpacity={0.85}
-      onPress={() =>
-        navigation.navigate('SuperAdminCatalogItemEdit', { courseId, courseName, fbPerRand, kind: 'activity', itemId: item.id })
-      }
-    >
-      <View style={{ flex: 1 }}>
-        <Text style={styles.rowTitle} numberOfLines={1}>{item.name}</Text>
-        <Text style={styles.rowSubtitle} numberOfLines={1}>
-          R{item.randValue.toLocaleString()} = {fcFor(item.randValue).toLocaleString()} FC
-        </Text>
-      </View>
-      {!item.active ? (
-        <View style={styles.inactiveBadge}>
-          <Text style={styles.inactiveBadgeText}>Inactive</Text>
+    <View key={item.id} style={styles.row}>
+      <TouchableOpacity
+        style={styles.rowContent}
+        activeOpacity={0.85}
+        onPress={() =>
+          navigation.navigate('SuperAdminCatalogItemEdit', { courseId, courseName, fbPerRand, kind: 'activity', itemId: item.id })
+        }
+      >
+        <View style={{ flex: 1 }}>
+          <Text style={styles.rowTitle} numberOfLines={1}>{item.name}</Text>
+          <Text style={styles.rowSubtitle} numberOfLines={1}>
+            R{item.randValue.toLocaleString()} = {fcFor(item.randValue).toLocaleString()} FC
+          </Text>
         </View>
-      ) : null}
-      <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
-    </TouchableOpacity>
+        {!item.active ? (
+          <View style={styles.inactiveBadge}>
+            <Text style={styles.inactiveBadgeText}>Inactive</Text>
+          </View>
+        ) : null}
+        <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
+      </TouchableOpacity>
+      <View style={styles.rowActions}>
+        <TouchableOpacity
+          onPress={() => handleDuplicateActivity(item)}
+          style={styles.rowActionBtn}
+          hitSlop={8}
+          disabled={busyId === item.id}
+          accessibilityLabel={`Duplicate ${item.name}`}
+        >
+          <Ionicons name="copy-outline" size={16} color={colors.textSecondary} />
+          <Text style={styles.rowActionText}>Duplicate</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => handleDeleteActivity(item)}
+          style={styles.rowActionBtn}
+          hitSlop={8}
+          disabled={busyId === item.id}
+          accessibilityLabel={`Permanently delete ${item.name}`}
+        >
+          <Ionicons name="trash-outline" size={16} color={colors.negative} />
+          <Text style={[styles.rowActionText, { color: colors.negative }]}>Delete</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
   );
 
   const list = kind === 'product' ? products : activities;
@@ -212,15 +352,30 @@ function createStyles(colors: ThemeColors) {
   toggleTextActive: { color: colors.white },
   listContent: { padding: screenPadding, gap: spacing.sm },
   row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
     backgroundColor: colors.mintBg,
     borderWidth: 0.5,
     borderColor: colors.clubGreen,
     borderRadius: radius.md,
+  },
+  rowContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
     padding: spacing.md,
   },
+  rowActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.sm,
+    borderTopWidth: 0.5,
+    borderTopColor: 'rgba(0,0,0,0.08)',
+    paddingTop: spacing.sm,
+  },
+  rowActionBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 2 },
+  rowActionText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.tiny, color: colors.textSecondary },
   rowTitle: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.textPrimary },
   rowSubtitle: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary, marginTop: 2 },
   inactiveBadge: { backgroundColor: 'rgba(0,0,0,0.15)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: radius.pill },

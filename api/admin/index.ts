@@ -396,9 +396,11 @@ const SUPER_ADMIN_ALLOWED_ACTIONS = new Set([
   'superAdminCatalogProducts',
   'superAdminCatalogProductSave',
   'superAdminCatalogProductDelete',
+  'superAdminCatalogProductDeletePermanent',
   'superAdminCatalogActivities',
   'superAdminCatalogActivitySave',
   'superAdminCatalogActivityDelete',
+  'superAdminCatalogActivityDeletePermanent',
   'superAdminStatBreakdown',
   'superAdminClubMembers',
   'superAdminCourseCancelSubscription',
@@ -1071,6 +1073,18 @@ async function deactivateCatalogProductForCourse(courseId: string, id: string) {
   await sql`update golf_products set active = false where id = ${id} and course_id = ${courseId}`;
 }
 
+async function hardDeleteCatalogProductForCourse(courseId: string, id: string) {
+  const owned = (await sql`select id from golf_products where id = ${id} and course_id = ${courseId}`) as Array<{
+    id: string;
+  }>;
+  if (owned.length === 0) throw new HttpError(404, 'Product not found');
+  // Past receipts and their already-awarded points are stored independently
+  // on receipt_items (points_awarded), so clearing the reference here loses
+  // only which catalog entry it was, not any history or points.
+  await sql`update receipt_items set matched_product_id = null where matched_product_id = ${id}`;
+  await sql`delete from golf_products where id = ${id}`;
+}
+
 async function listCatalogActivitiesForCourse(courseId: string) {
   const rows = (await sql`
     select id, name, category, aliases, rand_value, active
@@ -1127,6 +1141,17 @@ async function saveCatalogActivityForCourse(courseId: string, body: CatalogActiv
 
 async function deactivateCatalogActivityForCourse(courseId: string, id: string) {
   await sql`update golf_activities set active = false where id = ${id} and course_id = ${courseId}`;
+}
+
+async function hardDeleteCatalogActivityForCourse(courseId: string, id: string) {
+  const owned = (await sql`select id from golf_activities where id = ${id} and course_id = ${courseId}`) as Array<{
+    id: string;
+  }>;
+  if (owned.length === 0) throw new HttpError(404, 'Activity not found');
+  // Same reasoning as hardDeleteCatalogProductForCourse: receipt history and
+  // points stay intact, only the catalog-entry reference is cleared.
+  await sql`update receipt_items set matched_activity_id = null where matched_activity_id = ${id}`;
+  await sql`delete from golf_activities where id = ${id}`;
 }
 
 // A super_admin's ad actions carry a courseId that's either a real course
@@ -2650,6 +2675,23 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         return;
       }
 
+      if (action === 'superAdminCatalogProductDeletePermanent') {
+        const body = req.body as SuperAdminCatalogIdBody;
+        if (!body.courseId) throw new HttpError(400, 'courseId is required');
+        if (!body.id) throw new HttpError(400, 'id is required');
+        await hardDeleteCatalogProductForCourse(body.courseId, body.id);
+        await logAudit({
+          adminId: authedAdmin.id,
+          adminName: `${authedAdmin.firstName} ${authedAdmin.lastName}`,
+          adminRole: authedAdmin.role,
+          action: 'superAdminCatalogProductDeletePermanent',
+          targetType: 'golf_product',
+          targetId: body.id,
+        });
+        res.status(200).json({ ok: true });
+        return;
+      }
+
       if (action === 'superAdminCatalogActivities' && req.method === 'GET') {
         const targetCourseId = typeof req.query.courseId === 'string' ? req.query.courseId : undefined;
         if (!targetCourseId) throw new HttpError(400, 'courseId is required');
@@ -2684,6 +2726,23 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
           adminName: `${authedAdmin.firstName} ${authedAdmin.lastName}`,
           adminRole: authedAdmin.role,
           action: 'superAdminCatalogActivityDelete',
+          targetType: 'golf_activity',
+          targetId: body.id,
+        });
+        res.status(200).json({ ok: true });
+        return;
+      }
+
+      if (action === 'superAdminCatalogActivityDeletePermanent') {
+        const body = req.body as SuperAdminCatalogIdBody;
+        if (!body.courseId) throw new HttpError(400, 'courseId is required');
+        if (!body.id) throw new HttpError(400, 'id is required');
+        await hardDeleteCatalogActivityForCourse(body.courseId, body.id);
+        await logAudit({
+          adminId: authedAdmin.id,
+          adminName: `${authedAdmin.firstName} ${authedAdmin.lastName}`,
+          adminRole: authedAdmin.role,
+          action: 'superAdminCatalogActivityDeletePermanent',
           targetType: 'golf_activity',
           targetId: body.id,
         });
@@ -3752,6 +3811,14 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     return;
   }
 
+  if (action === 'catalogProductDeletePermanent') {
+    const id = (req.body as CatalogIdBody).id;
+    if (!id) throw new HttpError(400, 'id is required');
+    await hardDeleteCatalogProductForCourse(courseId, id);
+    res.status(200).json({ ok: true });
+    return;
+  }
+
   if (action === 'catalogActivities' && req.method === 'GET') {
     res.status(200).json(await listCatalogActivitiesForCourse(courseId));
     return;
@@ -3766,6 +3833,14 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     const id = (req.body as CatalogIdBody).id;
     if (!id) throw new HttpError(400, 'id is required');
     await deactivateCatalogActivityForCourse(courseId, id);
+    res.status(200).json({ ok: true });
+    return;
+  }
+
+  if (action === 'catalogActivityDeletePermanent') {
+    const id = (req.body as CatalogIdBody).id;
+    if (!id) throw new HttpError(400, 'id is required');
+    await hardDeleteCatalogActivityForCourse(courseId, id);
     res.status(200).json({ ok: true });
     return;
   }

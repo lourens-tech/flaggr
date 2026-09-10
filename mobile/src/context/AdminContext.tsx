@@ -138,18 +138,22 @@ interface AdminContextValue {
   loadCatalogProducts: () => Promise<void>;
   saveCatalogProduct: (payload: CatalogProductSavePayload) => Promise<void>;
   deleteCatalogProduct: (id: string) => Promise<void>;
+  hardDeleteCatalogProduct: (id: string) => Promise<void>;
   loadCatalogActivities: () => Promise<void>;
   saveCatalogActivity: (payload: CatalogActivitySavePayload) => Promise<void>;
   deleteCatalogActivity: (id: string) => Promise<void>;
+  hardDeleteCatalogActivity: (id: string) => Promise<void>;
   // super_admin only — per-club catalog management, fetched on demand
   // (mirrors getSuperAdminRewards's pattern: no shared state, the screen
   // manages its own list for whichever courseId it was opened with).
   getSuperAdminCatalogProducts: (courseId: string) => Promise<CatalogProduct[]>;
   saveSuperAdminCatalogProduct: (payload: SuperAdminCatalogProductSavePayload) => Promise<{ id: string }>;
   deleteSuperAdminCatalogProduct: (courseId: string, id: string) => Promise<void>;
+  hardDeleteSuperAdminCatalogProduct: (courseId: string, id: string) => Promise<void>;
   getSuperAdminCatalogActivities: (courseId: string) => Promise<CatalogActivity[]>;
   saveSuperAdminCatalogActivity: (payload: SuperAdminCatalogActivitySavePayload) => Promise<{ id: string }>;
   deleteSuperAdminCatalogActivity: (courseId: string, id: string) => Promise<void>;
+  hardDeleteSuperAdminCatalogActivity: (courseId: string, id: string) => Promise<void>;
   searchMembers: (query: string) => Promise<AdminMember[]>;
   listAllMembers: (page: number, pageSize: number) => Promise<MembersPage>;
   getMemberStats: (id: string, period: DashboardPeriod) => Promise<MemberStats>;
@@ -499,6 +503,11 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     await loadCatalogProducts();
   };
 
+  const hardDeleteCatalogProduct = async (id: string) => {
+    await adminApi.deleteCatalogProductPermanent(id);
+    await loadCatalogProducts();
+  };
+
   const loadCatalogActivities = useCallback(async () => {
     setCatalogActivities(await adminApi.catalogActivities());
   }, []);
@@ -513,17 +522,28 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     await loadCatalogActivities();
   };
 
+  const hardDeleteCatalogActivity = async (id: string) => {
+    await adminApi.deleteCatalogActivityPermanent(id);
+    await loadCatalogActivities();
+  };
+
   const getSuperAdminCatalogProducts = async (courseId: string) => adminApi.superAdminCatalogProducts(courseId);
   const saveSuperAdminCatalogProduct = async (payload: SuperAdminCatalogProductSavePayload) =>
     adminApi.saveSuperAdminCatalogProduct(payload);
   const deleteSuperAdminCatalogProduct = async (courseId: string, id: string) => {
     await adminApi.deleteSuperAdminCatalogProduct(courseId, id);
   };
+  const hardDeleteSuperAdminCatalogProduct = async (courseId: string, id: string) => {
+    await adminApi.deleteSuperAdminCatalogProductPermanent(courseId, id);
+  };
   const getSuperAdminCatalogActivities = async (courseId: string) => adminApi.superAdminCatalogActivities(courseId);
   const saveSuperAdminCatalogActivity = async (payload: SuperAdminCatalogActivitySavePayload) =>
     adminApi.saveSuperAdminCatalogActivity(payload);
   const deleteSuperAdminCatalogActivity = async (courseId: string, id: string) => {
     await adminApi.deleteSuperAdminCatalogActivity(courseId, id);
+  };
+  const hardDeleteSuperAdminCatalogActivity = async (courseId: string, id: string) => {
+    await adminApi.deleteSuperAdminCatalogActivityPermanent(courseId, id);
   };
 
   const searchMembers = async (query: string) => adminApi.members(query);
@@ -862,15 +882,19 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     loadCatalogProducts,
     saveCatalogProduct,
     deleteCatalogProduct,
+    hardDeleteCatalogProduct,
     loadCatalogActivities,
     saveCatalogActivity,
     deleteCatalogActivity,
+    hardDeleteCatalogActivity,
     getSuperAdminCatalogProducts,
     saveSuperAdminCatalogProduct,
     deleteSuperAdminCatalogProduct,
+    hardDeleteSuperAdminCatalogProduct,
     getSuperAdminCatalogActivities,
     saveSuperAdminCatalogActivity,
     deleteSuperAdminCatalogActivity,
+    hardDeleteSuperAdminCatalogActivity,
     searchMembers,
     listAllMembers,
     getMemberStats,

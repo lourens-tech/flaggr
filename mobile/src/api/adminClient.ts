@@ -325,6 +325,9 @@ export const adminApi = {
   deleteCatalogProduct: (id: string) =>
     request<{ ok: boolean }>('?action=catalogProductDelete', { method: 'POST', body: { id } }),
 
+  deleteCatalogProductPermanent: (id: string) =>
+    request<{ ok: boolean }>('?action=catalogProductDeletePermanent', { method: 'POST', body: { id } }),
+
   catalogActivities: () => request<CatalogActivity[]>('?action=catalogActivities'),
 
   saveCatalogActivity: (payload: CatalogActivitySavePayload) =>
@@ -332,6 +335,9 @@ export const adminApi = {
 
   deleteCatalogActivity: (id: string) =>
     request<{ ok: boolean }>('?action=catalogActivityDelete', { method: 'POST', body: { id } }),
+
+  deleteCatalogActivityPermanent: (id: string) =>
+    request<{ ok: boolean }>('?action=catalogActivityDeletePermanent', { method: 'POST', body: { id } }),
 
   ads: () => request<AdminAd[]>('?action=ads'),
 
@@ -449,6 +455,9 @@ export const adminApi = {
   deleteSuperAdminCatalogProduct: (courseId: string, id: string) =>
     request<{ ok: boolean }>('?action=superAdminCatalogProductDelete', { method: 'POST', body: { courseId, id } }),
 
+  deleteSuperAdminCatalogProductPermanent: (courseId: string, id: string) =>
+    request<{ ok: boolean }>('?action=superAdminCatalogProductDeletePermanent', { method: 'POST', body: { courseId, id } }),
+
   superAdminCatalogActivities: (courseId: string) =>
     request<CatalogActivity[]>(`?action=superAdminCatalogActivities&courseId=${encodeURIComponent(courseId)}`),
 
@@ -457,6 +466,9 @@ export const adminApi = {
 
   deleteSuperAdminCatalogActivity: (courseId: string, id: string) =>
     request<{ ok: boolean }>('?action=superAdminCatalogActivityDelete', { method: 'POST', body: { courseId, id } }),
+
+  deleteSuperAdminCatalogActivityPermanent: (courseId: string, id: string) =>
+    request<{ ok: boolean }>('?action=superAdminCatalogActivityDeletePermanent', { method: 'POST', body: { courseId, id } }),
 
   superAdminStatBreakdown: (metric: StatBreakdownMetric, period: 'month' | 'year' | 'all') =>
     request<StatBreakdownRow[]>(`?action=superAdminStatBreakdown&metric=${metric}&period=${period}`),
