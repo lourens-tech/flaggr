@@ -1,13 +1,15 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AdminStackParamList } from '../../navigation/types';
 import { ScreenHeader } from '../../components/common/ScreenHeader';
+import { TextField } from '../../components/common/TextField';
 import { useAdmin } from '../../context/AdminContext';
 import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
+import { hoverTransition } from '../../hooks/useHover';
 import { AdminDesktopFrame } from '../../components/admin/desktop/AdminDesktopFrame';
 import { DesktopPanel } from '../../components/admin/desktop/DesktopPanel';
 import { AdminApiError } from '../../api/adminClient';
@@ -18,6 +20,11 @@ import type { CatalogActivity, CatalogProduct } from '../../data/adminTypes';
 
 type Props = NativeStackScreenProps<AdminStackParamList, 'AdminCatalog'>;
 type Kind = 'product' | 'activity';
+
+// react-native-web passes unknown style keys straight through to the DOM —
+// this suppresses the browser's default focus ring on the search input,
+// which isn't part of RN's typed style props (see DesktopShell's search box).
+const webNoOutline = { outlineStyle: 'none' } as unknown as { outlineWidth: number };
 
 // What the receipt scanner matches item names against for this club, priced
 // in Flagrr Cash from Rand value * the club's own conversion rate — same
@@ -41,6 +48,8 @@ export function AdminCatalogScreen({ navigation }: Props) {
   const [kind, setKind] = useState<Kind>('product');
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+  const [searchFocused, setSearchFocused] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -60,8 +69,32 @@ export function AdminCatalogScreen({ navigation }: Props) {
     }, []),
   );
 
-  const products = catalogProducts;
-  const activities = catalogActivities;
+  const query = search.trim().toLowerCase();
+  const products = useMemo(
+    () =>
+      query
+        ? catalogProducts.filter(
+            (p) =>
+              p.name.toLowerCase().includes(query) ||
+              p.brand.toLowerCase().includes(query) ||
+              p.category.toLowerCase().includes(query) ||
+              p.aliases.some((a) => a.toLowerCase().includes(query)),
+          )
+        : catalogProducts,
+    [catalogProducts, query],
+  );
+  const activities = useMemo(
+    () =>
+      query
+        ? catalogActivities.filter(
+            (a) =>
+              a.name.toLowerCase().includes(query) ||
+              a.category.toLowerCase().includes(query) ||
+              a.aliases.some((al) => al.toLowerCase().includes(query)),
+          )
+        : catalogActivities,
+    [catalogActivities, query],
+  );
 
   // Receipt-scanner earning is 1 Flagrr Cash per R1 of catalog price (the
   // member's loyalty tier is the only scaling on top — see pointsEngine.ts).
@@ -252,13 +285,17 @@ export function AdminCatalogScreen({ navigation }: Props) {
     </View>
   );
 
+  const emptyText = query
+    ? `No ${kind === 'product' ? 'products' : 'activities'} match "${search.trim()}".`
+    : kind === 'product'
+      ? 'No products yet — add your first one.'
+      : 'No activities yet — add your first one.';
+
   const listRows =
     loading ? (
       <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.md }} />
     ) : list.length === 0 ? (
-      <Text style={styles.emptyText}>
-        {kind === 'product' ? 'No products yet — add your first one.' : 'No activities yet — add your first one.'}
-      </Text>
+      <Text style={styles.emptyText}>{emptyText}</Text>
     ) : (
       <View style={{ gap: spacing.sm }}>{kind === 'product' ? products.map(renderProductRow) : activities.map(renderActivityRow)}</View>
     );
@@ -277,9 +314,23 @@ export function AdminCatalogScreen({ navigation }: Props) {
           The receipt scanner matches item names against this list to award Flagrr Cash — anything not listed here
           still earns Flagrr Cash from its printed Rand price.
         </Text>
-        <DesktopPanel title=" ">
+        <View style={styles.dToolbar}>
+          <View style={[styles.dSearchBox, hoverTransition, searchFocused && styles.dSearchBoxFocused]}>
+            <Ionicons name="search" size={15} color={searchFocused ? colors.clubGreen : colors.textMuted} />
+            <TextInput
+              value={search}
+              onChangeText={setSearch}
+              onFocus={() => setSearchFocused(true)}
+              onBlur={() => setSearchFocused(false)}
+              placeholder={kind === 'product' ? 'Search products' : 'Search activities'}
+              placeholderTextColor={colors.textMuted}
+              style={[styles.dSearchInput, webNoOutline]}
+            />
+          </View>
           {toggle}
-          <View style={{ marginTop: spacing.sm }}>{listRows}</View>
+        </View>
+        <DesktopPanel title=" ">
+          <View>{listRows}</View>
         </DesktopPanel>
       </AdminDesktopFrame>
     );
@@ -309,11 +360,25 @@ export function AdminCatalogScreen({ navigation }: Props) {
         still earns Flagrr Cash from its printed Rand price.
       </Text>
 
+      <View style={styles.searchArea}>
+        <TextField
+          placeholder={kind === 'product' ? 'Search products' : 'Search activities'}
+          variant="onLight"
+          icon="search"
+          value={search}
+          onChangeText={setSearch}
+        />
+      </View>
+
       {loading ? (
         <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
       ) : list.length === 0 ? (
         <Text style={styles.emptyText}>
-          {kind === 'product' ? 'No products yet — tap + to add your first one.' : 'No activities yet — tap + to add your first one.'}
+          {query
+            ? `No ${kind === 'product' ? 'products' : 'activities'} match "${search.trim()}".`
+            : kind === 'product'
+              ? 'No products yet — tap + to add your first one.'
+              : 'No activities yet — tap + to add your first one.'}
         </Text>
       ) : (
         <ScrollView contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={false}>
@@ -347,6 +412,7 @@ function createStyles(colors: ThemeColors) {
     paddingHorizontal: screenPadding,
     marginTop: spacing.sm,
   },
+  searchArea: { paddingHorizontal: screenPadding, marginTop: spacing.md },
   listContent: { padding: screenPadding, gap: spacing.sm },
   row: {
     backgroundColor: colors.mintBg,
@@ -396,5 +462,21 @@ function createStyles(colors: ThemeColors) {
     paddingVertical: 10,
   },
   dAddButtonText: { fontFamily: fontFamily.bodySemiBold, fontSize: 13, color: colors.darkGreen },
+  dToolbar: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flexWrap: 'wrap', marginTop: spacing.md },
+  dSearchBox: {
+    flex: 1,
+    minWidth: 220,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+    backgroundColor: colors.inputBg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  dSearchBoxFocused: { borderColor: colors.clubGreen, backgroundColor: colors.surface },
+  dSearchInput: { flex: 1, fontFamily: fontFamily.body, fontSize: 13, color: colors.textPrimary, padding: 0 },
 });
 }
