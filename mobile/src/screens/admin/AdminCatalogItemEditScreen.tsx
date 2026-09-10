@@ -48,7 +48,11 @@ export function AdminCatalogItemEditScreen({ navigation, route }: Props) {
 
   const randValue = Number(randValueText);
   const randValueValid = randValueText.trim() !== '' && Number.isFinite(randValue) && randValue >= 0;
-  const fcPreview = randValueValid ? Math.round(randValue * course.fbPerRand) : null;
+  // Receipt-scanner earning is 1 Flagrr Cash per R1 of catalog price (the
+  // member's loyalty tier is the only scaling on top — see pointsEngine.ts).
+  // course.fbPerRand is a separate, unrelated setting used only to price
+  // reward-redemption costs, not to earn Flagrr Cash from a purchase.
+  const fcPreview = randValueValid ? Math.round(randValue) : null;
 
   const handleSave = async () => {
     if (!name.trim()) {
@@ -152,7 +156,7 @@ export function AdminCatalogItemEditScreen({ navigation, route }: Props) {
         />
         <View style={{ height: spacing.md }} />
         <TextField
-          placeholder={`Rand value (auto-prices at ${course.fbPerRand} FC per R1)`}
+          placeholder="Rand value (earns 1 Flagrr Cash per R1, before tier bonus)"
           variant="onLight"
           keyboardType="numeric"
           value={randValueText}

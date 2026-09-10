@@ -61,7 +61,11 @@ export function SuperAdminCourseCatalogScreen({ navigation, route }: Props) {
     }, [courseId]),
   );
 
-  const fcFor = (randValue: number) => Math.round(randValue * fbPerRand);
+  // Receipt-scanner earning is 1 Flagrr Cash per R1 of catalog price (the
+  // member's loyalty tier is the only scaling on top — see pointsEngine.ts).
+  // fbPerRand is a separate, unrelated setting used only to price
+  // reward-redemption costs, not to earn Flagrr Cash from a purchase.
+  const fcFor = (randValue: number) => Math.round(randValue);
 
   const renderProductRow = (item: CatalogProduct) => (
     <TouchableOpacity

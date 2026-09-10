@@ -996,10 +996,12 @@ async function deleteRewardForCourse(courseId: string, id: string) {
 }
 
 // --- Golf product/activity catalog — what the receipt scanner matches item
-// names against, and prices in Flagrr Cash from (rand_value * the club's own
-// fb_per_rand — see api/_lib/pointsEngine.ts). Every club manages its own,
-// mirroring the rewards pattern above: course_admin scoped to their own club
-// implicitly, super_admin with an explicit courseId for any club. ---
+// names against, priced 1 Flagrr Cash per R1 of rand_value (the member's tier
+// multiplier is the only scaling on top — see api/_lib/pointsEngine.ts; unlike
+// reward costs above, this does NOT use the club's fb_per_rand). Every club
+// manages its own, mirroring the rewards pattern above: course_admin scoped
+// to their own club implicitly, super_admin with an explicit courseId for
+// any club. ---
 async function listCatalogProductsForCourse(courseId: string) {
   const rows = (await sql`
     select id, name, brand, category, aliases, rand_value, points_per_unit, active

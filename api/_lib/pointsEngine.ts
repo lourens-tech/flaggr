@@ -51,13 +51,6 @@ async function loadCatalogs(homeCourseId: string) {
   };
 }
 
-async function getFbPerRand(courseId: string): Promise<number> {
-  const rows = (await sql`select fb_per_rand from courses where id = ${courseId}`) as Array<{
-    fb_per_rand: string | number;
-  }>;
-  return rows.length > 0 ? Number(rows[0].fb_per_rand) : 1;
-}
-
 // The actual venue name on a slip is often not the first line — a logo,
 // address, or an invoice-number line usually is — so this searches every
 // OCR'd line against the known-clubs list and keeps whichever one scores
@@ -77,15 +70,16 @@ export async function matchAndScoreReceipt(
   rawLines: string[],
   homeCourseId: string,
 ): Promise<PointsResult> {
-  const [{ products, activities, merchants }, fbPerRand] = await Promise.all([
-    loadCatalogs(homeCourseId),
-    getFbPerRand(homeCourseId),
-  ]);
+  const { products, activities, merchants } = await loadCatalogs(homeCourseId);
 
   const matchedItems: MatchedItem[] = items.map((item) => {
     const productMatch = matchCatalog(item.description, products);
     if (productMatch) {
-      const unitPoints = Math.round(productMatch.item.rand_value * fbPerRand);
+      // Earning is 1 Flagrr Cash per R1 of the club's own catalog price — the
+      // member's tier multiplier (see finalizePoints) is the only scaling
+      // applied on top. course.fb_per_rand is a separate, unrelated setting
+      // used only to price reward-redemption costs (see admin/index.ts).
+      const unitPoints = Math.round(productMatch.item.rand_value);
       const points = productMatch.item.points_per_unit ? unitPoints * item.quantity : unitPoints;
       return {
         description: item.description,
@@ -100,7 +94,7 @@ export async function matchAndScoreReceipt(
 
     const activityMatch = matchCatalog(item.description, activities);
     if (activityMatch) {
-      const points = Math.round(activityMatch.item.rand_value * fbPerRand) * item.quantity;
+      const points = Math.round(activityMatch.item.rand_value) * item.quantity;
       return {
         description: item.description,
         quantity: item.quantity,
@@ -112,11 +106,11 @@ export async function matchAndScoreReceipt(
       };
     }
 
-    // Not in this club's catalog — fall back to the Rand amount actually
-    // printed on this line, converted at the same rate as everything else.
-    // item.price is already the full line total (it already reflects
-    // quantity — "2 x Sunscreen  90.00" parses to price 90 for both), so it
-    // isn't multiplied by quantity again here.
+    // Not in this club's catalog — fall back to 1 Flagrr Cash per R1 actually
+    // printed on this line, the same base rate as everything else. item.price
+    // is already the full line total (it already reflects quantity — "2 x
+    // Sunscreen  90.00" parses to price 90 for both), so it isn't multiplied
+    // by quantity again here.
     return {
       description: item.description,
       quantity: item.quantity,
@@ -124,7 +118,7 @@ export async function matchAndScoreReceipt(
       matchedProductId: null,
       matchedActivityId: null,
       matchedName: null,
-      pointsAwarded: Math.round(item.price * fbPerRand),
+      pointsAwarded: Math.round(item.price),
     };
   });
 
