@@ -45,7 +45,7 @@ export function GiveFeedbackScreen({ navigation }: Props) {
     try {
       await sendFeedback({ category, message: message.trim() });
       showAlert('Thanks for the feedback!', 'The Flagrr team has received it.', [
-        { text: 'Done', onPress: () => navigation.goBack() },
+        { text: 'Back', onPress: () => navigation.goBack() },
       ]);
     } catch (err) {
       const errMessage = err instanceof ApiError ? err.message : 'Something went wrong. Please try again.';
