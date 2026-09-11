@@ -13,6 +13,7 @@ import { MemberTiersScreen } from '../screens/profile/MemberTiersScreen';
 import { NotificationsScreen } from '../screens/profile/NotificationsScreen';
 import { HelpCenterScreen } from '../screens/profile/HelpCenterScreen';
 import { ContactScreen } from '../screens/profile/ContactScreen';
+import { GiveFeedbackScreen } from '../screens/profile/GiveFeedbackScreen';
 import { EditProfileScreen } from '../screens/profile/EditProfileScreen';
 import { TermsPrivacyScreen } from '../screens/profile/TermsPrivacyScreen';
 import { MyEnquiriesScreen } from '../screens/profile/MyEnquiriesScreen';
@@ -73,6 +74,7 @@ export function RootNavigator() {
           <Stack.Screen name="Notifications" component={NotificationsScreen} />
           <Stack.Screen name="HelpCenter" component={HelpCenterScreen} />
           <Stack.Screen name="Contact" component={ContactScreen} />
+          <Stack.Screen name="GiveFeedback" component={GiveFeedbackScreen} />
           <Stack.Screen name="EditProfile" component={EditProfileScreen} />
           <Stack.Screen name="TermsPrivacy" component={TermsPrivacyScreen} />
           <Stack.Screen name="MyEnquiries" component={MyEnquiriesScreen} />

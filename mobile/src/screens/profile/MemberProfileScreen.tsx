@@ -385,6 +385,7 @@ export function MemberProfileScreen({ navigation }: Props) {
           <LinkRow icon="help-circle-outline" label="Help Center" tone="green" onPress={() => navigation.navigate('HelpCenter')} />
           <LinkRow icon="headset-outline" label="Contact Your Club" tone="amber" onPress={() => navigation.navigate('Contact')} />
           <LinkRow icon="chatbubbles-outline" label="My Enquiries" tone="green" onPress={() => navigation.navigate('MyEnquiries')} />
+          <LinkRow icon="megaphone-outline" label="Give Feedback" tone="lime" onPress={() => navigation.navigate('GiveFeedback')} />
           <LinkRow
             icon="notifications-outline"
             label="Notification Preferences"

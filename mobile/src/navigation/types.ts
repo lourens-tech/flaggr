@@ -122,6 +122,7 @@ export type RootStackParamList = {
   Notifications: undefined;
   HelpCenter: undefined;
   Contact: undefined;
+  GiveFeedback: undefined;
   EditProfile: undefined;
   TermsPrivacy: undefined;
   MyEnquiries: undefined;

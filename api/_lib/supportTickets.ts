@@ -5,6 +5,8 @@ export const SUPPORT_TICKET_STATUSES: SupportTicketStatus[] = ['open', 'in_progr
 export type SupportTicketPriority = 'low' | 'normal' | 'high' | 'urgent';
 export const SUPPORT_TICKET_PRIORITIES: SupportTicketPriority[] = ['low', 'normal', 'high', 'urgent'];
 export type SupportRequesterType = 'member' | 'course_admin' | 'staff';
+export type SupportTicketCategory = 'bug' | 'general_feedback' | 'improvement';
+export const SUPPORT_TICKET_CATEGORIES: SupportTicketCategory[] = ['bug', 'general_feedback', 'improvement'];
 
 export interface SupportTicketMessageDto {
   id: string;
@@ -41,6 +43,9 @@ interface CreateSupportTicketParams {
   courseId: string | null;
   subject: string;
   message: string;
+  // Only ever set for a member's "Give Feedback" submission — course_admin
+  // and staff tickets ("Log a Ticket") leave this null.
+  category?: SupportTicketCategory | null;
 }
 
 /** Creates the ticket + its first message (from the requester) — the entry
@@ -50,10 +55,10 @@ interface CreateSupportTicketParams {
 export async function createSupportTicket(params: CreateSupportTicketParams): Promise<string> {
   const rows = (await sql`
     insert into support_tickets
-      (requester_type, requester_user_id, requester_admin_id, requester_name, requester_email, course_id, subject, status)
+      (requester_type, requester_user_id, requester_admin_id, requester_name, requester_email, course_id, subject, status, category)
     values
       (${params.requesterType}, ${params.requesterUserId}, ${params.requesterAdminId}, ${params.requesterName},
-       ${params.requesterEmail}, ${params.courseId}, ${params.subject}, 'open')
+       ${params.requesterEmail}, ${params.courseId}, ${params.subject}, 'open', ${params.category ?? null})
     returning id
   `) as Array<{ id: string }>;
   const ticketId = rows[0].id;

@@ -6,6 +6,20 @@ import { logAdClick, logAdImpression } from '../_lib/ads';
 import { registerPushToken, type PushPlatform } from '../_lib/pushNotifications';
 import { notifyCourseAdmins } from '../_lib/adminNotifications';
 import { addMemberMessage, createEnquiry, listEnquiryMessages, markThreadReadByMember } from '../_lib/enquiries';
+import { createSupportTicket, SUPPORT_TICKET_CATEGORIES, type SupportTicketCategory } from '../_lib/supportTickets';
+import { sendEmail } from '../_lib/email';
+
+const CONTACT_EMAIL = process.env.CONTACT_EMAIL || 'lourens@ewosolutions.com';
+
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+const FEEDBACK_CATEGORY_LABELS: Record<SupportTicketCategory, string> = {
+  bug: 'Bug Report',
+  general_feedback: 'General Feedback',
+  improvement: 'Improvement Suggestion',
+};
 
 // Folded avatar update, profile field editing, the contact form's send,
 // ad-click logging, and push-token registration into one file (dispatched
@@ -34,6 +48,11 @@ interface ContactBody {
   phone?: string;
   email?: string;
   enquiryType?: string;
+  message?: string;
+}
+
+interface FeedbackCreateBody {
+  category?: string;
   message?: string;
 }
 
@@ -294,6 +313,47 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     await notifyCourseAdmins(authed.courseId, `New enquiry from ${fullName}`, `(${enquiryType}) ${message}`, { enquiryId });
 
     res.status(200).json({ ok: true, enquiryId });
+    return;
+  }
+
+  if (action === 'feedbackCreate') {
+    const body = req.body as FeedbackCreateBody;
+    const message = body.message?.trim();
+    if (!message) throw new HttpError(400, 'message is required');
+    if (!body.category || !SUPPORT_TICKET_CATEGORIES.includes(body.category as SupportTicketCategory)) {
+      throw new HttpError(400, 'A valid category is required');
+    }
+    const category = body.category as SupportTicketCategory;
+    const categoryLabel = FEEDBACK_CATEGORY_LABELS[category];
+    const requesterName = `${authed.firstName} ${authed.lastName}`.trim();
+
+    // Unlike "contact" above, this goes straight to the Flagrr team, not
+    // the member's own club — reuses the same support_tickets thread the
+    // Support Centre already gives course_admin/staff "Log a Ticket"
+    // submissions, just tagged with a category and requesterType 'member'.
+    const ticketId = await createSupportTicket({
+      requesterType: 'member',
+      requesterUserId: authed.id,
+      requesterAdminId: null,
+      requesterName,
+      requesterEmail: authed.email,
+      courseId: authed.courseId,
+      subject: `${categoryLabel} from ${requesterName}`,
+      message,
+      category,
+    });
+    await sendEmail({
+      to: CONTACT_EMAIL,
+      subject: `New app feedback (${categoryLabel}): ${requesterName}`,
+      html: `
+        <p><strong>From:</strong> ${escapeHtml(requesterName)} (${escapeHtml(authed.email)})</p>
+        <p><strong>Category:</strong> ${escapeHtml(categoryLabel)}</p>
+        <p><strong>Message:</strong></p>
+        <p>${escapeHtml(message).replace(/\n/g, '<br/>')}</p>
+      `,
+    });
+
+    res.status(200).json({ ok: true, ticketId });
     return;
   }
 

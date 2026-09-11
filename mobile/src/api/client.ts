@@ -147,6 +147,18 @@ export interface ContactEnquiryResponse {
   enquiryId: string;
 }
 
+export type FeedbackCategory = 'bug' | 'general_feedback' | 'improvement';
+
+export interface FeedbackPayload {
+  category: FeedbackCategory;
+  message: string;
+}
+
+export interface FeedbackResponse {
+  ok: boolean;
+  ticketId: string;
+}
+
 export const api = {
   courses: () => request<Course[]>('/courses', { auth: false }),
 
@@ -206,6 +218,9 @@ export const api = {
 
   sendContactEnquiry: (payload: ContactEnquiryPayload) =>
     request<ContactEnquiryResponse>('/profile?action=contact', { method: 'POST', body: payload }),
+
+  sendFeedback: (payload: FeedbackPayload) =>
+    request<FeedbackResponse>('/profile?action=feedbackCreate', { method: 'POST', body: payload }),
 
   myEnquiries: () => request<MyEnquirySummary[]>('/profile?action=myEnquiries'),
 
