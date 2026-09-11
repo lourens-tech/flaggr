@@ -16,11 +16,14 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.flagrr.loyalty",
-      "buildNumber": "5"
+      "buildNumber": "6",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "com.flagrr.loyalty",
-      "versionCode": 7,
+      "versionCode": 9,
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#1F4234",
