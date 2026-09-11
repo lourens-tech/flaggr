@@ -12,12 +12,12 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/types';
 import { ScreenHeader } from '../../components/common/ScreenHeader';
 import { TextField } from '../../components/common/TextField';
 import { useApp } from '../../context/AppContext';
+import { useLiveThread } from '../../hooks/useLiveThread';
 import { ApiError } from '../../api/client';
 import { showAlert } from '../../utils/alert';
 import { enquiryStatusBadges, fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
@@ -54,11 +54,7 @@ export function EnquiryChatScreen({ route }: Props) {
     }
   }, [enquiryId, getEnquiryThread]);
 
-  useFocusEffect(
-    useCallback(() => {
-      load();
-    }, [load]),
-  );
+  useLiveThread(load);
 
   useEffect(() => {
     if (thread) {
