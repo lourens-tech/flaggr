@@ -25,9 +25,9 @@ type ColumnKey = 'memberNumber' | 'firstName' | 'lastName' | 'email';
 // exports — matched case-insensitively against the file's header row.
 const HEADER_ALIASES: Record<ColumnKey, string[]> = {
   memberNumber: ['member number', 'membership number', 'member no', 'member no.', 'member id', 'membership no'],
-  firstName: ['first name', 'firstname', 'name'],
-  lastName: ['last name', 'lastname', 'surname'],
-  email: ['email', 'email address'],
+  firstName: ['first name', 'firstname', 'name', 'member firstname', 'member first name'],
+  lastName: ['last name', 'lastname', 'surname', 'member lastname', 'member last name', 'member surname'],
+  email: ['email', 'email address', 'member email'],
 };
 
 // Minimal RFC 4180 line splitter — handles quoted cells containing commas
