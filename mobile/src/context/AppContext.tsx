@@ -5,6 +5,7 @@ import {
   setToken,
   type ContactEnquiryPayload,
   type FeedbackPayload,
+  type ReferralInfo,
   type SignupPayload,
   type UpdateProfilePayload,
 } from '../api/client';
@@ -100,6 +101,7 @@ interface AppContextValue extends AppState {
   changeHomeClub: (courseId: string) => Promise<void>;
   sendContactEnquiry: (payload: ContactEnquiryPayload) => Promise<string>;
   sendFeedback: (payload: FeedbackPayload) => Promise<string>;
+  getReferralInfo: () => Promise<ReferralInfo>;
   listMyEnquiries: () => Promise<MyEnquirySummary[]>;
   getEnquiryThread: (id: string) => Promise<MyEnquiryThread>;
   replyToEnquiry: (enquiryId: string, message: string) => Promise<EnquiryMessage[]>;
@@ -288,6 +290,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return res.ticketId;
   };
 
+  const getReferralInfo = async (): Promise<ReferralInfo> => api.referralInfo();
+
   const listMyEnquiries = async () => api.myEnquiries();
   const getEnquiryThread = async (id: string) => api.enquiryThread(id);
   const replyToEnquiry = async (enquiryId: string, message: string) => api.replyToEnquiry(enquiryId, message);
@@ -368,6 +372,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     changeHomeClub,
     sendContactEnquiry,
     sendFeedback,
+    getReferralInfo,
     listMyEnquiries,
     getEnquiryThread,
     replyToEnquiry,

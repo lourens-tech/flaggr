@@ -23,6 +23,7 @@ export function SignUpStep1Screen({ navigation }: Props) {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
+  const [referralCode, setReferralCode] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState<string | null>(null);
   const [courses, setCourses] = useState<Course[]>([]);
   const [courseId, setCourseId] = useState<string | null>(null);
@@ -70,6 +71,7 @@ export function SignUpStep1Screen({ navigation }: Props) {
       phone,
       dateOfBirth: dateOfBirth!,
       courseId: courseId!,
+      referralCode: referralCode.trim() || undefined,
     });
   };
 
@@ -161,6 +163,15 @@ export function SignUpStep1Screen({ navigation }: Props) {
                 disabled={loadingCourses}
               />
               {courseError ? <Text style={styles.errorText}>{courseError}</Text> : null}
+              <View style={{ height: spacing.md }} />
+              <TextField
+                icon="gift-outline"
+                placeholder="Referral Code (optional)"
+                autoCapitalize="characters"
+                returnKeyType="done"
+                value={referralCode}
+                onChangeText={setReferralCode}
+              />
 
               <View style={{ height: spacing.lg }} />
               <PillButton label="Next Step" onPress={handleNext} />

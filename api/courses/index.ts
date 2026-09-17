@@ -13,6 +13,7 @@ import {
   PAYFAST_PROCESS_URL,
 } from '../_lib/payfast';
 import { renderBrandedEmailHtml, emailParagraph } from '../_lib/emailTemplate';
+import { grantCourseReferralBonus } from '../_lib/referrals';
 
 const APP_URL = process.env.APP_URL || 'https://app.flagrr.com';
 // Matches the marketing site's advertised pricing exactly (see
@@ -151,6 +152,7 @@ async function initiateSignup(req: VercelRequest, res: VercelResponse) {
     adminEmail?: string;
     returnUrl?: string;
     cancelUrl?: string;
+    referralCode?: string;
   };
   const courseName = body.courseName?.trim();
   const contactEmail = body.contactEmail?.trim().toLowerCase();
@@ -159,6 +161,7 @@ async function initiateSignup(req: VercelRequest, res: VercelResponse) {
   const adminEmail = body.adminEmail?.trim().toLowerCase();
   const returnUrl = body.returnUrl?.trim();
   const cancelUrl = body.cancelUrl?.trim();
+  const referralCode = body.referralCode?.trim() || null;
 
   if (!courseName || !contactEmail || !adminFirstName || !adminLastName || !adminEmail || !returnUrl || !cancelUrl) {
     throw new HttpError(400, 'courseName, contactEmail, adminFirstName, adminLastName, adminEmail, returnUrl, and cancelUrl are required');
@@ -169,8 +172,8 @@ async function initiateSignup(req: VercelRequest, res: VercelResponse) {
 
   const mPaymentId = crypto.randomUUID();
   await sql`
-    insert into pending_club_signups (m_payment_id, course_name, contact_email, contact_phone, admin_first_name, admin_last_name, admin_email, amount)
-    values (${mPaymentId}, ${courseName}, ${contactEmail}, ${body.contactPhone?.trim() || null}, ${adminFirstName}, ${adminLastName}, ${adminEmail}, ${INTRO_FIRST_PAYMENT_AMOUNT})
+    insert into pending_club_signups (m_payment_id, course_name, contact_email, contact_phone, admin_first_name, admin_last_name, admin_email, amount, referral_code)
+    values (${mPaymentId}, ${courseName}, ${contactEmail}, ${body.contactPhone?.trim() || null}, ${adminFirstName}, ${adminLastName}, ${adminEmail}, ${INTRO_FIRST_PAYMENT_AMOUNT}, ${referralCode})
   `;
 
   const fields = buildSubscriptionCheckoutFields({
@@ -224,6 +227,7 @@ async function payfastNotify(req: VercelRequest, res: VercelResponse) {
           admin_first_name: string;
           admin_last_name: string;
           admin_email: string;
+          referral_code: string | null;
         }>)
       : [];
 
@@ -236,6 +240,17 @@ async function payfastNotify(req: VercelRequest, res: VercelResponse) {
         where id = ${courseId}
       `;
       await sql`update pending_club_signups set status = 'completed', completed_at = now() where m_payment_id = ${mPaymentId}`;
+
+      // Paid, not just started — a club that abandons checkout never
+      // triggers this. Same belt-and-braces isolation as the member-signup
+      // referral grant: must never affect the course's own provisioning.
+      if (pending[0].referral_code) {
+        try {
+          await grantCourseReferralBonus(pending[0].referral_code, { id: courseId, name: pending[0].course_name });
+        } catch (err) {
+          console.error('Course referral bonus grant failed', err);
+        }
+      }
     } else if (token) {
       // A recurring renewal for an existing subscription.
       await sql`

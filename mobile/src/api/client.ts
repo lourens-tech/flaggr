@@ -109,6 +109,7 @@ export interface SignupPayload {
   phone?: string;
   dateOfBirth?: string;
   courseId: string;
+  referralCode?: string;
   password: string;
 }
 
@@ -157,6 +158,14 @@ export interface FeedbackPayload {
 export interface FeedbackResponse {
   ok: boolean;
   ticketId: string;
+}
+
+export interface ReferralInfo {
+  code: string;
+  memberBonus: number;
+  courseBonus: number;
+  redeemedCount: number;
+  maxRedemptions: number;
 }
 
 export const api = {
@@ -221,6 +230,8 @@ export const api = {
 
   sendFeedback: (payload: FeedbackPayload) =>
     request<FeedbackResponse>('/profile?action=feedbackCreate', { method: 'POST', body: payload }),
+
+  referralInfo: () => request<ReferralInfo>('/profile?action=referralInfo'),
 
   myEnquiries: () => request<MyEnquirySummary[]>('/profile?action=myEnquiries'),
 

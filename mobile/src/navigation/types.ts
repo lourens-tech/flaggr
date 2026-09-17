@@ -15,6 +15,7 @@ export type AuthStackParamList = {
     phone: string;
     dateOfBirth: string;
     courseId: string;
+    referralCode?: string;
   };
 };
 
@@ -123,6 +124,7 @@ export type RootStackParamList = {
   HelpCenter: undefined;
   Contact: undefined;
   GiveFeedback: undefined;
+  Referral: undefined;
   EditProfile: undefined;
   TermsPrivacy: undefined;
   MyEnquiries: undefined;

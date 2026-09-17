@@ -6,6 +6,7 @@ import { computeQuarterlyTierInfo } from '../_lib/tiers';
 import { matchesRoster } from '../_lib/memberRoster';
 import { sendEmail } from '../_lib/email';
 import { renderWelcomeEmailHtml, renderWelcomeEmailSubject } from '../_lib/welcomeEmail';
+import { grantMemberReferralBonus } from '../_lib/referrals';
 
 const APP_URL = process.env.APP_URL || 'https://app.flagrr.com';
 
@@ -17,6 +18,7 @@ interface SignupBody {
   dateOfBirth?: string;
   courseId?: string;
   password?: string;
+  referralCode?: string;
 }
 
 export default withErrorHandling(async (req: VercelRequest, res: VercelResponse) => {
@@ -33,6 +35,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
   const dateOfBirth = body.dateOfBirth?.trim() || null;
   const courseId = body.courseId?.trim();
   const password = body.password;
+  const referralCode = body.referralCode?.trim();
 
   if (!firstName || !email || !courseId || !password) {
     throw new HttpError(400, 'firstName, email, courseId, and password are required');
@@ -89,6 +92,18 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
   // Brand new account: no activity yet this quarter or last, so this is
   // always Bronze — no need to query.
   const tierInfo = computeQuarterlyTierInfo(0, 0);
+
+  // Invalid/expired codes and capped-out referrers already no-op silently
+  // inside grantMemberReferralBonus — this try/catch is belt-and-braces so
+  // an unexpected failure there (e.g. a DB hiccup) can never fail the
+  // signup itself.
+  if (referralCode) {
+    try {
+      await grantMemberReferralBonus(referralCode, { id: user.id, firstName: user.first_name, lastName: user.last_name });
+    } catch (err) {
+      console.error('Referral bonus grant failed', err);
+    }
+  }
 
   // Never let a slow/failed email provider block or fail account creation —
   // sendEmail already logs and swallows its own errors.

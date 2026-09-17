@@ -59,6 +59,7 @@ export function SignUpStep2Screen({ navigation, route }: Props) {
         phone: route.params.phone || undefined,
         dateOfBirth: route.params.dateOfBirth,
         courseId: route.params.courseId,
+        referralCode: route.params.referralCode,
         password,
       });
     } catch (err) {

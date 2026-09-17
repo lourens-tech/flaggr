@@ -8,6 +8,13 @@ import { notifyCourseAdmins } from '../_lib/adminNotifications';
 import { addMemberMessage, createEnquiry, listEnquiryMessages, markThreadReadByMember } from '../_lib/enquiries';
 import { createSupportTicket, SUPPORT_TICKET_CATEGORIES, type SupportTicketCategory } from '../_lib/supportTickets';
 import { sendEmail } from '../_lib/email';
+import {
+  getOrCreateReferralCode,
+  countReferralRedemptions,
+  MEMBER_REFERRAL_BONUS,
+  COURSE_REFERRAL_BONUS,
+  MAX_REFERRALS_PER_MEMBER,
+} from '../_lib/referrals';
 
 const CONTACT_EMAIL = process.env.CONTACT_EMAIL || 'lourens@ewosolutions.com';
 
@@ -288,6 +295,19 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       accountActivity: p.notify_account_activity,
       supportReplies: p.notify_support_replies,
       announcements: p.notify_announcements,
+    });
+    return;
+  }
+
+  if (action === 'referralInfo' && req.method === 'GET') {
+    const code = await getOrCreateReferralCode(authed.id);
+    const redeemedCount = await countReferralRedemptions(authed.id);
+    res.status(200).json({
+      code,
+      memberBonus: MEMBER_REFERRAL_BONUS,
+      courseBonus: COURSE_REFERRAL_BONUS,
+      redeemedCount,
+      maxRedemptions: MAX_REFERRALS_PER_MEMBER,
     });
     return;
   }

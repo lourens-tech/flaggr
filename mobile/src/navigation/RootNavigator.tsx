@@ -14,6 +14,7 @@ import { NotificationsScreen } from '../screens/profile/NotificationsScreen';
 import { HelpCenterScreen } from '../screens/profile/HelpCenterScreen';
 import { ContactScreen } from '../screens/profile/ContactScreen';
 import { GiveFeedbackScreen } from '../screens/profile/GiveFeedbackScreen';
+import { ReferralScreen } from '../screens/profile/ReferralScreen';
 import { EditProfileScreen } from '../screens/profile/EditProfileScreen';
 import { TermsPrivacyScreen } from '../screens/profile/TermsPrivacyScreen';
 import { MyEnquiriesScreen } from '../screens/profile/MyEnquiriesScreen';
@@ -75,6 +76,7 @@ export function RootNavigator() {
           <Stack.Screen name="HelpCenter" component={HelpCenterScreen} />
           <Stack.Screen name="Contact" component={ContactScreen} />
           <Stack.Screen name="GiveFeedback" component={GiveFeedbackScreen} />
+          <Stack.Screen name="Referral" component={ReferralScreen} />
           <Stack.Screen name="EditProfile" component={EditProfileScreen} />
           <Stack.Screen name="TermsPrivacy" component={TermsPrivacyScreen} />
           <Stack.Screen name="MyEnquiries" component={MyEnquiriesScreen} />

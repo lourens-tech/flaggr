@@ -378,6 +378,7 @@ export function MemberProfileScreen({ navigation }: Props) {
         <Text style={styles.sectionLabel}>Activity</Text>
         <View style={styles.linksGroup}>
           <LinkRow icon="receipt-outline" label="Receipt History" tone="darkGreen" onPress={() => navigation.navigate('ReceiptHistory')} />
+          <LinkRow icon="gift-outline" label="Refer a Friend" tone="lime" onPress={() => navigation.navigate('Referral')} />
         </View>
 
         <Text style={styles.sectionLabel}>Support</Text>
