@@ -3,7 +3,7 @@ import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AdminStackParamList } from '../../navigation/types';
-import { StatCard } from '../../components/common/StatCard';
+import { AdminStatCard } from '../../components/admin/AdminStatCard';
 import { BarChart } from '../../components/common/BarChart';
 import { AdminMobileHeader } from '../../components/admin/AdminMobileHeader';
 import { useAdmin } from '../../context/AdminContext';
@@ -20,10 +20,6 @@ import type { MemberStats } from '../../data/adminTypes';
 type Period = 'month' | 'year' | 'all';
 const PERIOD_LABELS: Record<Period, string> = { month: 'Month', year: 'Year', all: 'All' };
 const PERIODS: Period[] = ['month', 'year', 'all'];
-// "All" has no prior window to compare against (see api/_lib/periods.ts),
-// so its deltaPct is always forced to 0 server-side — show no delta at all
-// there rather than a misleading "0%".
-const DELTA_LABELS: Record<Period, string> = { month: 'vs Last Month', year: 'vs Last Year', all: '' };
 
 type Props = NativeStackScreenProps<AdminStackParamList, 'AdminMemberStats'>;
 
@@ -165,53 +161,48 @@ export function AdminMemberStatsScreen({ route, navigation }: Props) {
 
             <View style={styles.statsGrid}>
               <View style={styles.statsRow}>
-                <StatCard
+                <AdminStatCard
                   label="Rounds (9 Holes)"
                   value={data.stats.roundsPlayed9}
+                  icon="golf-outline"
                   deltaPct={data.stats.roundsPlayed9DeltaPct}
-                  deltaLabel={DELTA_LABELS[period]}
                   showDelta={period !== 'all'}
                   fill
-                  backgroundColor={colors.mintBg}
                 />
-                <StatCard
+                <AdminStatCard
                   label="Rounds (18 Holes)"
                   value={data.stats.roundsPlayed18}
+                  icon="golf-outline"
                   deltaPct={data.stats.roundsPlayed18DeltaPct}
-                  deltaLabel={DELTA_LABELS[period]}
                   showDelta={period !== 'all'}
                   fill
-                  backgroundColor={colors.mintBg}
                 />
               </View>
               <View style={styles.statsRow}>
-                <StatCard
+                <AdminStatCard
                   label="Flagrr Cash Earned"
                   value={data.stats.bucksEarned.toLocaleString()}
+                  icon="trending-up-outline"
                   deltaPct={data.stats.bucksEarnedDeltaPct}
-                  deltaLabel={DELTA_LABELS[period]}
                   showDelta={period !== 'all'}
                   fill
-                  backgroundColor={colors.mintBg}
                 />
-                <StatCard
+                <AdminStatCard
                   label="Flagrr Cash Redeemed"
                   value={data.stats.bucksRedeemed.toLocaleString()}
+                  icon="swap-horizontal-outline"
                   deltaPct={data.stats.bucksRedeemedDeltaPct}
-                  deltaLabel={DELTA_LABELS[period]}
                   showDelta={period !== 'all'}
                   fill
-                  backgroundColor={colors.mintBg}
                 />
               </View>
-              <StatCard
+              <AdminStatCard
                 label="Receipts Scanned"
                 value={data.stats.receiptsScanned}
+                icon="receipt-outline"
                 deltaPct={data.stats.receiptsScannedDeltaPct}
-                deltaLabel={DELTA_LABELS[period]}
                 showDelta={period !== 'all'}
                 width="100%"
-                backgroundColor={colors.mintBg}
               />
             </View>
 

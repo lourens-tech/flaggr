@@ -5,12 +5,12 @@ import type { CompositeScreenProps } from '@react-navigation/native';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AdminStackParamList, AdminTabParamList } from '../../navigation/types';
-import { StatCard } from '../../components/common/StatCard';
 import { BarChart } from '../../components/common/BarChart';
 import { AdminHeaderAvatar } from '../../components/common/AdminHeaderAvatar';
 import { TextField } from '../../components/common/TextField';
 import { PillButton } from '../../components/common/PillButton';
 import { AdminMobileHeader } from '../../components/admin/AdminMobileHeader';
+import { AdminStatCard } from '../../components/admin/AdminStatCard';
 import { useAdmin } from '../../context/AdminContext';
 import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
 import { useHover, hoverTransition } from '../../hooks/useHover';
@@ -368,55 +368,50 @@ export function AdminDashboardScreen({ navigation }: Props) {
           <>
             <View style={styles.statsGrid}>
               <View style={styles.statsRow}>
-                <StatCard
+                <AdminStatCard
                   label="Members"
                   value={dashboard.totals.members}
-                  deltaPct={0}
+                  icon="people-outline"
                   showDelta={false}
                   fill
-                  backgroundColor={colors.mintBg}
                   onPress={() => navigation.navigate('AdminReportDetail', { report: 'members', label: 'Members', period: 'all' })}
                 />
-                <StatCard
+                <AdminStatCard
                   label="New Members"
                   value={dashboard.totals.newMembers}
-                  deltaPct={0}
+                  icon="person-add-outline"
                   showDelta={false}
                   fill
-                  backgroundColor={colors.mintBg}
                   onPress={() => navigation.navigate('AdminReportDetail', { report: 'members', label: 'New Members', period: dashboardPeriod })}
                 />
               </View>
               <View style={styles.statsRow}>
-                <StatCard
+                <AdminStatCard
                   label="Flagrr Cash Earned"
                   value={dashboard.totals.fcEarned.toLocaleString()}
+                  icon="trending-up-outline"
                   deltaPct={dashboard.totals.fcEarnedDeltaPct}
-                  deltaLabel={DELTA_LABELS[dashboardPeriod]}
                   showDelta={dashboardPeriod !== 'all'}
                   fill
-                  backgroundColor={colors.mintBg}
                   onPress={() => navigation.navigate('AdminReportDetail', { report: 'receipts', label: 'Flagrr Cash Earned', period: dashboardPeriod })}
                 />
-                <StatCard
+                <AdminStatCard
                   label="Flagrr Cash Redeemed"
                   value={dashboard.totals.fcRedeemed.toLocaleString()}
+                  icon="swap-horizontal-outline"
                   deltaPct={dashboard.totals.fcRedeemedDeltaPct}
-                  deltaLabel={DELTA_LABELS[dashboardPeriod]}
                   showDelta={dashboardPeriod !== 'all'}
                   fill
-                  backgroundColor={colors.mintBg}
                   onPress={() => navigation.navigate('AdminReportDetail', { report: 'redemptions', label: 'Flagrr Cash Redeemed', period: dashboardPeriod })}
                 />
               </View>
-              <StatCard
+              <AdminStatCard
                 label="Receipts Scanned"
                 value={dashboard.totals.receiptsScanned}
+                icon="receipt-outline"
                 deltaPct={dashboard.totals.receiptsScannedDeltaPct}
-                deltaLabel={DELTA_LABELS[dashboardPeriod]}
                 showDelta={dashboardPeriod !== 'all'}
                 width="100%"
-                backgroundColor={colors.mintBg}
                 onPress={() => navigation.navigate('AdminReportDetail', { report: 'receipts', label: 'Receipts Scanned', period: dashboardPeriod })}
               />
             </View>
