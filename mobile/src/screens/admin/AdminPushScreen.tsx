@@ -1,6 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import type { CompositeScreenProps } from '@react-navigation/native';
@@ -13,6 +12,7 @@ import { AdminDesktopFrame } from '../../components/admin/desktop/AdminDesktopFr
 import { DesktopPanel } from '../../components/admin/desktop/DesktopPanel';
 import { AdminApiError } from '../../api/adminClient';
 import { TextField } from '../../components/common/TextField';
+import { AdminMobileHeader } from '../../components/admin/AdminMobileHeader';
 import { showAlert } from '../../utils/alert';
 import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
 import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
@@ -213,19 +213,20 @@ export function AdminPushScreen({ navigation }: Props) {
 
   return (
     <View style={styles.screen}>
-      <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Push Notifications</Text>
+      <AdminMobileHeader
+        title="Push Notifications"
+        showBack={false}
+        right={
           <TouchableOpacity
             onPress={() => navigation.navigate('AdminBroadcastCompose', undefined)}
             hitSlop={8}
             accessibilityLabel="New Notification"
             accessibilityRole="button"
           >
-            <Ionicons name="add-circle" size={28} color={colors.white} />
+            <Ionicons name="add-circle" size={28} color={colors.clubGreen} />
           </TouchableOpacity>
-        </View>
-      </SafeAreaView>
+        }
+      />
 
       {searchAndFilters}
 
@@ -253,15 +254,6 @@ export function AdminPushScreen({ navigation }: Props) {
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  headerSafeArea: { backgroundColor: colors.clubGreen },
-  header: {
-    paddingHorizontal: screenPadding,
-    paddingVertical: spacing.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  headerTitle: { fontFamily: fontFamily.headingDisplay, fontSize: fontSize.title, color: colors.white },
   searchArea: { paddingHorizontal: screenPadding, paddingTop: spacing.md, gap: spacing.sm },
   filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   filterPill: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: radius.pill, backgroundColor: colors.mintBgAlt },
@@ -270,10 +262,10 @@ function createStyles(colors: ThemeColors) {
   filterTextActive: { color: colors.white },
   listContent: { padding: screenPadding, gap: spacing.sm },
   card: {
-    backgroundColor: colors.mintBg,
-    borderWidth: 0.5,
-    borderColor: colors.clubGreen,
-    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 16,
     padding: spacing.md,
     marginBottom: spacing.sm,
     gap: 4,

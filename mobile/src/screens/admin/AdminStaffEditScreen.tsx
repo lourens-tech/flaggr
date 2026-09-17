@@ -1,10 +1,9 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AdminStackParamList } from '../../navigation/types';
-import { ScreenHeader } from '../../components/common/ScreenHeader';
+import { AdminMobileHeader } from '../../components/admin/AdminMobileHeader';
 import { TextField } from '../../components/common/TextField';
 import { PillButton } from '../../components/common/PillButton';
 import { useAdmin } from '../../context/AdminContext';
@@ -177,10 +176,7 @@ export function AdminStaffEditScreen({ navigation, route }: Props) {
 
     return (
       <View style={styles.screen}>
-        <StatusBar barStyle="light-content" />
-        <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
-          <ScreenHeader title="Edit Staff Member" onBack={() => navigation.goBack()} />
-        </SafeAreaView>
+        <AdminMobileHeader title="Edit Staff Member" onBack={() => navigation.goBack()} />
 
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           {editForm}
@@ -285,10 +281,7 @@ export function AdminStaffEditScreen({ navigation, route }: Props) {
 
   return (
     <View style={styles.screen}>
-      <StatusBar barStyle="light-content" />
-      <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
-        <ScreenHeader title="New Staff Member" onBack={() => navigation.goBack()} />
-      </SafeAreaView>
+      <AdminMobileHeader title="New Staff Member" onBack={() => navigation.goBack()} />
 
       {progressRow}
 
@@ -302,7 +295,6 @@ export function AdminStaffEditScreen({ navigation, route }: Props) {
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  headerSafeArea: { backgroundColor: colors.clubGreen },
   progressRow: { flexDirection: 'row', gap: 6, paddingHorizontal: screenPadding, paddingTop: spacing.md },
   progressDot: { flex: 1, height: 4, borderRadius: 2, backgroundColor: colors.inputBorder },
   progressDotActive: { backgroundColor: colors.clubGreen },
@@ -329,8 +321,10 @@ function createStyles(colors: ThemeColors) {
     marginTop: spacing.sm,
   },
   reviewCard: {
-    backgroundColor: colors.mintBg,
-    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 16,
     padding: spacing.md,
   },
   reviewLabel: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary },

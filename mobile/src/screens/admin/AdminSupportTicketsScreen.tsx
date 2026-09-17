@@ -1,11 +1,10 @@
 import React, { useCallback, useState, useMemo } from 'react';
-import { ActivityIndicator, FlatList, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AdminStackParamList } from '../../navigation/types';
-import { ScreenHeader } from '../../components/common/ScreenHeader';
+import { AdminMobileHeader } from '../../components/admin/AdminMobileHeader';
 import { useAdmin } from '../../context/AdminContext';
 import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
 import { AdminDesktopFrame } from '../../components/admin/desktop/AdminDesktopFrame';
@@ -109,23 +108,20 @@ export function AdminSupportTicketsScreen({ navigation }: Props) {
 
   return (
     <View style={styles.screen}>
-      <StatusBar barStyle="light-content" />
-      <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
-        <ScreenHeader
-          title="Support Centre"
-          onBack={() => navigation.goBack()}
-          right={
-            <TouchableOpacity
-              onPress={() => navigation.navigate('AdminSupportTicketCreate')}
-              hitSlop={8}
-              accessibilityLabel="New Ticket"
-              accessibilityRole="button"
-            >
-              <Ionicons name="add-circle" size={26} color={colors.white} />
-            </TouchableOpacity>
-          }
-        />
-      </SafeAreaView>
+      <AdminMobileHeader
+        title="Support Centre"
+        onBack={() => navigation.goBack()}
+        right={
+          <TouchableOpacity
+            onPress={() => navigation.navigate('AdminSupportTicketCreate')}
+            hitSlop={8}
+            accessibilityLabel="New Ticket"
+            accessibilityRole="button"
+          >
+            <Ionicons name="add-circle" size={26} color={colors.clubGreen} />
+          </TouchableOpacity>
+        }
+      />
 
       {loading ? (
         <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
@@ -145,16 +141,15 @@ export function AdminSupportTicketsScreen({ navigation }: Props) {
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  headerSafeArea: { backgroundColor: colors.clubGreen },
   listContent: { padding: screenPadding, gap: spacing.sm },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    backgroundColor: colors.background,
-    borderWidth: 0.5,
-    borderColor: colors.clubGreen,
-    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 16,
     padding: spacing.sm,
     marginBottom: spacing.sm,
   },

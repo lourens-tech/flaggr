@@ -1,11 +1,10 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AdminStackParamList } from '../../navigation/types';
-import { ScreenHeader } from '../../components/common/ScreenHeader';
+import { AdminMobileHeader } from '../../components/admin/AdminMobileHeader';
 import { TextField } from '../../components/common/TextField';
 import { useAdmin } from '../../context/AdminContext';
 import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
@@ -422,32 +421,30 @@ export function AdminStaffListScreen({ navigation }: Props) {
 
   return (
     <View style={styles.screen}>
-      <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
-        <ScreenHeader
-          title="Staff"
-          onBack={() => navigation.goBack()}
-          right={
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
-              <TouchableOpacity
-                onPress={() => navigation.navigate('AdminStaffActivity')}
-                hitSlop={8}
-                accessibilityLabel="Redemption Activity"
-                accessibilityRole="button"
-              >
-                <Ionicons name="time-outline" size={24} color={colors.white} />
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => navigation.navigate('AdminStaffEdit', undefined)}
-                hitSlop={8}
-                accessibilityLabel="Add Staff Member"
-                accessibilityRole="button"
-              >
-                <Ionicons name="add-circle" size={26} color={colors.white} />
-              </TouchableOpacity>
-            </View>
-          }
-        />
-      </SafeAreaView>
+      <AdminMobileHeader
+        title="Staff"
+        onBack={() => navigation.goBack()}
+        right={
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+            <TouchableOpacity
+              onPress={() => navigation.navigate('AdminStaffActivity')}
+              hitSlop={8}
+              accessibilityLabel="Redemption Activity"
+              accessibilityRole="button"
+            >
+              <Ionicons name="time-outline" size={22} color={colors.textSecondary} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => navigation.navigate('AdminStaffEdit', undefined)}
+              hitSlop={8}
+              accessibilityLabel="Add Staff Member"
+              accessibilityRole="button"
+            >
+              <Ionicons name="add-circle" size={26} color={colors.clubGreen} />
+            </TouchableOpacity>
+          </View>
+        }
+      />
 
       {searchAndFilters}
       {onboardingBanner}
@@ -474,7 +471,6 @@ export function AdminStaffListScreen({ navigation }: Props) {
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  headerSafeArea: { backgroundColor: colors.clubGreen },
   searchArea: { paddingHorizontal: screenPadding, paddingTop: spacing.md, gap: spacing.sm },
   onboardingBanner: {
     flexDirection: 'row',
@@ -494,10 +490,10 @@ function createStyles(colors: ThemeColors) {
   filterTextActive: { color: colors.white },
   listContent: { padding: screenPadding, gap: spacing.sm },
   card: {
-    backgroundColor: colors.mintBg,
-    borderWidth: 0.5,
-    borderColor: colors.clubGreen,
-    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 16,
     padding: spacing.md,
     marginBottom: spacing.sm,
     gap: 4,

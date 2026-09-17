@@ -5,6 +5,7 @@ import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'ex
 import { Ionicons } from '@expo/vector-icons';
 import { TextField } from '../../components/common/TextField';
 import { PillButton } from '../../components/common/PillButton';
+import { AdminMobileHeader } from '../../components/admin/AdminMobileHeader';
 import { useAdmin } from '../../context/AdminContext';
 import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
 import { AdminDesktopFrame } from '../../components/admin/desktop/AdminDesktopFrame';
@@ -203,12 +204,7 @@ export function AdminVoucherRedeemScreen() {
 
   return (
     <View style={styles.screen}>
-      <StatusBar barStyle="light-content" />
-      <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Redeem a Voucher</Text>
-        </View>
-      </SafeAreaView>
+      <AdminMobileHeader title="Redeem a Voucher" showBack={false} />
 
       <View style={styles.content}>{lookupForm}</View>
     </View>
@@ -220,7 +216,6 @@ function createStyles(colors: ThemeColors) {
   screen: { flex: 1, backgroundColor: colors.background },
   scannerScreen: { flex: 1, backgroundColor: colors.darkGreen },
   headerSafeArea: { backgroundColor: colors.clubGreen },
-  header: { paddingHorizontal: screenPadding, paddingVertical: spacing.md },
   headerTitle: { fontFamily: fontFamily.headingDisplay, fontSize: fontSize.title, color: colors.white },
   content: { padding: screenPadding },
   helpText: { fontFamily: fontFamily.body, fontSize: fontSize.body, color: colors.textSecondary, marginBottom: spacing.md },
@@ -230,10 +225,10 @@ function createStyles(colors: ThemeColors) {
   searchRow: { flexDirection: 'row' },
   card: {
     marginTop: spacing.lg,
-    backgroundColor: colors.background,
-    borderWidth: 0.5,
-    borderColor: colors.clubGreen,
-    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 16,
     padding: spacing.md,
   },
   rewardTitle: { fontFamily: fontFamily.heading, fontSize: fontSize.cardTitle, color: colors.textPrimary },

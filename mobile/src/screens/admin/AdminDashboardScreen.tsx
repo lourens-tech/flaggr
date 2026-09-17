@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { ActivityIndicator, Image, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { CompositeScreenProps } from '@react-navigation/native';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
@@ -11,6 +10,7 @@ import { BarChart } from '../../components/common/BarChart';
 import { AdminHeaderAvatar } from '../../components/common/AdminHeaderAvatar';
 import { TextField } from '../../components/common/TextField';
 import { PillButton } from '../../components/common/PillButton';
+import { AdminMobileHeader } from '../../components/admin/AdminMobileHeader';
 import { useAdmin } from '../../context/AdminContext';
 import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
 import { useHover, hoverTransition } from '../../hooks/useHover';
@@ -316,13 +316,11 @@ export function AdminDashboardScreen({ navigation }: Props) {
 
   return (
     <View style={styles.screen}>
-      <StatusBar barStyle="light-content" />
-      <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.headerTitle}>{course.name || 'Reports'}</Text>
-            <Text style={styles.headerSubtitle}>Course Admin</Text>
-          </View>
+      <AdminMobileHeader
+        title={`${greeting()}, ${admin.firstName}`}
+        subtitle={`Here's how ${course.name || 'your club'} is tracking this ${dashboardPeriod === 'all' ? 'period' : dashboardPeriod}.`}
+        showBack={false}
+        right={
           <View style={styles.headerRight}>
             <TouchableOpacity
               onPress={() => navigation.navigate('AdminNotifications')}
@@ -330,7 +328,7 @@ export function AdminDashboardScreen({ navigation }: Props) {
               accessibilityLabel="Notifications"
               accessibilityRole="button"
             >
-              <Ionicons name="notifications" size={20} color={colors.white} />
+              <Ionicons name="notifications-outline" size={20} color={colors.textSecondary} />
               {unreadNotificationCount > 0 ? (
                 <View style={styles.badge}>
                   <Text style={styles.badgeText}>{unreadNotificationCount}</Text>
@@ -341,8 +339,8 @@ export function AdminDashboardScreen({ navigation }: Props) {
               <AdminHeaderAvatar logoUrl={course.logoUrl} size={32} />
             </TouchableOpacity>
           </View>
-        </View>
-      </SafeAreaView>
+        }
+      />
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {course.coverImageUrl ? (
@@ -541,16 +539,6 @@ export function AdminDashboardScreen({ navigation }: Props) {
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  headerSafeArea: { backgroundColor: colors.clubGreen },
-  header: {
-    paddingHorizontal: screenPadding,
-    paddingVertical: spacing.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  headerTitle: { fontFamily: fontFamily.headingDisplay, fontSize: fontSize.title, color: colors.white },
-  headerSubtitle: { fontFamily: fontFamily.body, fontSize: 12, color: 'rgba(255,255,255,0.75)' },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   bellButton: { width: 23, height: 23, alignItems: 'center', justifyContent: 'center' },
   badge: {
@@ -594,19 +582,19 @@ function createStyles(colors: ThemeColors) {
   sectionTitle: { fontFamily: fontFamily.heading, fontSize: fontSize.title, color: colors.textPrimary, marginBottom: spacing.sm },
   sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   chartCard: {
-    backgroundColor: colors.mintBg,
-    borderWidth: 0.5,
-    borderColor: colors.clubGreen,
-    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 16,
     padding: spacing.md,
     marginBottom: spacing.lg,
   },
   chartTitle: { fontFamily: fontFamily.heading, fontSize: fontSize.small, color: colors.textPrimary, marginBottom: spacing.md },
   card: {
-    backgroundColor: colors.mintBg,
-    borderWidth: 0.5,
-    borderColor: colors.clubGreen,
-    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 16,
     padding: spacing.md,
     marginBottom: spacing.lg,
     gap: spacing.sm,
@@ -619,7 +607,6 @@ function createStyles(colors: ThemeColors) {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    backgroundColor: colors.background,
     borderRadius: radius.md,
     padding: spacing.sm,
   },

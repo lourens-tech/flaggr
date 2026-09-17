@@ -1,6 +1,5 @@
 import React, { useCallback, useState, useMemo } from 'react';
-import { ActivityIndicator, Image, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import type { CompositeScreenProps } from '@react-navigation/native';
 import { useFocusEffect } from '@react-navigation/native';
@@ -10,6 +9,7 @@ import type { AdminStackParamList, AdminTabParamList } from '../../navigation/ty
 import { useAdmin } from '../../context/AdminContext';
 import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
 import { AdminDesktopFrame } from '../../components/admin/desktop/AdminDesktopFrame';
+import { AdminMobileHeader } from '../../components/admin/AdminMobileHeader';
 import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
 import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 import type { AdminReward } from '../../data/adminTypes';
@@ -122,20 +122,20 @@ export function AdminRewardsListScreen({ navigation }: Props) {
 
   return (
     <View style={styles.screen}>
-      <StatusBar barStyle="light-content" />
-      <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Rewards</Text>
+      <AdminMobileHeader
+        title="Rewards"
+        showBack={false}
+        right={
           <TouchableOpacity
             onPress={() => navigation.navigate('AdminRewardEdit', {})}
             hitSlop={8}
             accessibilityLabel="Add Reward"
             accessibilityRole="button"
           >
-            <Ionicons name="add-circle" size={28} color={colors.white} />
+            <Ionicons name="add-circle" size={28} color={colors.clubGreen} />
           </TouchableOpacity>
-        </View>
-      </SafeAreaView>
+        }
+      />
 
       {loading ? (
         <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
@@ -154,15 +154,6 @@ export function AdminRewardsListScreen({ navigation }: Props) {
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  headerSafeArea: { backgroundColor: colors.clubGreen },
-  header: {
-    paddingHorizontal: screenPadding,
-    paddingVertical: spacing.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  headerTitle: { fontFamily: fontFamily.headingDisplay, fontSize: fontSize.title, color: colors.white },
   content: { paddingHorizontal: screenPadding, paddingTop: spacing.lg },
   grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: spacing.md },
   card: {

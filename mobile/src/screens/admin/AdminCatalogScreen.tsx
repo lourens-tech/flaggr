@@ -1,11 +1,10 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AdminStackParamList } from '../../navigation/types';
-import { ScreenHeader } from '../../components/common/ScreenHeader';
+import { AdminMobileHeader } from '../../components/admin/AdminMobileHeader';
 import { TextField } from '../../components/common/TextField';
 import { useAdmin } from '../../context/AdminContext';
 import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
@@ -338,22 +337,21 @@ export function AdminCatalogScreen({ navigation }: Props) {
 
   return (
     <View style={styles.screen}>
-      <StatusBar barStyle="light-content" />
-      <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
-        <ScreenHeader title="Products and Activities" onBack={() => navigation.goBack()} />
-      </SafeAreaView>
+      <AdminMobileHeader
+        title="Products and Activities"
+        right={
+          <TouchableOpacity
+            onPress={() => navigation.navigate('AdminCatalogItemEdit', { kind })}
+            hitSlop={8}
+            accessibilityLabel={kind === 'product' ? 'Add Product' : 'Add Activity'}
+            accessibilityRole="button"
+          >
+            <Ionicons name="add-circle" size={28} color={colors.clubGreen} />
+          </TouchableOpacity>
+        }
+      />
 
-      <View style={styles.toolbar}>
-        {toggle}
-        <TouchableOpacity
-          onPress={() => navigation.navigate('AdminCatalogItemEdit', { kind })}
-          hitSlop={8}
-          accessibilityLabel={kind === 'product' ? 'Add Product' : 'Add Activity'}
-          accessibilityRole="button"
-        >
-          <Ionicons name="add-circle" size={30} color={colors.clubGreen} />
-        </TouchableOpacity>
-      </View>
+      <View style={styles.toolbar}>{toggle}</View>
 
       <Text style={styles.helpText}>
         The receipt scanner matches item names against this list to award Flagrr Cash — anything not listed here
@@ -392,11 +390,9 @@ export function AdminCatalogScreen({ navigation }: Props) {
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  headerSafeArea: { backgroundColor: colors.clubGreen },
   toolbar: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: screenPadding,
     paddingTop: spacing.md,
   },
@@ -415,10 +411,10 @@ function createStyles(colors: ThemeColors) {
   searchArea: { paddingHorizontal: screenPadding, marginTop: spacing.md },
   listContent: { padding: screenPadding, gap: spacing.sm },
   row: {
-    backgroundColor: colors.mintBg,
-    borderWidth: 0.5,
-    borderColor: colors.clubGreen,
-    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 16,
   },
   rowContent: {
     flexDirection: 'row',
