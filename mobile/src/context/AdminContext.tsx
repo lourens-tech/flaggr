@@ -225,7 +225,7 @@ interface AdminContextValue {
   // resulting list in its own local state.
   getSuperAdminAds: (courseId: string) => Promise<AdminAd[]>;
   saveSuperAdminAd: (payload: SuperAdminAdSavePayload) => Promise<{ id: string }>;
-  deleteSuperAdminAd: (courseId: string, id: string) => Promise<void>;
+  deleteSuperAdminAd: (id: string) => Promise<void>;
   // Read-only oversight into any club's own enquiries inbox — a super_admin
   // can see the conversation but can't reply into it (see adminClient.ts).
   getSuperAdminCourseEnquiries: (courseId: string, status?: EnquiryStatus) => Promise<AdminEnquirySummary[]>;
@@ -691,8 +691,8 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
 
   const getSuperAdminAds = async (courseId: string) => adminApi.superAdminAds(courseId);
   const saveSuperAdminAd = async (payload: SuperAdminAdSavePayload) => adminApi.saveSuperAdminAd(payload);
-  const deleteSuperAdminAd = async (courseId: string, id: string) => {
-    await adminApi.deleteSuperAdminAd(courseId, id);
+  const deleteSuperAdminAd = async (id: string) => {
+    await adminApi.deleteSuperAdminAd(id);
   };
 
   const getSuperAdminCourseEnquiries = async (courseId: string, status?: EnquiryStatus) =>

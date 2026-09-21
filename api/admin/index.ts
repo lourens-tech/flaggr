@@ -231,14 +231,15 @@ interface AdDeleteBody {
 }
 
 // A super_admin isn't scoped to one course, so its ad actions carry the
-// target courseId explicitly instead of it coming from the session.
+// target explicitly instead of it coming from the session — either every
+// club (isGlobal) or a specific set of clubs (courseIds), unlike the
+// course_admin path above which always targets its own single course.
 interface SuperAdminAdSaveBody extends AdSaveBody {
-  courseId?: string;
+  isGlobal?: boolean;
+  courseIds?: string[];
 }
 
-interface SuperAdminAdDeleteBody extends AdDeleteBody {
-  courseId?: string;
-}
+interface SuperAdminAdDeleteBody extends AdDeleteBody {}
 
 interface SuperAdminGiftFlagrrCashBody {
   userId?: string;
@@ -708,16 +709,27 @@ async function fetchCourse(courseId: string) {
   return courseDto(rows[0]);
 }
 
-// Shared by the course_admin path (implicit courseId from the session) and
-// the super_admin path (explicit courseId — a super_admin isn't scoped to
-// one club) so the actual query logic isn't duplicated per role.
+// Shared by the course_admin path (implicit, real courseId from the
+// session — only ever matches ads exclusively targeting that one course)
+// and the super_admin path (explicit courseId, or null to browse global
+// ads — a super_admin isn't scoped to one club) so the actual query logic
+// isn't duplicated per role. Every ad now also carries its full targeting
+// (isGlobal + courseIds) regardless of which course's list it was found
+// through, so the edit screen can show/edit the complete target set.
 async function listAdsForCourse(courseId: string | null) {
+  const scopeFilter =
+    courseId === null
+      ? sql`a.is_global`
+      : sql`(not a.is_global and exists (select 1 from ad_courses x where x.ad_id = a.id and x.course_id = ${courseId}))`;
   const rows = (await sql`
     select a.id, a.placement, a.title, a.image_url, a.media_type, a.target_url, a.sort_order, a.active,
-           a.starts_at, a.ends_at, count(c.id)::int as clicks
+           a.starts_at, a.ends_at, a.is_global,
+           coalesce(array_agg(ac.course_id) filter (where ac.course_id is not null), '{}') as course_ids,
+           count(distinct k.id)::int as clicks
     from ads a
-    left join ad_clicks c on c.ad_id = a.id
-    where a.course_id is not distinct from ${courseId}
+    left join ad_courses ac on ac.ad_id = a.id
+    left join ad_clicks k on k.ad_id = a.id
+    where ${scopeFilter}
     group by a.id
     order by a.placement, a.sort_order
   `) as Array<{
@@ -731,6 +743,8 @@ async function listAdsForCourse(courseId: string | null) {
     active: boolean;
     starts_at: string | null;
     ends_at: string | null;
+    is_global: boolean;
+    course_ids: string[];
     clicks: number;
   }>;
   return rows.map((r) => ({
@@ -744,6 +758,8 @@ async function listAdsForCourse(courseId: string | null) {
     active: r.active,
     startsAt: r.starts_at,
     endsAt: r.ends_at,
+    isGlobal: r.is_global,
+    courseIds: r.course_ids,
     clicks: r.clicks,
   }));
 }
@@ -815,7 +831,18 @@ function requireCourseIdParam(req: VercelRequest): string {
   return value;
 }
 
-async function saveAdForCourse(courseId: string | null, body: AdSaveBody): Promise<{ id: string }> {
+interface ValidatedAdFields {
+  title: string;
+  placement: string;
+  mediaType: string;
+  targetUrl: string | null;
+  startsAt: string | null;
+  endsAt: string | null;
+  sortOrder: number;
+  active: boolean;
+}
+
+function validateAdBody(body: AdSaveBody): ValidatedAdFields {
   const title = body.title?.trim();
   const placement = body.placement;
   if (!title || !placement || !AD_PLACEMENTS.includes(placement)) {
@@ -832,34 +859,110 @@ async function saveAdForCourse(courseId: string | null, body: AdSaveBody): Promi
       throw new HttpError(400, `Creative must be a valid ${mediaType} data URI under the size limit`);
     }
   }
-  const targetUrl = body.targetUrl?.trim() || null;
-  const startsAt = body.startsAt || null;
-  const endsAt = body.endsAt || null;
-  const sortOrder = body.sortOrder ?? 0;
-  const active = body.active ?? true;
+  return {
+    title,
+    placement,
+    mediaType,
+    targetUrl: body.targetUrl?.trim() || null,
+    startsAt: body.startsAt || null,
+    endsAt: body.endsAt || null,
+    sortOrder: body.sortOrder ?? 0,
+    active: body.active ?? true,
+  };
+}
+
+// Syncs an ad's ad_courses rows to exactly the given set (delete-then-
+// reinsert, simplest way to converge to an arbitrary target set on both
+// create and update) — a no-op set for a global ad, which is targeted by
+// is_global alone.
+async function syncAdCourses(adId: string, isGlobal: boolean, courseIds: string[]) {
+  await sql`delete from ad_courses where ad_id = ${adId}`;
+  if (!isGlobal && courseIds.length > 0) {
+    await sql`
+      insert into ad_courses (ad_id, course_id)
+      select ${adId}, unnest(${courseIds}::uuid[])
+    `;
+  }
+}
+
+// course_admin path: always targets the admin's own single course, never
+// global and never more than one course — same ownership semantics as
+// before multi-course targeting existed.
+async function saveAdForCourse(courseId: string, body: AdSaveBody): Promise<{ id: string }> {
+  const fields = validateAdBody(body);
 
   if (body.id) {
-    const owned = (await sql`select id from ads where id = ${body.id} and course_id is not distinct from ${courseId}`) as Array<{ id: string }>;
+    const owned = (await sql`
+      select a.id from ads a
+      where a.id = ${body.id} and not a.is_global
+        and exists (select 1 from ad_courses ac where ac.ad_id = a.id and ac.course_id = ${courseId})
+    `) as Array<{ id: string }>;
     if (owned.length === 0) throw new HttpError(404, 'Ad not found');
     await sql`
       update ads
-      set title = ${title}, placement = ${placement}, target_url = ${targetUrl}, sort_order = ${sortOrder},
-          active = ${active}, starts_at = ${startsAt}, ends_at = ${endsAt}, updated_at = now()
-          ${body.imageBase64 ? sql`, image_url = ${body.imageBase64}, media_type = ${mediaType}` : sql``}
+      set title = ${fields.title}, placement = ${fields.placement}, target_url = ${fields.targetUrl}, sort_order = ${fields.sortOrder},
+          active = ${fields.active}, starts_at = ${fields.startsAt}, ends_at = ${fields.endsAt}, course_id = ${courseId}, is_global = false,
+          updated_at = now()
+          ${body.imageBase64 ? sql`, image_url = ${body.imageBase64}, media_type = ${fields.mediaType}` : sql``}
       where id = ${body.id}
     `;
+    await syncAdCourses(body.id, false, [courseId]);
     return { id: body.id };
   }
   const inserted = (await sql`
-    insert into ads (course_id, placement, title, image_url, media_type, target_url, sort_order, active, starts_at, ends_at)
-    values (${courseId}, ${placement}, ${title}, ${body.imageBase64 ?? null}, ${mediaType}, ${targetUrl}, ${sortOrder}, ${active}, ${startsAt}, ${endsAt})
+    insert into ads (course_id, is_global, placement, title, image_url, media_type, target_url, sort_order, active, starts_at, ends_at)
+    values (${courseId}, false, ${fields.placement}, ${fields.title}, ${body.imageBase64 ?? null}, ${fields.mediaType}, ${fields.targetUrl}, ${fields.sortOrder}, ${fields.active}, ${fields.startsAt}, ${fields.endsAt})
     returning id
   `) as Array<{ id: string }>;
+  await syncAdCourses(inserted[0].id, false, [courseId]);
   return { id: inserted[0].id };
 }
 
-async function deleteAdForCourse(courseId: string | null, id: string) {
-  await sql`delete from ads where id = ${id} and course_id is not distinct from ${courseId}`;
+async function deleteAdForCourse(courseId: string, id: string) {
+  await sql`
+    delete from ads a
+    where a.id = ${id} and not a.is_global
+      and exists (select 1 from ad_courses ac where ac.ad_id = a.id and ac.course_id = ${courseId})
+  `;
+}
+
+// super_admin path: not scoped to any one club, so it can target every
+// club (isGlobal) or an arbitrary set of specific clubs (courseIds) — no
+// ownership check, a super_admin can manage any ad.
+async function saveAdForSuperAdmin(body: SuperAdminAdSaveBody): Promise<{ id: string }> {
+  const fields = validateAdBody(body);
+  const isGlobal = body.isGlobal ?? false;
+  const courseIds = isGlobal ? [] : (body.courseIds ?? []).filter(Boolean);
+  if (!isGlobal && courseIds.length === 0) {
+    throw new HttpError(400, 'Select at least one course, or choose All Courses');
+  }
+  // Kept populated for the single-course case so any other read still
+  // relying on ads.course_id (reports, ad hoc queries) stays meaningful.
+  const legacyCourseId = !isGlobal && courseIds.length === 1 ? courseIds[0] : null;
+
+  if (body.id) {
+    await sql`
+      update ads
+      set title = ${fields.title}, placement = ${fields.placement}, target_url = ${fields.targetUrl}, sort_order = ${fields.sortOrder},
+          active = ${fields.active}, starts_at = ${fields.startsAt}, ends_at = ${fields.endsAt},
+          course_id = ${legacyCourseId}, is_global = ${isGlobal}, updated_at = now()
+          ${body.imageBase64 ? sql`, image_url = ${body.imageBase64}, media_type = ${fields.mediaType}` : sql``}
+      where id = ${body.id}
+    `;
+    await syncAdCourses(body.id, isGlobal, courseIds);
+    return { id: body.id };
+  }
+  const inserted = (await sql`
+    insert into ads (course_id, is_global, placement, title, image_url, media_type, target_url, sort_order, active, starts_at, ends_at)
+    values (${legacyCourseId}, ${isGlobal}, ${fields.placement}, ${fields.title}, ${body.imageBase64 ?? null}, ${fields.mediaType}, ${fields.targetUrl}, ${fields.sortOrder}, ${fields.active}, ${fields.startsAt}, ${fields.endsAt})
+    returning id
+  `) as Array<{ id: string }>;
+  await syncAdCourses(inserted[0].id, isGlobal, courseIds);
+  return { id: inserted[0].id };
+}
+
+async function deleteAdForSuperAdmin(id: string) {
+  await sql`delete from ads where id = ${id}`;
 }
 
 // Shared by the course_admin path (implicit courseId from the session) and
@@ -1154,10 +1257,13 @@ async function hardDeleteCatalogActivityForCourse(courseId: string, id: string) 
   await sql`delete from golf_activities where id = ${id}`;
 }
 
-// A super_admin's ad actions carry a courseId that's either a real course
-// id or the literal string 'global' (a course id can never collide with
-// that, since courses.id is a uuid) — 'global' maps to a null course_id,
-// meaning the ad shows to every course's members.
+// A super_admin's ad browsing/export requests carry a courseId that's
+// either a real course id or the literal string 'global' (a course id can
+// never collide with that, since courses.id is a uuid) — 'global' means
+// "browse the ads targeting every course" (see listAdsForCourse). Saving/
+// deleting an ad no longer goes through this — see saveAdForSuperAdmin /
+// deleteAdForSuperAdmin, which take an explicit isGlobal + courseIds set
+// instead of a single scope value.
 const GLOBAL_COURSE_SENTINEL = 'global';
 
 function resolveAdCourseId(value: string | undefined): string | null {
@@ -2561,8 +2667,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
 
       if (action === 'superAdminAdSave') {
         const body = req.body as SuperAdminAdSaveBody;
-        const targetCourseId = resolveAdCourseId(body.courseId);
-        const saved = await saveAdForCourse(targetCourseId, body);
+        const saved = await saveAdForSuperAdmin(body);
         await logAudit({
           adminId: authedAdmin.id,
           adminName: `${authedAdmin.firstName} ${authedAdmin.lastName}`,
@@ -2578,9 +2683,8 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
 
       if (action === 'superAdminAdDelete') {
         const body = req.body as SuperAdminAdDeleteBody;
-        const targetCourseId = resolveAdCourseId(body.courseId);
         if (!body.id) throw new HttpError(400, 'id is required');
-        await deleteAdForCourse(targetCourseId, body.id);
+        await deleteAdForSuperAdmin(body.id);
         await logAudit({
           adminId: authedAdmin.id,
           adminName: `${authedAdmin.firstName} ${authedAdmin.lastName}`,
