@@ -1,17 +1,18 @@
 #!/usr/bin/env python3
 """Packs a mailer into a zip a club can be handed directly.
 
-Clubs don't have the repo, and shouldn't need it. This bundles the mailer,
-the plain-text version, an images-inlined copy they can paste straight into
-Gmail or Outlook, the QR codes as standalone PNGs (they print), and the
-plain-language instruction sheet.
+Clubs don't have the repo, and shouldn't need it. Strand sends through
+ClubMaster's bulk email, and club management systems differ in whether their
+editor exposes an HTML/source view, so the pack carries both routes: the
+mailer itself for a source view, and the words plus three insertable images
+for an ordinary rich-text editor. The instruction sheet starts by telling the
+reader which of the two they have.
 
 Usage:
     python3 marketing/build-handover.py
     -> marketing/dist/strand-flagrr-announcement.zip
 """
 import pathlib
-import subprocess
 import sys
 import zipfile
 
@@ -26,22 +27,17 @@ ZIP_NAME = "strand-flagrr-announcement.zip"
 
 def main() -> None:
     DIST.mkdir(exist_ok=True)
-    inline = DIST / "flagrr-announcement-INLINE.html"
-
-    # Regenerate the inlined copy so it can never lag behind the mailer.
-    subprocess.run(
-        [sys.executable, str(MARKETING / "make-preview.py"), str(MAILER), str(inline)],
-        check=True,
-        stdout=subprocess.DEVNULL,
-    )
 
     members = {
-        "HOW-TO-SEND-THIS.txt": MARKETING / "club-handover-instructions.txt",
+        "HOW-TO-SEND.txt": MARKETING / "club-handover-instructions.txt",
+        # Method A: pasted into an editor's HTML/source view.
         "flagrr-announcement.html": MAILER,
-        "flagrr-announcement.txt": MARKETING / "strand-golf-club-pilot-launch.txt",
-        "flagrr-announcement-INLINE.html": inline,
-        "qr-app-store.png": ASSETS / "qr-app-store.png",
-        "qr-play-store.png": ASSETS / "qr-play-store.png",
+        # Method B: typed into an ordinary rich-text editor, with the three
+        # images inserted by hand where the text marks them.
+        "email-text.txt": MARKETING / "strand-email-text-simple.txt",
+        "image-1-header.png": ASSETS / "flagrr-email-header.png",
+        "image-2-qr-iphone.png": ASSETS / "qr-app-store.png",
+        "image-3-qr-android.png": ASSETS / "qr-play-store.png",
     }
 
     out = DIST / ZIP_NAME
@@ -51,7 +47,6 @@ def main() -> None:
                 sys.exit(f"missing {src}")
             z.write(src, name)
 
-    inline.unlink()
     print(f"{out.relative_to(ROOT)}  ({out.stat().st_size // 1024} KB)")
     for name in members:
         print(f"  {name}")

@@ -17,6 +17,7 @@ the API.
 | `build-handover.py` | Packs the mailer into a zip the club can be handed directly. |
 | `send-via-resend.mjs` | Sends a mailer through Resend, the service the app already uses. |
 | `club-handover-instructions.txt` | The send instructions that go in that zip, written for a club secretary rather than a developer. |
+| `strand-email-text-simple.txt` | The mailer as plain words plus image markers, for a club whose email editor has no HTML view. |
 
 ## Before you send
 
@@ -87,11 +88,24 @@ That writes `marketing/dist/strand-flagrr-announcement.zip` (gitignored, it's
 a build output) containing the mailer, the text version, an images-inlined
 copy, both QR codes as standalone PNGs, and `HOW-TO-SEND-THIS.txt`.
 
-The inlined copy is there for a club that sends from Gmail or Outlook rather
-than a campaign platform: opened in a browser and copy-pasted into a compose
-window, the mail client re-hosts the images on its own, so that route works
-even before a deploy has published them. The instruction sheet covers both
-routes.
+Strand sends through **ClubMaster**, its club management system, and systems
+like it vary in whether the bulk-email editor exposes an HTML/source view. So
+the pack carries both routes and the instruction sheet opens by telling the
+reader which one they have:
+
+- **Method A** — editor has a `< >` / "Source code" button: paste
+  `flagrr-announcement.html` into it. Best result.
+- **Method B** — ordinary rich-text editor: paste `email-text.txt` and insert
+  the three numbered images where the text marks them.
+
+Method B exists because a rich-text editor re-serialises whatever it is given
+from its own DOM, which flattens a table-based design (see below). Words plus
+inserted images survive that, because they are the things such editors are
+built to hold.
+
+Note `image-1-header.png`: a pre-rendered green banner with the logo on it.
+The plain `flagrr-logo-white-email.png` is white, drawn to sit on the dark
+green header band, so on a white editor background it would be invisible.
 
 ## Don't send it from a mail client's compose window
 
