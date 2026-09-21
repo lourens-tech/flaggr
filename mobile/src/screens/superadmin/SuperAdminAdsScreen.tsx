@@ -86,11 +86,18 @@ export function SuperAdminAdsScreen({ navigation }: Props) {
     </TouchableOpacity>
   );
 
+  const newAdButton = (
+    <TouchableOpacity style={styles.dAddButton} onPress={() => navigation.navigate('SuperAdminAdEdit', {})}>
+      <Ionicons name="add" size={16} color={colors.darkGreen} />
+      <Text style={styles.dAddButtonText}>New Ad</Text>
+    </TouchableOpacity>
+  );
+
   if (isDesktop) {
     return (
-      <SuperAdminDesktopFrame activeKey="SuperAdminAds" breadcrumb="Ads">
+      <SuperAdminDesktopFrame activeKey="SuperAdminAds" breadcrumb="Ads" headerRight={newAdButton}>
         <Text style={styles.dPageTitle}>Ads</Text>
-        <Text style={styles.dPageSubtitle}>Pick a club, or All Courses for a platform-wide ad</Text>
+        <Text style={styles.dPageSubtitle}>Pick a club, or All Courses for a platform-wide ad — or start a new ad and choose its targeting directly</Text>
         {allCoursesRow}
         <DesktopPanel title="Specific Club">
           <TextField placeholder="Search courses" variant="onLight" icon="search" value={search} onChangeText={setSearch} />
@@ -111,8 +118,18 @@ export function SuperAdminAdsScreen({ navigation }: Props) {
       <StatusBar barStyle="light-content" />
       <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Ads</Text>
-          <Text style={styles.headerSubtitle}>Pick a club, or All Courses for a platform-wide ad</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.headerTitle}>Ads</Text>
+            <Text style={styles.headerSubtitle}>Pick a club, or All Courses for a platform-wide ad</Text>
+          </View>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('SuperAdminAdEdit', {})}
+            hitSlop={8}
+            accessibilityLabel="New Ad"
+            accessibilityRole="button"
+          >
+            <Ionicons name="add-circle" size={28} color={colors.white} />
+          </TouchableOpacity>
         </View>
       </SafeAreaView>
 
@@ -146,7 +163,7 @@ function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
   headerSafeArea: { backgroundColor: colors.clubGreen },
-  header: { paddingHorizontal: screenPadding, paddingVertical: spacing.md },
+  header: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: screenPadding, paddingVertical: spacing.md },
   headerTitle: { fontFamily: fontFamily.headingDisplay, fontSize: fontSize.title, color: colors.white },
   headerSubtitle: { fontFamily: fontFamily.body, fontSize: 12, color: 'rgba(255,255,255,0.75)' },
   allCoursesRow: {
@@ -193,5 +210,15 @@ function createStyles(colors: ThemeColors) {
   },
   dPageTitle: { fontFamily: fontFamily.heading, fontSize: 26, color: colors.textPrimary },
   dPageSubtitle: { fontFamily: fontFamily.body, fontSize: 13, color: colors.textSecondary, marginTop: 2, marginBottom: spacing.sm },
+  dAddButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.lime,
+    borderRadius: radius.pill,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  dAddButtonText: { fontFamily: fontFamily.bodySemiBold, fontSize: 13, color: colors.darkGreen },
 });
 }

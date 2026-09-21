@@ -196,7 +196,8 @@ export interface SuperAdminCourseCreateResponse {
 }
 
 export interface SuperAdminAdSavePayload extends AdSavePayload {
-  courseId: string;
+  isGlobal: boolean;
+  courseIds: string[];
 }
 
 export interface SuperAdminRewardSavePayload extends RewardSavePayload {
@@ -422,8 +423,8 @@ export const adminApi = {
   saveSuperAdminAd: (payload: SuperAdminAdSavePayload) =>
     request<{ id: string }>('?action=superAdminAdSave', { method: 'POST', body: payload }),
 
-  deleteSuperAdminAd: (courseId: string, id: string) =>
-    request<{ ok: boolean }>('?action=superAdminAdDelete', { method: 'POST', body: { courseId, id } }),
+  deleteSuperAdminAd: (id: string) =>
+    request<{ ok: boolean }>('?action=superAdminAdDelete', { method: 'POST', body: { id } }),
 
   superAdminDashboard: (period: 'month' | 'year' | 'all') =>
     request<SuperAdminDashboardReport>(`?action=superAdminDashboard&period=${period}`),

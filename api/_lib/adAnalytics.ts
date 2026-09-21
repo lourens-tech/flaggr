@@ -4,7 +4,6 @@ import { MONTH_LETTERS } from './monthly';
 
 export interface AdPerformanceRow {
   adId: string;
-  courseId: string | null;
   courseName: string;
   title: string;
   placement: string;
@@ -22,27 +21,30 @@ function computeCtr(clicks: number, impressions: number): number {
 
 // Ad performance was deliberately excluded from the course-admin dashboard
 // — only a super_admin sees how ads perform across every club that's
-// running them. course_id null means a global ad (shown to every club),
-// hence the left join instead of an inner one. Clicks/impressions are
+// running them. is_global means the ad targets every club (course_name
+// reads "All Courses"); otherwise course_name lists every club it targets
+// via ad_courses (an ad can now target several). Clicks/impressions are
 // period-scoped (an ad created long ago still shows, just with 0s outside
 // its active window); count(distinct ...) undoes the row-multiplying
-// effect of joining both ad_clicks and ad_impressions onto the same ad.
+// effect of joining ad_courses, ad_clicks and ad_impressions onto the same ad.
 export async function getAdPerformanceReport(period: StatsPeriod): Promise<AdPerformanceRow[]> {
   const { currentStart } = periodWindow(period);
   const rows = (await sql`
-    select a.id as ad_id, a.course_id, coalesce(c.name, 'All Courses') as course_name, a.title, a.placement, a.media_type, a.active,
+    select a.id as ad_id,
+           case when a.is_global then 'All Courses' else coalesce(string_agg(distinct c.name, ', '), '—') end as course_name,
+           a.title, a.placement, a.media_type, a.active,
            count(distinct k.id) filter (where k.clicked_at >= ${currentStart})::int as clicks,
            count(distinct i.id) filter (where i.viewed_at >= ${currentStart})::int as impressions
     from ads a
-    left join courses c on c.id = a.course_id
+    left join ad_courses ac on ac.ad_id = a.id
+    left join courses c on c.id = ac.course_id
     left join ad_clicks k on k.ad_id = a.id
     left join ad_impressions i on i.ad_id = a.id
-    group by a.id, c.name
+    group by a.id
     order by clicks desc
     limit 50
   `) as Array<{
     ad_id: string;
-    course_id: string | null;
     course_name: string;
     title: string;
     placement: string;
@@ -53,7 +55,6 @@ export async function getAdPerformanceReport(period: StatsPeriod): Promise<AdPer
   }>;
   return rows.map((r) => ({
     adId: r.ad_id,
-    courseId: r.course_id,
     courseName: r.course_name,
     title: r.title,
     placement: r.placement,

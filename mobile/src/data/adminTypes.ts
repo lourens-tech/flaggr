@@ -129,7 +129,6 @@ export interface SuperAdminDashboardReport extends DashboardReport {
 
 export interface AdPerformanceRow {
   adId: string;
-  courseId: string | null;
   courseName: string;
   title: string;
   placement: 'home' | 'home_top' | 'rewards_shop';
@@ -240,6 +239,10 @@ export interface AdminAd {
   active: boolean;
   startsAt: string | null;
   endsAt: string | null;
+  // Targeting: every club (isGlobal) or the specific clubs in courseIds —
+  // mutually exclusive, set by a super_admin (see SuperAdminAdEditScreen).
+  isGlobal: boolean;
+  courseIds: string[];
   clicks: number;
 }
 

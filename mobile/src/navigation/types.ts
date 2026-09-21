@@ -66,7 +66,11 @@ export type SuperAdminStackParamList = {
   SuperAdminTabs: undefined;
   SuperAdminCourseCreate: undefined;
   SuperAdminCourseAds: { courseId: string; courseName: string };
-  SuperAdminAdEdit: { courseId: string; adId?: string };
+  // courseId is just the launch-context hint used to preselect targeting
+  // (a real course id, or 'global') — the create/edit form itself owns the
+  // actual target set (isGlobal + selected courses), editable regardless
+  // of how the screen was entered. Omit both for a screen-agnostic "New Ad".
+  SuperAdminAdEdit: { courseId?: string; adId?: string };
   SuperAdminCourseRewards: { courseId: string; courseName: string; fbPerRand: number };
   SuperAdminRewardEdit: { courseId: string; fbPerRand: number; rewardId?: string };
   SuperAdminCourseCatalog: { courseId: string; courseName: string; fbPerRand: number };
