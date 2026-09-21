@@ -2,11 +2,11 @@
 
 **Flagrr Golf Loyalty Platform — Prospective Investors**
 
-This Non-Disclosure Agreement (the **"Agreement"**) is entered into on **[EFFECTIVE DATE]** (the **"Effective Date"**) between:
+This Non-Disclosure Agreement (the **"Agreement"**) is entered into on ____________________________ (the **"Effective Date"**) between:
 
 **(1) EWO Solutions (Pty) Ltd**, a private company incorporated under the laws of the Republic of South Africa with registration number **2022/212834/07**, of **11 Gardner Williams Avenue, Paardevlei, Cape Town, 7130** (the **"Company"**); and
 
-**(2) [INVESTOR LEGAL NAME]**, a [company / partnership / trust / natural person] [incorporated under the laws of **[JURISDICTION]** with registration number **[REG NO]** / with identity number **[ID NO]**], of **[ADDRESS]** (the **"Recipient"**),
+**(2)** _______________________________________________________________, with registration number or identity number ______________________________, of _______________________________________________________________ (the **"Recipient"**),
 
 each a **"Party"** and together the **"Parties"**.
 
@@ -182,9 +182,9 @@ each a **"Party"** and together the **"Parties"**.
 
 | | Company | Recipient |
 |---|---|---|
-| **Physical address** | 11 Gardner Williams Avenue, Paardevlei, Cape Town, 7130 | [ADDRESS] |
-| **Email** | Lourens@ewosolutions.com | [EMAIL] |
-| **For the attention of** | Lourens Vorster | [NAME] |
+| **Physical address** | 11 Gardner Williams Avenue, Paardevlei, Cape Town, 7130 | ______________________________ |
+| **Email** | Lourens@ewosolutions.com | ______________________________ |
+| **For the attention of** | Lourens Vorster | ______________________________ |
 
 16.2 A notice is deemed received: on delivery, if delivered by hand; on the seventh business day after posting, if posted; and on the first business day after sending, if sent by email and no delivery-failure message is received.
 
@@ -213,18 +213,18 @@ each a **"Party"** and together the **"Parties"**.
 | Signature | ______________________________ |
 | Name | Lourens Vorster |
 | Capacity | Director |
-| Date | [DATE] |
-| Place | [PLACE] |
+| Date | ______________________________ |
+| Place | ______________________________ |
 
 **Signed for and on behalf of the Recipient:**
 
 | | |
 |---|---|
 | Signature | ______________________________ |
-| Name | [NAME] |
-| Capacity | [CAPACITY — duly authorised] |
-| Date | [DATE] |
-| Place | [PLACE] |
+| Name | ______________________________ |
+| Capacity | ______________________________ |
+| Date | ______________________________ |
+| Place | ______________________________ |
 
 ---
 
