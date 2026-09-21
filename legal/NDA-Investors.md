@@ -76,7 +76,7 @@ each a **"Party"** and together the **"Parties"**.
 
   (e) not reverse engineer, decompile, disassemble or otherwise attempt to derive the source code, structure or algorithms of any software or system forming part of the Business, other than as expressly authorised in writing by the Company; and
 
-  (f) notify the Company in writing without undue delay, and in any event within **[48] hours**, of becoming aware of any actual or suspected unauthorised use, disclosure, access, loss or compromise of any Confidential Information, and cooperate reasonably with the Company in investigating and mitigating it.
+  (f) notify the Company in writing without undue delay, and in any event within **48 hours**, of becoming aware of any actual or suspected unauthorised use, disclosure, access, loss or compromise of any Confidential Information, and cooperate reasonably with the Company in investigating and mitigating it.
 
 4.2 The Recipient shall not, without the Company's prior written consent, disclose to any third party that the Company is seeking or considering investment, the status of that process, or any terms under discussion.
 
@@ -100,7 +100,7 @@ each a **"Party"** and together the **"Parties"**.
 
 ## 7. Non-Circumvention
 
-7.1 For the duration of this Agreement and for **[twelve (12)] months** after its termination, the Recipient shall not use the Confidential Information to approach, solicit or transact directly with any participating or prospective golf club, merchant, advertiser or supplier of the Company whose identity was first disclosed to the Recipient under this Agreement, for the purpose of establishing a competing arrangement or of circumventing the Company.
+7.1 For the duration of this Agreement and for **twelve (12) months** after its termination, the Recipient shall not use the Confidential Information to approach, solicit or transact directly with any participating or prospective golf club, merchant, advertiser or supplier of the Company whose identity was first disclosed to the Recipient under this Agreement, for the purpose of establishing a competing arrangement or of circumventing the Company.
 
 ## 8. Compelled Disclosure
 
@@ -134,7 +134,7 @@ each a **"Party"** and together the **"Parties"**.
 
   (c) not transfer it outside the Republic of South Africa without the Company's prior written consent and compliance with section 72 of POPIA;
 
-  (d) notify the Company immediately, and in any event within **[24] hours**, where there are reasonable grounds to believe that it has been accessed or acquired by any unauthorised person, and provide all information the Company reasonably requires to make any notification under section 22 of POPIA; and
+  (d) notify the Company immediately, and in any event within **24 hours**, where there are reasonable grounds to believe that it has been accessed or acquired by any unauthorised person, and provide all information the Company reasonably requires to make any notification under section 22 of POPIA; and
 
   (e) on termination, deal with it in accordance with clause 13.
 
@@ -142,9 +142,9 @@ each a **"Party"** and together the **"Parties"**.
 
 ## 12. Term and Survival
 
-12.1 This Agreement commences on the Effective Date and continues until terminated by either Party on **[30] days'** written notice.
+12.1 This Agreement commences on the Effective Date and continues until terminated by either Party on **30 days'** written notice.
 
-12.2 The Recipient's obligations in respect of Confidential Information disclosed before termination survive and continue for **[three (3)] years** from the date of termination, except that:
+12.2 The Recipient's obligations in respect of Confidential Information disclosed before termination survive and continue for **three (3) years** from the date of termination, except that:
 
   (a) obligations in respect of anything constituting a trade secret continue for as long as it remains a trade secret; and
 
@@ -154,7 +154,7 @@ each a **"Party"** and together the **"Parties"**.
 
 ## 13. Return and Destruction
 
-13.1 On the earlier of the Company's written request or termination of this Agreement without an investment having been made, the Recipient shall promptly, and in any event within **[10] business days**:
+13.1 On the earlier of the Company's written request or termination of this Agreement without an investment having been made, the Recipient shall promptly, and in any event within **10 business days**:
 
   (a) cease all use of the Confidential Information;
 
@@ -200,7 +200,7 @@ each a **"Party"** and together the **"Parties"**.
 
 17.5 **Counterparts and electronic signature.** This Agreement may be signed in counterparts, each of which is an original and all of which together constitute one agreement. The Parties agree that signature by electronic means constitutes a valid signature and that this Agreement may be concluded in electronic form as contemplated in the Electronic Communications and Transactions Act 25 of 2002.
 
-17.6 **Governing law and jurisdiction.** This Agreement is governed by and construed in accordance with the laws of the Republic of South Africa. The Parties consent to the exclusive jurisdiction of the **High Court of South Africa, [Western Cape Division, Cape Town]** in respect of any dispute arising out of or in connection with it.
+17.6 **Governing law and jurisdiction.** This Agreement is governed by and construed in accordance with the laws of the Republic of South Africa. The Parties consent to the exclusive jurisdiction of the **High Court of South Africa, Western Cape Division, Cape Town** in respect of any dispute arising out of or in connection with it.
 
 ---
 
