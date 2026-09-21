@@ -14,6 +14,8 @@ the API.
 | `strand-golf-club-pilot-launch.txt` | Plain-text alternative (subject line at the top). Send it as the multipart text part — it keeps the campaign out of spam filters that penalise HTML-only mail. |
 | `generate-store-qr.py` | Regenerates the App Store / Play Store QR codes. |
 | `make-preview.py` | Builds a self-contained `*.preview.html` for eyeballing in a browser. |
+| `build-handover.py` | Packs the mailer into a zip the club can be handed directly. |
+| `club-handover-instructions.txt` | The send instructions that go in that zip, written for a club secretary rather than a developer. |
 
 ## Before you send
 
@@ -24,10 +26,15 @@ the API.
    tag it expects (Mailchimp `*|UNSUB|*`, Campaign Monitor `<unsubscribe>`,
    and so on).
 2. **Deploy first.** The mailer loads its logo and QR codes from
-   `https://app.flagrr.com/...`, which is served by the web build (see
-   `mobile/scripts/copy-static-assets.sh`). Those URLs 404 until a deploy
-   carrying the images has gone out — send a test to yourself and confirm all
-   three images render.
+   `https://flagrr-loyalty.vercel.app/...`, served by the web build (see
+   `mobile/scripts/copy-static-assets.sh`). The QR codes 404 until a deploy
+   carrying them has gone out — send a test to yourself and confirm all three
+   images render.
+
+   It deliberately does *not* use `app.flagrr.com`: that domain is registered
+   in Vercel but its DNS doesn't resolve publicly yet (same reason
+   `mobile/src/api/client.ts` falls back to the vercel.app domain). Once DNS
+   is configured, both work and either is fine.
 3. **Send a test to a real iPhone and a real Android phone.** Scan both codes
    off a screen, and tap both buttons.
 
@@ -66,3 +73,21 @@ styles on every element, 600px max width, no external CSS and no background
 images. That's the intersection of what Gmail, Apple Mail and Outlook's Word
 rendering engine all handle. Keep the QR codes paired with a tappable button —
 about half of members read the mail on the phone they'd be scanning with.
+
+## Handing a mailer to a club
+
+Clubs don't have the repo and shouldn't need it.
+
+```sh
+python3 marketing/build-handover.py
+```
+
+That writes `marketing/dist/strand-flagrr-announcement.zip` (gitignored, it's
+a build output) containing the mailer, the text version, an images-inlined
+copy, both QR codes as standalone PNGs, and `HOW-TO-SEND-THIS.txt`.
+
+The inlined copy is there for a club that sends from Gmail or Outlook rather
+than a campaign platform: opened in a browser and copy-pasted into a compose
+window, the mail client re-hosts the images on its own, so that route works
+even before a deploy has published them. The instruction sheet covers both
+routes.

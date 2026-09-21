@@ -19,7 +19,7 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 ASSETS = ROOT / "mobile" / "assets" / "email"
-HOSTED = re.compile(r"https://app\.flagrr\.com/([A-Za-z0-9._-]+\.png)")
+HOSTED = re.compile(r"https://(?:app\.flagrr\.com|flagrr-loyalty\.vercel\.app)/([A-Za-z0-9._-]+\.png)")
 
 
 def main() -> None:
