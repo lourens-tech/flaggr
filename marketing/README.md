@@ -15,7 +15,11 @@ the API.
 | `generate-store-qr.py` | Regenerates the App Store / Play Store QR codes. |
 | `make-preview.py` | Builds a self-contained `*.preview.html` for eyeballing in a browser. |
 | `build-handover.py` | Packs the mailer into a zip the club can be handed directly. |
+| `send-via-resend.mjs` | Sends a mailer through Resend, the service the app already uses. |
 | `club-handover-instructions.txt` | The send instructions that go in that zip, written for a club secretary rather than a developer. |
+| `strand-email-text-simple.txt` | The mailer as plain words plus image markers, for placing the design in the body of a rich-text editor. |
+| `strand-flagrr-announcement.jpg` | The whole mailer rendered as one picture, to attach. |
+| `render-jpeg.mjs` | Regenerates that JPEG from the mailer. |
 
 ## Before you send
 
@@ -86,8 +90,68 @@ That writes `marketing/dist/strand-flagrr-announcement.zip` (gitignored, it's
 a build output) containing the mailer, the text version, an images-inlined
 copy, both QR codes as standalone PNGs, and `HOW-TO-SEND-THIS.txt`.
 
-The inlined copy is there for a club that sends from Gmail or Outlook rather
-than a campaign platform: opened in a browser and copy-pasted into a compose
-window, the mail client re-hosts the images on its own, so that route works
-even before a deploy has published them. The instruction sheet covers both
-routes.
+Strand sends through **ClubMaster**, its club management system. Systems like
+it vary in what their bulk-email editor can hold, and the people operating it
+aren't technical, so the pack carries three routes and the sheet tells them to
+pick one:
+
+1. **Paste the words, attach the JPEG.** Works in any mail tool ever made.
+   The pasted text carries the store links, so the email still does its job
+   for a member who never opens the attachment.
+2. **Paste the words, place three images** in the body — the design lives in
+   the email rather than an attachment, at the cost of three "Insert image"
+   steps.
+3. **Paste the HTML** into a `< >` / "Source code" view, if the editor has
+   one. Best result, but not every system offers it.
+
+Routes 1 and 2 exist because a rich-text editor re-serialises whatever it is
+given from its own DOM, which flattens a table-based design (see below). Words,
+attachments and inserted images survive that, because they are the things such
+editors are built to hold.
+
+Note `image-1-header.png`: a pre-rendered green banner with the logo on it.
+The plain `flagrr-logo-white-email.png` is white, drawn to sit on the dark
+green header band, so on a white editor background it would be invisible.
+
+## Don't send it from a mail client's compose window
+
+Gmail and Outlook compose windows rewrite the HTML you paste into them: they
+strip background colours and re-serialise the markup from their own editor
+DOM. A table-based mailer pasted into Gmail loses the green header band and
+the tinted panels, and what gets sent is the flattened version, not the file.
+
+Send it through something that transmits the HTML unchanged:
+
+```sh
+RESEND_API_KEY=re_xxx \
+RESEND_FROM_EMAIL='Strand Golf Club <noreply@flagrr.com>' \
+node marketing/send-via-resend.mjs you@example.com
+```
+
+Or paste the HTML into a campaign platform's "Custom HTML" campaign. Both
+preserve the design; a compose window does not.
+
+Note the sending domain: `api/_lib/email.ts` falls back to Resend's shared
+`onboarding@resend.dev`, which only delivers to the Resend account owner's own
+verified address. That's fine for a test send, but the member list needs a
+verified sending domain configured in Resend.
+
+## Regenerating the JPEG
+
+```sh
+npm i --no-save playwright-core
+node marketing/render-jpeg.mjs
+```
+
+It inlines the images (via `make-preview.py`), renders at 640 CSS px and
+2x scale, and writes `strand-flagrr-announcement.jpg`.
+
+**After any change, confirm the QR codes still decode from the JPEG itself**,
+not just from the source PNGs — compression and downscaling are what would
+break them:
+
+```sh
+python3 -c "import cv2; ok,d,_,_ = cv2.QRCodeDetector().detectAndDecodeMulti(cv2.imread('marketing/strand-flagrr-announcement.jpg')); print(d if ok else 'NO CODES FOUND')"
+```
+
+Both should print their full store URLs.

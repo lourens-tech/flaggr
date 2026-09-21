@@ -1,70 +1,122 @@
-FLAGRR PILOT ANNOUNCEMENT — HOW TO SEND IT
+SENDING THE FLAGRR ANNOUNCEMENT FROM CLUBMASTER
 Strand Golf Club · pilot starts Friday 25 September
 
-WHAT'S IN THIS FOLDER
 
-  flagrr-announcement.html         The email itself.
-  flagrr-announcement-INLINE.html  Same email, images built in. Use this one
-                                   for the copy-and-paste method below.
-  flagrr-announcement.txt          Plain-text version + the subject line.
-  qr-app-store.png                 iPhone download code (also fine for print).
-  qr-play-store.png                Android download code (also fine for print).
+There are three ways to do this. Pick ONE. They all reach members with the
+same message — they differ only in how the design travels.
 
-Nothing needs filling in. No names, no dates, no placeholders — it's ready
-as it stands.
+    METHOD 1  Paste the words, attach the picture.   Easiest. Always works.
+    METHOD 2  Paste the words, place 3 pictures.     Design sits in the email.
+    METHOD 3  Paste the design code.                 Best looking, if offered.
 
-SUBJECT LINE
-
-  Strand Golf Club is piloting Flagrr — your rounds start paying you back
+If you have never done this before, use METHOD 1.
 
 
-METHOD 1 — IF YOU SEND THROUGH A MAILING PLATFORM
-(Mailchimp, Brevo, Everlytic, Zoho Campaigns, Mailerlite, and similar)
+SUBJECT LINE (all three methods)
 
-  1. Create a new campaign and choose the template option called
-     "Code your own", "Paste in code", "Custom HTML" or "Import HTML" —
-     the wording differs by platform.
-  2. Open flagrr-announcement.html in Notepad or TextEdit, select all,
-     copy, and paste it into that box.
-  3. If there's a separate plain-text tab, paste flagrr-announcement.txt
-     into it. (This helps the mail reach inboxes rather than spam.)
-  4. Send a test to yourself FIRST. Open it on a phone and check that the
-     logo and both QR codes appear.
-  5. Send to the member list.
+    Strand Golf Club is piloting Flagrr — your rounds start paying you back
 
 
-METHOD 2 — IF YOU SEND FROM GMAIL OR OUTLOOK DIRECTLY
+-------------------------------------------------------------------
+METHOD 1 — PASTE THE WORDS, ATTACH THE PICTURE
+-------------------------------------------------------------------
 
-  1. Double-click flagrr-announcement-INLINE.html so it opens in your web
-     browser (Chrome, Edge, Safari).
-  2. Click anywhere on the page, then press Ctrl+A (Cmd+A on a Mac) to
-     select everything, and Ctrl+C (Cmd+C) to copy.
-  3. Start a new email, click in the message body, and press Ctrl+V
-     (Cmd+V) to paste. The whole design comes across, images and all.
-  4. Paste the subject line from the top of this page into the subject box.
-  5. Send it to yourself first and check it on a phone.
-  6. Put the member addresses in BCC, not TO. Members should not see each
-     other's email addresses.
+  1. Open "email-text.txt" (double-click it; it opens in Notepad).
+  2. Click inside it, press Ctrl+A to select all, then Ctrl+C to copy.
+  3. In ClubMaster, start your bulk email to members and click in the
+     typing area. Press Ctrl+V to paste.
+  4. Use ClubMaster's attach button (usually a paperclip) and attach
+     "flagrr-announcement.jpg" from this folder.
+  5. Go to BEFORE YOU SEND, below.
 
-
-BEFORE THE MEMBER SEND — CHECK THESE
-
-  [ ] The Flagrr logo and both QR codes show up in the test email.
-  [ ] Scanning the iPhone code on an iPhone opens the App Store listing.
-  [ ] Scanning the Android code on an Android phone opens Google Play.
-  [ ] Member addresses are in BCC.
+The email works on its own even if a member never opens the attachment —
+the download links are in the words you pasted. The picture is the nicely
+designed version for those who do open it.
 
 
-THE QR CODES
+-------------------------------------------------------------------
+METHOD 2 — PASTE THE WORDS, PLACE 3 PICTURES
+-------------------------------------------------------------------
 
-The two PNG files work for more than email. They're made at the highest
-error-correction setting, so they still scan when printed or partly
-obscured — fine for a poster in the clubhouse, a card at the pro shop till,
-or the back of a scorecard.
+Use this if you would rather the design appeared in the email itself
+instead of as an attachment.
+
+  1. Open "email-text-with-pictures.txt" and copy all of it into the
+     ClubMaster typing area.
+  2. You will see three lines that look like this:
+
+         [INSERT PICTURE: image-1-header.png]
+
+     For each one: delete that line, leave the cursor on the blank line,
+     and use ClubMaster's "Insert image" button to place the matching
+     picture file from this folder.
+  3. Make the headline "Your golf is about to start paying you back."
+     bigger and bold if you like. The rest can stay as it is.
+  4. Check the two download links are clickable. If not, highlight the
+     words "App Store" / "Google Play" and use the link button to attach
+     the web addresses printed next to them.
 
 
-IF SOMETHING LOOKS WRONG
+-------------------------------------------------------------------
+METHOD 3 — PASTE THE DESIGN CODE
+-------------------------------------------------------------------
 
-Broken image icons where the logo and codes should be usually means the
-email was sent before the images were published. Speak to the Flagrr team
-rather than sending it on to members.
+Only possible if ClubMaster's editor has a button marked < > , or a menu
+item called "Source code", "Source", "HTML" or "Code view". If you don't
+see one, use METHOD 1 instead — nothing is wrong.
+
+  1. Right-click "flagrr-announcement.html" and choose Open with > Notepad.
+     It will look like a page of computer code. That is correct.
+  2. Ctrl+A, then Ctrl+C to copy all of it.
+  3. In ClubMaster, click the < > (or "Source code") button.
+  4. Delete anything already in that box, then press Ctrl+V.
+  5. Save or close the box. The design should appear in the editor.
+
+Do NOT paste this code into the normal typing area — it only works inside
+the source box.
+
+
+-------------------------------------------------------------------
+BEFORE YOU SEND — ALL METHODS
+-------------------------------------------------------------------
+
+  [ ] Send a test to yourself first. ClubMaster usually has a "Send test"
+      option; if not, send to your own address only.
+  [ ] Open that test ON A MOBILE PHONE. Most members read email there.
+  [ ] Check the pictures appear (or the attachment opens).
+  [ ] Ask someone with an iPhone to tap the App Store link, and someone
+      with an Android phone to tap the Google Play link. Each should open
+      the app store page.
+  [ ] Only then send to the full member list.
+
+
+-------------------------------------------------------------------
+WHAT IS IN THIS FOLDER
+-------------------------------------------------------------------
+
+  HOW-TO-SEND.txt                 This sheet.
+
+  METHOD 1:
+  email-text.txt                  The words, to paste.
+  flagrr-announcement.jpg         The designed version, to attach.
+
+  METHOD 2:
+  email-text-with-pictures.txt    The words, with picture markers.
+  image-1-header.png              The green Flagrr banner.
+  image-2-qr-iphone.png           QR code to the App Store.
+  image-3-qr-android.png          QR code to Google Play.
+
+  METHOD 3:
+  flagrr-announcement.html        The design code.
+
+The two QR pictures are also good enough to print — a notice on the
+clubhouse board, a card at the pro shop till, or the back of a scorecard.
+
+
+-------------------------------------------------------------------
+IF YOU GET STUCK
+-------------------------------------------------------------------
+
+Send the test email to the Flagrr team and we will tell you whether it
+looks right before it goes to members. Better a slow send than a broken
+one landing in 400 inboxes.

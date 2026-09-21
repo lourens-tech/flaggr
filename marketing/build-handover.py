@@ -1,17 +1,18 @@
 #!/usr/bin/env python3
 """Packs a mailer into a zip a club can be handed directly.
 
-Clubs don't have the repo, and shouldn't need it. This bundles the mailer,
-the plain-text version, an images-inlined copy they can paste straight into
-Gmail or Outlook, the QR codes as standalone PNGs (they print), and the
-plain-language instruction sheet.
+Clubs don't have the repo, and shouldn't need it. Strand sends through
+ClubMaster's bulk email, and club management systems differ in whether their
+editor exposes an HTML/source view, so the pack carries both routes: the
+mailer itself for a source view, and the words plus three insertable images
+for an ordinary rich-text editor. The instruction sheet starts by telling the
+reader which of the two they have.
 
 Usage:
     python3 marketing/build-handover.py
     -> marketing/dist/strand-flagrr-announcement.zip
 """
 import pathlib
-import subprocess
 import sys
 import zipfile
 
@@ -26,23 +27,28 @@ ZIP_NAME = "strand-flagrr-announcement.zip"
 
 def main() -> None:
     DIST.mkdir(exist_ok=True)
-    inline = DIST / "flagrr-announcement-INLINE.html"
-
-    # Regenerate the inlined copy so it can never lag behind the mailer.
-    subprocess.run(
-        [sys.executable, str(MARKETING / "make-preview.py"), str(MAILER), str(inline)],
-        check=True,
-        stdout=subprocess.DEVNULL,
-    )
 
     members = {
-        "HOW-TO-SEND-THIS.txt": MARKETING / "club-handover-instructions.txt",
+        "HOW-TO-SEND.txt": MARKETING / "club-handover-instructions.txt",
+        # Method 1's email-text.txt isn't copied verbatim — see below.
+        "flagrr-announcement.jpg": MARKETING / "strand-flagrr-announcement.jpg",
+        # Method 2 — paste the words, place three images in the body.
+        "email-text-with-pictures.txt": MARKETING / "strand-email-text-simple.txt",
+        "image-1-header.png": ASSETS / "flagrr-email-header.png",
+        "image-2-qr-iphone.png": ASSETS / "qr-app-store.png",
+        "image-3-qr-android.png": ASSETS / "qr-play-store.png",
+        # Method 3 — paste into an editor's HTML/source view, if it has one.
         "flagrr-announcement.html": MAILER,
-        "flagrr-announcement.txt": MARKETING / "strand-golf-club-pilot-launch.txt",
-        "flagrr-announcement-INLINE.html": inline,
-        "qr-app-store.png": ASSETS / "qr-app-store.png",
-        "qr-play-store.png": ASSETS / "qr-play-store.png",
     }
+
+    # The text version carries "Subject:" and "Preheader:" lines above a ---
+    # rule, for whoever sets up the campaign. Someone told to select all and
+    # paste would paste those into the message body, so the copy that goes to
+    # the club starts below the rule. The subject is on the instruction sheet.
+    full_text = (MARKETING / "strand-golf-club-pilot-launch.txt").read_text()
+    if "---\n" not in full_text:
+        sys.exit("expected a --- rule in the text version; check its format")
+    paste_text = full_text.split("---\n", 1)[1].strip() + "\n"
 
     out = DIST / ZIP_NAME
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
@@ -50,10 +56,10 @@ def main() -> None:
             if not src.exists():
                 sys.exit(f"missing {src}")
             z.write(src, name)
+        z.writestr("email-text.txt", paste_text)
 
-    inline.unlink()
     print(f"{out.relative_to(ROOT)}  ({out.stat().st_size // 1024} KB)")
-    for name in members:
+    for name in zipfile.ZipFile(out).namelist():
         print(f"  {name}")
 
 
