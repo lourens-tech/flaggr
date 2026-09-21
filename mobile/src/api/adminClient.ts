@@ -43,7 +43,9 @@ import type {
   SuperAdminMemberSearchResult,
   SuperAdminMemberStats,
   AdClickLogRow,
+  AdCoursePerformanceRow,
   AdPerformanceRow,
+  AdSlotPerformanceRow,
   AdTrendPoint,
   StatBreakdownMetric,
   StatBreakdownRow,
@@ -432,6 +434,12 @@ export const adminApi = {
   superAdminAdPerformance: (period: 'month' | 'year' | 'all') =>
     request<AdPerformanceRow[]>(`?action=superAdminAdPerformance&period=${period}`),
 
+  superAdminAdPerformanceBySlot: (period: 'month' | 'year' | 'all') =>
+    request<AdSlotPerformanceRow[]>(`?action=superAdminAdPerformanceBySlot&period=${period}`),
+
+  superAdminAdPerformanceByCourse: (period: 'month' | 'year' | 'all') =>
+    request<AdCoursePerformanceRow[]>(`?action=superAdminAdPerformanceByCourse&period=${period}`),
+
   superAdminAdTrend: (period: 'month' | 'year' | 'all', adId?: string) =>
     request<AdTrendPoint[]>(`?action=superAdminAdTrend&period=${period}${adId ? `&adId=${encodeURIComponent(adId)}` : ''}`),
 
@@ -684,6 +692,18 @@ export async function downloadSuperAdminReport(
 /** Downloads the cross-club Ad Performance summary as a .xlsx workbook. */
 export async function downloadSuperAdminAdPerformance(period: 'month' | 'year' | 'all', filename: string): Promise<boolean> {
   const params = new URLSearchParams({ action: 'superAdminExportReport', report: 'adPerformance', period });
+  return downloadFile(params, filename);
+}
+
+/** Downloads the "what slot performs best" breakdown as a .xlsx workbook. */
+export async function downloadSuperAdminAdPerformanceBySlot(period: 'month' | 'year' | 'all', filename: string): Promise<boolean> {
+  const params = new URLSearchParams({ action: 'superAdminExportReport', report: 'adPerformanceBySlot', period });
+  return downloadFile(params, filename);
+}
+
+/** Downloads ad engagement segmented by club as a .xlsx workbook. */
+export async function downloadSuperAdminAdPerformanceByCourse(period: 'month' | 'year' | 'all', filename: string): Promise<boolean> {
+  const params = new URLSearchParams({ action: 'superAdminExportReport', report: 'adPerformanceByCourse', period });
   return downloadFile(params, filename);
 }
 

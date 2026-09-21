@@ -16,11 +16,23 @@ import { SuperAdminDesktopFrame } from '../../components/admin/desktop/SuperAdmi
 import { DesktopStatCard } from '../../components/admin/desktop/DesktopStatCard';
 import { DesktopPanel } from '../../components/admin/desktop/DesktopPanel';
 import { TableAvatarCell, TableTag } from '../../components/admin/desktop/DesktopDataTable';
-import { AdminApiError, downloadSuperAdminAdPerformance } from '../../api/adminClient';
+import {
+  AdminApiError,
+  downloadSuperAdminAdPerformance,
+  downloadSuperAdminAdPerformanceByCourse,
+  downloadSuperAdminAdPerformanceBySlot,
+} from '../../api/adminClient';
 import { showAlert } from '../../utils/alert';
 import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
 import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
-import type { AdPerformanceRow, AdTrendPoint, SuperAdminDashboardReport, SuperAdminMemberSearchResult } from '../../data/adminTypes';
+import type {
+  AdCoursePerformanceRow,
+  AdPerformanceRow,
+  AdSlotPerformanceRow,
+  AdTrendPoint,
+  SuperAdminDashboardReport,
+  SuperAdminMemberSearchResult,
+} from '../../data/adminTypes';
 
 type Props = CompositeScreenProps<
   BottomTabScreenProps<SuperAdminTabParamList, 'SuperAdminReports'>,
@@ -33,6 +45,10 @@ const PERIODS: Period[] = ['month', 'year', 'all'];
 const DELTA_LABELS: Record<Period, string> = { month: 'vs Last Month', year: 'vs Last Year', all: '' };
 const PLACEMENT_LABELS: Record<string, string> = { home: 'Home', home_top: 'Home (Top Banner)', rewards_shop: 'Rewards Shop' };
 
+type AdView = 'combined' | 'slot' | 'course' | 'ad';
+const AD_VIEWS: AdView[] = ['combined', 'slot', 'course', 'ad'];
+const AD_VIEW_LABELS: Record<AdView, string> = { combined: 'Combined', slot: 'By Slot', course: 'By Club', ad: 'By Ad' };
+
 // Same shape/look as AdminDashboardScreen, aggregated across every club
 // instead of just one — plus an Ad Performance section, deliberately
 // excluded from the course-admin dashboard and reserved for this screen.
@@ -40,13 +56,23 @@ export function SuperAdminReportsScreen({ navigation }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const isDesktop = useIsDesktopNav();
-  const { getSuperAdminDashboard, getSuperAdminAdPerformance, getSuperAdminAdTrend, searchSuperAdminMembers } = useAdmin();
+  const {
+    getSuperAdminDashboard,
+    getSuperAdminAdPerformance,
+    getSuperAdminAdPerformanceBySlot,
+    getSuperAdminAdPerformanceByCourse,
+    getSuperAdminAdTrend,
+    searchSuperAdminMembers,
+  } = useAdmin();
 
   const [period, setPeriod] = useState<Period>('month');
   const [dashboard, setDashboard] = useState<SuperAdminDashboardReport | null>(null);
   const [dashboardLoading, setDashboardLoading] = useState(true);
+  const [adView, setAdView] = useState<AdView>('combined');
   const [adPerformance, setAdPerformance] = useState<AdPerformanceRow[]>([]);
   const [adTrend, setAdTrend] = useState<AdTrendPoint[]>([]);
+  const [adBySlot, setAdBySlot] = useState<AdSlotPerformanceRow[]>([]);
+  const [adByCourse, setAdByCourse] = useState<AdCoursePerformanceRow[]>([]);
   const [adsLoading, setAdsLoading] = useState(true);
   const [adExporting, setAdExporting] = useState(false);
   const [memberSearch, setMemberSearch] = useState('');
@@ -70,17 +96,41 @@ export function SuperAdminReportsScreen({ navigation }: Props) {
   const loadAdPerformance = useCallback(async (p: Period) => {
     setAdsLoading(true);
     try {
-      const [rows, trend] = await Promise.all([getSuperAdminAdPerformance(p), getSuperAdminAdTrend(p)]);
+      const [rows, trend, bySlot, byCourse] = await Promise.all([
+        getSuperAdminAdPerformance(p),
+        getSuperAdminAdTrend(p),
+        getSuperAdminAdPerformanceBySlot(p),
+        getSuperAdminAdPerformanceByCourse(p),
+      ]);
       setAdPerformance(rows);
       setAdTrend(trend);
+      setAdBySlot(bySlot);
+      setAdByCourse(byCourse);
     } catch {
       setAdPerformance([]);
       setAdTrend([]);
+      setAdBySlot([]);
+      setAdByCourse([]);
     } finally {
       setAdsLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Combined totals derive from the by-slot breakdown (an unpaginated
+  // aggregate) rather than summing the by-ad list, which is capped at 50
+  // rows server-side and would undercount past that.
+  const adTotals = useMemo(() => {
+    const clicks = adBySlot.reduce((sum, s) => sum + s.clicks, 0);
+    const impressions = adBySlot.reduce((sum, s) => sum + s.impressions, 0);
+    const ctr = impressions === 0 ? 0 : Math.round((clicks / impressions) * 1000) / 10;
+    let best: AdSlotPerformanceRow | null = null;
+    for (const s of adBySlot) {
+      if (s.impressions === 0) continue;
+      if (!best || s.ctr > best.ctr) best = s;
+    }
+    return { clicks, impressions, ctr, best };
+  }, [adBySlot]);
 
   useFocusEffect(
     useCallback(() => {
@@ -107,7 +157,14 @@ export function SuperAdminReportsScreen({ navigation }: Props) {
   const handleExportAdPerformance = async () => {
     setAdExporting(true);
     try {
-      const downloaded = await downloadSuperAdminAdPerformance(period, `ad-performance-${period}.xlsx`);
+      // Combined and By Ad both export the same per-ad workbook — a
+      // "combined" export is just that list without the slot/club split.
+      const downloaded =
+        adView === 'slot'
+          ? await downloadSuperAdminAdPerformanceBySlot(period, `ad-performance-by-slot-${period}.xlsx`)
+          : adView === 'course'
+            ? await downloadSuperAdminAdPerformanceByCourse(period, `ad-performance-by-club-${period}.xlsx`)
+            : await downloadSuperAdminAdPerformance(period, `ad-performance-${period}.xlsx`);
       if (!downloaded) {
         showAlert('Web only for now', 'Excel export is available on the Flagrr web app — open this page in a browser to download this report.');
       }
@@ -146,6 +203,126 @@ export function SuperAdminReportsScreen({ navigation }: Props) {
         </TouchableOpacity>
       ))}
     </View>
+  );
+
+  const adViewToggle = (
+    <View style={styles.adViewToggle}>
+      {AD_VIEWS.map((v) => (
+        <TouchableOpacity
+          key={v}
+          onPress={() => setAdView(v)}
+          style={[styles.adViewPill, adView === v && styles.adViewPillActive]}
+        >
+          <Text style={[styles.adViewText, adView === v && styles.adViewTextActive]}>{AD_VIEW_LABELS[v]}</Text>
+        </TouchableOpacity>
+      ))}
+    </View>
+  );
+
+  const bestSlotLabel = adTotals.best ? PLACEMENT_LABELS[adTotals.best.placement] ?? adTotals.best.placement : 'Not enough data yet';
+
+  const adSummaryTiles = (
+    <View style={styles.adSummaryRow}>
+      <View style={styles.adSummaryTile}>
+        <Text style={styles.adSummaryValue}>{adTotals.clicks.toLocaleString()}</Text>
+        <Text style={styles.adSummaryLabel}>Total Clicks</Text>
+      </View>
+      <View style={styles.adSummaryTile}>
+        <Text style={styles.adSummaryValue}>{adTotals.impressions.toLocaleString()}</Text>
+        <Text style={styles.adSummaryLabel}>Total Impressions</Text>
+      </View>
+      <View style={styles.adSummaryTile}>
+        <Text style={styles.adSummaryValue}>{adTotals.ctr}%</Text>
+        <Text style={styles.adSummaryLabel}>Overall CTR</Text>
+      </View>
+      <View style={styles.adSummaryTile}>
+        <Text style={styles.adSummaryValueSmall} numberOfLines={1}>{bestSlotLabel}</Text>
+        <Text style={styles.adSummaryLabel}>Best Slot (CTR)</Text>
+      </View>
+    </View>
+  );
+
+  const adCombinedContent = (
+    <View style={{ gap: spacing.md }}>
+      {adSummaryTiles}
+      {adTrend.some((t) => t.clicks > 0 || t.impressions > 0) ? (
+        <View style={{ gap: spacing.md }}>
+          <View>
+            <Text style={styles.chartTitle}>Clicks Over Time</Text>
+            <BarChart data={adTrend.map((t) => ({ month: t.label, value: t.clicks }))} />
+          </View>
+          <View>
+            <Text style={styles.chartTitle}>Impressions Over Time</Text>
+            <BarChart data={adTrend.map((t) => ({ month: t.label, value: t.impressions }))} />
+          </View>
+        </View>
+      ) : null}
+    </View>
+  );
+
+  const adSlotRows = (
+    <View style={{ gap: spacing.sm }}>
+      {adBySlot.map((s) => {
+        const isBest = adTotals.best?.placement === s.placement;
+        return (
+          <View key={s.placement} style={[styles.row, isBest && styles.bestRow]}>
+            <View style={styles.rowLabelWithIcon}>
+              {isBest ? <Ionicons name="trophy" size={14} color={colors.clubGreen} /> : null}
+              <Text style={styles.rowLabel}>{PLACEMENT_LABELS[s.placement] ?? s.placement}</Text>
+            </View>
+            <Text style={styles.rowValue}>{s.clicks} clicks · {s.impressions} impressions · {s.ctr}% CTR</Text>
+          </View>
+        );
+      })}
+    </View>
+  );
+
+  const adCourseRows =
+    adByCourse.length === 0 ? (
+      <Text style={styles.emptyText}>No club engagement yet.</Text>
+    ) : (
+      <View style={{ gap: spacing.sm }}>
+        {adByCourse.map((c) => (
+          <View key={c.courseId} style={styles.row}>
+            <Text style={styles.rowLabel} numberOfLines={1}>{c.courseName}</Text>
+            <Text style={styles.rowValue}>{c.clicks} clicks · {c.impressions} impressions · {c.ctr}% CTR</Text>
+          </View>
+        ))}
+      </View>
+    );
+
+  const adAdRows =
+    adPerformance.length === 0 ? (
+      <Text style={styles.emptyText}>No ads running yet.</Text>
+    ) : (
+      adPerformance.map((a) => (
+        <TouchableOpacity
+          key={a.adId}
+          style={styles.adRow}
+          activeOpacity={0.7}
+          onPress={() => navigation.navigate('SuperAdminAdDetail', { adId: a.adId, adTitle: a.title || '(untitled ad)', period })}
+        >
+          <View style={{ flex: 1 }}>
+            <Text style={styles.rowLabel} numberOfLines={1}>{a.title || '(untitled ad)'}</Text>
+            <Text style={styles.adSubtext}>
+              {a.courseName} · {PLACEMENT_LABELS[a.placement] ?? a.placement}{a.active ? '' : ' · inactive'}
+            </Text>
+            <Text style={styles.adSubtext}>
+              {a.clicks} clicks · {a.impressions} impressions · {a.ctr}% CTR
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
+        </TouchableOpacity>
+      ))
+    );
+
+  const adSectionBody = (
+    <>
+      {adView === 'combined' ? adCombinedContent : null}
+      {adView === 'slot' ? adSlotRows : null}
+      {adView === 'course' ? adCourseRows : null}
+      {adView === 'ad' ? adAdRows : null}
+    </>
   );
 
   if (isDesktop) {
@@ -243,47 +420,9 @@ export function SuperAdminReportsScreen({ navigation }: Props) {
           onViewAll={handleExportAdPerformance}
           viewAllLabel={adExporting ? 'Exporting…' : 'Export Excel'}
         >
-          {adsLoading ? (
-            <ActivityIndicator color={colors.clubGreen} />
-          ) : (
-            <>
-              {adTrend.some((t) => t.clicks > 0 || t.impressions > 0) ? (
-                <View style={{ gap: spacing.md }}>
-                  <View>
-                    <Text style={styles.chartTitle}>Clicks Over Time</Text>
-                    <BarChart data={adTrend.map((t) => ({ month: t.label, value: t.clicks }))} />
-                  </View>
-                  <View>
-                    <Text style={styles.chartTitle}>Impressions Over Time</Text>
-                    <BarChart data={adTrend.map((t) => ({ month: t.label, value: t.impressions }))} />
-                  </View>
-                </View>
-              ) : null}
-              {adPerformance.length === 0 ? (
-                <Text style={styles.emptyText}>No ads running yet.</Text>
-              ) : (
-                adPerformance.map((a) => (
-                  <TouchableOpacity
-                    key={a.adId}
-                    style={styles.adRow}
-                    activeOpacity={0.7}
-                    onPress={() => navigation.navigate('SuperAdminAdDetail', { adId: a.adId, adTitle: a.title || '(untitled ad)', period })}
-                  >
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.rowLabel} numberOfLines={1}>{a.title || '(untitled ad)'}</Text>
-                      <Text style={styles.adSubtext}>
-                        {a.courseName} · {PLACEMENT_LABELS[a.placement] ?? a.placement}{a.active ? '' : ' · inactive'}
-                      </Text>
-                      <Text style={styles.adSubtext}>
-                        {a.clicks} clicks · {a.impressions} impressions · {a.ctr}% CTR
-                      </Text>
-                    </View>
-                    <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
-                  </TouchableOpacity>
-                ))
-              )}
-            </>
-          )}
+          {adViewToggle}
+          <View style={{ height: spacing.md }} />
+          {adsLoading ? <ActivityIndicator color={colors.clubGreen} /> : adSectionBody}
         </DesktopPanel>
 
         <DesktopPanel title="Look Up a Member">
@@ -458,46 +597,12 @@ export function SuperAdminReportsScreen({ navigation }: Props) {
           </TouchableOpacity>
         </View>
 
+        <View style={styles.adViewToggleScrollWrap}>{adViewToggle}</View>
+
         {adsLoading ? (
           <ActivityIndicator color={colors.clubGreen} style={{ marginBottom: spacing.lg }} />
         ) : (
-          <>
-            {adTrend.some((t) => t.clicks > 0 || t.impressions > 0) ? (
-              <View style={styles.chartCard}>
-                <Text style={styles.chartTitle}>Clicks Over Time</Text>
-                <BarChart data={adTrend.map((t) => ({ month: t.label, value: t.clicks }))} />
-                <View style={{ height: spacing.md }} />
-                <Text style={styles.chartTitle}>Impressions Over Time</Text>
-                <BarChart data={adTrend.map((t) => ({ month: t.label, value: t.impressions }))} />
-              </View>
-            ) : null}
-
-            <View style={styles.card}>
-              {adPerformance.length === 0 ? (
-                <Text style={styles.emptyText}>No ads running yet.</Text>
-              ) : (
-                adPerformance.map((a) => (
-                  <TouchableOpacity
-                    key={a.adId}
-                    style={styles.adRow}
-                    activeOpacity={0.7}
-                    onPress={() => navigation.navigate('SuperAdminAdDetail', { adId: a.adId, adTitle: a.title || '(untitled ad)', period })}
-                  >
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.rowLabel} numberOfLines={1}>{a.title || '(untitled ad)'}</Text>
-                      <Text style={styles.adSubtext}>
-                        {a.courseName} · {PLACEMENT_LABELS[a.placement] ?? a.placement}{a.active ? '' : ' · inactive'}
-                      </Text>
-                      <Text style={styles.adSubtext}>
-                        {a.clicks} clicks · {a.impressions} impressions · {a.ctr}% CTR
-                      </Text>
-                    </View>
-                    <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
-                  </TouchableOpacity>
-                ))
-              )}
-            </View>
-          </>
+          <View style={styles.card}>{adSectionBody}</View>
         )}
 
         <Text style={styles.sectionTitle}>Look Up a Member</Text>
@@ -586,10 +691,38 @@ function createStyles(colors: ThemeColors) {
   },
   emptyText: { fontFamily: fontFamily.body, fontSize: fontSize.body, color: colors.textSecondary },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: spacing.sm },
+  rowLabelWithIcon: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 },
   rowLabel: { flex: 1, fontFamily: fontFamily.body, fontSize: fontSize.body, color: colors.textPrimary },
   rowValue: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.textPrimary },
+  bestRow: {
+    backgroundColor: colors.mintBgAlt,
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 6,
+    marginHorizontal: -spacing.sm,
+  },
   adRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: spacing.sm },
   adSubtext: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary, marginTop: 2 },
+  adViewToggleScrollWrap: { marginBottom: spacing.md },
+  adViewToggle: { flexDirection: 'row', flexWrap: 'wrap', backgroundColor: colors.mintBg, borderRadius: radius.pill, padding: 3, gap: 2 },
+  adViewPill: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: radius.pill },
+  adViewPillActive: { backgroundColor: colors.darkGreen },
+  adViewText: { fontFamily: fontFamily.heading, fontSize: 12, color: colors.textPrimary },
+  adViewTextActive: { color: colors.white },
+  adSummaryRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  adSummaryTile: {
+    flexGrow: 1,
+    flexBasis: 120,
+    backgroundColor: colors.background,
+    borderWidth: 0.5,
+    borderColor: colors.clubGreen,
+    borderRadius: radius.md,
+    padding: spacing.sm,
+    alignItems: 'center',
+  },
+  adSummaryValue: { fontFamily: fontFamily.heading, fontSize: fontSize.title, color: colors.textPrimary },
+  adSummaryValueSmall: { fontFamily: fontFamily.heading, fontSize: fontSize.small, color: colors.textPrimary },
+  adSummaryLabel: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary, marginTop: 2, textAlign: 'center' },
   memberRow: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -60,7 +60,9 @@ import type {
   SuperAdminRedemptionReportRow,
   SuperAdminReportKind,
   AdClickLogRow,
+  AdCoursePerformanceRow,
   AdPerformanceRow,
+  AdSlotPerformanceRow,
   AdTrendPoint,
   StatBreakdownMetric,
   StatBreakdownRow,
@@ -258,6 +260,8 @@ interface AdminContextValue {
   deleteSuperAdminCourseAdmin: (id: string) => Promise<void>;
   getSuperAdminDashboard: (period: DashboardPeriod) => Promise<SuperAdminDashboardReport>;
   getSuperAdminAdPerformance: (period: DashboardPeriod) => Promise<AdPerformanceRow[]>;
+  getSuperAdminAdPerformanceBySlot: (period: DashboardPeriod) => Promise<AdSlotPerformanceRow[]>;
+  getSuperAdminAdPerformanceByCourse: (period: DashboardPeriod) => Promise<AdCoursePerformanceRow[]>;
   getSuperAdminAdTrend: (period: DashboardPeriod, adId?: string) => Promise<AdTrendPoint[]>;
   getSuperAdminAdClickLog: (adId: string, period: DashboardPeriod) => Promise<AdClickLogRow[]>;
   getSuperAdminStatBreakdown: (metric: StatBreakdownMetric, period: DashboardPeriod) => Promise<StatBreakdownRow[]>;
@@ -761,6 +765,8 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
 
   const getSuperAdminDashboard = async (period: DashboardPeriod) => adminApi.superAdminDashboard(period);
   const getSuperAdminAdPerformance = async (period: DashboardPeriod) => adminApi.superAdminAdPerformance(period);
+  const getSuperAdminAdPerformanceBySlot = async (period: DashboardPeriod) => adminApi.superAdminAdPerformanceBySlot(period);
+  const getSuperAdminAdPerformanceByCourse = async (period: DashboardPeriod) => adminApi.superAdminAdPerformanceByCourse(period);
   const getSuperAdminAdTrend = async (period: DashboardPeriod, adId?: string) => adminApi.superAdminAdTrend(period, adId);
   const getSuperAdminAdClickLog = async (adId: string, period: DashboardPeriod) => adminApi.superAdminAdClickLog(adId, period);
 
@@ -966,6 +972,8 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     deleteSuperAdminCourseAdmin,
     getSuperAdminDashboard,
     getSuperAdminAdPerformance,
+    getSuperAdminAdPerformanceBySlot,
+    getSuperAdminAdPerformanceByCourse,
     getSuperAdminAdTrend,
     getSuperAdminAdClickLog,
     getSuperAdminStatBreakdown,
