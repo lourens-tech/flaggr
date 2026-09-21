@@ -7,9 +7,7 @@ STRAND GOLF CLUB x FLAGRR
 
 Your golf is about to start paying you back.
 
-Hi {{FIRST_NAME}},
-
-We're trying something new at the club. From {{PILOT_START_DATE}}, Strand Golf
+We're trying something new at the club. From Friday 25 September, Strand Golf
 Club is piloting Flagrr — a loyalty app built specifically for golf clubs and
 the people who play them.
 
@@ -67,4 +65,4 @@ Instagram: https://www.instagram.com/flagrrgolf/?hl=en
 Facebook:  https://www.facebook.com/profile.php?id=61593132815437
 
 You're receiving this because you're a member of Strand Golf Club.
-Unsubscribe: {{UNSUBSCRIBE_URL}}
+Would rather not get these? Reply to this email and we'll take you off the list.

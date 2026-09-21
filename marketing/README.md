@@ -17,9 +17,12 @@ the API.
 
 ## Before you send
 
-1. **Fill the merge fields.** `{{FIRST_NAME}}`, `{{PILOT_START_DATE}}` and
-   `{{UNSUBSCRIBE_URL}}` appear in both the HTML and the text version. Map
-   them to your ESP's own syntax, or find-and-replace them.
+1. **Nothing to fill in.** The mailer has no merge fields — it addresses
+   members collectively rather than by name, the pilot date is written in,
+   and opting out is "reply to this email" rather than a tokenised link. If
+   your ESP requires its own unsubscribe token, swap that footer line for the
+   tag it expects (Mailchimp `*|UNSUB|*`, Campaign Monitor `<unsubscribe>`,
+   and so on).
 2. **Deploy first.** The mailer loads its logo and QR codes from
    `https://app.flagrr.com/...`, which is served by the web build (see
    `mobile/scripts/copy-static-assets.sh`). Those URLs 404 until a deploy
