@@ -15,6 +15,7 @@ the API.
 | `generate-store-qr.py` | Regenerates the App Store / Play Store QR codes. |
 | `make-preview.py` | Builds a self-contained `*.preview.html` for eyeballing in a browser. |
 | `build-handover.py` | Packs the mailer into a zip the club can be handed directly. |
+| `send-via-resend.mjs` | Sends a mailer through Resend, the service the app already uses. |
 | `club-handover-instructions.txt` | The send instructions that go in that zip, written for a club secretary rather than a developer. |
 
 ## Before you send
@@ -91,3 +92,26 @@ than a campaign platform: opened in a browser and copy-pasted into a compose
 window, the mail client re-hosts the images on its own, so that route works
 even before a deploy has published them. The instruction sheet covers both
 routes.
+
+## Don't send it from a mail client's compose window
+
+Gmail and Outlook compose windows rewrite the HTML you paste into them: they
+strip background colours and re-serialise the markup from their own editor
+DOM. A table-based mailer pasted into Gmail loses the green header band and
+the tinted panels, and what gets sent is the flattened version, not the file.
+
+Send it through something that transmits the HTML unchanged:
+
+```sh
+RESEND_API_KEY=re_xxx \
+RESEND_FROM_EMAIL='Strand Golf Club <noreply@flagrr.com>' \
+node marketing/send-via-resend.mjs you@example.com
+```
+
+Or paste the HTML into a campaign platform's "Custom HTML" campaign. Both
+preserve the design; a compose window does not.
+
+Note the sending domain: `api/_lib/email.ts` falls back to Resend's shared
+`onboarding@resend.dev`, which only delivers to the Resend account owner's own
+verified address. That's fine for a test send, but the member list needs a
+verified sending domain configured in Resend.
