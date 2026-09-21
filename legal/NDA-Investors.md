@@ -4,7 +4,7 @@
 
 This Non-Disclosure Agreement (the **"Agreement"**) is entered into on **[EFFECTIVE DATE]** (the **"Effective Date"**) between:
 
-**(1) EWO Solutions (Pty) Ltd**, a private company incorporated under the laws of the Republic of South Africa with registration number **[REGISTRATION NUMBER]**, of **11 Gardner Williams Avenue, Paardevlei, Cape Town, 7130** (the **"Company"**); and
+**(1) EWO Solutions (Pty) Ltd**, a private company incorporated under the laws of the Republic of South Africa with registration number **2022/212834/07**, of **11 Gardner Williams Avenue, Paardevlei, Cape Town, 7130** (the **"Company"**); and
 
 **(2) [INVESTOR LEGAL NAME]**, a [company / partnership / trust / natural person] [incorporated under the laws of **[JURISDICTION]** with registration number **[REG NO]** / with identity number **[ID NO]**], of **[ADDRESS]** (the **"Recipient"**),
 
