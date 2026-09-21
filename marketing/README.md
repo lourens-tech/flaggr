@@ -17,7 +17,9 @@ the API.
 | `build-handover.py` | Packs the mailer into a zip the club can be handed directly. |
 | `send-via-resend.mjs` | Sends a mailer through Resend, the service the app already uses. |
 | `club-handover-instructions.txt` | The send instructions that go in that zip, written for a club secretary rather than a developer. |
-| `strand-email-text-simple.txt` | The mailer as plain words plus image markers, for a club whose email editor has no HTML view. |
+| `strand-email-text-simple.txt` | The mailer as plain words plus image markers, for placing the design in the body of a rich-text editor. |
+| `strand-flagrr-announcement.jpg` | The whole mailer rendered as one picture, to attach. |
+| `render-jpeg.mjs` | Regenerates that JPEG from the mailer. |
 
 ## Before you send
 
@@ -88,20 +90,24 @@ That writes `marketing/dist/strand-flagrr-announcement.zip` (gitignored, it's
 a build output) containing the mailer, the text version, an images-inlined
 copy, both QR codes as standalone PNGs, and `HOW-TO-SEND-THIS.txt`.
 
-Strand sends through **ClubMaster**, its club management system, and systems
-like it vary in whether the bulk-email editor exposes an HTML/source view. So
-the pack carries both routes and the instruction sheet opens by telling the
-reader which one they have:
+Strand sends through **ClubMaster**, its club management system. Systems like
+it vary in what their bulk-email editor can hold, and the people operating it
+aren't technical, so the pack carries three routes and the sheet tells them to
+pick one:
 
-- **Method A** — editor has a `< >` / "Source code" button: paste
-  `flagrr-announcement.html` into it. Best result.
-- **Method B** — ordinary rich-text editor: paste `email-text.txt` and insert
-  the three numbered images where the text marks them.
+1. **Paste the words, attach the JPEG.** Works in any mail tool ever made.
+   The pasted text carries the store links, so the email still does its job
+   for a member who never opens the attachment.
+2. **Paste the words, place three images** in the body — the design lives in
+   the email rather than an attachment, at the cost of three "Insert image"
+   steps.
+3. **Paste the HTML** into a `< >` / "Source code" view, if the editor has
+   one. Best result, but not every system offers it.
 
-Method B exists because a rich-text editor re-serialises whatever it is given
-from its own DOM, which flattens a table-based design (see below). Words plus
-inserted images survive that, because they are the things such editors are
-built to hold.
+Routes 1 and 2 exist because a rich-text editor re-serialises whatever it is
+given from its own DOM, which flattens a table-based design (see below). Words,
+attachments and inserted images survive that, because they are the things such
+editors are built to hold.
 
 Note `image-1-header.png`: a pre-rendered green banner with the logo on it.
 The plain `flagrr-logo-white-email.png` is white, drawn to sit on the dark
@@ -129,3 +135,23 @@ Note the sending domain: `api/_lib/email.ts` falls back to Resend's shared
 `onboarding@resend.dev`, which only delivers to the Resend account owner's own
 verified address. That's fine for a test send, but the member list needs a
 verified sending domain configured in Resend.
+
+## Regenerating the JPEG
+
+```sh
+npm i --no-save playwright-core
+node marketing/render-jpeg.mjs
+```
+
+It inlines the images (via `make-preview.py`), renders at 640 CSS px and
+2x scale, and writes `strand-flagrr-announcement.jpg`.
+
+**After any change, confirm the QR codes still decode from the JPEG itself**,
+not just from the source PNGs — compression and downscaling are what would
+break them:
+
+```sh
+python3 -c "import cv2; ok,d,_,_ = cv2.QRCodeDetector().detectAndDecodeMulti(cv2.imread('marketing/strand-flagrr-announcement.jpg')); print(d if ok else 'NO CODES FOUND')"
+```
+
+Both should print their full store URLs.

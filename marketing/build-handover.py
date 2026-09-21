@@ -30,15 +30,25 @@ def main() -> None:
 
     members = {
         "HOW-TO-SEND.txt": MARKETING / "club-handover-instructions.txt",
-        # Method A: pasted into an editor's HTML/source view.
-        "flagrr-announcement.html": MAILER,
-        # Method B: typed into an ordinary rich-text editor, with the three
-        # images inserted by hand where the text marks them.
-        "email-text.txt": MARKETING / "strand-email-text-simple.txt",
+        # Method 1's email-text.txt isn't copied verbatim — see below.
+        "flagrr-announcement.jpg": MARKETING / "strand-flagrr-announcement.jpg",
+        # Method 2 — paste the words, place three images in the body.
+        "email-text-with-pictures.txt": MARKETING / "strand-email-text-simple.txt",
         "image-1-header.png": ASSETS / "flagrr-email-header.png",
         "image-2-qr-iphone.png": ASSETS / "qr-app-store.png",
         "image-3-qr-android.png": ASSETS / "qr-play-store.png",
+        # Method 3 — paste into an editor's HTML/source view, if it has one.
+        "flagrr-announcement.html": MAILER,
     }
+
+    # The text version carries "Subject:" and "Preheader:" lines above a ---
+    # rule, for whoever sets up the campaign. Someone told to select all and
+    # paste would paste those into the message body, so the copy that goes to
+    # the club starts below the rule. The subject is on the instruction sheet.
+    full_text = (MARKETING / "strand-golf-club-pilot-launch.txt").read_text()
+    if "---\n" not in full_text:
+        sys.exit("expected a --- rule in the text version; check its format")
+    paste_text = full_text.split("---\n", 1)[1].strip() + "\n"
 
     out = DIST / ZIP_NAME
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
@@ -46,9 +56,10 @@ def main() -> None:
             if not src.exists():
                 sys.exit(f"missing {src}")
             z.write(src, name)
+        z.writestr("email-text.txt", paste_text)
 
     print(f"{out.relative_to(ROOT)}  ({out.stat().st_size // 1024} KB)")
-    for name in members:
+    for name in zipfile.ZipFile(out).namelist():
         print(f"  {name}")
 
 
