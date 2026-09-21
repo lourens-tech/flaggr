@@ -1,0 +1,70 @@
+FLAGRR PILOT ANNOUNCEMENT — HOW TO SEND IT
+Strand Golf Club · pilot starts Friday 25 September
+
+WHAT'S IN THIS FOLDER
+
+  flagrr-announcement.html         The email itself.
+  flagrr-announcement-INLINE.html  Same email, images built in. Use this one
+                                   for the copy-and-paste method below.
+  flagrr-announcement.txt          Plain-text version + the subject line.
+  qr-app-store.png                 iPhone download code (also fine for print).
+  qr-play-store.png                Android download code (also fine for print).
+
+Nothing needs filling in. No names, no dates, no placeholders — it's ready
+as it stands.
+
+SUBJECT LINE
+
+  Strand Golf Club is piloting Flagrr — your rounds start paying you back
+
+
+METHOD 1 — IF YOU SEND THROUGH A MAILING PLATFORM
+(Mailchimp, Brevo, Everlytic, Zoho Campaigns, Mailerlite, and similar)
+
+  1. Create a new campaign and choose the template option called
+     "Code your own", "Paste in code", "Custom HTML" or "Import HTML" —
+     the wording differs by platform.
+  2. Open flagrr-announcement.html in Notepad or TextEdit, select all,
+     copy, and paste it into that box.
+  3. If there's a separate plain-text tab, paste flagrr-announcement.txt
+     into it. (This helps the mail reach inboxes rather than spam.)
+  4. Send a test to yourself FIRST. Open it on a phone and check that the
+     logo and both QR codes appear.
+  5. Send to the member list.
+
+
+METHOD 2 — IF YOU SEND FROM GMAIL OR OUTLOOK DIRECTLY
+
+  1. Double-click flagrr-announcement-INLINE.html so it opens in your web
+     browser (Chrome, Edge, Safari).
+  2. Click anywhere on the page, then press Ctrl+A (Cmd+A on a Mac) to
+     select everything, and Ctrl+C (Cmd+C) to copy.
+  3. Start a new email, click in the message body, and press Ctrl+V
+     (Cmd+V) to paste. The whole design comes across, images and all.
+  4. Paste the subject line from the top of this page into the subject box.
+  5. Send it to yourself first and check it on a phone.
+  6. Put the member addresses in BCC, not TO. Members should not see each
+     other's email addresses.
+
+
+BEFORE THE MEMBER SEND — CHECK THESE
+
+  [ ] The Flagrr logo and both QR codes show up in the test email.
+  [ ] Scanning the iPhone code on an iPhone opens the App Store listing.
+  [ ] Scanning the Android code on an Android phone opens Google Play.
+  [ ] Member addresses are in BCC.
+
+
+THE QR CODES
+
+The two PNG files work for more than email. They're made at the highest
+error-correction setting, so they still scan when printed or partly
+obscured — fine for a poster in the clubhouse, a card at the pro shop till,
+or the back of a scorecard.
+
+
+IF SOMETHING LOOKS WRONG
+
+Broken image icons where the logo and codes should be usually means the
+email was sent before the images were published. Speak to the Flagrr team
+rather than sending it on to members.

@@ -9,6 +9,9 @@
 set -e
 
 cp assets/email/flagrr-logo-white-email.png dist/flagrr-logo-white-email.png
+# Store QR codes used by campaign mailers (see marketing/).
+cp assets/email/qr-app-store.png dist/qr-app-store.png
+cp assets/email/qr-play-store.png dist/qr-play-store.png
 mkdir -p dist/rewards
 cp assets/images/rewards/*.jpg dist/rewards/
 cp static/delete-account.html dist/delete-account.html
