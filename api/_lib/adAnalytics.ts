@@ -19,6 +19,71 @@ function computeCtr(clicks: number, impressions: number): number {
   return Math.round((clicks / impressions) * 1000) / 10;
 }
 
+export interface AdSlotPerformanceRow {
+  placement: string;
+  clicks: number;
+  impressions: number;
+  ctr: number;
+}
+
+// Clicks/impressions/CTR combined across every ad in a placement (slot) —
+// "what slot performs best," regardless of which ad ran there. Always
+// returns all three slots, even ones with no ads/clicks yet, via the
+// values-list left join.
+export async function getAdPerformanceBySlot(period: StatsPeriod): Promise<AdSlotPerformanceRow[]> {
+  const { currentStart } = periodWindow(period);
+  const rows = (await sql`
+    select p.placement,
+           count(distinct k.id) filter (where k.clicked_at >= ${currentStart})::int as clicks,
+           count(distinct i.id) filter (where i.viewed_at >= ${currentStart})::int as impressions
+    from (values ('home'), ('home_top'), ('rewards_shop')) as p(placement)
+    left join ads a on a.placement = p.placement
+    left join ad_clicks k on k.ad_id = a.id
+    left join ad_impressions i on i.ad_id = a.id
+    group by p.placement
+  `) as Array<{ placement: string; clicks: number; impressions: number }>;
+  return rows.map((r) => ({
+    placement: r.placement,
+    clicks: r.clicks,
+    impressions: r.impressions,
+    ctr: computeCtr(r.clicks, r.impressions),
+  }));
+}
+
+export interface AdCoursePerformanceRow {
+  courseId: string;
+  courseName: string;
+  clicks: number;
+  impressions: number;
+  ctr: number;
+}
+
+// Segments ad engagement by the viewing member's own club (not by which
+// club(s) the ad targets) — "which club's members engage with ads most,"
+// which holds whether the ads they saw were global or club-specific.
+export async function getAdPerformanceByCourse(period: StatsPeriod): Promise<AdCoursePerformanceRow[]> {
+  const { currentStart } = periodWindow(period);
+  const rows = (await sql`
+    select c.id as course_id, c.name as course_name,
+           count(distinct k.id) filter (where k.clicked_at >= ${currentStart})::int as clicks,
+           count(distinct i.id) filter (where i.viewed_at >= ${currentStart})::int as impressions
+    from courses c
+    left join users u on u.course_id = c.id
+    left join ad_clicks k on k.user_id = u.id
+    left join ad_impressions i on i.user_id = u.id
+    group by c.id, c.name
+    order by clicks desc, impressions desc
+    limit 50
+  `) as Array<{ course_id: string; course_name: string; clicks: number; impressions: number }>;
+  return rows.map((r) => ({
+    courseId: r.course_id,
+    courseName: r.course_name,
+    clicks: r.clicks,
+    impressions: r.impressions,
+    ctr: computeCtr(r.clicks, r.impressions),
+  }));
+}
+
 // Ad performance was deliberately excluded from the course-admin dashboard
 // — only a super_admin sees how ads perform across every club that's
 // running them. is_global means the ad targets every club (course_name

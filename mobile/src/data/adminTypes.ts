@@ -147,6 +147,25 @@ export interface AdTrendPoint {
   impressions: number;
 }
 
+// "What slot performs best" — clicks/impressions/CTR combined across every
+// ad in one placement. Always all three placements, even at 0.
+export interface AdSlotPerformanceRow {
+  placement: 'home' | 'home_top' | 'rewards_shop';
+  clicks: number;
+  impressions: number;
+  ctr: number;
+}
+
+// Ad engagement segmented by the viewing member's own club (not by which
+// club(s) an ad targets).
+export interface AdCoursePerformanceRow {
+  courseId: string;
+  courseName: string;
+  clicks: number;
+  impressions: number;
+  ctr: number;
+}
+
 // The individual click log behind one ad's summary count.
 export interface AdClickLogRow {
   id: string;

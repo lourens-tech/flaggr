@@ -17,7 +17,7 @@ import {
   type CourseReportKind,
   type StatBreakdownMetric,
 } from '../_lib/adminReports';
-import { getAdClickLog, getAdPerformanceReport, getAdTrend } from '../_lib/adAnalytics';
+import { getAdClickLog, getAdPerformanceBySlot, getAdPerformanceByCourse, getAdPerformanceReport, getAdTrend } from '../_lib/adAnalytics';
 import { giftFlagrrCash } from '../_lib/giftFlagrrCash';
 import { toXlsxBuffer } from '../_lib/xlsx';
 import {
@@ -389,6 +389,8 @@ const SUPER_ADMIN_ALLOWED_ACTIONS = new Set([
   'superAdminAdDelete',
   'superAdminDashboard',
   'superAdminAdPerformance',
+  'superAdminAdPerformanceBySlot',
+  'superAdminAdPerformanceByCourse',
   'superAdminAdTrend',
   'superAdminAdClickLog',
   'superAdminRewards',
@@ -2602,6 +2604,23 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
             'Ad Performance',
           );
           filename = `ad-performance-${period}.xlsx`;
+        } else if (report === 'adPerformanceBySlot') {
+          const rows = await getAdPerformanceBySlot(period);
+          const placementLabels: Record<string, string> = { home: 'Home', home_top: 'Home (Top Banner)', rewards_shop: 'Rewards Shop' };
+          workbook = toXlsxBuffer(
+            ['Slot', 'Clicks', 'Impressions', 'CTR (%)'],
+            rows.map((r) => [placementLabels[r.placement] ?? r.placement, r.clicks, r.impressions, r.ctr]),
+            'Ad Performance by Slot',
+          );
+          filename = `ad-performance-by-slot-${period}.xlsx`;
+        } else if (report === 'adPerformanceByCourse') {
+          const rows = await getAdPerformanceByCourse(period);
+          workbook = toXlsxBuffer(
+            ['Club', 'Clicks', 'Impressions', 'CTR (%)'],
+            rows.map((r) => [r.courseName, r.clicks, r.impressions, r.ctr]),
+            'Ad Performance by Club',
+          );
+          filename = `ad-performance-by-club-${period}.xlsx`;
         } else if (report === 'adClickLog') {
           const adId = typeof req.query.adId === 'string' ? req.query.adId : '';
           if (!adId) throw new HttpError(400, 'adId is required');
@@ -2863,6 +2882,21 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       if (action === 'superAdminAdPerformance' && req.method === 'GET') {
         const period: StatsPeriod = isStatsPeriod(req.query.period) ? req.query.period : 'month';
         res.status(200).json(await getAdPerformanceReport(period));
+        return;
+      }
+
+      // "What slot performs best" — clicks/impressions/CTR combined across
+      // every ad in each placement.
+      if (action === 'superAdminAdPerformanceBySlot' && req.method === 'GET') {
+        const period: StatsPeriod = isStatsPeriod(req.query.period) ? req.query.period : 'month';
+        res.status(200).json(await getAdPerformanceBySlot(period));
+        return;
+      }
+
+      // Ad engagement segmented by the viewing member's own club.
+      if (action === 'superAdminAdPerformanceByCourse' && req.method === 'GET') {
+        const period: StatsPeriod = isStatsPeriod(req.query.period) ? req.query.period : 'month';
+        res.status(200).json(await getAdPerformanceByCourse(period));
         return;
       }
 
