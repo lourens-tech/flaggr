@@ -4,7 +4,7 @@
 
 This Non-Disclosure Agreement (the **"Agreement"**) is entered into on **[EFFECTIVE DATE]** (the **"Effective Date"**) between:
 
-**(1) [COMPANY LEGAL NAME]**, a [private company / close corporation] incorporated under the laws of the Republic of South Africa with registration number **[REG NO]**, of **[REGISTERED ADDRESS]** (the **"Company"**); and
+**(1) EWO Solutions (Pty) Ltd**, a private company incorporated under the laws of the Republic of South Africa with registration number **[REGISTRATION NUMBER]**, of **11 Gardner Williams Avenue, Paardevlei, Cape Town, 7130** (the **"Company"**); and
 
 **(2) [INVESTOR LEGAL NAME]**, a [company / partnership / trust / natural person] [incorporated under the laws of **[JURISDICTION]** with registration number **[REG NO]** / with identity number **[ID NO]**], of **[ADDRESS]** (the **"Recipient"**),
 
@@ -182,9 +182,9 @@ each a **"Party"** and together the **"Parties"**.
 
 | | Company | Recipient |
 |---|---|---|
-| **Physical address** | [ADDRESS] | [ADDRESS] |
-| **Email** | [EMAIL] | [EMAIL] |
-| **For the attention of** | [NAME] | [NAME] |
+| **Physical address** | 11 Gardner Williams Avenue, Paardevlei, Cape Town, 7130 | [ADDRESS] |
+| **Email** | Lourens@ewosolutions.com | [EMAIL] |
+| **For the attention of** | Lourens Vorster | [NAME] |
 
 16.2 A notice is deemed received: on delivery, if delivered by hand; on the seventh business day after posting, if posted; and on the first business day after sending, if sent by email and no delivery-failure message is received.
 
@@ -211,8 +211,8 @@ each a **"Party"** and together the **"Parties"**.
 | | |
 |---|---|
 | Signature | ______________________________ |
-| Name | [NAME] |
-| Capacity | [CAPACITY — duly authorised] |
+| Name | Lourens Vorster |
+| Capacity | Director |
 | Date | [DATE] |
 | Place | [PLACE] |
 
