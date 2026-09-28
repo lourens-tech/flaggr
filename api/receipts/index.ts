@@ -5,7 +5,7 @@ import { requireAuthedUser } from '../_lib/auth';
 import { HttpError, withErrorHandling } from '../_lib/http';
 import { checkDuplicateReceipt, describeFraudReasons, evaluateFraudSignals } from '../_lib/fraudChecks';
 import { runScanPipeline } from '../_lib/scanPipeline';
-import { hashImageDataUri } from '../_lib/imageHash';
+import { clearScanExtraction } from '../_lib/scanCache';
 import { finalizePoints, isClubParticipating, type MatchedItem } from '../_lib/pointsEngine';
 import { getCurrentTierStatus } from '../_lib/tierRewards';
 import { sendPushToUser } from '../_lib/pushNotifications';
@@ -110,7 +110,12 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     // Folded into this route (rather than its own file) to stay within
     // Vercel's per-deployment serverless function cap on the Hobby plan.
     if (req.query.action === 'scan') {
-      const { ocrConfidence, parsed, scored } = await runScanPipeline(imageBase64, authed.courseId);
+      const { imageHash: previewHash, ocrConfidence, parsed, scored } = await runScanPipeline(
+        imageBase64,
+        authed.courseId,
+        authed.id,
+        'preview',
+      );
       if (parsed.items.length === 0 && parsed.grandTotal === null) {
         res.status(200).json({
           isDuplicate: false,
@@ -119,7 +124,6 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         });
         return;
       }
-      const previewHash = hashImageDataUri(imageBase64);
       const duplicate = await checkDuplicateReceipt(parsed.receiptNumber, previewHash, authed.id, authed.courseId);
       if (duplicate.isDuplicate) {
         res.status(200).json({ isDuplicate: true, reason: duplicate.reason });
@@ -161,10 +165,15 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       return;
     }
 
-    // Re-run the full pipeline server-side from the original image rather
-    // than trusting any client-supplied extracted data or point totals —
-    // the scan preview is a UI convenience, not the source of truth.
-    const { imageHash, ocrConfidence, parsed, scored } = await runScanPipeline(imageBase64, authed.courseId);
+    // Never trusts client-supplied extracted data or point totals: reuses
+    // the extraction this server saved at preview time for this exact photo,
+    // or reads the photo again if there isn't one (see scanPipeline.ts).
+    const { imageHash, ocrConfidence, parsed, scored } = await runScanPipeline(
+      imageBase64,
+      authed.courseId,
+      authed.id,
+      'confirm',
+    );
 
     if (parsed.items.length === 0 && parsed.grandTotal === null) {
       throw new HttpError(422, "We couldn't read a valid receipt from that photo. Please scan a valid receipt or slip.");
@@ -237,6 +246,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       }
       throw err;
     }
+    await clearScanExtraction(authed.id, imageHash);
 
     const monthNumber = new Date().getMonth() + 1;
 
