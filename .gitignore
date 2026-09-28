@@ -3,3 +3,6 @@ node_modules/
 .env
 .env.local
 marketing/dist/
+# Real member receipts — personal data, never committed.
+scripts/receipt-eval/fixtures/
+scripts/receipt-eval/results.json

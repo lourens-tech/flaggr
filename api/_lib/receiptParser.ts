@@ -251,13 +251,21 @@ export function parseReceiptText(rawText: string): ParsedReceipt {
   // guess instead, garbled and all. "nr" (Afrikaans/common local
   // abbreviation for "number") is accepted anywhere "no" is.
   const NUMBER_LABEL = '(?:no\\.?|number|nr\\.?|#)';
+  // The number must sit on the same line as its label ([ \t], not \s, so a
+  // bare "TAX INVOICE" header can't reach down to the next line) and must
+  // contain a digit — otherwise the header's own next word ("Invoice No: …")
+  // or a word like "APPROVED" gets read as the number.
+  const ID = '((?=[A-Z0-9\\-\\/]*\\d)[A-Z0-9][A-Z0-9\\-\\/]{3,})';
+  const SHORT_ID = '((?=[A-Z0-9\\-\\/]*\\d)[A-Z0-9\\-\\/]{2,})';
   const receiptNumber = firstMatch(text, [
-    new RegExp(`(?:tax\\s*)?invoice\\s*${NUMBER_LABEL}?\\s*[:\\-]?\\s*([A-Z0-9][A-Z0-9\\-\\/]{3,})`, 'i'),
-    new RegExp(`receipt\\s*${NUMBER_LABEL}?\\s*[:\\-]?\\s*([A-Z0-9][A-Z0-9\\-\\/]{3,})`, 'i'),
-    new RegExp(`slip\\s*${NUMBER_LABEL}?\\s*[:\\-]?\\s*([A-Z0-9][A-Z0-9\\-\\/]{3,})`, 'i'),
+    new RegExp(`(?:tax[ \\t]*)?invoice[ \\t]*${NUMBER_LABEL}?[ \\t]*[:\\-]?[ \\t]*${ID}`, 'i'),
+    new RegExp(`receipt[ \\t]*${NUMBER_LABEL}?[ \\t]*[:\\-]?[ \\t]*${ID}`, 'i'),
+    new RegExp(`slip[ \\t]*${NUMBER_LABEL}?[ \\t]*[:\\-]?[ \\t]*${ID}`, 'i'),
   ]);
 
-  const transactionNumber = firstMatch(text, [new RegExp(`trans(?:action)?\\s*${NUMBER_LABEL}?\\s*[:\\-]?\\s*([A-Z0-9\\-\\/]{2,})`, 'i')]);
+  const transactionNumber = firstMatch(text, [
+    new RegExp(`trans(?:action)?[ \\t]*${NUMBER_LABEL}?[ \\t]*[:\\-]?[ \\t]*${SHORT_ID}`, 'i'),
+  ]);
 
   const tillNumber = firstMatch(text, [/till\s*(?:no\.?|number|#)?\s*[:\-]?\s*(\d+)/i, /register\s*[:\-]?\s*(\d+)/i]);
 
@@ -270,7 +278,11 @@ export function parseReceiptText(rawText: string): ParsedReceipt {
   const time = firstMatch(text, [/\b(\d{1,2}:\d{2}(?::\d{2})?\s?(?:am|pm|AM|PM)?)\b/]);
 
   const subtotal = findAmount(text, [new RegExp(`sub\\s*-?\\s*total[^\\d\\n]{0,30}${PRICE.source}`, 'i')]);
-  const vat = findAmount(text, [new RegExp(`\\b(?:vat|tax)\\b[^\\d\\n]{0,30}${PRICE.source}`, 'i')]);
+  // SA slips usually print the rate before the amount ("VAT 15% 271.37",
+  // "VAT @ 15.00% 271.37", "VAT (15%) 271.37") — skip an optional rate so
+  // its digits don't stop the match short of the actual VAT amount.
+  const VAT_RATE = '(?:[^\\d\\n]{0,30}?\\d{1,2}(?:[.,]\\d+)?[ \\t]*%)?';
+  const vat = findAmount(text, [new RegExp(`\\b(?:vat|tax)\\b${VAT_RATE}[^\\d\\n]{0,30}${PRICE.source}`, 'i')]);
   const grandTotal = findAmount(text, [
     new RegExp(`grand\\s*total[^\\d\\n]{0,30}${PRICE.source}`, 'i'),
     new RegExp(`(?:nett?\\s*total|amount\\s*due|balance\\s*due|total\\s*due)[^\\d\\n]{0,30}${PRICE.source}`, 'i'),

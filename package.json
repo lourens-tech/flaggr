@@ -1,7 +1,13 @@
 {
   "name": "flagrr-api",
   "private": true,
+  "scripts": {
+    "test": "tsx --test api/_lib/*.test.ts",
+    "eval:receipts": "tsx scripts/receipt-eval/run.ts",
+    "eval:export": "tsx scripts/receipt-eval/export-fixtures.ts"
+  },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.128.0",
     "@neondatabase/serverless": "^1.1.0",
     "bcryptjs": "^3.0.3",
     "jimp": "^1.6.1",
@@ -11,6 +17,7 @@
   "devDependencies": {
     "@types/node": "^22.10.2",
     "@vercel/node": "^5.8.26",
+    "tsx": "^4.23.15",
     "typescript": "~6.0.3"
   }
 }
