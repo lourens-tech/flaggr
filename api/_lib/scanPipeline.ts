@@ -1,5 +1,5 @@
-import { runOcr } from './ocr';
-import { parseReceiptText, type ParsedReceipt } from './receiptParser';
+import type { ParsedReceipt } from './receiptParser';
+import { extractReceipt, type ReceiptExtractor } from './receiptExtraction';
 import { hashImageDataUri } from './imageHash';
 import { matchAndScoreReceipt, type PointsResult } from './pointsEngine';
 
@@ -8,6 +8,7 @@ export interface ScanPipelineResult {
   ocrConfidence: number;
   parsed: ParsedReceipt;
   scored: PointsResult;
+  extractor: ReceiptExtractor;
 }
 
 // Shared by the preview endpoint (/api/receipts/scan) and the confirm
@@ -19,8 +20,7 @@ export interface ScanPipelineResult {
 // conversion rate are used to score matched items (see pointsEngine.ts).
 export async function runScanPipeline(imageDataUri: string, homeCourseId: string): Promise<ScanPipelineResult> {
   const imageHash = hashImageDataUri(imageDataUri);
-  const ocr = await runOcr(imageDataUri);
-  const parsed = parseReceiptText(ocr.text);
+  const { parsed, confidence, extractor } = await extractReceipt(imageDataUri);
   const scored = await matchAndScoreReceipt(parsed.items, parsed.rawLines, homeCourseId);
-  return { imageHash, ocrConfidence: ocr.confidence, parsed, scored };
+  return { imageHash, ocrConfidence: confidence, parsed, scored, extractor };
 }
