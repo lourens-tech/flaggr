@@ -2,6 +2,7 @@
   "name": "flagrr-api",
   "private": true,
   "scripts": {
+    "test": "tsx --test api/_lib/*.test.ts",
     "eval:receipts": "tsx scripts/receipt-eval/run.ts",
     "eval:export": "tsx scripts/receipt-eval/export-fixtures.ts"
   },
