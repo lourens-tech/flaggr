@@ -91,3 +91,30 @@ than a campaign platform: opened in a browser and copy-pasted into a compose
 window, the mail client re-hosts the images on its own, so that route works
 even before a deploy has published them. The instruction sheet covers both
 routes.
+
+## Member explainer video
+
+`explainer/flagrr-explainer.html` is a 64-second, 1920×1080 motion-graphics
+explainer for members: intro, the three steps (Play & scan → Earn → Redeem),
+tiers, streaks, the birthday/bar-voucher/away-club extras, and a download
+end card with the real store QR codes. The figures in it come from the seed
+catalogue and the tier/streak rules in `docs/Member-App-Features.md`, so if
+those change, update the copy in the HTML to match.
+
+Open the HTML in a browser to preview it. It plays in real time with a
+scrubber (space = play/pause, ←/→ = ±1s, `?t=30` to start at 30s). It
+pulls fonts from Google Fonts and images from `mobile/assets`, so preview it
+from inside the repo.
+
+To render the MP4 (needs Playwright with Chromium, plus ffmpeg):
+
+```sh
+node marketing/explainer/render.cjs            # -> marketing/dist/flagrr-explainer.mp4
+node marketing/explainer/render.cjs --from 20 --to 30 clip.mp4   # just a section
+```
+
+Every frame is computed from the timestamp alone. The renderer seeks to each
+frame, screenshots it, and stitches the frames with ffmpeg, so the output is
+frame-perfect however slow the machine is. The video has no audio. Add a
+music bed in your editor or social scheduler, because most autoplay feeds
+start muted anyway. The on-screen text carries the whole story.

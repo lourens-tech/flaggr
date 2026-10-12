@@ -1,0 +1,964 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Flagrr Member Explainer</title>
+<!--
+  Flagrr member explainer — a 64s, 1920x1080 motion-graphics video.
+
+  Every frame is a pure function of time: render(t) positions every element
+  from scratch, nothing is driven by CSS transitions or wall-clock timers. That
+  is what lets render.cjs seek to each frame and screenshot it for a
+  frame-perfect MP4. Opened directly in a browser it plays in real time with a
+  scrubber (space = play/pause, arrows = ±1s).
+
+  Images are referenced from mobile/assets so there is one copy of the brand.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,600;0,9..144,800;1,9..144,700;1,9..144,800&family=Poppins:wght@300;400;500;600;700&display=block" rel="stylesheet">
+<style>
+  :root {
+    --dark: #1F4234;
+    --dark-2: #173528;
+    --deep: #0F1F18;
+    --club: #00805A;
+    --lime: #CDDE5C;
+    --mint: #CCF2E6;
+    --white: #FFFFFF;
+    --ink: #1F1F1F;
+  }
+  html, body { margin: 0; height: 100%; background: #08100c; overflow: hidden; }
+  #viewport { position: fixed; inset: 0 0 56px 0; display: flex; align-items: center; justify-content: center; }
+  body.render #viewport { inset: 0; }
+  #stage {
+    position: relative; flex: none; width: 1920px; height: 1080px; overflow: hidden;
+    background: var(--dark); color: var(--white);
+    font-family: Poppins, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .layer, .scene { position: absolute; inset: 0; }
+  .scene { display: none; }
+  .abs { position: absolute; }
+  .serif { font-family: Fraunces, Georgia, serif; }
+  .lime { color: var(--lime); }
+  .mint { color: var(--mint); }
+  .will { will-change: transform, opacity; }
+
+  /* ---------- background ---------- */
+  .glow { position: absolute; border-radius: 50%; }
+  #photo { position: absolute; inset: -60px; background-size: cover; background-position: center; opacity: 0; }
+  #photoShade { position: absolute; inset: 0; background: radial-gradient(ellipse at center, rgba(31,66,52,.35) 0%, rgba(15,31,24,.92) 75%); opacity: 0; }
+  #contours { position: absolute; left: 50%; top: 50%; width: 2600px; height: 2600px; margin: -1300px 0 0 -1300px; opacity: .55; }
+  #grain { position: absolute; inset: 0; opacity: .05; pointer-events: none; background-size: 256px 256px; }
+
+  /* ---------- shared bits ---------- */
+  .ball {
+    position: absolute; width: 64px; height: 64px; margin: -32px 0 0 -32px; border-radius: 50%;
+    background:
+      radial-gradient(circle at 30% 28%, rgba(255,255,255,.75) 0 8%, transparent 9%),
+      radial-gradient(circle at 50% 50%, transparent 60%, rgba(0,0,0,.18) 100%),
+      radial-gradient(circle, rgba(31,66,52,.22) 0 1.6px, transparent 2.2px) 0 0 / 9px 9px,
+      var(--lime);
+    box-shadow: 0 18px 30px rgba(0,0,0,.35);
+  }
+  .shadow { position: absolute; width: 90px; height: 16px; margin-left: -45px; border-radius: 50%; background: rgba(0,0,0,.35); filter: blur(4px); }
+  .step-num {
+    font-family: Fraunces, Georgia, serif; font-weight: 800; font-size: 250px; line-height: 1;
+    color: transparent; -webkit-text-stroke: 3px var(--lime); letter-spacing: -6px;
+  }
+  .step-title { font-family: Fraunces, Georgia, serif; font-weight: 800; font-size: 100px; line-height: 1.02; letter-spacing: -2px; }
+  .body-copy { font-size: 34px; line-height: 1.5; color: rgba(255,255,255,.86); font-weight: 400; }
+  .mask { display: inline-block; overflow: hidden; vertical-align: top; padding: 0 .04em .08em; margin: 0 -.04em -.08em; }
+  .mask > span { display: inline-block; will-change: transform; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 14px; padding: 16px 30px; border-radius: 999px;
+    background: rgba(255,255,255,.07); border: 2px solid rgba(205,222,92,.35);
+    font-size: 30px; font-weight: 500; white-space: nowrap;
+  }
+  .chip svg { width: 36px; height: 36px; }
+  .pill {
+    position: absolute; padding: 18px 36px; border-radius: 999px; background: var(--lime); color: var(--dark);
+    font-family: Fraunces, Georgia, serif; font-weight: 800; font-size: 56px; white-space: nowrap;
+    box-shadow: 0 20px 50px rgba(0,0,0,.35);
+  }
+  .particle { position: absolute; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; background: var(--lime); }
+  .confetti { position: absolute; width: 16px; height: 9px; margin: -4px 0 0 -8px; border-radius: 2px; }
+  .coin {
+    position: absolute; width: 58px; height: 58px; margin: -29px 0 0 -29px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #F2F8C4 0 18%, var(--lime) 45%, #A9BC33 100%);
+    border: 3px solid #E6F09A; color: var(--dark); font: 800 20px/52px Fraunces, Georgia, serif; text-align: center;
+    box-shadow: 0 8px 18px rgba(0,0,0,.3);
+  }
+  #wipeA, #wipeB { position: absolute; inset: 0; clip-path: circle(0px at 0 0); }
+  #wipeA { background: var(--lime); }
+  #wipeB { background: var(--club); }
+
+  /* ---------- S1 intro ---------- */
+  #s1logo { left: 510px; top: 150px; width: 900px; }
+  #s1logo img { width: 100%; display: block; }
+  #s1tag { left: 0; right: 0; top: 720px; text-align: center; font-family: Fraunces, Georgia, serif; font-weight: 800; font-size: 92px; letter-spacing: -1px; }
+  #s1tag span { display: inline-block; margin: 0 18px; }
+
+  /* ---------- S2 hook ---------- */
+  #s2head { left: 0; right: 0; top: 220px; text-align: center; font-family: Fraunces, Georgia, serif; font-weight: 800; letter-spacing: -2px; }
+  #s2head .l1 { font-size: 104px; line-height: 1.08; }
+  #s2head .l2 { font-size: 132px; line-height: 1.1; font-style: italic; color: var(--lime); }
+  #s2chips { left: 0; right: 0; top: 640px; display: flex; justify-content: center; gap: 26px; }
+  #s2sub { left: 0; right: 0; top: 820px; text-align: center; font-size: 38px; color: var(--mint); font-weight: 400; }
+  #s2sub b { color: var(--white); font-weight: 600; }
+
+  /* ---------- phone ---------- */
+  .phone {
+    position: absolute; width: 450px; height: 920px; border-radius: 70px; background: #0A0F0C;
+    box-shadow: 0 0 0 3px #2B3A33, 0 60px 120px rgba(0,0,0,.55), inset 0 0 0 2px #39483F;
+  }
+  .phone .screen { position: absolute; inset: 16px; border-radius: 56px; overflow: hidden; background: #111814; }
+  .phone .notch { position: absolute; left: 50%; top: 30px; width: 130px; height: 36px; margin-left: -65px; border-radius: 20px; background: #000; z-index: 5; }
+  .cam-bg { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 45%, #2E3B34 0%, #121915 70%); }
+  .receipt {
+    position: absolute; left: 30px; top: 150px; width: 300px; padding: 26px 22px 30px; background: #FBFAF4; color: #2A2A2A;
+    font-family: "Courier New", "DejaVu Sans Mono", monospace; font-size: 16px; line-height: 1.55;
+    box-shadow: 0 20px 40px rgba(0,0,0,.45);
+  }
+  .receipt::after {
+    content: ""; position: absolute; left: 0; right: 0; bottom: -12px; height: 12px;
+    background: linear-gradient(-45deg, transparent 8px, #FBFAF4 0) 0 0 / 16px 12px, linear-gradient(45deg, transparent 8px, #FBFAF4 0) 0 0 / 16px 12px;
+  }
+  .receipt .c { text-align: center; }
+  .receipt .hr { border-top: 2px dashed #B9B6A8; margin: 10px 0; }
+  .receipt .row { display: flex; justify-content: space-between; position: relative; padding: 2px 6px; margin: 0 -6px; border-radius: 4px; }
+  .receipt .row .hl { position: absolute; inset: 0; background: rgba(205,222,92,.55); border-radius: 4px; transform-origin: left; transform: scaleX(0); }
+  .receipt .row span { position: relative; }
+  .receipt .row .tick { position: absolute; right: -34px; top: 1px; width: 24px; height: 24px; border-radius: 50%; background: var(--club); color: #fff; font: 700 16px/24px Poppins, sans-serif; text-align: center; font-family: Poppins, sans-serif; }
+  .bracket { position: absolute; width: 46px; height: 46px; border: 5px solid var(--lime); }
+  #scanline { position: absolute; left: 16px; width: 376px; height: 6px; border-radius: 3px; background: var(--lime); box-shadow: 0 0 24px 8px rgba(205,222,92,.55); }
+  .sheet {
+    position: absolute; left: 0; right: 0; bottom: 0; height: 330px; background: #fff; color: var(--ink);
+    border-radius: 36px 36px 0 0; padding: 34px 34px 0; box-sizing: border-box;
+  }
+  .sheet .ok { display: flex; align-items: center; gap: 12px; font-weight: 600; font-size: 22px; color: var(--club); }
+  .sheet .ok i { display: inline-block; width: 34px; height: 34px; border-radius: 50%; background: var(--club); color: #fff; font-style: normal; text-align: center; line-height: 34px; font-size: 20px; }
+  .sheet .meta { margin-top: 10px; font-size: 18px; color: #5E5E5E; }
+  .sheet .fc { margin-top: 18px; font-family: Fraunces, Georgia, serif; font-weight: 800; font-size: 76px; color: var(--dark); letter-spacing: -1px; }
+  .sheet .fc small { font-size: 36px; color: var(--club); }
+  .sheet .btn { margin-top: 14px; height: 60px; border-radius: 30px; background: var(--lime); color: var(--dark); font-weight: 600; font-size: 22px; text-align: center; line-height: 60px; }
+
+  .facts { display: flex; flex-wrap: wrap; gap: 16px; width: 760px; }
+  .facts .chip { font-size: 26px; padding: 12px 24px; }
+  .facts .chip i { font-style: normal; color: var(--lime); font-weight: 700; }
+
+  /* ---------- S4 earn ---------- */
+  #balance {
+    left: 150px; top: 150px; width: 800px; height: 780px; border-radius: 44px; box-sizing: border-box; padding: 54px 60px;
+    background: linear-gradient(160deg, #24503F 0%, #163126 100%); border: 2px solid rgba(205,222,92,.22);
+    box-shadow: 0 50px 100px rgba(0,0,0,.4);
+  }
+  #balance .lbl { font-size: 28px; color: var(--mint); font-weight: 500; }
+  #balance .num { margin-top: 6px; font-family: Fraunces, Georgia, serif; font-weight: 800; font-size: 168px; line-height: 1; letter-spacing: -4px; }
+  #balance .num small { font-size: 60px; color: var(--lime); letter-spacing: 0; margin-left: 10px; }
+  .tier-badge { position: absolute; right: 56px; top: 54px; perspective: 600px; width: 210px; height: 64px; }
+  .tier-badge .face {
+    position: absolute; inset: 0; border-radius: 32px; backface-visibility: hidden; text-align: center; line-height: 64px;
+    font-weight: 700; font-size: 24px; letter-spacing: 4px; text-transform: uppercase;
+  }
+  .bronze { background: linear-gradient(135deg, #7A4A24, #D19256); color: #fff; }
+  .silver { background: linear-gradient(135deg, #8D9A95, #E8EDEB); color: #1F2A25; }
+  .gold { background: linear-gradient(135deg, #A86C0A, #FDD248); color: #2B1C02; }
+  .platinum { background: linear-gradient(135deg, #DDE6C8, #FFFFFF); color: #1F2A25; }
+  .track { position: relative; margin-top: 44px; height: 24px; border-radius: 12px; background: rgba(255,255,255,.12); overflow: hidden; }
+  .track .fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 12px; background: linear-gradient(90deg, var(--club), var(--lime)); }
+  .track-lbl { margin-top: 16px; display: flex; justify-content: space-between; font-size: 24px; color: rgba(255,255,255,.75); }
+  .track-lbl b { color: var(--lime); font-weight: 600; }
+  .chart-lbl { margin-top: 52px; font-size: 22px; color: rgba(255,255,255,.6); font-weight: 500; letter-spacing: 1px; text-transform: uppercase; }
+  .bars { margin-top: 18px; height: 190px; display: flex; align-items: flex-end; gap: 16px; }
+  .bars div { flex: 1; border-radius: 10px 10px 4px 4px; background: rgba(205,222,92,.35); transform-origin: bottom; }
+  .bars div.now { background: var(--lime); }
+  .months { margin-top: 10px; display: flex; gap: 16px; font-size: 17px; color: rgba(255,255,255,.5); }
+  .months span { flex: 1; text-align: center; }
+
+  /* ---------- S5 tiers ---------- */
+  #s5title { left: 0; right: 0; top: 90px; text-align: center; font-family: Fraunces, Georgia, serif; font-weight: 800; font-size: 86px; letter-spacing: -2px; }
+  .col { position: absolute; bottom: 150px; width: 340px; border-radius: 34px 34px 10px 10px; transform-origin: bottom; overflow: hidden; box-shadow: 0 30px 60px rgba(0,0,0,.35); }
+  .col .in { position: absolute; left: 0; right: 0; top: 0; padding: 30px 30px 0; box-sizing: border-box; }
+  .col .nm { font-size: 26px; font-weight: 700; letter-spacing: 5px; text-transform: uppercase; opacity: .9; }
+  .col .mx { margin-top: 4px; font-family: Fraunces, Georgia, serif; font-weight: 800; font-size: 112px; line-height: 1; letter-spacing: -3px; }
+  .col .ml { font-size: 22px; font-weight: 500; opacity: .8; }
+  .col .th { position: absolute; left: 30px; right: 30px; bottom: 26px; font-size: 22px; font-weight: 500; opacity: .85; line-height: 1.35; }
+  .col .th b { display: block; font-family: Fraunces, Georgia, serif; font-size: 40px; font-weight: 800; opacity: 1; }
+  .col .perk { position: absolute; left: 30px; right: 30px; top: 222px; font-size: 21px; line-height: 1.45; font-weight: 500; }
+  .col .perk span { display: block; }
+  #s5foot { left: 0; right: 0; top: 960px; text-align: center; font-size: 30px; color: var(--mint); }
+  #s5ring { width: 380px; height: 380px; margin: -190px 0 0 -190px; border-radius: 50%; border: 4px solid var(--lime); }
+
+  /* ---------- S6 streaks ---------- */
+  #s6title { left: 200px; top: 120px; }
+  #s6title h2 { margin: 0; font-family: Fraunces, Georgia, serif; font-weight: 800; font-size: 100px; letter-spacing: -2px; line-height: 1.05; }
+  #s6title p { margin: 14px 0 0; font-size: 36px; color: var(--mint); }
+  #s6track { left: 200px; top: 636px; width: 1520px; height: 10px; border-radius: 5px; background: rgba(255,255,255,.12); }
+  #s6fill { left: 200px; top: 636px; height: 10px; border-radius: 5px; background: var(--lime); }
+  .wk { position: absolute; top: 641px; width: 84px; height: 84px; margin: -42px 0 0 -42px; border-radius: 50%; box-sizing: border-box; border: 4px solid rgba(255,255,255,.25); background: var(--dark); }
+  .wk .f { position: absolute; inset: -4px; border-radius: 50%; background: var(--lime); }
+  .wk .ck { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+  .wk.ms { width: 104px; height: 104px; margin: -52px 0 0 -52px; border-color: rgba(205,222,92,.6); }
+  .wk-l { position: absolute; top: 708px; width: 120px; margin-left: -60px; text-align: center; font-size: 22px; color: rgba(255,255,255,.55); font-weight: 500; }
+  .bonus { position: absolute; top: 445px; width: 240px; margin-left: -120px; text-align: center; }
+  .bonus .b { display: inline-block; white-space: nowrap; padding: 14px 28px; border-radius: 22px; background: var(--white); color: var(--dark); font-family: Fraunces, Georgia, serif; font-weight: 800; font-size: 46px; position: relative; }
+  .bonus .b::after { content: ""; position: absolute; left: 50%; bottom: -14px; margin-left: -14px; border: 14px solid transparent; border-bottom: 0; border-top-color: var(--white); }
+  .bonus.big .b { background: var(--lime); }
+  .bonus.big .b::after { border-top-color: var(--lime); }
+  .bonus .s { margin-top: 26px; font-size: 22px; color: var(--mint); font-weight: 500; }
+  #s6flag { top: 520px; width: 60px; height: 90px; margin-left: -6px; }
+  #s6foot { left: 0; right: 0; top: 860px; text-align: center; font-size: 36px; color: rgba(255,255,255,.9); }
+  #s6foot b { color: var(--lime); font-weight: 600; }
+
+  /* ---------- S7 perks ---------- */
+  #s7title { left: 0; right: 0; top: 130px; text-align: center; font-family: Fraunces, Georgia, serif; font-weight: 800; font-size: 96px; letter-spacing: -2px; }
+  .perk-card {
+    position: absolute; top: 340px; width: 500px; height: 500px; box-sizing: border-box; padding: 52px 46px; border-radius: 40px;
+    background: linear-gradient(165deg, #24503F 0%, #173528 100%); border: 2px solid rgba(205,222,92,.22); box-shadow: 0 40px 80px rgba(0,0,0,.35);
+  }
+  .perk-card .ic { width: 124px; height: 124px; border-radius: 50%; background: var(--lime); display: flex; align-items: center; justify-content: center; }
+  .perk-card .ic svg { width: 66px; height: 66px; }
+  .perk-card h3 { margin: 40px 0 0; font-family: Fraunces, Georgia, serif; font-weight: 800; font-size: 48px; letter-spacing: -1px; }
+  .perk-card p { margin: 16px 0 0; font-size: 28px; line-height: 1.45; color: rgba(255,255,255,.82); }
+  .perk-card p b { color: var(--lime); font-weight: 600; }
+
+  /* ---------- S8 redeem ---------- */
+  #s8clip { left: 860px; top: 0; width: 1060px; height: 1080px; overflow: hidden; perspective: 1800px; }
+  .rw { position: absolute; top: 300px; width: 330px; height: 470px; transform-style: preserve-3d; }
+  .rw .face { position: absolute; inset: 0; border-radius: 30px; overflow: hidden; backface-visibility: hidden; background: #fff; color: var(--ink); box-shadow: 0 30px 60px rgba(0,0,0,.4); }
+  .rw .ph { height: 250px; background-size: cover; background-position: center; }
+  .rw .tx { padding: 22px 26px; }
+  .rw .tt { font-family: Fraunces, Georgia, serif; font-weight: 800; font-size: 32px; color: var(--dark); line-height: 1.1; }
+  .rw .ct { margin-top: 8px; font-size: 22px; color: var(--club); font-weight: 600; }
+  .rw .bt { position: absolute; left: 26px; right: 26px; bottom: 24px; height: 54px; border-radius: 27px; background: var(--lime); color: var(--dark); font-weight: 600; font-size: 22px; text-align: center; line-height: 54px; }
+  .rw .ring { position: absolute; inset: -10px; border-radius: 38px; border: 6px solid var(--lime); opacity: 0; }
+  .rw .back { transform: rotateY(180deg); background: #fff; text-align: center; padding: 28px 24px; box-sizing: border-box; }
+  .rw .back .vt { font-size: 18px; letter-spacing: 3px; text-transform: uppercase; color: var(--club); font-weight: 600; }
+  .rw .back .vn { margin-top: 4px; font-family: Fraunces, Georgia, serif; font-weight: 800; font-size: 34px; color: var(--dark); }
+  .rw .back svg { margin-top: 16px; width: 230px; height: 230px; }
+  .rw .back .vc { margin-top: 10px; font: 600 20px/1 "Courier New", "DejaVu Sans Mono", monospace; letter-spacing: 3px; color: var(--dark); }
+  .rw .back .vx { margin-top: 12px; font-size: 18px; color: #5E5E5E; }
+
+  /* ---------- S9 outro ---------- */
+  #s9logo { left: 660px; top: 70px; width: 600px; }
+  #s9logo img { width: 100%; display: block; }
+  #s9tag { left: 0; right: 0; top: 420px; text-align: center; font-family: Fraunces, Georgia, serif; font-weight: 800; font-size: 64px; letter-spacing: -1px; }
+  #s9tag span { display: inline-block; margin: 0 12px; }
+  #s9cta { left: 0; right: 0; top: 530px; text-align: center; font-size: 34px; color: var(--mint); }
+  #s9cta b { color: var(--white); font-weight: 600; }
+  .qr { position: absolute; top: 620px; width: 270px; padding: 22px 22px 16px; box-sizing: border-box; border-radius: 30px; background: #fff; color: var(--dark); text-align: center; box-shadow: 0 30px 60px rgba(0,0,0,.35); }
+  .qr img { width: 226px; height: 226px; display: block; image-rendering: pixelated; }
+  .qr div { margin-top: 10px; font-weight: 600; font-size: 22px; }
+  .qr small { display: block; font-weight: 400; font-size: 17px; color: #5E5E5E; }
+  #s9url { left: 0; right: 0; top: 1000px; text-align: center; font-size: 30px; font-weight: 600; letter-spacing: 2px; color: var(--lime); }
+
+  /* ---------- preview controls (hidden when rendering) ---------- */
+  #controls { position: fixed; left: 0; right: 0; bottom: 0; height: 56px; display: flex; align-items: center; gap: 14px; padding: 0 18px; background: #0F1712; color: #CCF2E6; font: 500 14px Poppins, system-ui, sans-serif; box-sizing: border-box; }
+  #controls button { width: 40px; height: 36px; border: 0; border-radius: 8px; background: #CDDE5C; color: #1F4234; font: 700 16px Poppins, sans-serif; cursor: pointer; }
+  #controls input { flex: 1; accent-color: #CDDE5C; }
+  #controls span { font-variant-numeric: tabular-nums; min-width: 96px; text-align: right; }
+  body.render #controls { display: none; }
+</style>
+</head>
+<body>
+<div id="viewport">
+<div id="stage">
+
+  <!-- ===== background ===== -->
+  <div class="layer" id="bg">
+    <div id="photo"></div>
+    <div id="photoShade"></div>
+    <div class="glow" id="g1" style="width:1300px;height:1300px;background:radial-gradient(circle, rgba(0,128,90,.55) 0%, transparent 65%)"></div>
+    <div class="glow" id="g2" style="width:1100px;height:1100px;background:radial-gradient(circle, rgba(205,222,92,.16) 0%, transparent 65%)"></div>
+    <div class="glow" id="g3" style="width:1500px;height:1500px;background:radial-gradient(circle, rgba(10,25,19,.75) 0%, transparent 65%)"></div>
+    <svg id="contours" viewBox="-1300 -1300 2600 2600" fill="none" stroke="rgba(205,222,92,.07)" stroke-width="2"></svg>
+  </div>
+
+  <!-- ===== S1: logo intro ===== -->
+  <section class="scene" id="s1">
+    <div class="shadow" id="s1shadow"></div>
+    <div class="abs will" id="s1logo"><img src="../../mobile/assets/images/flagrr-logo-lime.png" alt=""></div>
+    <div class="ball" id="s1ball"></div>
+    <div class="abs" id="s1tag"><span>Play.</span><span>Earn.</span><span>Redeem.</span><span class="lime">Repeat.</span></div>
+  </section>
+
+  <!-- ===== S2: hook ===== -->
+  <section class="scene" id="s2">
+    <div class="abs" id="s2head">
+      <div class="l1"><span class="mask"><span>Your</span></span> <span class="mask"><span>golf</span></span> <span class="mask"><span>is</span></span> <span class="mask"><span>about</span></span> <span class="mask"><span>to</span></span> <span class="mask"><span>start</span></span></div>
+      <div class="l2"><span class="mask"><span>paying</span></span> <span class="mask"><span>you</span></span> <span class="mask"><span>back.</span></span></div>
+    </div>
+    <div class="abs" id="s2chips">
+      <div class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="#CDDE5C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 21V3l11 4-11 4"/><ellipse cx="9" cy="21" rx="6" ry="1.2"/></svg>Green fees</div>
+      <div class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="#CDDE5C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8h14l-1 13H6L5 8z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg>Pro shop</div>
+      <div class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="#CDDE5C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11h16a8 8 0 0 1-16 0z"/><path d="M8 7c0-2 2-2 2-4M13 7c0-2 2-2 2-4"/></svg>Halfway house</div>
+      <div class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="#CDDE5C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4h10v8a5 5 0 0 1-10 0V4z"/><path d="M16 7h2a2 2 0 0 1 0 4h-2"/><path d="M11 17v4M7 21h8"/></svg>The bar</div>
+    </div>
+    <div class="abs" id="s2sub">Snap the receipt and it turns into <b>Flagrr Cash</b> you spend right back at your club.</div>
+  </section>
+
+  <!-- ===== S3: play & scan ===== -->
+  <section class="scene" id="s3">
+    <div class="abs step-num" id="s3num" style="left:150px;top:110px">01</div>
+    <div class="abs step-title" id="s3title" style="left:150px;top:380px"><span class="mask"><span>Play</span></span> <span class="mask"><span class="lime">&amp;</span></span> <span class="mask"><span>scan</span></span></div>
+    <div class="abs body-copy" id="s3body" style="left:150px;top:520px;width:760px">Photograph any receipt from your club. The app reads it and works out your Flagrr Cash for you.</div>
+    <div class="abs facts" id="s3facts" style="left:150px;top:740px">
+      <div class="chip"><i>&#10003;</i> Matched to your club&#8217;s catalogue</div>
+      <div class="chip"><i>&#10003;</i> Credited instantly</div>
+      <div class="chip"><i>&#10003;</i> Each receipt counts once</div>
+    </div>
+    <div class="phone" id="s3phone" style="left:1180px;top:80px">
+      <div class="screen">
+        <div class="cam-bg"></div>
+        <div class="receipt" id="s3receipt">
+          <div class="c"><b>STRAND GOLF CLUB</b></div>
+          <div class="c">Tax Invoice #004817</div>
+          <div class="c">12/10/2026 08:14</div>
+          <div class="hr"></div>
+          <div class="row"><div class="hl"></div><span>18 Hole Green Fee</span><span>450.00</span><div class="tick">&#10003;</div></div>
+          <div class="row"><div class="hl"></div><span>Cart Hire</span><span>320.00</span><div class="tick">&#10003;</div></div>
+          <div class="row"><div class="hl"></div><span>Pro V1 Balls</span><span>215.00</span><div class="tick">&#10003;</div></div>
+          <div class="hr"></div>
+          <div class="row"><div class="hl"></div><span><b>TOTAL</b></span><span><b>R 985.00</b></span></div>
+          <div class="c" style="margin-top:10px;font-size:13px">Thank you - see you on the 1st tee</div>
+        </div>
+        <div class="bracket" id="br1" style="border-right:0;border-bottom:0"></div>
+        <div class="bracket" id="br2" style="border-left:0;border-bottom:0"></div>
+        <div class="bracket" id="br3" style="border-right:0;border-top:0"></div>
+        <div class="bracket" id="br4" style="border-left:0;border-top:0"></div>
+        <div id="scanline"></div>
+        <div class="sheet" id="s3sheet">
+          <div class="ok"><i>&#10003;</i> Receipt approved</div>
+          <div class="meta">Strand Golf Club &middot; 3 items matched</div>
+          <div class="fc">+170 <small>FC</small></div>
+          <div class="btn">Done</div>
+        </div>
+      </div>
+      <div class="notch"></div>
+    </div>
+    <div class="pill" id="s3pill">+170 FC</div>
+    <div id="s3burst"></div>
+  </section>
+
+  <!-- ===== S4: earn ===== -->
+  <section class="scene" id="s4">
+    <div class="abs" id="balance">
+      <div class="lbl">Flagrr Cash balance</div>
+      <div class="num"><span id="s4num">4,790</span><small>FC</small></div>
+      <div class="tier-badge"><div class="face bronze" id="tbA">Bronze</div><div class="face silver" id="tbB">Silver</div></div>
+      <div class="track"><div class="fill" id="s4fill"></div></div>
+      <div class="track-lbl"><span id="s4lblL">Bronze &rarr; Silver</span><span id="s4lblR"><b>210 FC</b> to go</span></div>
+      <div class="chart-lbl">Flagrr Cash earned per month</div>
+      <div class="bars" id="s4bars"></div>
+      <div class="months"><span>Jan</span><span>Feb</span><span>Mar</span><span>Apr</span><span>May</span><span>Jun</span><span>Jul</span><span>Aug</span><span>Sep</span><span>Oct</span></div>
+    </div>
+    <div class="abs step-num" id="s4num2" style="left:1060px;top:110px">02</div>
+    <div class="abs step-title" id="s4title" style="left:1060px;top:380px"><span class="mask"><span>Earn</span></span><br><span class="mask"><span class="lime">Flagrr Cash</span></span></div>
+    <div class="abs body-copy" id="s4body" style="left:1060px;top:615px;width:720px">It lands in your balance automatically. No cards, no stamps &mdash; and it all counts towards your tier.</div>
+    <div class="pill" id="s4pillA" style="font-size:40px;padding:14px 28px">+170 FC &middot; Receipt</div>
+    <div class="pill" id="s4pillB" style="font-size:40px;padding:14px 28px;background:#fff">+100 FC &middot; Streak bonus</div>
+    <div class="pill" id="s4pillC" style="font-size:40px;padding:14px 28px" >Silver unlocked &middot; 1.2x earning</div>
+    <div id="s4coins"></div>
+    <div id="s4confetti"></div>
+  </section>
+
+  <!-- ===== S5: tiers ===== -->
+  <section class="scene" id="s5">
+    <div class="abs" id="s5title"><span class="mask"><span>The</span></span> <span class="mask"><span>more</span></span> <span class="mask"><span>you</span></span> <span class="mask"><span>play,</span></span> <span class="mask"><span class="lime">the</span></span> <span class="mask"><span class="lime">more</span></span> <span class="mask"><span class="lime">it</span></span> <span class="mask"><span class="lime">pays.</span></span></div>
+    <div class="abs" id="s5ring"></div>
+    <div class="col bronze" id="c0" style="left:230px;height:330px"><div class="in"><div class="nm">Bronze</div><div class="mx" data-m="1">1x</div><div class="ml">earning rate</div></div><div class="th"><b>0 FC</b>to start</div></div>
+    <div class="col silver" id="c1" style="left:600px;height:430px"><div class="in"><div class="nm">Silver</div><div class="mx" data-m="1.2">1.2x</div><div class="ml">earning rate</div></div><div class="th"><b>5,000 FC</b>earned this quarter</div></div>
+    <div class="col gold" id="c2" style="left:970px;height:530px"><div class="in"><div class="nm">Gold</div><div class="mx" data-m="1.5">1.5x</div><div class="ml">earning rate</div></div><div class="perk"><span>+ R100 bar voucher</span><span>every quarter</span></div><div class="th"><b>10,000 FC</b>earned this quarter</div></div>
+    <div class="col platinum" id="c3" style="left:1340px;height:630px"><div class="in"><div class="nm">Platinum</div><div class="mx" data-m="1.7">1.7x</div><div class="ml">earning rate</div></div><div class="perk"><span>+ R200 bar voucher</span><span>every quarter</span></div><div class="th"><b>15,000 FC</b>earned this quarter</div></div>
+    <div class="ball" id="s5ball"></div>
+    <div class="abs" id="s5foot">Tiers reset each quarter &mdash; and a quiet quarter only ever drops you one tier.</div>
+  </section>
+
+  <!-- ===== S6: streaks ===== -->
+  <section class="scene" id="s6">
+    <div class="abs" id="s6title"><h2>Keep your <span class="lime">streak</span> alive.</h2><p>Play at least one round a week.</p></div>
+    <div class="abs" id="s6track"></div>
+    <div class="abs" id="s6fill"></div>
+    <div id="s6nodes"></div>
+    <svg class="abs" id="s6flag" viewBox="0 0 60 90"><rect x="4" y="0" width="5" height="90" rx="2" fill="#fff"/><path d="M9 3 L56 16 L9 30 Z" fill="#CDDE5C"/></svg>
+    <div class="abs" id="s6foot">Every 4 unbroken weeks drops a bonus &mdash; then <b>300 FC every 4 weeks</b> after that.</div>
+  </section>
+
+  <!-- ===== S7: perks ===== -->
+  <section class="scene" id="s7">
+    <div class="abs" id="s7title">Little <span class="lime">extras</span>, built in.</div>
+    <div class="perk-card" id="p0" style="left:170px">
+      <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="#1F4234" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21h16v-8H4v8z"/><path d="M4 16c2 1.5 4 1.5 5.3 0 1.4 1.5 4 1.5 5.4 0 1.3 1.5 3.3 1.5 5.3 0"/><path d="M12 13V9M12 6.5c-.9-.6-.9-1.8 0-3 .9 1.2.9 2.4 0 3z"/></svg></div>
+      <h3>Birthday bonus</h3>
+      <p>Open the app on your birthday and up to <b>200 FC</b> is waiting for you.</p>
+    </div>
+    <div class="perk-card" id="p1" style="left:710px">
+      <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="#1F4234" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h10l-1 7a4 4 0 0 1-8 0L7 3z"/><path d="M12 14v6M8 21h8"/><path d="M7.5 6.5h9"/></svg></div>
+      <h3>Bar voucher</h3>
+      <p>Reach Gold for a free <b>R100 bar voucher</b> every quarter &mdash; R200 at Platinum.</p>
+    </div>
+    <div class="perk-card" id="p2" style="left:1250px">
+      <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="#1F4234" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg></div>
+      <h3>Playing away?</h3>
+      <p>Earn <b>1 FC for every R1</b> you spend at any other Flagrr partner club.</p>
+    </div>
+  </section>
+
+  <!-- ===== S8: redeem ===== -->
+  <section class="scene" id="s8">
+    <div class="abs step-num" id="s8num" style="left:150px;top:110px">03</div>
+    <div class="abs step-title" id="s8title" style="left:150px;top:380px"><span class="mask"><span>Redeem</span></span><br><span class="mask"><span class="lime">at the club</span></span></div>
+    <div class="abs body-copy" id="s8body" style="left:150px;top:615px;width:680px">Swap Flagrr Cash for rounds, coaching, cart hire, and pro shop, kitchen or bar vouchers.</div>
+    <div class="abs body-copy" id="s8body2" style="left:150px;top:830px;width:680px;font-size:30px;color:var(--mint)">Show the QR voucher at the counter. Valid for 90 days.</div>
+    <div class="abs" id="s8clip"><div id="s8strip"></div></div>
+    <div class="pill" id="s8pill" style="font-size:40px;padding:14px 28px;background:#fff">&minus;900 FC</div>
+  </section>
+
+  <!-- ===== S9: outro ===== -->
+  <section class="scene" id="s9">
+    <div class="abs" id="s9logo"><img src="../../mobile/assets/images/flagrr-logo-lime.png" alt=""></div>
+    <div class="abs" id="s9tag"><span>Play.</span><span>Earn.</span><span>Redeem.</span><span class="lime">Repeat.</span></div>
+    <div class="abs" id="s9cta"><b>Download Flagrr</b> and sign up in a minute &mdash; just pick your home club.</div>
+    <div class="qr" id="q0" style="left:655px"><img src="../../mobile/assets/email/qr-app-store.png" alt=""><div>iPhone<small>App Store</small></div></div>
+    <div class="qr" id="q1" style="left:995px"><img src="../../mobile/assets/email/qr-play-store.png" alt=""><div>Android<small>Google Play</small></div></div>
+    <div class="abs" id="s9url">FLAGRR.COM</div>
+  </section>
+
+  <!-- transitions sit above every scene -->
+  <div id="wipeA"></div>
+  <div id="wipeB"></div>
+  <div id="grain"></div>
+</div>
+</div>
+
+<div id="controls">
+  <button id="play" title="Play / pause (space)">&#9654;</button>
+  <input id="scrub" type="range" min="0" max="64" step="0.01" value="0">
+  <span id="clock">0.00 / 64.00</span>
+</div>
+
+<script>
+(() => {
+  const DURATION = 64;
+  const FPS = 30;
+  const $ = (s, r = document) => r.querySelector(s);
+  const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+
+  // ---------- math ----------
+  const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+  const lerp = (a, b, k) => a + (b - a) * k;
+  const E = {
+    lin: k => k,
+    outCubic: k => 1 - Math.pow(1 - k, 3),
+    inCubic: k => k * k * k,
+    inOutCubic: k => (k < .5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2),
+    outExpo: k => (k >= 1 ? 1 : 1 - Math.pow(2, -10 * k)),
+    outBack: k => { const c = 1.9; return 1 + (c + 1) * Math.pow(k - 1, 3) + c * Math.pow(k - 1, 2); },
+    outBounce: k => {
+      const n = 7.5625, d = 2.75;
+      if (k < 1 / d) return n * k * k;
+      if (k < 2 / d) return n * (k -= 1.5 / d) * k + .75;
+      if (k < 2.5 / d) return n * (k -= 2.25 / d) * k + .9375;
+      return n * (k -= 2.625 / d) * k + .984375;
+    },
+  };
+  // progress of local time `t` through [start, start+dur], eased
+  const P = (t, start, dur, ease = E.outCubic) => ease(clamp((t - start) / dur));
+  const fmt = n => Math.round(n).toLocaleString('en-US');
+  const rng = seed => () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
+
+  function tf(el, { x = 0, y = 0, s = 1, sx, sy, r = 0, ry = 0, rx = 0, o } = {}) {
+    el.style.transform = `translate(${x}px,${y}px) rotate(${r}deg) rotateX(${rx}deg) rotateY(${ry}deg) scale(${sx ?? s},${sy ?? s})`;
+    if (o !== undefined) el.style.opacity = o;
+  }
+  // rise-in for an element: fades up from `dy` px below
+  const rise = (el, t, start, dur = .7, dy = 50) => {
+    const k = P(t, start, dur);
+    tf(el, { y: (1 - k) * dy, o: k });
+  };
+  // staggered masked-word reveal
+  const words = (root, t, start, gap = .07, dur = .7) =>
+    $$('.mask > span', root).forEach((w, i) => {
+      const k = P(t, start + i * gap, dur, E.outExpo);
+      w.style.transform = `translateY(${(1 - k) * 110}%)`;
+    });
+
+  // ---------- build dynamic DOM ----------
+  // film grain: one static noise tile, repeated (a live SVG noise filter is far too slow to rasterise per frame)
+  (() => {
+    const c = document.createElement('canvas'); c.width = c.height = 256;
+    const g = c.getContext('2d'), img = g.createImageData(256, 256), r = rng(99);
+    for (let i = 0; i < img.data.length; i += 4) { const v = r() * 255; img.data[i] = img.data[i + 1] = img.data[i + 2] = v; img.data[i + 3] = 255; }
+    g.putImageData(img, 0, 0);
+    $('#grain').style.backgroundImage = `url(${c.toDataURL()})`;
+  })();
+
+  // background contour rings — a green's topography
+  const contours = $('#contours');
+  for (let i = 1; i <= 22; i++) {
+    const e = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
+    e.setAttribute('rx', 60 * i * 1.25); e.setAttribute('ry', 60 * i * .82);
+    e.setAttribute('cx', Math.sin(i * .7) * 14 * i * .3); e.setAttribute('cy', Math.cos(i * .5) * 10 * i * .3);
+    contours.appendChild(e);
+  }
+
+  // S3 burst particles
+  const burst = $('#s3burst');
+  const burstP = Array.from({ length: 18 }, (_, i) => {
+    const d = document.createElement('div'); d.className = 'particle'; burst.appendChild(d);
+    const a = (i / 18) * Math.PI * 2; return { d, a, r: 140 + (i % 3) * 50 };
+  });
+
+  // S4 coins + chart bars + confetti
+  const coins = $('#s4coins');
+  const coinR = rng(7);
+  const mkCoins = (n, fromX, fromY, t0) => Array.from({ length: n }, (_, i) => {
+    const d = document.createElement('div'); d.className = 'coin'; d.textContent = 'FC'; coins.appendChild(d);
+    return { d, t0: t0 + i * .07, x0: fromX + (coinR() - .5) * 220, y0: fromY + (coinR() - .5) * 140, bend: (coinR() - .5) * 500 };
+  });
+  const coinsA = mkCoins(10, 1500, 900, 1.25);
+  const coinsB = mkCoins(7, 1500, 900, 2.85);
+  const bars = $('#s4bars');
+  const barH = [.38, .52, .44, .61, .57, .7, .66, .78, .72, 0];
+  barH.forEach((h, i) => { const d = document.createElement('div'); d.style.height = (h || .9) * 100 + '%'; if (i === 9) d.className = 'now'; bars.appendChild(d); });
+  const confettiBox = $('#s4confetti');
+  const cr = rng(42);
+  const confetti = Array.from({ length: 46 }, () => {
+    const d = document.createElement('div'); d.className = 'confetti';
+    d.style.background = ['#CDDE5C', '#FFFFFF', '#E8EDEB', '#00805A', '#FDD248'][Math.floor(cr() * 5)];
+    confettiBox.appendChild(d);
+    return { d, vx: (cr() - .5) * 900, vy: -500 - cr() * 700, spin: (cr() - .5) * 1400 };
+  });
+
+  // S6 week nodes
+  const nodesBox = $('#s6nodes');
+  const WX = i => 200 + i * (1520 / 11);
+  const nodes = Array.from({ length: 12 }, (_, i) => {
+    const ms = (i + 1) % 4 === 0;
+    const n = document.createElement('div'); n.className = 'wk' + (ms ? ' ms' : ''); n.style.left = WX(i) + 'px';
+    n.innerHTML = '<div class="f"></div><div class="ck"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#1F4234" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>';
+    const l = document.createElement('div'); l.className = 'wk-l'; l.style.left = WX(i) + 'px'; l.textContent = 'Wk ' + (i + 1);
+    nodesBox.append(n, l);
+    let b = null;
+    if (ms) {
+      b = document.createElement('div'); b.className = 'bonus' + (i === 11 ? ' big' : ''); b.style.left = WX(i) + 'px';
+      b.innerHTML = `<div class="b">+${(i + 1) / 4 * 100} FC</div><div class="s">${i + 1} weeks</div>`;
+      nodesBox.appendChild(b);
+    }
+    return { n, f: $('.f', n), ck: $('.ck', n), b };
+  });
+
+  // S8 rewards strip — real catalogue items and costs
+  const REWARDS = [
+    ['Golf Cart Hire', '400 FC', 'golf-cart-hire'],
+    ['Pro Shop Voucher', 'from 700 FC', 'pro-shop-voucher'],
+    ['1 Hour Driving Range', '150 FC', 'driving-range'],
+    ['Coaching Session', '1,200 FC', 'coaching-session'],
+    ['Kitchen Voucher', 'from 140 FC', 'kitchen-voucher'],
+    ['18 Hole Round', '900 FC', '18-hole-round'],
+    ['Bar Voucher', 'from 140 FC', 'bar-voucher'],
+    ['9 Hole Round', '500 FC', '9-hole-round'],
+  ];
+  const PICK = 5;
+  const CARD_GAP = 370;
+  const strip = $('#s8strip');
+  // A decorative (non-scannable) QR-style pattern for the voucher back.
+  const qrSvg = (() => {
+    const N = 25, r = rng(1234); let rects = '';
+    const finder = (x, y) => rects += `<rect x="${x}" y="${y}" width="7" height="7" fill="#1F4234"/><rect x="${x + 1}" y="${y + 1}" width="5" height="5" fill="#fff"/><rect x="${x + 2}" y="${y + 2}" width="3" height="3" fill="#1F4234"/>`;
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      const inF = (x < 8 && y < 8) || (x > N - 9 && y < 8) || (x < 8 && y > N - 9);
+      if (!inF && r() > .52) rects += `<rect x="${x}" y="${y}" width="1" height="1" fill="#1F4234"/>`;
+    }
+    finder(0, 0); finder(N - 7, 0); finder(0, N - 7);
+    return `<svg viewBox="-1 -1 ${N + 2} ${N + 2}" shape-rendering="crispEdges">${rects}</svg>`;
+  })();
+  const rwCards = REWARDS.map(([title, cost, img], i) => {
+    const c = document.createElement('div'); c.className = 'rw';
+    c.innerHTML = `<div class="ring"></div>
+      <div class="face"><div class="ph" style="background-image:url(../../mobile/assets/images/rewards/${img}.jpg)"></div>
+        <div class="tx"><div class="tt">${title}</div><div class="ct">${cost}</div></div><div class="bt">Redeem</div></div>` +
+      (i === PICK ? `<div class="face back"><div class="vt">Voucher</div><div class="vn">${title}</div>${qrSvg}<div class="vc">FLG-7Q4K-2MXD</div><div class="vx">Show at the counter &middot; valid 90 days</div></div>` : '');
+    strip.appendChild(c);
+    return { c, ring: $('.ring', c), bt: $('.bt', c) };
+  });
+
+  // ---------- timeline ----------
+  // [id, start, end] in seconds; each scene fades itself in/out unless a wipe covers it.
+  const SCENES = {
+    s1: [0, 5.6], s2: [5.6, 11.2], s3: [11.2, 21.2], s4: [21.2, 28.4], s5: [28.4, 36.4],
+    s6: [36.4, 43.6], s7: [43.6, 49.2], s8: [49.2, 57.4], s9: [57.4, 64],
+  };
+  // circular wipes centred on the scene cut
+  const WIPES = [
+    { t: 11.2, from: [180, 980], to: [1700, 160] },
+    { t: 36.4, from: [1750, 950], to: [220, 180] },
+    { t: 57.4, from: [960, 1180], to: [960, 330] },
+  ];
+  const sceneEls = Object.fromEntries(Object.keys(SCENES).map(k => [k, $('#' + k)]));
+  const wipeCut = new Set(WIPES.map(w => w.t));
+
+  function envelope(t, [a, b]) {
+    const fin = wipeCut.has(a) || a === 0 ? 1 : P(t, a, .45);
+    const fout = wipeCut.has(b) || b === DURATION ? 1 : 1 - P(t, b - .45, .45, E.inCubic);
+    return Math.min(fin, fout);
+  }
+
+  const UPDATE = {
+    s1(t) {
+      const ball = $('#s1ball'), sh = $('#s1shadow'), logo = $('#s1logo');
+      // drop & bounce to centre, then hop up onto the logo's own golf ball
+      const LAND = [960, 560], DOT = [1268, 255];
+      let bx = 960, by = lerp(-80, LAND[1], P(t, 0, 1.15, E.outBounce)), bs = 1, bo = 1;
+      if (t > 1.3) {
+        const k = P(t, 1.3, .85, E.inOutCubic);
+        bx = lerp(LAND[0], DOT[0], k);
+        by = lerp(LAND[1], DOT[1], k) - Math.sin(k * Math.PI) * 220;
+        bs = lerp(1, 1.18, k);
+      }
+      bo = 1 - P(t, 2.15, .25);
+      ball.style.left = bx + 'px'; ball.style.top = by + 'px';
+      tf(ball, { s: bs, r: t * 360, o: bo });
+      const ground = clamp(1 - Math.abs(by - LAND[1]) / 600);
+      sh.style.left = '960px'; sh.style.top = LAND[1] + 30 + 'px';
+      tf(sh, { s: lerp(.4, 1, ground), o: t < 1.3 ? ground * .9 : 1 - P(t, 1.3, .3) });
+      // logo wipes on from the left, trailing the ball
+      const rev = P(t, 1.25, 1.0, E.inOutCubic);
+      logo.style.clipPath = `inset(-5% ${100 - rev * 105}% -5% -5%)`;
+      tf(logo, { s: lerp(.96, 1, rev) * lerp(1, 1.04, P(t, 2.2, 3.4, E.lin)), y: -P(t, 2.2, .8) * 20 });
+      $$('#s1tag span').forEach((w, i) => {
+        const k = P(t, 2.45 + i * .26, .65, E.outBack);
+        tf(w, { y: (1 - k) * 80, s: lerp(.6, 1, k), o: clamp(k * 2) });
+      });
+    },
+
+    s2(t) {
+      words($('#s2head'), t, .15, .09);
+      $$('#s2chips .chip').forEach((c, i) => {
+        const k = P(t, 1.45 + i * .16, .6, E.outBack);
+        tf(c, { y: (1 - k) * 60 + Math.sin(t * 2 + i) * 4, s: lerp(.7, 1, k), o: clamp(k * 1.5) });
+      });
+      rise($('#s2sub'), t, 2.5);
+      tf($('#s2head'), { y: -P(t, 3, 3, E.lin) * 12 });
+    },
+
+    s3(t) {
+      const ph = $('#s3phone');
+      const k = P(t, .1, 1.1, E.outExpo);
+      tf(ph, { y: (1 - k) * 700 + Math.sin(t * 1.4) * 6, r: lerp(10, -3, k) + Math.sin(t * .9) * .6 });
+      tf($('#s3num'), { x: (1 - P(t, .3, 1, E.outExpo)) * -80, o: P(t, .3, .6) });
+      words($('#s3title'), t, .45, .1);
+      rise($('#s3body'), t, .95);
+      $$('#s3facts .chip').forEach((c, i) => {
+        const kk = P(t, 6.3 + i * .2, .6, E.outBack);
+        tf(c, { x: (1 - kk) * -40, s: lerp(.8, 1, kk), o: clamp(kk * 1.6) });
+      });
+      // receipt slides into the viewfinder
+      const rc = $('#s3receipt');
+      const rk = P(t, .9, .9, E.outCubic);
+      tf(rc, { y: (1 - rk) * 600, r: (1 - rk) * 8 });
+      // brackets lock on
+      const bk = P(t, 1.7, .5, E.outBack);
+      const box = { l: 14, t: 128, r: 394, b: 520 };
+      const pad = (1 - bk) * 40;
+      const place = (id, x, y) => { const b = $(id); b.style.left = x + 'px'; b.style.top = y + 'px'; b.style.opacity = clamp(bk * 2) * (1 - P(t, 4.4, .3)); };
+      place('#br1', box.l - pad, box.t - pad); place('#br2', box.r - 46 + pad, box.t - pad);
+      place('#br3', box.l - pad, box.b - 46 + pad); place('#br4', box.r - 46 + pad, box.b - 46 + pad);
+      // scan line: down, up, gone
+      const sl = $('#scanline');
+      const down = P(t, 2.0, 1.3, E.inOutCubic), up = P(t, 3.3, .9, E.inOutCubic);
+      sl.style.top = lerp(box.t, box.b, down - up) + 'px';
+      sl.style.opacity = clamp((t - 2.0) * 5) * (1 - P(t, 4.1, .2));
+      // line items light up as the line passes them
+      $$('#s3receipt .row').forEach((row, i) => {
+        const at = [2.45, 2.7, 2.95, 3.3][i];
+        const hk = P(t, at, .35, E.outCubic);
+        $('.hl', row).style.transform = `scaleX(${hk})`;
+        const tick = $('.tick', row);
+        if (tick) { const tk = P(t, at + .15, .4, E.outBack); tf(tick, { s: tk, o: clamp(tk * 2) }); }
+      });
+      // result sheet, then the reward pill pops out of the phone
+      const sk = P(t, 4.4, .7, E.outExpo);
+      tf($('#s3sheet'), { y: (1 - sk) * 360 });
+      const fcEl = $('#s3sheet .fc');
+      fcEl.firstChild.nodeValue = '+' + fmt(170 * P(t, 4.6, .9, E.outCubic)) + ' ';
+      const pk = P(t, 5.5, .75, E.outBack);
+      const pill = $('#s3pill');
+      pill.style.left = '1290px'; pill.style.top = '560px';
+      tf(pill, { x: lerp(0, -260, P(t, 5.5, .9, E.outExpo)), y: lerp(0, -470, P(t, 5.5, .9, E.outExpo)) + Math.sin(t * 2) * 6, s: pk, r: lerp(-14, -5, pk), o: clamp(pk * 3) });
+      burstP.forEach(({ d, a, r }) => {
+        const bk2 = P(t, 5.6, .9, E.outExpo);
+        d.style.left = 1290 + 120 + 'px'; d.style.top = 560 - 440 + 'px';
+        tf(d, { x: Math.cos(a) * r * bk2, y: Math.sin(a) * r * bk2, s: 1 - bk2 * .7, o: t > 5.6 ? 1 - P(t, 5.9, .6) : 0 });
+      });
+    },
+
+    s4(t) {
+      const card = $('#balance');
+      const ck = P(t, 0, 1, E.outExpo);
+      tf(card, { x: (1 - ck) * -500, ry: (1 - ck) * 25, o: clamp(ck * 2) });
+      card.style.transformOrigin = 'left center';
+      tf($('#s4num2'), { x: (1 - P(t, .2, 1, E.outExpo)) * 80, o: P(t, .2, .6) });
+      words($('#s4title'), t, .35, .12);
+      rise($('#s4body'), t, .9);
+      // balance counts up in two waves: a receipt, then a streak bonus
+      const A = P(t, 1.5, 1.1, E.outCubic), B = P(t, 3.1, .9, E.outCubic);
+      const bal = 4790 + 170 * A + 100 * B;
+      $('#s4num').textContent = fmt(bal);
+      const silver = bal >= 5000;
+      const prog = silver ? (bal - 5000) / 5000 : (bal - 0) / 5000;
+      $('#s4fill').style.width = clamp(silver ? lerp(1, prog, P(t, 3.75, .5)) : prog) * 100 + '%';
+      $('#s4lblL').innerHTML = silver ? 'Silver &rarr; Gold' : 'Bronze &rarr; Silver';
+      $('#s4lblR').innerHTML = `<b>${fmt(silver ? 10000 - bal : 5000 - bal)} FC</b> to go`;
+      // tier badge flips Bronze -> Silver when the threshold is crossed
+      const fl = P(t, 3.55, .7, E.outBack);
+      tf($('#tbA'), { rx: fl * 180 }); tf($('#tbB'), { rx: fl * 180 - 180 });
+      // monthly bars grow, October fills with the new earnings
+      $$('#s4bars div').forEach((b, i) => {
+        const g = i < 9 ? P(t, .5 + i * .06, .7, E.outBack) : .25 + .4 * A + .35 * B;
+        b.style.transform = `scaleY(${g})`;
+      });
+      const flyCoin = ({ d, t0, x0, y0, bend }) => {
+        const k = P(t, t0, .75, E.inOutCubic);
+        const tx = 560, ty = 330;
+        const x = lerp(x0, tx, k) + Math.sin(k * Math.PI) * bend * .4;
+        const y = lerp(y0, ty, k) - Math.sin(k * Math.PI) * 260;
+        d.style.left = x + 'px'; d.style.top = y + 'px';
+        tf(d, { s: lerp(1, .55, k), r: k * 540, o: t < t0 ? 0 : (k >= 1 ? 0 : 1) });
+      };
+      coinsA.forEach(flyCoin); coinsB.forEach(flyCoin);
+      const pill = (id, at, x, y) => {
+        const el = $(id), k = P(t, at, .6, E.outBack), out = P(t, at + 1.5, .4);
+        el.style.left = x + 'px'; el.style.top = y + 'px';
+        tf(el, { s: k * (1 - out * .2), y: -out * 40, o: clamp(k * 3) * (1 - out) });
+      };
+      pill('#s4pillA', 1.05, 1260, 840);
+      pill('#s4pillB', 2.6, 1240, 840);
+      const pc = $('#s4pillC'), ck2 = P(t, 3.8, .7, E.outBack);
+      pc.style.left = '560px'; pc.style.top = '70px';
+      tf(pc, { s: ck2, r: lerp(8, -2, ck2), o: clamp(ck2 * 3) });
+      confetti.forEach(({ d, vx, vy, spin }) => {
+        const tt = t - 3.6;
+        d.style.left = '820px'; d.style.top = '235px';
+        if (tt < 0) { d.style.opacity = 0; return; }
+        tf(d, { x: vx * tt, y: vy * tt + 900 * tt * tt, r: spin * tt, o: 1 - P(t, 4.8, .9) });
+      });
+    },
+
+    s5(t) {
+      words($('#s5title'), t, .1, .07);
+      const cols = $$('#s5 .col');
+      cols.forEach((c, i) => {
+        const k = P(t, .7 + i * .22, .9, E.outBack);
+        tf(c, { sy: k, o: clamp(k * 3) });
+        const inner = $('.in', c), th = $('.th', c), perk = $('.perk', c);
+        const ik = P(t, 1.2 + i * .22, .6);
+        tf(inner, { y: (1 - ik) * 30, o: ik }); tf(th, { o: P(t, 1.4 + i * .22, .5) });
+        if (perk) tf(perk, { x: (1 - P(t, 1.7 + i * .22, .6)) * -20, o: P(t, 1.7 + i * .22, .6) });
+        const mx = $('.mx', c), m = +mx.dataset.m;
+        const v = lerp(1, m, P(t, 1.2 + i * .22, 1.1, E.outCubic));
+        mx.textContent = (m === 1 ? '1' : v.toFixed(1)) + 'x';
+      });
+      // ball hops across the column tops and settles on Platinum
+      const tops = [[400, 930 - 330], [770, 930 - 430], [1140, 930 - 530], [1510, 930 - 630]];
+      const ball = $('#s5ball');
+      let bx, by;
+      if (t < 3.2) {
+        bx = lerp(-80, tops[0][0], P(t, 2.5, .7, E.outCubic));
+        by = lerp(-100, tops[0][1] - 34, P(t, 2.5, .7, E.outBounce));
+      } else if (t < 3.2 + 3 * .45) {
+        const s = Math.floor((t - 3.2) / .45), k = (t - 3.2 - s * .45) / .45;
+        const [x0, y0] = tops[s], [x1, y1] = tops[s + 1];
+        bx = lerp(x0, x1, k); by = lerp(y0, y1, k) - 34 - Math.sin(k * Math.PI) * 160;
+      } else {
+        bx = tops[3][0]; by = tops[3][1] - 34;
+      }
+      ball.style.left = bx + 'px'; ball.style.top = by + 'px';
+      tf(ball, { r: t * 300, o: P(t, 2.5, .2) });
+      const ring = $('#s5ring'), rk = P(t, 4.6, 1.2, E.outCubic);
+      ring.style.left = tops[3][0] + 'px'; ring.style.top = tops[3][1] - 34 + 'px';
+      tf(ring, { s: lerp(.1, 1, rk), o: (1 - rk) * (t > 4.6 ? 1 : 0) });
+      const plat = cols[3];
+      plat.style.boxShadow = `0 30px 60px rgba(0,0,0,.35), 0 0 ${P(t, 4.6, .6) * 90}px rgba(205,222,92,${P(t, 4.6, .6) * .55})`;
+      rise($('#s5foot'), t, 5.1);
+    },
+
+    s6(t) {
+      const tk = P(t, .1, .8, E.outExpo);
+      tf($('#s6title'), { x: (1 - tk) * -80, o: tk });
+      tf($('#s6track'), { sx: P(t, .4, .8, E.outCubic) }); $('#s6track').style.transformOrigin = 'left';
+      // weeks fill one after another
+      const START = 1.1, STEP = .34;
+      const head = clamp((t - START) / STEP, 0, 11);
+      $('#s6fill').style.width = (head / 11) * 1520 + 'px';
+      const flag = $('#s6flag');
+      flag.style.left = WX(0) + (head / 11) * 1520 + 'px';
+      tf(flag, { y: -Math.abs(Math.sin(head * Math.PI)) * 16, o: P(t, .9, .3) * (1 - P(t, START + 11 * STEP + .4, .4)) });
+      nodes.forEach(({ n, f, ck, b }, i) => {
+        const appear = P(t, .5 + i * .04, .5, E.outBack);
+        const at = START + i * STEP;
+        const fk = P(t, at, .3, E.outBack);
+        tf(n, { s: appear * (1 + Math.sin(clamp((t - at) / .35) * Math.PI) * .25), o: clamp(appear * 2) });
+        tf(f, { s: fk, o: clamp(fk * 3) }); tf(ck, { s: fk, o: clamp(fk * 3) });
+        if (b) {
+          const bk = P(t, at + .1, .6, E.outBack);
+          tf(b, { y: (1 - bk) * 60 + (t > at + .7 ? Math.sin((t - at) * 3) * 5 : 0), s: lerp(.4, i === 11 ? 1.15 : 1, bk), o: clamp(bk * 2) });
+        }
+        const l = n.nextSibling; l.style.opacity = appear * (t > at ? 1 : .6);
+      });
+      rise($('#s6foot'), t, 5.4);
+    },
+
+    s7(t) {
+      rise($('#s7title'), t, .1, .7, 40);
+      $$('#s7 .perk-card').forEach((c, i) => {
+        const k = P(t, .5 + i * .2, .9, E.outBack);
+        tf(c, { y: (1 - k) * 500 + Math.sin(t * 1.5 + i * 1.3) * 7, r: (1 - k) * (i - 1) * 10, o: clamp(k * 2) });
+        const ic = $('.ic', c), ik = P(t, 1.2 + i * .2, .7, E.outBack);
+        tf(ic, { s: ik, r: (1 - ik) * -90 + Math.sin((t - 1.2 - i * .2) * 6) * 6 * (1 - P(t, 1.6 + i * .2, 1)) });
+      });
+    },
+
+    s8(t) {
+      tf($('#s8num'), { x: (1 - P(t, .2, 1, E.outExpo)) * -80, o: P(t, .2, .6) });
+      words($('#s8title'), t, .35, .12);
+      rise($('#s8body'), t, .9);
+      rise($('#s8body2'), t, 5.2);
+      // the strip scrolls in and decelerates with the 18 Hole Round centred
+      const CENTER = 530 - 165; // card left edge that centres it in the clip
+      const startOff = CENTER + 1200, endOff = CENTER - PICK * CARD_GAP;
+      const off = lerp(startOff, endOff, P(t, .2, 2.8, E.inOutCubic));
+      rwCards.forEach(({ c, ring, bt }, i) => {
+        const x = off + i * CARD_GAP;
+        const dist = Math.abs(x - CENTER) / CARD_GAP;
+        const picked = i === PICK;
+        const sel = picked ? P(t, 3.1, .5, E.outBack) : 0;
+        const fade = picked ? 1 : 1 - P(t, 3.5, .5);
+        const flip = picked ? P(t, 4.05, .9, E.inOutCubic) : 0;
+        c.style.left = x + 'px';
+        c.style.zIndex = picked ? 10 : 1;
+        const base = lerp(1, .86, clamp(dist));
+        c.style.transform = `translateY(${picked ? -P(t, 3.1, .5) * 20 : 0}px) scale(${base + sel * .12}) rotateY(${flip * 180 + (picked ? 0 : (x - CENTER) / CARD_GAP * -8)}deg)`;
+        c.style.opacity = fade;
+        ring.style.opacity = sel * (1 - P(t, 4.05, .3));
+        const press = P(t, 3.55, .12) - P(t, 3.67, .2);
+        bt.style.transform = `scale(${1 - press * .08})`;
+      });
+      const pill = $('#s8pill'), pk = P(t, 4.7, .6, E.outBack);
+      pill.style.left = '1560px'; pill.style.top = '250px';
+      tf(pill, { s: pk, r: lerp(10, 4, pk), y: -P(t, 4.7, 3, E.lin) * 20, o: clamp(pk * 3) });
+    },
+
+    s9(t) {
+      const lk = P(t, .3, 1.1, E.outExpo);
+      tf($('#s9logo'), { s: lerp(.85, 1, lk), y: (1 - lk) * 40, o: lk });
+      $$('#s9tag span').forEach((w, i) => {
+        const k = P(t, .9 + i * .14, .6, E.outBack);
+        tf(w, { y: (1 - k) * 50, o: clamp(k * 2) });
+      });
+      rise($('#s9cta'), t, 1.7);
+      ['#q0', '#q1'].forEach((id, i) => {
+        const k = P(t, 2.1 + i * .18, .8, E.outBack);
+        tf($(id), { y: (1 - k) * 200 + Math.sin(t * 1.6 + i * 2) * 5, r: (1 - k) * (i ? 8 : -8), o: clamp(k * 2) });
+      });
+      rise($('#s9url'), t, 2.9, .7, 20);
+    },
+  };
+
+  function background(t) {
+    tf($('#g1'), { x: 300 + Math.sin(t * .23) * 260, y: -300 + Math.cos(t * .19) * 180 });
+    tf($('#g2'), { x: 1000 + Math.cos(t * .17) * 300, y: 400 + Math.sin(t * .21) * 200 });
+    tf($('#g3'), { x: -500 + Math.sin(t * .13) * 200, y: 300 + Math.cos(t * .11) * 160 });
+    tf($('#contours'), { r: t * 1.6, s: 1 + Math.sin(t * .2) * .04 });
+    // a real course photo sits behind the hook and the outro
+    const photo = $('#photo'), shade = $('#photoShade');
+    let src = null, o = 0, local = 0;
+    if (t < 11.2) { src = 'strand-golf-club-fairway'; local = t - 5.6; o = P(t, 5.4, .8) * .55; }
+    else if (t >= 57.4) { src = 'strand-golf-club-sunset-swing'; local = t - 57.4; o = P(t, 57.4, .8) * .5; }
+    if (src) photo.style.backgroundImage = `url(../../mobile/assets/images/${src}.jpg)`;
+    photo.style.opacity = o; shade.style.opacity = o ? 1 : 0;
+    tf(photo, { s: 1.04 + local * .012, x: -local * 6 });
+  }
+
+  function wipes(t) {
+    const A = $('#wipeA'), B = $('#wipeB');
+    let a = 'circle(0px at 0 0)', b = a;
+    for (const w of WIPES) {
+      if (t < w.t - .55 || t > w.t + .65) continue;
+      const R = 2300;
+      // lime leads in and leaves last; club green trails on top of it, so
+      // the edge always reads as two layers
+      if (t < w.t) {
+        const ka = P(t, w.t - .55, .5, E.inCubic), kb = P(t, w.t - .45, .45, E.inCubic);
+        a = `circle(${ka * R}px at ${w.from[0]}px ${w.from[1]}px)`;
+        b = `circle(${kb * R}px at ${w.from[0]}px ${w.from[1]}px)`;
+      } else {
+        const kb = P(t, w.t, .5, E.outCubic), ka = P(t, w.t + .08, .55, E.outCubic);
+        a = `circle(${(1 - ka) * R}px at ${w.to[0]}px ${w.to[1]}px)`;
+        b = `circle(${(1 - kb) * R}px at ${w.to[0]}px ${w.to[1]}px)`;
+      }
+    }
+    A.style.clipPath = a; B.style.clipPath = b;
+  }
+
+  function render(t) {
+    t = clamp(t, 0, DURATION);
+    background(t);
+    for (const [id, range] of Object.entries(SCENES)) {
+      const el = sceneEls[id];
+      const on = t >= range[0] && (t < range[1] || (range[1] === DURATION && t <= DURATION));
+      el.style.display = on ? 'block' : 'none';
+      if (!on) continue;
+      el.style.opacity = envelope(t, range);
+      UPDATE[id](t - range[0]);
+    }
+    wipes(t);
+  }
+
+  // ---------- fit + playback ----------
+  const stage = $('#stage');
+  const params = new URLSearchParams(location.search);
+  const renderMode = params.has('render');
+  if (renderMode) document.body.classList.add('render');
+  function fit() {
+    if (renderMode) { stage.style.transform = 'none'; return; }
+    const vp = $('#viewport');
+    const s = Math.min(vp.clientWidth / 1920, vp.clientHeight / 1080);
+    stage.style.transform = `scale(${s})`;
+  }
+  addEventListener('resize', fit); fit();
+
+  let now = +(params.get('t') || 0), playing = !renderMode, last = null;
+  const scrub = $('#scrub'), clock = $('#clock'), btn = $('#play');
+  const show = () => { render(now); scrub.value = now; clock.textContent = `${now.toFixed(2)} / ${DURATION.toFixed(2)}`; btn.innerHTML = playing ? '&#10073;&#10073;' : '&#9654;'; };
+  function tick(ts) {
+    if (playing) {
+      if (last !== null) now += (ts - last) / 1000;
+      if (now >= DURATION) { now = DURATION; playing = false; }
+      show();
+    }
+    last = ts;
+    requestAnimationFrame(tick);
+  }
+  btn.onclick = () => { if (now >= DURATION) now = 0; playing = !playing; last = null; show(); };
+  scrub.oninput = () => { now = +scrub.value; show(); };
+  addEventListener('keydown', e => {
+    if (e.code === 'Space') { e.preventDefault(); btn.onclick(); }
+    if (e.code === 'ArrowRight') { now = Math.min(DURATION, now + 1); show(); }
+    if (e.code === 'ArrowLeft') { now = Math.max(0, now - 1); show(); }
+  });
+
+  // render.cjs drives this: seek to a frame, then screenshot
+  window.FLAGRR = { DURATION, FPS, seek: s => { now = s; render(s); } };
+  document.fonts.ready.then(() => {
+    show();
+    if (!renderMode) requestAnimationFrame(tick);
+    window.FLAGRR.ready = true;
+  });
+})();
+</script>
+</body>
+</html>
