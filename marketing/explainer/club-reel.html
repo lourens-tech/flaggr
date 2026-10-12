@@ -144,7 +144,7 @@
     const sx = PORT ? .9 : 1.75, sy = PORT ? 1.9 : 1;
     ann('PLATFORM', 'FLAGRR FOR CLUBS', cx + R * .55, cy - R * .5, cx + R * sx * .95, cy - R * 1.05 * sy, 1.0);
     ann('BUILT FOR', 'GOLF CLUBS', cx - R * .6, cy + R * .4, cx - R * sx, cy + R * .95 * sy, 1.6);
-    ann('STATUS', 'LIVE AT STRAND GC', cx + R * .4, cy + R * .7, cx + R * sx * .9, cy + R * 1.25 * sy, 2.3);
+    ann('FOCUS', 'LOYALTY + INSIGHT', cx + R * .4, cy + R * .7, cx + R * sx * .9, cy + R * 1.25 * sy, 2.3);
   });
   cue(1.0, 'type', { dur: .35 }); cue(1.6, 'type', { dur: .35 }); cue(2.3, 'type', { dur: .4 }); cue(3.5, 'whoosh', { gain: .5 });
 
@@ -322,11 +322,12 @@
     // header
     const hx = L.pad + 10, hy = PORT ? H * .1 : H * .14;
     wipeText('04 — YOUR CLUB DASHBOARD', hx, hy, L.hud * 1.1, 'monoB', C.lime, t, 28.05, .35);
+    font('monoB', L.hud * 1.1); const tagW = g.measureText('04 — YOUR CLUB DASHBOARD').width;
     const hp = Math.min(PORT ? 80 : 74, fit('KNOW YOUR MEMBERS.', 'wide', W - hx * 2));
     g.save(); g.beginPath(); g.rect(0, hy + 20, W, hp * 1.4); g.clip();
     text('KNOW YOUR MEMBERS.', hx, hy + hp * .95 + (1 - P(t, 28.15, .5, E.outExpo)) * hp * 1.2, hp, 'wide', ink, { align: 'left' });
     g.restore();
-    text('ILLUSTRATIVE DATA', W - L.pad - 10, hy, L.hud * .9, 'mono', sub, { align: 'right', alpha: P(t, 28.3, .3) });
+    text('·  ILLUSTRATIVE DATA', hx + tagW + 16, hy, L.hud * 1.1, 'mono', sub, { align: 'left', alpha: P(t, 28.5, .3) });
     // panels
     const top = hy + hp * 1.7, gap = 24, x0 = hx, ww = W - hx * 2;
     const panel = (x, y, w, h, t0, title) => {
@@ -452,7 +453,7 @@
     shot(t0, t0 + 1, tag, bg, (lt, t) => {
       const px = fit(head, 'wide', W * .84, PORT ? 110 : 140);
       wipeText(tag, W / 2, H / 2 - px * 1.25, L.hud * 1.1, 'monoB', acc, t, t0, .25, 'center');
-      text(head, W / 2 + (1 - P(t, t0, .3, E.outExpo)) * W * .3, H / 2 - px * .2, px, 'wide', ink, { mb: [(1 - clamp((t - t0) / .12)) * W * .2, 0] });
+      text(head, W / 2 + (1 - P(t, t0, .3, E.outExpo)) * W * .3, H / 2 - px * .2, px, 'wide', ink, { mb: [-(1 - clamp((t - t0) / .12)) * W * .2, 0] });
       wrap(body, 'serif', PORT ? 40 : 38, PORT ? W * .82 : W * .6).forEach((ln, j) => rise(ln, W / 2, H / 2 + px * .7 + j * (PORT ? 54 : 50), PORT ? 40 : 38, 'serif', ink, t, t0 + .15 + j * .05, { align: 'center', dist: 20 }));
     }, { type: 'push', dur: .3 });
     cue(t0, 'swipe', { gain: .6, pitch: i * 3 }); cue(t0 + .02, 'thump', { gain: .4 });
@@ -480,9 +481,10 @@
     g.globalAlpha = clamp(k * 3); g.drawImage(img, W / 2 - lw / 2, ly - lh / 2, lw, lh); g.globalAlpha = 1;
     const lines = PORT ? ['BRING FLAGRR', 'TO YOUR CLUB.'] : ['BRING FLAGRR TO YOUR CLUB.'];
     const cy = H * (PORT ? .5 : .56), lp = Math.min(...lines.map(l => fit(l, 'wide', W * .84, 110)));
-    lines.forEach((ln, i) => { if (t >= 45) slam(ln, t, 45 + i * .06, C.cream, { y: cy + i * lp * 1.1, maxW: W * .84, maxH: lp }); });
-    const by = cy + (lines.length - 1) * lp * 1.1 + lp * .95;
-    rise('Live now at Strand Golf Club.', W / 2, by, PORT ? 46 : 40, 'serif', C.lime, t, 45.5, { align: 'center', dist: 20 });
+    // both lines slam together so they move as one block and never cross
+    lines.forEach((ln, i) => { if (t >= 45) slam(ln, t, 45, C.cream, { y: cy + i * lp * 1.25, maxW: W * .84, maxH: lp }); });
+    const by = cy + (lines.length - 1) * lp * 1.25 + lp * .95;
+    rise('Loyalty, built for golf clubs.', W / 2, by, PORT ? 46 : 40, 'serif', C.lime, t, 45.5, { align: 'center', dist: 20 });
     if (t >= 46) {
       const kk = P(t, 46, .45, E.outBack);
       g.save(); g.translate(W / 2, by + (PORT ? 150 : 120)); g.scale(kk, kk);
@@ -496,9 +498,7 @@
   cue(FINAL_HIT, 'hit', { gain: .6 });
 
   startReel({
-    title: 'FOR CLUBS — 2026',
     duration: DURATION, bpm: BPM, kicks: KICKS, snares: SNARES, groove: GROOVE,
-    sections: [0, 12, 16, 22, 28, 36, 40, 44],
     punch: { kick: .01, snare: .005 },
     grain: .05,
     preload: [['logo', '../../mobile/assets/images/flagrr-logo-lime.png'], ...REWARDS.map(([f], i) => ['r' + i, `../../mobile/assets/images/rewards/${f}.jpg`])],

@@ -11,7 +11,7 @@
     ?format=landscape (default)  1920x1080  YouTube, web, clubhouse screens
     ?format=portrait             1080x1920  Instagram Reels / Stories, TikTok, WhatsApp Status
 
-  The drawing engine (canvas, type, frame overlay, post effects, playback)
+  The drawing engine (canvas, type, post effects, transitions, playback)
   is shared with the club reel in reel-engine.js; this file is the timeline.
 
   The drum pattern lives here (KICK_PATTERNS, snares), not in the audio
@@ -116,7 +116,6 @@
     shot(t0, t0 + E8, '00 — INTRO', bg, (lt, t) => {
       const lines = PORT && w.includes(' ') ? w.split(' ') : [w];
       lines.forEach((ln, j) => slam(ln, t, t0, inkc, { y: H / 2 + (j - (lines.length - 1) / 2) * H * .17, maxH: PORT ? H * .16 : H * .42, from: i % 2 ? 'up' : 'down' }));
-      text(`HOOK ${String(i + 1).padStart(2, '0')}/07`, W / 2, H * (PORT ? .8 : .82), L.hud, 'mono', inkc, { alpha: .6 });
     });
     cue(t0, i === HOOK.length - 1 ? 'thump' : 'swipe', { gain: .6 + i * .05, pitch: i });
   });
@@ -136,7 +135,7 @@
     [...word].forEach((ch, i) => {
       const t0 = 6 + i * .035, k = P(t, t0, .28, E.outBack), lin = clamp((t - t0) / .14), dir = i % 2 ? 1 : -1;
       const yy = H / 2 + (1 - k) * dir * H * .6;
-      if (t >= t0) text(ch, x + widths[i] / 2, yy, px, 'wide', C.ink, { mb: [0, dir * (1 - lin) * H * .5] });
+      if (t >= t0) text(ch, x + widths[i] / 2, yy, px, 'wide', C.ink, { mb: [0, -dir * (1 - lin) * H * .5] });
       x += widths[i];
     });
     // editorial rule with tiny labels
@@ -154,7 +153,8 @@
   cue(7.5, 'whoosh', { gain: .6, pitch: 4 });
   shot(8.25, 9, '00 — FLAGRR', C.cream, (lt, t) => {
     const words = ['PLAY.', 'EARN.', 'REDEEM.'], lh = PORT ? H * .14 : H * .22;
-    words.forEach((w, i) => slam(w, t, 8.25 + i * S16, i === 2 ? C.club : C.ink, { y: H / 2 + (i - 1) * lh, maxH: lh * .78, maxW: W * .8 }));
+    // each word rises from below, into space nothing has been drawn in yet, so the stack never crosses itself
+    words.forEach((w, i) => slam(w, t, 8.25 + i * S16, i === 2 ? C.club : C.ink, { y: H / 2 + (i - 1) * lh, maxH: lh * .78, maxW: W * .8, from: 'down' }));
   });
   [0, 1, 2].forEach(i => cue(8.25 + i * S16, 'thump', { gain: .5, pitch: i * 3 }));
 
@@ -168,7 +168,7 @@
     g.save(); g.beginPath(); g.rect(0, hy - hp, W, hp * 1.9); g.clip();
     text('Snap a receipt.', hx, hy + (1 - P(t, 9.05, .45, E.outExpo)) * hp * 1.2, hp, 'serif', ink, { align: 'left' });
     g.restore();
-    wipeText('ANY RECEIPT FROM YOUR HOME CLUB', hx + 4, hy + hp * .62, L.hud * 1.1, 'mono', ink, t, 9.3, .5);
+    wipeText('ANY RECEIPT FROM YOUR HOME CLUB', hx + 4, hy + hp * .82, L.hud * 1.1, 'mono', ink, t, 9.3, .5);
     // phone: flat, poster-style
     const pw = PORT ? 400 : 380, ph = pw * 1.9;
     const px = PORT ? W / 2 - pw / 2 : W * .66, py = PORT ? H * .23 : H / 2 - ph / 2 + 20;
@@ -369,7 +369,7 @@
       const k = P(t, t0, .25, E.outExpo);
       text(`PERK 0${i + 1}/03`, W / 2, H * (PORT ? .33 : .26), L.hud * 1.2, 'monoB', ink, {});
       const tp = fit(title, 'wide', W * .86, H * (PORT ? .1 : .24));
-      text(title, W / 2 + (1 - k) * W * .5, H / 2 - tp * .2, tp, 'wide', ink, { mb: [(1 - clamp((t - t0) / .12)) * W * .3, 0] });
+      text(title, W / 2 + (1 - k) * W * .5, H / 2 - tp * .2, tp, 'wide', ink, { mb: [-(1 - clamp((t - t0) / .12)) * W * .3, 0] });
       if (t > t0 + .15) text(sub, W / 2, H / 2 + tp * .75, Math.min(tp * .38, PORT ? 58 : 64), 'serif', ink, { alpha: P(t, t0 + .15, .15) });
     });
     cue(t0, 'swipe', { gain: .7, pitch: i * 2 }); cue(t0 + .02, 'thump', { gain: .45, pitch: i * 3 });
@@ -386,7 +386,6 @@
       const ly = H - L.pad - (PORT ? 260 : 170) - lp * .5;
       text(label, L.pad + 10, ly, lp, 'wide', C.cream, { align: 'left', mb: [-(1 - clamp((t - t0) / .1)) * 200, 0] });
       text(cost, L.pad + 14, ly + lp * .62 + L.hud * 1.4, L.hud * 1.6, 'monoB', C.lime, { align: 'left' });
-      text(`REWARD ${String(i + 1).padStart(2, '0')}/07`, W - L.pad - 10, L.pad + 70, L.hud, 'monoB', C.cream, { align: 'right' });
     });
     cue(t0, 'shutter', { gain: .7 }); FLASH.push([t0, .25]);
   });
@@ -399,7 +398,8 @@
     const cw = PORT ? 560 : 440, ch = cw * 1.42;
     const cx = PORT ? W / 2 : W * .68, cy = PORT ? H * .55 : H / 2 + 10;
     const flip = P(t, 30, .45, E.outBack);
-    g.save(); g.translate(cx, cy); g.scale(Math.max(.02, flip), 1); g.rotate((1 - clamp(flip)) * .2);
+    if (flip < .15) return; // edge-on: nothing legible to draw yet
+    g.save(); g.translate(cx, cy); g.scale(flip, 1);
     g.fillStyle = C.dark; rrect(-cw / 2, -ch / 2, cw, ch, 34); g.fill();
     text('VOUCHER', 0, -ch / 2 + 60, L.hud * 1.1, 'monoB', C.lime, {});
     text('18 HOLES', 0, -ch / 2 + 120, cw * .12, 'wide', C.cream, {});
@@ -468,9 +468,7 @@
   cue(FINAL_HIT, 'hit', { gain: .8 });
 
   startReel({
-    title: 'MEMBER REEL — 2026',
     duration: DURATION, bpm: BPM, kicks: KICKS, snares: SNARES, groove: GROOVE,
-    sections: [0, 9, 15, 21, 27, 33],
     preload: [['logo', '../../mobile/assets/images/flagrr-logo-lime.png'], ...REWARDS.map(([f], i) => ['r' + i, `../../mobile/assets/images/rewards/${f}.jpg`])],
     audio: { style: 'trap', bar: BAR, builds: BUILDS, gaps: GAPS, tapeStop: TAPE_STOP, finalHit: FINAL_HIT },
   });

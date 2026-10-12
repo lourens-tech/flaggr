@@ -96,7 +96,7 @@ routes.
 
 `explainer/` holds two motion-design reels in the same design language: flat
 Flagrr colour fields cut on the beat, extra-wide Archivo type, Fraunces
-italic for the talking lines, and a monospace frame overlay. Each has its
+italic for the talking lines, and small monospace labels. Each has its
 own synthesised soundtrack and renders in two formats:
 `?format=landscape` (1920×1080) and `?format=portrait` (1080×1920, for
 Instagram, TikTok and LinkedIn stories).
@@ -129,7 +129,7 @@ being true in the product, take it out of the reel.
 
 | File | What it is |
 |---|---|
-| `reel-engine.js` | The shared engine: canvas, type helpers, generative pieces (dot-sphere golf ball, morphing shapes, truchet tiles), the frame overlay, punch/glitch/grain post, transitions, playback. |
+| `reel-engine.js` | The shared engine: canvas, type helpers, generative pieces (dot-sphere golf ball, morphing shapes, truchet tiles), punch/glitch/grain post, transitions, playback, and a `?textlog=1` mode that records every text box so collisions can be checked. |
 | `member-reel.html`, `club-reel.html` | Each reel's timeline: its tempo, drum pattern, shots and sound cues. |
 | `audio.py` | Synthesises the soundtrack for either reel (`trap` or `house` style, picked by the page) plus every sound effect from the page's cue sheet. Every sound is generated, so nothing needs licensing. Needs numpy. |
 | `render.cjs` | Screenshots every frame, builds the soundtrack, and muxes the two into an MP4. |
@@ -158,3 +158,9 @@ How picture and sound stay locked:
   punches on the kicks. `audio.py` gets the same kick and snare times, plus
   a cue for every effect the shots fire, and builds the music around them.
 - **Cuts land on the beat grid** of each reel's tempo.
+
+When you change copy, check that no two pieces of text collide. Open a reel
+with `?render=1&textlog=1`: `window.FLAGRR.seek(t)` returns the screen box
+of every visible piece of text at time `t`, so a short Playwright loop over
+the timeline can flag any pair that intersects. Both reels currently pass in
+both formats at every frame.

@@ -29,7 +29,7 @@ const mkCanvas = () => { const c = document.createElement('canvas'); c.width = W
 const bufA = mkCanvas(), bufB = mkCanvas(), bufC = mkCanvas(), fxR = mkCanvas(), fxG = mkCanvas(), fxB = mkCanvas();
 let g = bufA.getContext('2d'); // the context every draw helper paints into
 
-// layout constants shared by both formats
+// layout constants shared by both formats (hud = the small mono label size)
 const L = PORT ? { pad: 70, hud: 22 } : { pad: 56, hud: 16 };
 
 // ================================================================
@@ -108,6 +108,17 @@ function text(str, x, y, px, kind, color, { align = 'center', mb = null, alpha =
   } else g.globalAlpha = alpha;
   g.fillText(str, x, yy);
   g.globalAlpha = 1;
+  if (TEXT_LOG && LOG_ON && alpha > .5) logBox(str, x, yy);
+}
+// ?textlog=1: record every visible text box (in canvas pixels) so a checker can look for collisions
+const TEXT_LOG = params.has('textlog') ? [] : null;
+let LOG_ON = true; // only the shot on screen is logged, not the outgoing one under a transition
+function logBox(str, x, y) {
+  const m = g.measureText(str), tr = g.getTransform();
+  const left = g.textAlign === 'center' ? -m.width / 2 : g.textAlign === 'right' ? -m.width : 0;
+  const pts = [[x + left, y - m.actualBoundingBoxAscent], [x + left + m.width, y + m.actualBoundingBoxDescent]]
+    .map(([px, py]) => [tr.a * px + tr.c * py + tr.e, tr.b * px + tr.d * py + tr.f]);
+  TEXT_LOG.push({ str, x0: Math.min(pts[0][0], pts[1][0]), y0: Math.min(pts[0][1], pts[1][1]), x1: Math.max(pts[0][0], pts[1][0]), y1: Math.max(pts[0][1], pts[1][1]) });
 }
 // wraps a paragraph into lines no wider than maxW; returns the lines
 function wrap(str, kind, px, maxW) {
@@ -126,7 +137,8 @@ function slam(str, t, t0, color, { y = H / 2, maxW = W * .88, maxH = H * .5, kin
   const px = fit(str, kind, maxW, maxH);
   const k = P(t, t0, .22, E.outBack), lin = clamp((t - t0) / .12);
   const d = (1 - k) * (from === 'up' ? -1 : 1) * H * .18;
-  const vel = (1 - lin) * (from === 'up' ? -1 : 1) * H * .25;
+  // blur trails behind the motion: a word dropping from above smears upward, one rising smears downward
+  const vel = (1 - lin) * (from === 'up' ? 1 : -1) * H * .25;
   const sc = lerp(1.12, 1, P(t, t0, .3, E.outExpo));
   g.save(); g.translate(W / 2, y + d); g.scale(sc, sc);
   text(str, 0, 0, px, kind, color, { mb: [0, vel], alpha });
@@ -291,40 +303,6 @@ const shot = (t0, t1, sec, bg, draw, tin = null) => SHOTS.push({ t0, t1, sec, bg
 let REEL = null;
 
 // ================================================================
-// the frame: corners, labels, timecode, beat light
-// ================================================================
-function hud(t, bg) {
-  const ink = isLight(bg) ? C.ink : C.cream, p = L.pad * .55, k = P(t, .05, .4, E.outExpo), s = L.hud;
-  g.strokeStyle = ink; g.lineWidth = 2; g.globalAlpha = .9;
-  const cl = 26 * k;
-  [[p, p, 1, 1], [W - p, p, -1, 1], [p, H - p, 1, -1], [W - p, H - p, -1, -1]].forEach(([x, y, sx, sy]) => {
-    g.beginPath(); g.moveTo(x, y + sy * cl); g.lineTo(x, y); g.lineTo(x + sx * cl, y); g.stroke();
-  });
-  g.globalAlpha = 1;
-  const ty = p + s * 1.6, by = H - p - s * .9;
-  wipeText('FLAGRR', p + 34, ty, s, 'monoB', ink, t, .15, .25, 'left');
-  font('monoB', s); const fw = g.measureText('FLAGRR ').width;
-  wipeText(REEL.title, p + 34 + fw + 16, ty, s, 'mono', ink, t, .35, .4, 'left');
-  const shotNow = SHOTS.find(sh => t >= sh.t0 && t < sh.t1) || SHOTS[SHOTS.length - 1];
-  if (t > .6) text(shotNow.sec, W - p - 34, ty, s, 'monoB', ink, { align: 'right' });
-  const f = Math.floor(t * 30), tc = `TC 00:00:${String(Math.floor(t)).padStart(2, '0')}:${String(f % 30).padStart(2, '0')}`;
-  if (t > .6) text(tc, p + 34, by, s, 'mono', ink, { align: 'left', alpha: .75 });
-  if (t > .6) {
-    const lastK = REEL.kicks.filter(k2 => k2.t <= t).pop(), lit = lastK ? decay(t, lastK.t, 9) : 0;
-    text(`${REEL.bpm} BPM`, W - p - 34, by, s, 'mono', ink, { align: 'right', alpha: .75 });
-    font('mono', s); const bw = g.measureText(`${REEL.bpm} BPM`).width;
-    g.fillStyle = C.lime; g.globalAlpha = .25 + lit * .75; g.beginPath(); g.arc(W - p - 34 - bw - 18, by - s * .3, s * .38, 0, Math.PI * 2); g.fill(); g.globalAlpha = 1;
-  }
-  if (!PORT && t > .6) {
-    const x0 = W * .32, x1 = W * .68, py = by - s * .3;
-    g.fillStyle = ink; g.globalAlpha = .25; g.fillRect(x0, py, x1 - x0, 2); g.globalAlpha = .9;
-    g.fillRect(x0, py, (x1 - x0) * t / REEL.duration, 2);
-    REEL.sections.forEach(st => g.fillRect(x0 + (x1 - x0) * st / REEL.duration, py - 5, 2, 12));
-    g.globalAlpha = 1;
-  }
-}
-
-// ================================================================
 // post: punch-zoom on the drums, glitch, flash, grain
 // ================================================================
 const grainTile = (() => {
@@ -384,6 +362,7 @@ function post(t, src) {
 // ================================================================
 function drawShot(sh, t, cv) {
   g = cv.getContext('2d');
+  LOG_ON = cv === bufA;
   g.save(); g.setTransform(1, 0, 0, 1, 0, 0);
   g.fillStyle = sh.bg; g.fillRect(0, 0, W, H);
   sh.draw(t - sh.t0, t);
@@ -423,7 +402,6 @@ function render(t) {
     }
   }
   post(t, out);
-  g = main; hud(t, sh.bg);
 }
 
 // ================================================================
@@ -462,7 +440,7 @@ function startReel(cfg) {
     if (e.code === 'ArrowLeft') { now = Math.max(0, now - 1); syncAudio(); show(); }
   });
 
-  window.FLAGRR = { DURATION: REEL.duration, seek: s => { now = s; render(s); } };
+  window.FLAGRR = { DURATION: REEL.duration, seek: s => { now = s; if (TEXT_LOG) TEXT_LOG.length = 0; render(s); return TEXT_LOG; } };
   Promise.all([
     document.fonts.load('900 100px Archivo'), document.fonts.load('600 100px Archivo'), document.fonts.load('800 100px Archivo'), document.fonts.load('400 100px Archivo'),
     document.fonts.load('500 20px "JetBrains Mono"'), document.fonts.load('700 20px "JetBrains Mono"'),
