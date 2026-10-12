@@ -94,27 +94,44 @@ routes.
 
 ## Member explainer video
 
-`explainer/flagrr-explainer.html` is a 64-second, 1920×1080 motion-graphics
-explainer for members: intro, the three steps (Play & scan → Earn → Redeem),
-tiers, streaks, the birthday/bar-voucher/away-club extras, and a download
-end card with the real store QR codes. The figures in it come from the seed
-catalogue and the tier/streak rules in `docs/Member-App-Features.md`, so if
-those change, update the copy in the HTML to match.
+`explainer/` holds a 68-second motion-graphics explainer for members, with
+its own music and sound design. It covers the logo intro, the three steps
+(Play & scan → Earn → Redeem), tiers, streaks, the
+birthday/bar-voucher/away-club extras, and an end card with App Store /
+Google Play download pills. The figures in it come from the seed catalogue
+and the tier/streak rules in `docs/Member-App-Features.md`, so if those
+change, update the copy in the HTML to match.
 
-Open the HTML in a browser to preview it. It plays in real time with a
-scrubber (space = play/pause, ←/→ = ±1s, `?t=30` to start at 30s). It
-pulls fonts from Google Fonts and images from `mobile/assets`, so preview it
-from inside the repo.
+| File | What it is |
+|---|---|
+| `flagrr-explainer.html` | The animation, one timeline in two formats: `?format=landscape` (1920×1080) and `?format=portrait` (1080×1920, Instagram Reels/Stories). |
+| `audio.py` | Synthesises the soundtrack (a 120 BPM track in D major, plus every sound effect) from the cue sheet the page exports. Every sound is generated, so nothing needs licensing. Needs numpy. |
+| `render.cjs` | Screenshots every frame, builds the soundtrack, and muxes the two into an MP4. |
 
-To render the MP4 (needs Playwright with Chromium, plus ffmpeg):
+Open the HTML in a browser to preview it. Space plays/pauses, ←/→ jump 1s,
+`?t=30` starts at 30s, and the link in the control bar switches format. Once
+a soundtrack has been rendered, the preview plays it in sync. Preview from
+inside the repo, because the page pulls images from `mobile/assets`.
+
+To render (needs Playwright with Chromium, ffmpeg, and python3 with numpy):
 
 ```sh
-node marketing/explainer/render.cjs            # -> marketing/dist/flagrr-explainer.mp4
-node marketing/explainer/render.cjs --from 20 --to 30 clip.mp4   # just a section
+node marketing/explainer/render.cjs                    # -> marketing/dist/flagrr-explainer-16x9.mp4
+node marketing/explainer/render.cjs --format portrait  # -> marketing/dist/flagrr-explainer-9x16.mp4
+node marketing/explainer/render.cjs --audio-only       # -> marketing/dist/flagrr-explainer.wav, for the preview
 ```
 
-Every frame is computed from the timestamp alone. The renderer seeks to each
-frame, screenshots it, and stitches the frames with ffmpeg, so the output is
-frame-perfect however slow the machine is. The video has no audio. Add a
-music bed in your editor or social scheduler, because most autoplay feeds
-start muted anyway. The on-screen text carries the whole story.
+Each format takes about 5–6 minutes on 4 cores.
+
+How it fits together:
+
+- **Every frame is a pure function of time.** `render(t)` rebuilds the
+  picture from scratch, so the renderer can seek to any frame and the output
+  is frame-perfect however slow the machine is.
+- **Sound is cut from the same constants as picture.** Every scene's timing
+  lives in `buildTimeline()`, which also emits a cue (bounce, coin, pop,
+  whoosh…) for each event. `audio.py` renders those cues and arranges the
+  music around `GROOVE`, `BREAKDOWN` and `LEAD`. Retime a scene and its
+  sounds move with it.
+- **Cuts land on bar lines** (120 BPM, so every 2s), and the background dots
+  and glows pulse on the kick drum.
