@@ -1,0 +1,510 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Flagrr Club Reel</title>
+<!--
+  Flagrr for clubs: a 50s pitch reel for golf club managers and committees,
+  cut to a 120 BPM house groove.
+
+  Same engine and design language as the member reel (reel-engine.js), but
+  more measured: shots hold for a bar or two, transitions push instead of
+  glitch, and the benefits are shown as product: the till-to-phone flow,
+  streaks and tiers, the rewards catalogue, the club dashboard, push
+  messaging, fraud review and ad space.
+
+  Every benefit here maps to something built in the app (see
+  docs/Member-App-Features.md and mobile/src/screens/admin). Dashboard
+  numbers are illustrative and labelled as such on screen.
+
+    ?format=landscape (default)  1920x1080  presentations, LinkedIn, email
+    ?format=portrait             1080x1920  Instagram / LinkedIn stories
+
+  Soundtrack: audio.py renders window.FLAGRR.AUDIO (style 'house') to
+  marketing/dist/club-reel.wav; the browser preview plays it in sync.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&family=JetBrains+Mono:wght@400;500;700&family=Fraunces:ital,opsz,wght@1,9..144,500;1,9..144,700&display=block" rel="stylesheet">
+<style>
+  html, body { margin: 0; height: 100%; background: #050a07; overflow: hidden; }
+  #viewport { position: fixed; inset: 0 0 56px 0; display: flex; align-items: center; justify-content: center; }
+  body.render #viewport { inset: 0; }
+  #c { display: block; flex: none; transform-origin: center; }
+  #controls { position: fixed; left: 0; right: 0; bottom: 0; height: 56px; display: flex; align-items: center; gap: 14px; padding: 0 18px; background: #0F1712; color: #CCF2E6; font: 500 14px system-ui, sans-serif; box-sizing: border-box; }
+  #controls button { width: 40px; height: 36px; border: 0; border-radius: 8px; background: #CDDE5C; color: #1F4234; font: 700 16px system-ui, sans-serif; cursor: pointer; }
+  #controls input { flex: 1; accent-color: #CDDE5C; }
+  #controls span { font-variant-numeric: tabular-nums; min-width: 110px; text-align: right; }
+  #controls a { color: #CDDE5C; text-decoration: none; padding: 6px 10px; border: 1px solid #33473E; border-radius: 8px; }
+  body.render #controls { display: none; }
+</style>
+</head>
+<body>
+<div id="viewport"><canvas id="c"></canvas></div>
+<div id="controls">
+  <button id="play" title="Play / pause (space)">&#9654;</button>
+  <input id="scrub" type="range" min="0" max="50" step="0.01" value="0">
+  <span id="clock"></span>
+  <a id="fmt" href="#"></a>
+</div>
+<audio id="aud" src="../dist/club-reel.wav" preload="auto"></audio>
+
+<script src="reel-engine.js"></script>
+<script>
+(() => {
+  // ================================================================
+  // time grid: 120 BPM four-on-the-floor, one bar = 2s
+  // ================================================================
+  const BPM = 120, Q = 60 / BPM, E8 = Q / 2, S16 = Q / 4, BAR = Q * 4;
+  const DURATION = 50;
+  const GROOVE = [[4, 42], [44, 48]];   // kick on every beat
+  const CLAPS_FROM = 10;                // claps join at the drop
+  const BUILDS = [[42, 44]];            // riser + snare roll into the call to action
+  const GAPS = [[43.75, 44]];
+  const FINAL_HIT = 48;
+  const KICKS = [], SNARES = [];
+  for (let t = 0; t < DURATION - 1e-6; t += Q) {
+    if (!within(t, GROOVE)) continue;
+    KICKS.push({ t, bar: Math.floor(t / BAR) });
+    const beat = Math.round(t / Q) % 4;
+    if (t >= CLAPS_FROM && (beat === 1 || beat === 3)) SNARES.push(t);
+  }
+  KICKS.push({ t: FINAL_HIT, bar: Math.floor(FINAL_HIT / BAR), last: true });
+
+  // ================================================================
+  // shared layout helpers for the benefit shots
+  // ================================================================
+  const COL = PORT ? { x: L.pad, w: W - L.pad * 2 } : { x: W * .07, w: W * .42 };
+  // the left/top text block: section tag, wide headline, serif body
+  function block(t, t0, { tag, head, body, ink, accent = C.club, y = PORT ? H * .1 : H * .24, headPx = PORT ? 96 : 100, bodyPx = PORT ? 44 : 38 }) {
+    wipeText(tag, COL.x, y, L.hud * 1.1, 'monoB', accent, t, t0, .35);
+    let yy = y + L.hud * 1.6 + headPx * .55;
+    head.forEach((ln, i) => {
+      const px = Math.min(headPx, fit(ln, 'wide', COL.w));
+      const k = P(t, t0 + .1 + i * .08, .5, E.outExpo);
+      g.save(); g.beginPath(); g.rect(COL.x - 10, yy - px * .7, W, px * 1.3); g.clip();
+      text(ln, COL.x, yy + (1 - k) * px * 1.1, px, 'wide', ink, { align: 'left' });
+      g.restore();
+      yy += px * 1.08;
+    });
+    yy += bodyPx * .5;
+    if (body) wrap(body, 'serif', bodyPx, COL.w).forEach((ln, i) => {
+      rise(ln, COL.x, yy + i * bodyPx * 1.32, bodyPx, 'serif', ink, t, t0 + .4 + i * .07, { dist: 24 });
+    });
+    return yy + (body ? wrap(body, 'serif', bodyPx, COL.w).length * bodyPx * 1.32 : 0);
+  }
+  // the right-hand / lower stage for the visual
+  const STAGE = PORT ? { x: L.pad, y: H * .5, w: W - L.pad * 2, h: H * .42 } : { x: W * .54, y: H * .14, w: W * .4, h: H * .72 };
+  const SC = { cx: STAGE.x + STAGE.w / 2, cy: STAGE.y + STAGE.h / 2 };
+
+  // little vector icons for the diagram
+  function iconReceipt(x, y, s, color) {
+    g.fillStyle = color; g.beginPath(); g.moveTo(x - s * .35, y - s * .5); g.lineTo(x + s * .35, y - s * .5); g.lineTo(x + s * .35, y + s * .45);
+    for (let i = 0; i < 6; i++) g.lineTo(x + s * .35 - (i + .5) * s * .7 / 6, y + s * (i % 2 ? .45 : .52));
+    g.lineTo(x - s * .35, y + s * .45); g.closePath(); g.fill();
+    g.fillStyle = C.cream; [-.25, -.08, .09].forEach(dy => g.fillRect(x - s * .22, y + dy * s, s * .44, s * .05));
+  }
+  function iconPhone(x, y, s, color) {
+    g.fillStyle = color; rrect(x - s * .3, y - s * .52, s * .6, s * 1.04, s * .1); g.fill();
+    g.fillStyle = C.lime; rrect(x - s * .24, y - s * .44, s * .48, s * .86, s * .06); g.fill();
+    g.strokeStyle = color; g.lineWidth = s * .05;
+    [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([a, b]) => { const cx = x + a * s * .14, cy = y + b * s * .2; g.beginPath(); g.moveTo(cx, cy - b * s * .1); g.lineTo(cx, cy); g.lineTo(cx - a * s * .1, cy); g.stroke(); });
+  }
+  function chip(x, y, label, bg, fg, px) {
+    font('wide8', px); const w = g.measureText(label).width + px * 1.4;
+    g.fillStyle = bg; rrect(x - w / 2, y - px * .9, w, px * 1.8, px * .9); g.fill();
+    text(label, x, y, px, 'wide8', fg, {});
+    return w;
+  }
+
+  // ================================================================
+  // 00 INTRO
+  // ================================================================
+  shot(0, 4, '00 — FOR CLUBS', C.ink, (lt, t) => {
+    const cx = W / 2, cy = H / 2, R = Math.min(W, H) * .24;
+    const ring = P(t, .3, 1.4, E.inOutCubic);
+    g.strokeStyle = 'rgba(241,238,227,.25)'; g.lineWidth = 1.5;
+    g.beginPath(); g.arc(cx, cy, R * 1.45, -Math.PI / 2, -Math.PI / 2 + ring * Math.PI * 2); g.stroke();
+    for (let i = 0; i < 60; i++) {
+      if (i / 60 > ring) break;
+      const a = i / 60 * Math.PI * 2 - Math.PI / 2, l = i % 5 ? 8 : 18;
+      g.beginPath(); g.moveTo(cx + Math.cos(a) * R * 1.45, cy + Math.sin(a) * R * 1.45); g.lineTo(cx + Math.cos(a) * (R * 1.45 + l), cy + Math.sin(a) * (R * 1.45 + l)); g.stroke();
+    }
+    sphere(cx, cy, R * (1 + .04 * decay(t, 2, 6)), t, { form: P(t, .15, 2, E.lin), spin: .6 });
+    const ann = (label, value, ax, ay, lx, ly, t0) => {
+      const k = P(t, t0, .35);
+      if (k <= 0) return;
+      g.strokeStyle = C.lime; g.lineWidth = 1.5; g.beginPath(); g.moveTo(ax, ay); g.lineTo(lerp(ax, lx, k), lerp(ay, ly, k)); g.stroke();
+      g.fillStyle = C.lime; g.beginPath(); g.arc(ax, ay, 4, 0, Math.PI * 2); g.fill();
+      const al = lx < ax ? 'right' : 'left', ox = lx < ax ? -12 : 12;
+      wipeText(label, lx + ox, ly - L.hud * .8, L.hud, 'mono', 'rgba(241,238,227,.6)', t, t0 + .1, .3, al);
+      wipeText(value, lx + ox, ly + L.hud * .7, L.hud * 1.15, 'monoB', C.cream, t, t0 + .2, .35, al);
+    };
+    const sx = PORT ? .9 : 1.75, sy = PORT ? 1.9 : 1;
+    ann('PLATFORM', 'FLAGRR FOR CLUBS', cx + R * .55, cy - R * .5, cx + R * sx * .95, cy - R * 1.05 * sy, 1.0);
+    ann('BUILT FOR', 'GOLF CLUBS', cx - R * .6, cy + R * .4, cx - R * sx, cy + R * .95 * sy, 1.6);
+    ann('STATUS', 'LIVE AT STRAND GC', cx + R * .4, cy + R * .7, cx + R * sx * .9, cy + R * 1.25 * sy, 2.3);
+  });
+  cue(1.0, 'type', { dur: .35 }); cue(1.6, 'type', { dur: .35 }); cue(2.3, 'type', { dur: .4 }); cue(3.5, 'whoosh', { gain: .5 });
+
+  // ================================================================
+  // HOOK: the spend is already there
+  // ================================================================
+  shot(4, 6, '00 — FOR CLUBS', C.cream, (lt, t) => {
+    const px = PORT ? 84 : 96, x = PORT ? L.pad : W * .08, y = H * (PORT ? .4 : .38);
+    wipeText('THE OPPORTUNITY', x, y - px * 1.2, L.hud * 1.1, 'monoB', C.club, t, 4.0, .3);
+    const lines = PORT ? ['Your members', 'already spend', 'at your club.'] : ['Your members already', 'spend at your club.'];
+    lines.forEach((ln, i) => rise(ln, x, y + i * px * 1.18, px, 'serif', C.ink, t, 4.1 + i * .15, { dist: 50 }));
+  }, { type: 'push' });
+  cue(4, 'swipe', { gain: .6 }); cue(4.0, 'type', { dur: .3 });
+  [['GREEN FEES.', C.ink, C.lime], ['PRO SHOP.', C.lime, C.ink], ['HALFWAY HOUSE.', C.cream, C.ink], ['THE BAR.', C.club, C.lime]].forEach(([w, bg, ink], i) => {
+    const t0 = 6 + i * Q;
+    shot(t0, t0 + Q, '00 — FOR CLUBS', bg, (lt, t) => {
+      const lines = PORT && w.includes(' ') ? w.split(' ') : [w];
+      lines.forEach((ln, j) => slam(ln, t, t0, ink, { y: H / 2 + (j - (lines.length - 1) / 2) * H * .13, maxH: PORT ? H * .11 : H * .26, maxW: W * .84 }));
+    });
+    cue(t0, 'thump', { gain: .55, pitch: [0, 2, 4, 7][i] });
+  });
+  shot(8, 10, '00 — FOR CLUBS', C.dark, (lt, t) => {
+    const px = PORT ? 76 : 84, x = PORT ? L.pad : W * .08, y = H * (PORT ? .4 : .38);
+    wipeText('THE IDEA', x, y - px * 1.2, L.hud * 1.1, 'monoB', C.lime, t, 8.0, .25);
+    const lines = PORT ? ['Flagrr turns that', 'spend into loyalty', 'that brings them back.'] : ['Flagrr turns that spend into', 'loyalty that brings them back.'];
+    lines.forEach((ln, i) => rise(ln, x, y + i * px * 1.18, px, 'serif', i === lines.length - 1 ? C.lime : C.cream, t, 8.1 + i * .15, { dist: 50 }));
+  }, { type: 'push' });
+  cue(8, 'swipe', { gain: .6 }); cue(8.0, 'type', { dur: .25 });
+
+  // ================================================================
+  // DROP: Flagrr for clubs
+  // ================================================================
+  shot(10, 12, '00 — FOR CLUBS', C.ink, (lt, t) => {
+    const img = IMG.logo, k = P(t, 10, .45, E.outExpo), lw = (PORT ? W * .74 : W * .4) * lerp(1.35, 1, k), lh = lw * img.height / img.width;
+    const ly = H * (PORT ? .4 : .38);
+    for (let i = 0; i < 5; i++) { g.globalAlpha = (1 - k) * .14; const z = 1 + i * .05 * (1 - k); g.drawImage(img, W / 2 - lw * z / 2, ly - lh * z / 2, lw * z, lh * z); }
+    g.globalAlpha = 1; g.drawImage(img, W / 2 - lw / 2, ly - lh / 2, lw, lh);
+    const fy = ly + lh * .5 + (PORT ? 110 : 90);
+    if (t >= 10.5) slam('FOR CLUBS', t, 10.5, C.cream, { y: fy, maxW: PORT ? W * .8 : W * .5, maxH: PORT ? 120 : 110 });
+    rise('Loyalty, built for golf clubs.', W / 2, fy + (PORT ? 110 : 100), PORT ? 46 : 40, 'serif', C.lime, t, 11.0, { align: 'center' });
+  });
+  cue(10, 'hit', { gain: 1 }); FLASH.push([10, .6]); PUNCH.push([10, .05]); glitch(10, .08, .5); cue(10.5, 'thump', { gain: .6 });
+
+  // ================================================================
+  // 01 NO NEW HARDWARE
+  // ================================================================
+  shot(12, 16, '01 — HOW IT WORKS', C.cream, (lt, t) => {
+    block(t, 12.05, { tag: '01 — WORKS WITH YOUR TILL', head: ['NO NEW', 'HARDWARE.'], ink: C.ink,
+      body: 'Members photograph their receipt. Flagrr reads it, matches it to your catalogue and credits them instantly. No POS integration, no cards, no stamps.' });
+    // till receipt -> member's phone -> Flagrr Cash, joined by travelling dots
+    const nodes = PORT
+      ? [[STAGE.x + STAGE.w * .16, SC.cy], [SC.cx, SC.cy], [STAGE.x + STAGE.w * .84, SC.cy]]
+      : [[SC.cx, STAGE.y + STAGE.h * .14], [SC.cx, SC.cy], [SC.cx, STAGE.y + STAGE.h * .86]];
+    const s = PORT ? 150 : 140, labels = ['YOUR TILL', 'MEMBER’S PHONE', 'FLAGRR CASH'];
+    nodes.forEach(([x, y], i) => {
+      const t0 = 12.5 + i * .5, k = P(t, t0, .4, E.outBack);
+      if (k <= 0) return;
+      g.save(); g.translate(x, y); g.scale(k, k);
+      g.fillStyle = i === 2 ? C.lime : C.ink; g.beginPath(); g.arc(0, 0, s * .62, 0, Math.PI * 2); g.fill();
+      if (i === 0) iconReceipt(0, 0, s * .7, C.cream);
+      if (i === 1) iconPhone(0, 0, s * .75, C.cream);
+      if (i === 2) text('+FC', 0, 0, s * .3, 'wide', C.ink, {});
+      g.restore();
+      const lo = PORT ? [0, s * .62 + 40] : [s * .62 + 30, 0];
+      text(labels[i], x + lo[0], y + lo[1], L.hud * 1.05, 'monoB', C.ink, { align: PORT ? 'center' : 'left', alpha: k });
+    });
+    for (let i = 0; i < 2; i++) {
+      const [x1, y1] = nodes[i], [x2, y2] = nodes[i + 1], t0 = 12.75 + i * .5;
+      const k = P(t, t0, .35, E.inOutCubic), r = s * .62 + 14;
+      const dx = x2 - x1, dy = y2 - y1, len = Math.hypot(dx, dy), ux = dx / len, uy = dy / len;
+      const ax = x1 + ux * r, ay = y1 + uy * r, bx = x2 - ux * r, by = y2 - uy * r;
+      g.strokeStyle = C.ink; g.lineWidth = 3; g.setLineDash([2, 10]); g.lineCap = 'round';
+      g.beginPath(); g.moveTo(ax, ay); g.lineTo(lerp(ax, bx, k), lerp(ay, by, k)); g.stroke(); g.setLineDash([]);
+      if (t > t0 + .35) for (let d = 0; d < 3; d++) {
+        const u = ((t - t0) * .9 + d / 3) % 1;
+        g.fillStyle = C.club; g.beginPath(); g.arc(lerp(ax, bx, u), lerp(ay, by, u), 7, 0, Math.PI * 2); g.fill();
+      }
+    }
+  }, { type: 'push' });
+  cue(12, 'swipe', { gain: .6 }); cue(12.05, 'type', { dur: .35 });
+  [12.5, 13.0, 13.5].forEach((t0, i) => cue(t0, 'click', { pitch: i * 3 })); cue(13.5, 'ping', { gain: .5 });
+
+  // ================================================================
+  // 02 MORE ROUNDS, MORE OFTEN
+  // ================================================================
+  const WK = 16.75;
+  shot(16, 19, '02 — RETENTION', C.ink, (lt, t) => {
+    block(t, 16.05, { tag: '02 — WEEKLY STREAKS', head: ['MORE ROUNDS,', 'MORE OFTEN.'], ink: C.cream, accent: C.lime,
+      body: 'Members earn a bonus for every four weeks in a row they play. It gives them a reason to book a round every week.' });
+    const cols = 4, rows = 3, cell = PORT ? 170 : 150, gap = PORT ? 22 : 20;
+    const gw = cols * cell + (cols - 1) * gap, gh = rows * cell + (rows - 1) * gap, gx = SC.cx - gw / 2, gy = SC.cy - gh / 2;
+    for (let i = 0; i < 12; i++) {
+      const x = gx + (i % cols) * (cell + gap), y = gy + Math.floor(i / cols) * (cell + gap);
+      const app = P(t, 16.2 + i * .02, .3, E.outBack), ft = WK + i * S16, fk = P(t, ft, .2, E.outBack), ms = (i + 1) % 4 === 0;
+      g.save(); g.translate(x + cell / 2, y + cell / 2); g.scale(app, app);
+      g.strokeStyle = ms ? C.lime : 'rgba(241,238,227,.35)'; g.lineWidth = ms ? 4 : 2; rrect(-cell / 2, -cell / 2, cell, cell, 18); g.stroke();
+      if (fk > 0) { g.fillStyle = C.lime; g.save(); g.scale(clamp(fk, 0, 1.08), clamp(fk, 0, 1.08)); rrect(-cell / 2, -cell / 2, cell, cell, 18); g.fill(); g.restore(); }
+      text(`WK${String(i + 1).padStart(2, '0')}`, -cell / 2 + 16, -cell / 2 + 24, L.hud * .95, 'monoB', fk > .5 ? C.ink : C.cream, { align: 'left' });
+      if (ms && fk > .5) text(`+${(i + 1) / 4 * 100}`, 0, 10, cell * .28, 'wide', C.ink, {});
+      g.restore();
+    }
+  }, { type: 'push' });
+  cue(16, 'swipe', { gain: .6 }); cue(16.05, 'type', { dur: .3 });
+  for (let i = 0; i < 12; i++) cue(WK + i * S16, (i + 1) % 4 === 0 ? 'thump' : 'tick', { pitch: i, gain: (i + 1) % 4 === 0 ? .45 : .35 });
+
+  const TIERS = [['BRONZE', '1X', C.bronze, .3], ['SILVER', '1.2X', C.silver, .5], ['GOLD', '1.5X', C.gold, .72], ['PLATINUM', '1.7X', C.plat, 1]];
+  shot(19, 22, '02 — RETENTION', C.ink, (lt, t) => {
+    block(t, 19.05, { tag: '02 — QUARTERLY TIERS', head: ['A REASON TO', 'KEEP SPENDING.'], ink: C.cream, accent: C.lime,
+      body: 'Four tiers re-qualify every quarter. Higher tiers earn faster, and Gold and Platinum unlock a free bar voucher each quarter.' });
+    const bw = PORT ? 200 : 140, gap = PORT ? 30 : 28, total = 4 * bw + 3 * gap, x0 = SC.cx - total / 2, base = STAGE.y + STAGE.h * (PORT ? .98 : .9), maxH = STAGE.h * (PORT ? .82 : .78);
+    TIERS.forEach(([name, mult, col, hgt], i) => {
+      const k = P(t, 19.5 + i * Q, .6, E.outBack), h = maxH * hgt * Math.max(0, k), x = x0 + i * (bw + gap);
+      g.fillStyle = col; rrect(x, base - h, bw, h, [16, 16, 4, 4]); g.fill();
+      if (k > .4) {
+        text(mult, x + bw / 2, base - h + bw * .32, bw * .3, 'wide', C.ink, { alpha: P(t, 19.7 + i * Q, .2) });
+        text(name, x + bw / 2, base + 30, L.hud * .95, 'monoB', C.cream, { alpha: P(t, 19.7 + i * Q, .2) });
+      }
+    });
+  });
+  TIERS.forEach((_, i) => cue(19.5 + i * Q, 'rise', { pitch: [0, 4, 7, 12][i], gain: .5 }));
+
+  // ================================================================
+  // 03 SPEND STAYS AT YOUR CLUB
+  // ================================================================
+  const REWARDS = [['18-hole-round', 'ROUNDS'], ['coaching-session', 'COACHING'], ['golf-cart-hire', 'CART HIRE'], ['pro-shop-voucher', 'PRO SHOP'], ['bar-voucher', 'THE BAR']];
+  REWARDS.forEach(([img, label], i) => {
+    const t0 = 22 + i * Q;
+    shot(t0, t0 + Q, '03 — REWARDS', C.ink, (lt, t) => {
+      cover(IMG['r' + i], 0, 0, W, H, 1.06 - .05 * (lt / Q));
+      const gr = g.createLinearGradient(0, H * .3, 0, H); gr.addColorStop(0, 'rgba(13,26,20,0)'); gr.addColorStop(1, 'rgba(13,26,20,.85)');
+      g.fillStyle = gr; g.fillRect(0, 0, W, H);
+      const lp = fit(label, 'wide', W * .8, H * (PORT ? .08 : .15)), ly = H - L.pad - (PORT ? 260 : 170) - lp * .5;
+      text(label, L.pad + 10, ly, lp, 'wide', C.cream, { align: 'left', mb: [-(1 - clamp((t - t0) / .12)) * 160, 0] });
+      text('REDEEMED AT YOUR CLUB', L.pad + 14, ly + lp * .62 + L.hud * 1.4, L.hud * 1.3, 'monoB', C.lime, { align: 'left' });
+    });
+    cue(t0, 'shutter', { gain: .6 }); FLASH.push([t0, .15]);
+  });
+  shot(24.5, 28, '03 — REWARDS', C.cream, (lt, t) => {
+    block(t, 24.55, { tag: '03 — SPEND STAYS AT YOUR CLUB', head: ['YOUR REWARDS.', 'YOUR RULES.'], ink: C.ink,
+      body: 'You choose the rewards and what they cost in Flagrr Cash. Every one is redeemed at your club, and your staff scan the member’s QR to redeem it in seconds.' });
+    // staff redeem: a device frame over the voucher QR, then a tick
+    const dw = PORT ? 520 : 420, dh = dw * 1.25, dx = SC.cx - dw / 2, dy = SC.cy - dh / 2, k = P(t, 25, .5, E.outExpo);
+    g.save(); g.translate(0, (1 - k) * 200); g.globalAlpha = clamp(k * 2);
+    g.fillStyle = C.ink; rrect(dx, dy, dw, dh, 40); g.fill();
+    g.fillStyle = '#1B2A23'; rrect(dx + 18, dy + 18, dw - 36, dh - 36, 26); g.fill();
+    const q = dw * .52; qr(SC.cx - q / 2, SC.cy - q / 2 - 20, q, C.ink, C.cream);
+    const sk = P(t, 25.6, .7, E.inOutCubic);
+    if (t > 25.6 && t < 26.4) { g.fillStyle = C.lime; g.fillRect(SC.cx - q / 2 - 24, SC.cy - q / 2 - 20 + q * sk, q + 48, 5); }
+    g.strokeStyle = C.lime; g.lineWidth = 6; const m = q / 2 + 30, cy = SC.cy - 20;
+    [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([a, b]) => { g.beginPath(); g.moveTo(SC.cx + a * m, cy + b * m - b * 36); g.lineTo(SC.cx + a * m, cy + b * m); g.lineTo(SC.cx + a * m - a * 36, cy + b * m); g.stroke(); });
+    text('STAFF APP — REDEEM A VOUCHER', SC.cx, dy + dh - 50, L.hud * .95, 'monoB', C.cream, {});
+    if (t >= 26.5) {
+      const kk = P(t, 26.5, .4, E.outBack);
+      g.save(); g.translate(SC.cx, cy); g.scale(kk, kk);
+      g.fillStyle = C.club; g.beginPath(); g.arc(0, 0, q * .32, 0, Math.PI * 2); g.fill();
+      g.strokeStyle = C.white; g.lineWidth = q * .05; g.lineCap = 'round'; g.lineJoin = 'round';
+      g.beginPath(); g.moveTo(-q * .12, 0); g.lineTo(-q * .03, q * .09); g.lineTo(q * .14, -q * .1); g.stroke();
+      g.restore();
+      text('REDEEMED', SC.cx, cy + q / 2 + 70, L.hud * 1.4, 'monoB', C.lime, { alpha: P(t, 26.6, .2) });
+    }
+    g.restore();
+  }, { type: 'push' });
+  cue(24.5, 'swipe', { gain: .6 }); cue(24.55, 'type', { dur: .4 }); cue(25, 'whoosh', { gain: .4, pitch: 2 });
+  cue(25.6, 'scan', { dur: .8 }); cue(26.5, 'ping', { gain: .7 });
+
+  // ================================================================
+  // 04 KNOW YOUR MEMBERS: the club dashboard
+  // ================================================================
+  const KPIS = [['MEMBERS', 1248], ['NEW THIS MONTH', 86], ['RECEIPTS SCANNED', 4912], ['FC EARNED', 386400]];
+  const MONTHS = [.42, .48, .45, .56, .6, .58, .66, .71, .69, .78, .84, .92];
+  const TIERMIX = [['BRONZE', .46, C.bronze], ['SILVER', .29, C.silver], ['GOLD', .17, C.gold], ['PLATINUM', .08, C.plat]];
+  const TOP = [['18 HOLE ROUND', 1], ['BAR VOUCHER', .78], ['COACHING SESSION', .55], ['PRO SHOP VOUCHER', .41]];
+  shot(28, 36, '04 — INSIGHT', C.ink, (lt, t) => {
+    const ink = C.cream, sub = 'rgba(241,238,227,.55)';
+    // header
+    const hx = L.pad + 10, hy = PORT ? H * .1 : H * .14;
+    wipeText('04 — YOUR CLUB DASHBOARD', hx, hy, L.hud * 1.1, 'monoB', C.lime, t, 28.05, .35);
+    const hp = Math.min(PORT ? 80 : 74, fit('KNOW YOUR MEMBERS.', 'wide', W - hx * 2));
+    g.save(); g.beginPath(); g.rect(0, hy + 20, W, hp * 1.4); g.clip();
+    text('KNOW YOUR MEMBERS.', hx, hy + hp * .95 + (1 - P(t, 28.15, .5, E.outExpo)) * hp * 1.2, hp, 'wide', ink, { align: 'left' });
+    g.restore();
+    text('ILLUSTRATIVE DATA', W - L.pad - 10, hy, L.hud * .9, 'mono', sub, { align: 'right', alpha: P(t, 28.3, .3) });
+    // panels
+    const top = hy + hp * 1.7, gap = 24, x0 = hx, ww = W - hx * 2;
+    const panel = (x, y, w, h, t0, title) => {
+      const k = P(t, t0, .45, E.outExpo);
+      g.save(); g.globalAlpha = clamp(k * 1.5); g.translate(0, (1 - k) * 40);
+      g.fillStyle = '#16271F'; rrect(x, y, w, h, 18); g.fill();
+      g.strokeStyle = 'rgba(205,222,92,.18)'; g.lineWidth = 1.5; g.stroke();
+      if (title) text(title, x + 24, y + 34, L.hud * .9, 'monoB', sub, { align: 'left' });
+      return k;
+    };
+    const done = () => g.restore();
+    // KPI tiles count up
+    const kcols = PORT ? 2 : 4, kh = PORT ? 170 : 150, kw = (ww - gap * (kcols - 1)) / kcols;
+    KPIS.forEach(([label, v], i) => {
+      const x = x0 + (i % kcols) * (kw + gap), y = top + Math.floor(i / kcols) * (kh + gap), t0 = 28.6 + i * .12;
+      panel(x, y, kw, kh, t0, label);
+      const val = v * E.outCubic(clamp((t - t0) / 1.4));
+      text(fmt(val), x + 24, y + kh * .62, Math.min(PORT ? 64 : 60, fit(fmt(v), 'wide', kw - 48)), 'wide', i === 3 ? C.lime : ink, { align: 'left' });
+      done();
+    });
+    const krows = Math.ceil(4 / kcols), y2 = top + krows * (kh + gap);
+    // chart + donut + top rewards
+    const chartW = PORT ? ww : ww * .5, chartH = PORT ? 360 : H * .38;
+    panel(x0, y2, chartW, chartH, 29.4, 'FLAGRR CASH EARNED PER MONTH');
+    {
+      const bx = x0 + 24, by = y2 + chartH - 40, bwid = chartW - 48, bh = chartH - 110, n = MONTHS.length, bw = bwid / n - 10;
+      MONTHS.forEach((h, i) => {
+        const k = P(t, 29.7 + i * .06, .5, E.outBack);
+        g.fillStyle = i === n - 1 ? C.lime : 'rgba(205,222,92,.4)';
+        const hh = bh * h * Math.max(0, k);
+        rrect(bx + i * (bwid / n) + 5, by - hh, bw, hh, [6, 6, 2, 2]); g.fill();
+      });
+      ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'].forEach((m, i) => text(m, bx + i * (bwid / n) + bwid / n / 2, by + 20, L.hud * .8, 'mono', sub, {}));
+    }
+    done();
+    const restX = PORT ? x0 : x0 + chartW + gap, restW = PORT ? (ww - gap) / 2 : (ww - chartW - gap * 2) / 2, restY = PORT ? y2 + chartH + gap : y2, restH = PORT ? 400 : chartH;
+    panel(restX, restY, restW, restH, 30.4, 'TIER MIX');
+    {
+      const cx = restX + restW / 2, cy = restY + restH * .43, r = Math.min(restW, restH) * .23;
+      let a0 = -Math.PI / 2;
+      const sweepK = P(t, 30.6, 1, E.inOutCubic);
+      TIERMIX.forEach(([name, f, col]) => {
+        const a1 = a0 + f * Math.PI * 2 * sweepK;
+        g.strokeStyle = col; g.lineWidth = r * .42; g.lineCap = 'butt';
+        g.beginPath(); g.arc(cx, cy, r, a0, a1); g.stroke();
+        a0 = a0 + f * Math.PI * 2 * sweepK;
+      });
+      TIERMIX.forEach(([name, f, col], i) => {
+        const ly = restY + restH - 92 + Math.floor(i / 2) * 32, lx = restX + 24 + (i % 2) * (restW - 48) / 2;
+        g.fillStyle = col; g.fillRect(lx, ly - 7, 14, 14);
+        text(`${name} ${Math.round(f * 100)}%`, lx + 22, ly, L.hud * .78, 'mono', ink, { align: 'left', alpha: P(t, 31.2, .3) });
+      });
+    }
+    done();
+    panel(restX + restW + gap, restY, restW, restH, 30.9, 'TOP REDEEMED');
+    TOP.forEach(([name, f], i) => {
+      const x = restX + restW + gap + 24, w = restW - 48, y = restY + 90 + i * (restH - 120) / 4, k = P(t, 31.2 + i * .1, .6, E.outCubic);
+      text(name, x, y, L.hud * .8, 'mono', ink, { align: 'left', alpha: k });
+      g.fillStyle = 'rgba(241,238,227,.12)'; g.fillRect(x, y + 20, w, 10);
+      g.fillStyle = i ? 'rgba(205,222,92,.6)' : C.lime; g.fillRect(x, y + 20, w * f * k, 10);
+    });
+    done();
+    // export
+    if (t >= 33) {
+      const k = P(t, 33, .4, E.outBack), ey = PORT ? H - L.pad - 150 : H - L.pad - 70;
+      g.save(); g.translate(W / 2, ey); g.scale(k, k);
+      chip(0, 0, 'EXPORT MEMBER REPORTS TO EXCEL', C.lime, C.ink, PORT ? 28 : 24);
+      g.restore();
+    }
+  }, { type: 'push' });
+  cue(28, 'swipe', { gain: .6 }); cue(28.05, 'type', { dur: .35 });
+  KPIS.forEach((_, i) => cue(28.6 + i * .12, 'click', { pitch: i * 2 }));
+  cue(29.4, 'whoosh', { gain: .35, pitch: 3 }); cue(30.6, 'whoosh', { gain: .3, pitch: 5 }); cue(33, 'thump', { gain: .5 });
+
+  // ================================================================
+  // 05 TALK TO MEMBERS DIRECTLY
+  // ================================================================
+  const NOTES = [['GOLD MEMBERS', 'Your quarterly bar voucher is ready.'], ['PRO SHOP', 'New stock in this weekend, come take a look.'], ['CLUB NEWS', 'Club championship entries close Friday.']];
+  shot(36, 40, '05 — ENGAGEMENT', C.lime, (lt, t) => {
+    block(t, 36.05, { tag: '05 — PUSH NOTIFICATIONS', head: ['TALK TO THEM', 'DIRECTLY.'], ink: C.ink, accent: C.dark,
+      body: 'Send a message to every member, or just one tier, straight to their phone.' });
+    // segment chips: the selection steps through the tiers
+    const segs = ['ALL', 'BRONZE', 'SILVER', 'GOLD', 'PLATINUM'], sel = Math.min(4, Math.floor(clamp((t - 36.6) / Q) % 5));
+    let cx = COL.x;
+    const cy = PORT ? H * .44 : H * .74, cpx = PORT ? 24 : 20;
+    segs.forEach((s, i) => {
+      font('wide8', cpx); const w = g.measureText(s).width + cpx * 1.4;
+      const on = i === (t < 38 ? sel : 3);
+      g.fillStyle = on ? C.ink : 'rgba(13,26,20,.12)'; rrect(cx, cy - cpx * .9, w, cpx * 1.8, cpx * .9); g.fill();
+      text(s, cx + w / 2, cy, cpx, 'wide8', on ? C.lime : C.ink, { alpha: P(t, 36.4 + i * .05, .2) });
+      cx += w + 12;
+    });
+    // lock screen with notifications stacking in
+    const pw = PORT ? 560 : 460, ph = PORT ? STAGE.h * .98 : STAGE.h, px = SC.cx - pw / 2, py = SC.cy - ph / 2, k = P(t, 36.2, .5, E.outExpo);
+    g.save(); g.translate(0, (1 - k) * H * .4);
+    g.fillStyle = C.ink; rrect(px, py, pw, ph, 54); g.fill();
+    g.fillStyle = C.dark; rrect(px + 16, py + 16, pw - 32, ph - 32, 40); g.fill();
+    text('9:41', SC.cx, py + ph * .2, pw * .2, 'wide8', C.cream, {});
+    text('Saturday 18 October', SC.cx, py + ph * .2 + pw * .14, pw * .045, 'sans', 'rgba(241,238,227,.7)', {});
+    NOTES.forEach(([who, msg], i) => {
+      const t0 = 36.75 + i * .75, kk = P(t, t0, .45, E.outBack);
+      if (kk <= 0) return;
+      const nw = pw - 60, nh = PORT ? 132 : 112, nx = px + 30, ny = py + ph * .4 + (NOTES.length - 1 - i) * 0 + i * (nh + 14);
+      g.save(); g.translate(0, (1 - kk) * -60); g.globalAlpha = clamp(kk * 2);
+      g.fillStyle = 'rgba(241,238,227,.94)'; rrect(nx, ny, nw, nh, 22); g.fill();
+      g.fillStyle = C.lime; rrect(nx + 18, ny + 18, 40, 40, 10); g.fill();
+      text('F', nx + 38, ny + 38, 24, 'wide', C.ink, {});
+      text(`FLAGRR · ${who}`, nx + 72, ny + 32, PORT ? 17 : 14, 'monoB', C.club, { align: 'left' });
+      wrap(msg, 'sans', PORT ? 22 : 19, nw - 92).slice(0, 2).forEach((ln, j) => text(ln, nx + 72, ny + 62 + j * (PORT ? 28 : 24), PORT ? 22 : 19, 'sans', C.ink, { align: 'left' }));
+      g.restore();
+    });
+    g.restore();
+  }, { type: 'push' });
+  cue(36, 'swipe', { gain: .6 }); cue(36.05, 'type', { dur: .3 });
+  NOTES.forEach((_, i) => cue(36.75 + i * .75, 'ping', { gain: .6, pitch: i * 2 }));
+
+  // ================================================================
+  // 06 PROTECTED + REVENUE: two quick cards
+  // ================================================================
+  [['FRAUD-CHECKED.', 'Duplicate receipts are blocked automatically, and unusual scans are flagged for your review.', C.dark, C.cream, C.lime, '06 — PEACE OF MIND'],
+   ['SPONSOR AD SPACE.', 'Sell in-app placements to sponsors, with impressions and taps reported per ad.', C.cream, C.ink, C.club, '07 — NEW REVENUE']].forEach(([head, body, bg, ink, acc, tag], i) => {
+    const t0 = 40 + i * 1;
+    shot(t0, t0 + 1, tag, bg, (lt, t) => {
+      const px = fit(head, 'wide', W * .84, PORT ? 110 : 140);
+      wipeText(tag, W / 2, H / 2 - px * 1.25, L.hud * 1.1, 'monoB', acc, t, t0, .25, 'center');
+      text(head, W / 2 + (1 - P(t, t0, .3, E.outExpo)) * W * .3, H / 2 - px * .2, px, 'wide', ink, { mb: [(1 - clamp((t - t0) / .12)) * W * .2, 0] });
+      wrap(body, 'serif', PORT ? 40 : 38, PORT ? W * .82 : W * .6).forEach((ln, j) => rise(ln, W / 2, H / 2 + px * .7 + j * (PORT ? 54 : 50), PORT ? 40 : 38, 'serif', ink, t, t0 + .15 + j * .05, { align: 'center', dist: 20 }));
+    }, { type: 'push', dur: .3 });
+    cue(t0, 'swipe', { gain: .6, pitch: i * 3 }); cue(t0 + .02, 'thump', { gain: .4 });
+  });
+
+  // ================================================================
+  // BUILD + CALL TO ACTION
+  // ================================================================
+  [['MORE VISITS.', C.lime, C.ink], ['MORE SPEND.', C.ink, C.lime], ['MORE LOYALTY.', C.cream, C.ink]].forEach(([w, bg, ink], i) => {
+    const t0 = 42 + i * Q;
+    shot(t0, t0 + Q, '08 — FLAGRR', bg, (lt, t) => {
+      const lines = PORT ? w.split(' ') : [w];
+      lines.forEach((ln, j) => slam(ln, t, t0, ink, { y: H / 2 + (j - (lines.length - 1) / 2) * H * .13, maxH: PORT ? H * .11 : H * .3, maxW: W * .86 }));
+    });
+    cue(t0, 'thump', { gain: .6, pitch: [0, 3, 5][i] });
+  });
+  shot(43.5, 44, '08 — FLAGRR', C.ink, (lt, t) => {
+    text('FLAGRR' + (Math.floor(t * 8) % 2 ? '▍' : ' '), W / 2, H / 2, L.hud * 1.6, 'monoB', C.lime, {});
+  });
+  shot(44, DURATION, '08 — FLAGRR', C.dark, (lt, t) => {
+    const R = Math.min(W, H) * .18, ly = H * (PORT ? .27 : .27);
+    if (t < 45) sphere(W / 2, ly, R, t, { burst: P(t, 44, .9, E.outCubic) });
+    const img = IMG.logo, k = P(t, 44.02, .45, E.outExpo), lw = (PORT ? W * .7 : W * .32) * lerp(1.35, 1, k), lh = lw * img.height / img.width;
+    for (let i = 0; i < 5; i++) { g.globalAlpha = (1 - k) * .14; const z = 1 + i * .06 * (1 - k); g.drawImage(img, W / 2 - lw * z / 2, ly - lh * z / 2, lw * z, lh * z); }
+    g.globalAlpha = clamp(k * 3); g.drawImage(img, W / 2 - lw / 2, ly - lh / 2, lw, lh); g.globalAlpha = 1;
+    const lines = PORT ? ['BRING FLAGRR', 'TO YOUR CLUB.'] : ['BRING FLAGRR TO YOUR CLUB.'];
+    const cy = H * (PORT ? .5 : .56), lp = Math.min(...lines.map(l => fit(l, 'wide', W * .84, 110)));
+    lines.forEach((ln, i) => { if (t >= 45) slam(ln, t, 45 + i * .06, C.cream, { y: cy + i * lp * 1.1, maxW: W * .84, maxH: lp }); });
+    const by = cy + (lines.length - 1) * lp * 1.1 + lp * .95;
+    rise('Live now at Strand Golf Club.', W / 2, by, PORT ? 46 : 40, 'serif', C.lime, t, 45.5, { align: 'center', dist: 20 });
+    if (t >= 46) {
+      const kk = P(t, 46, .45, E.outBack);
+      g.save(); g.translate(W / 2, by + (PORT ? 150 : 120)); g.scale(kk, kk);
+      chip(0, 0, 'GET IN TOUCH — FLAGRR.COM', C.lime, C.ink, PORT ? 34 : 30);
+      g.restore();
+    }
+    wipeText('LOYALTY · INSIGHT · ENGAGEMENT · REVENUE', W / 2, H - L.pad - (PORT ? 140 : 90), L.hud * 1.05, 'mono', 'rgba(241,238,227,.6)', t, 46.5, .6, 'center');
+  }, { type: 'iris' });
+  cue(44, 'hit', { gain: 1.1 }); FLASH.push([44, .6]); PUNCH.push([44, .06]);
+  cue(45, 'thump', { gain: .6 }); cue(45.5, 'whoosh', { gain: .3, pitch: 4 }); cue(46, 'ping', { gain: .6 }); cue(46.5, 'type', { dur: .6 });
+  cue(FINAL_HIT, 'hit', { gain: .6 });
+
+  startReel({
+    title: 'FOR CLUBS — 2026',
+    duration: DURATION, bpm: BPM, kicks: KICKS, snares: SNARES, groove: GROOVE,
+    sections: [0, 12, 16, 22, 28, 36, 40, 44],
+    punch: { kick: .01, snare: .005 },
+    grain: .05,
+    preload: [['logo', '../../mobile/assets/images/flagrr-logo-lime.png'], ...REWARDS.map(([f], i) => ['r' + i, `../../mobile/assets/images/rewards/${f}.jpg`])],
+    audio: { style: 'house', bar: BAR, builds: BUILDS, gaps: GAPS, finalHit: FINAL_HIT, claps_from: CLAPS_FROM },
+  });
+})();
+</script>
+</body>
+</html>

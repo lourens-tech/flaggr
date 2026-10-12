@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Synthesises the reel's soundtrack: an 80 BPM half-time trap beat plus every sound effect.
+"""Synthesises a reel's soundtrack: the music bed plus every sound effect.
+
+Two styles, picked by the page (window.FLAGRR.AUDIO.style):
+  trap   the member reel: 80 BPM half-time, saturated 808s, hat rolls, builds
+  house  the club reel: 120 BPM four-on-the-floor, warm electric-piano chords
 
 Nothing is sampled or licensed. Every sound is built here from oscillators and
 noise, so the track is royalty-free and can be posted anywhere.
@@ -8,6 +12,7 @@ The timing comes from the animation. render.cjs reads window.FLAGRR.AUDIO
 out of flagrr-explainer.html and passes it here as JSON:
   - kicks / snares: the drum hits, which the picture also punches on
   - groove / builds / gaps / tapeStop / finalHit: the arrangement
+    (tapeStop is trap-only)
   - cues: one entry per sound effect (hit, swipe, glitch, shutter...)
 Retime the animation and the beat moves with it.
 
@@ -324,6 +329,26 @@ def sfx_shine(**_):
     return rise * 0.9
 
 
+def sfx_ping(pitch=0, **_):
+    """Soft two-note notification, sine only so it never turns into a slot machine."""
+    y = np.zeros(ns(0.4))
+    for i, m in enumerate((81, 88)):
+        n = ns(0.3)
+        t = secs(n)
+        tone = np.sin(2 * np.pi * hz(m + pitch) * t) * np.exp(-t * 14) * np.minimum(1, t / 0.004)
+        s = ns(i * 0.08)
+        y[s:s + n] += tone[: len(y) - s] * (0.8 if i else 0.6)
+    return y * 0.5
+
+
+def sfx_rise(pitch=0, **_):
+    """Short upward swell for bars that grow."""
+    n = ns(0.35)
+    t = secs(n)
+    f = hz(62 + pitch) * 2 ** (-5 / 12 * np.exp(-t * 18))
+    return np.tanh(osc(f) * 1.5) * np.exp(-t * 7) * 0.5
+
+
 SFX = {name[4:]: fn for name, fn in globals().items() if name.startswith("sfx_")}
 
 
@@ -344,7 +369,7 @@ HOOK = [
 ]
 
 
-def compose(spec_, n):
+def compose_trap(spec_, n):
     bar = spec_["bar"]
     s16 = bar / 16
     groove, builds, gaps = spec_["groove"], spec_["builds"], spec_["gaps"]
@@ -505,7 +530,171 @@ def compose(spec_, n):
     return music, sends
 
 
+# ----------------------------------------------------------------- house (club reel)
+# I  vi  IV  V-ish in D major, warm and open; one chord per bar
+HOUSE_CHORDS = [
+    {"root": 38, "ep": [54, 57, 61, 64]},  # Dmaj9  (F# A C# E)
+    {"root": 35, "ep": [50, 54, 57, 61]},  # Bm7    (D F# A C#)
+    {"root": 31, "ep": [50, 54, 55, 59]},  # Gmaj7  (D F# G B)
+    {"root": 33, "ep": [52, 56, 59, 61]},  # A6     (E G# B C#)
+]
+STAB_STEPS = [0, 3, 6, 10, 13]          # syncopated electric-piano stabs, in sixteenths
+ARP = [0, 1, 2, 3, 2, 1, 3, 2]          # chord-tone arpeggio, eighths
+
+
+def house_kick():
+    n = ns(0.32)
+    t = secs(n)
+    y = glide(120, 50, n, 30) * np.exp(-t * 9)
+    y[: ns(0.002)] += hp(noise(ns(0.002)), 4000) * 0.6
+    return np.tanh(y * 2.2) * 0.9
+
+
+def clap():
+    n = ns(0.3)
+    y = np.zeros(n)
+    nz = bp(noise(n), 1000, 6000)
+    for off in (0, 0.01, 0.021):
+        i = ns(off)
+        y[i:] += nz[: n - i] * np.exp(-secs(n - i) * 55)
+    return y * 0.6 + nz * np.exp(-secs(n) * 14) * 0.25
+
+
+def e_piano(m, dur):
+    """FM electric piano: warm body, a touch of tine on the attack."""
+    n = ns(dur)
+    t = secs(n)
+    f = hz(m)
+    idx = 1.4 * np.exp(-t * 5) + 0.25
+    body = np.sin(2 * np.pi * f * t + idx * np.sin(2 * np.pi * f * t))
+    tine = np.sin(2 * np.pi * f * 7 * t) * np.exp(-t * 40) * 0.08
+    return (body + tine) * adsr(n, 0.004, 0.25, 0.45, 0.12)
+
+
+def compose_house(spec_, n):
+    bar = spec_["bar"]
+    s16 = bar / 16
+    groove, builds, gaps = spec_["groove"], spec_["builds"], spec_["gaps"]
+    final = spec_["finalHit"]
+    claps_from = spec_.get("claps_from", 0)
+    kicks, snares = spec_["kicks"], spec_["snares"]
+    nbars = int(np.ceil(final / bar))
+
+    drums, bass, keys, pad = Bus(n), Bus(n), Bus(n), Bus(n)
+    K, CL = house_kick(), clap()
+
+    for k in kicks:
+        drums.add(k["t"], K, 1.0 if not k.get("last") else 1.1)
+    for t in snares:
+        drums.add(t, CL, 0.7, 0.05)
+    for b in range(nbars):
+        t0 = b * bar
+        if not within(t0, groove):
+            continue
+        for s in range(16):
+            ts = t0 + s * s16
+            if s % 4 == 2:
+                drums.add(ts, hat(True, 1.05)[: ns(0.12)] * np.linspace(1, 0, ns(0.12)), 0.45, 0.25)  # offbeat open hat
+            elif ts >= claps_from:
+                drums.add(ts, hat(), 0.14 + 0.06 * (s % 2 == 0), -0.3)  # shaker-ish sixteenths
+    for t in sorted({g_[0] for g_ in groove} | {claps_from, final}):
+        if t > 0:
+            drums.add(t, crash(), 0.4, -0.2)
+    # build: snare roll and riser, then the gap
+    for a, b_ in builds:
+        dur = b_ - a
+        t = a
+        while t < b_ - s16 * 0.5:
+            k = (t - a) / dur
+            drums.add(t, snare() * (0.2 + 0.5 * k), 1.0)
+            t += s16 * 2 if k < 0.5 else s16
+        rn = ns(dur)
+        riser = sweep(noise(rn), lambda tt, d=dur: 300 * (25 ** (tt / d)), kind="bp", width=0.8) * np.linspace(0, 1, rn) ** 2
+        drums.add(a, riser, 0.4)
+
+    # bass: offbeat eighths on the root, plus a held sub on the downbeat
+    for b in range(nbars):
+        ch = HOUSE_CHORDS[b % 4]
+        t0 = b * bar
+        if not within(t0, groove):
+            continue
+        for e in range(8):
+            if e % 2 == 1:
+                nn = ns(0.2)
+                f = hz(ch["root"])
+                tone = np.sin(2 * np.pi * f * secs(nn)) * 0.8 + lp(saw(f, nn, 1200), 600) * 0.45
+                bass.add(t0 + e * bar / 8, tone * adsr(nn, 0.004, 0.06, 0.7, 0.05), 0.7)
+
+    # electric-piano stabs + soft pad; muffled through the intro, open from the first downbeat
+    cache = {}
+
+    def ep(m, d):
+        key = (m, d)
+        if key not in cache:
+            cache[key] = e_piano(m, d)
+        return cache[key]
+
+    for b in range(nbars + 1):
+        ch = HOUSE_CHORDS[b % 4]
+        t0 = b * bar
+        last = b == nbars
+        if last:
+            for m in ch["ep"]:
+                keys.add(t0, ep(m, 2.4), 0.12)
+            continue
+        for s in STAB_STEPS:
+            for m in ch["ep"]:
+                keys.add(t0 + s * s16, ep(m, 0.32), 0.075, (-0.3, 0.3)[m % 2])
+        for m in ch["ep"]:
+            nn = ns(bar + 0.4)
+            pad.add(t0, saw(hz(m), nn, 2000, phase=RNG.uniform(0, 6)) * adsr(nn, 0.3, 0.3, 0.6, 0.4), 0.04, (-0.6, 0.6)[m % 2])
+        # high arpeggio once the story starts
+        if t0 >= claps_from and within(t0, groove):
+            for e, ix in enumerate(ARP):
+                m = ch["ep"][ix] + 12
+                nn = ns(0.25)
+                tt = secs(nn)
+                pl = (np.sin(2 * np.pi * hz(m) * tt) + 0.3 * np.sin(4 * np.pi * hz(m) * tt)) * np.exp(-tt * 12)
+                keys.add(t0 + e * bar / 8, pl, 0.05, (-0.4, 0.4)[e % 2])
+    keys.x = np.stack([sweep(keys.x[c], lambda tt: 700 + 3300 * min(1, tt / 4) ** 2, frame=2048, hop=512) for c in range(2)])
+    pad.x = np.stack([lp(pad.x[c], 1500) for c in range(2)])
+    d = int(0.375 * SR)
+    echo = np.zeros_like(keys.x)
+    echo[0, d:] += keys.x[1, :-d] * 0.25
+    echo[1, 2 * d:] += keys.x[0, : -2 * d] * 0.15
+    keys.x += echo
+
+    # the house pump: everything melodic breathes around the kick
+    duck = np.ones(n)
+    for k in kicks:
+        i = int(k["t"] * SR)
+        m = min(n - i, ns(0.3))
+        if m > 0:
+            duck[i:i + m] = np.minimum(duck[i:i + m], 1 - 0.5 * np.exp(-secs(m) / 0.09))
+    for bus in (bass, keys, pad):
+        bus.x *= duck
+
+    music = drums.x * 0.9 + bass.x + keys.x + pad.x
+    sends = keys.x * 0.5 + pad.x * 0.4 + drums.x * 0.05
+    gate = np.ones(n)
+    for ga, gb in gaps:
+        i, j = int(ga * SR), int(gb * SR)
+        gate[i:j] = 0
+        r = ns(0.006)
+        gate[max(0, i - r):i] = np.linspace(1, 0, min(r, i))
+    return music * gate, sends * gate
+
+
 # ----------------------------------------------------------------- render
+def true_peak(x, over=4):
+    peak = 0.0
+    for c in range(x.shape[0]):
+        n = x.shape[1]
+        up = np.fft.irfft(np.fft.rfft(x[c]), n * over) * over
+        peak = max(peak, float(np.max(np.abs(up))))
+    return peak
+
+
 def main():
     if len(sys.argv) != 3:
         sys.exit(__doc__)
@@ -513,11 +702,12 @@ def main():
     dur = spec_["duration"]
     n = ns(dur)
 
-    music, music_send = compose(spec_, n)
+    style = spec_.get("style", "trap")
+    music, music_send = (compose_house if style == "house" else compose_trap)(spec_, n)
 
     fx, fx_send = Bus(n), Bus(n)
     level = {"hit": 0.85, "thump": 0.55, "whoosh": 0.35, "swipe": 0.32, "glitch": 0.38, "click": 0.3, "tick": 0.28,
-             "type": 0.3, "scan": 0.4, "zip": 0.3, "morph": 0.4, "shutter": 0.45, "shine": 0.3}
+             "type": 0.3, "scan": 0.4, "zip": 0.3, "morph": 0.4, "shutter": 0.45, "shine": 0.3, "ping": 0.4, "rise": 0.35}
     send_amt = {"hit": 0.35, "thump": 0.15, "shutter": 0.1, "shine": 0.4}
     for i, c in enumerate(spec_["cues"]):
         kind = c["type"]
@@ -535,13 +725,14 @@ def main():
     wet = convolve(music_send + fx_send.x, reverb_ir())
     mix = music * 0.8 + fx.x + wet
 
-    # master: clean up the sub-rumble, glue, soft-clip, -1.5 dBFS ceiling, fade the tail
+    # master: clean up the sub-rumble, glue, soft-clip, -1 dBTP ceiling, fade the tail
     mix = np.stack([hp(mix[c], 25, 2) for c in range(2)])
     mix /= np.percentile(np.abs(mix), 99.95) + 1e-9
     mix = np.tanh(mix * 1.1) / np.tanh(1.1)
     t = secs(n)
     mix *= np.clip((dur - t) / 1.2, 0, 1)
-    mix *= 10 ** (-1.5 / 20) / (np.max(np.abs(mix)) + 1e-9)
+    # normalise on the 4x-oversampled (true) peak so nothing overs between samples
+    mix *= 10 ** (-1.0 / 20) / (true_peak(mix) + 1e-9)
 
     pcm = (mix.T * 32767).astype("<i2")
     with wave.open(sys.argv[2], "wb") as w:
@@ -550,7 +741,7 @@ def main():
         w.setframerate(SR)
         w.writeframes(pcm.tobytes())
     rms = 20 * np.log10(np.sqrt(np.mean(mix ** 2)) + 1e-12)
-    print(f"Wrote {sys.argv[2]}  ({dur:.1f}s, {len(spec_['cues'])} cues, {len(spec_['kicks'])} 808s, RMS {rms:.1f} dBFS)")
+    print(f"Wrote {sys.argv[2]}  ({style}, {dur:.1f}s, {len(spec_['cues'])} cues, {len(spec_['kicks'])} kicks, RMS {rms:.1f} dBFS)")
 
 
 if __name__ == "__main__":

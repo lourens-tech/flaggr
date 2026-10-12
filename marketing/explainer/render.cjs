@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /*
- * Renders flagrr-explainer.html to MP4, with its synthesised soundtrack.
+ * Renders a Flagrr reel (member-reel.html or club-reel.html) to MP4, with its
+ * synthesised soundtrack.
  *
  * The page exposes window.FLAGRR.seek(t), and every frame is a pure function
  * of t, so seeking and screenshotting gives a frame-perfect video however
@@ -13,10 +14,11 @@
  *   npm i -g playwright && npx playwright install chromium
  *
  * Usage:
- *   node marketing/explainer/render.cjs                      # 16:9  -> marketing/dist/flagrr-explainer-16x9.mp4
- *   node marketing/explainer/render.cjs --format portrait    # 9:16  -> marketing/dist/flagrr-explainer-9x16.mp4
- *   node marketing/explainer/render.cjs --audio-only         # just marketing/dist/flagrr-explainer.wav (for the browser preview)
- *   options: [out.mp4] [--fps 30] [--workers 4] [--from 0] [--to 68] [--no-audio]
+ *   node marketing/explainer/render.cjs                              # member reel, 16:9 -> marketing/dist/flagrr-member-reel-16x9.mp4
+ *   node marketing/explainer/render.cjs --format portrait            # member reel, 9:16 -> marketing/dist/flagrr-member-reel-9x16.mp4
+ *   node marketing/explainer/render.cjs --reel club                  # club reel,   16:9 -> marketing/dist/flagrr-club-reel-16x9.mp4
+ *   node marketing/explainer/render.cjs --reel club --audio-only     # just marketing/dist/club-reel.wav (for the browser preview)
+ *   options: [out.mp4] [--reel member|club] [--format landscape|portrait] [--fps 30] [--workers 4] [--from 0] [--to 44] [--no-audio]
  */
 const fs = require('fs');
 const os = require('os');
@@ -34,14 +36,15 @@ const positional = args.filter((a, i) => !a.startsWith('--') && !(i > 0 && args[
 
 const HERE = __dirname;
 const DIST = path.join(HERE, '..', 'dist');
+const REEL = opt('reel', 'member');
 const FORMAT = opt('format', 'landscape');
 const PORT = FORMAT === 'portrait';
 const VIEWPORT = PORT ? { width: 1080, height: 1920 } : { width: 1920, height: 1080 };
-const OUT = path.resolve(positional[0] || path.join(DIST, `flagrr-explainer-${PORT ? '9x16' : '16x9'}.mp4`));
-const WAV = path.join(DIST, 'flagrr-explainer.wav');
+const OUT = path.resolve(positional[0] || path.join(DIST, `flagrr-${REEL}-reel-${PORT ? '9x16' : '16x9'}.mp4`));
+const WAV = path.join(DIST, `${REEL}-reel.wav`);
 const FPS = Number(opt('fps', 30));
 const WORKERS = Number(opt('workers', Math.max(1, Math.min(6, os.cpus().length))));
-const PAGE = 'file://' + path.join(HERE, 'flagrr-explainer.html') + `?render=1&format=${FORMAT}`;
+const PAGE = 'file://' + path.join(HERE, `${REEL}-reel.html`) + `?render=1&format=${FORMAT}`;
 
 async function open(browser) {
   const page = await browser.newPage({ viewport: VIEWPORT, deviceScaleFactor: 1 });
@@ -77,7 +80,7 @@ function renderAudio(spec) {
     first = Math.round(from * FPS);
     const last = Math.min(Math.round(to * FPS), Math.round(duration * FPS) - 1);
     total = last - first + 1;
-    console.log(`Rendering ${total} ${FORMAT} frames (${from}s–${to}s @ ${FPS}fps) with ${WORKERS} workers…`);
+    console.log(`Rendering ${total} ${REEL} ${FORMAT} frames (${from}s–${to}s @ ${FPS}fps) with ${WORKERS} workers…`);
 
     let done = 0;
     const started = Date.now();
