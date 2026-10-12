@@ -92,24 +92,30 @@ window, the mail client re-hosts the images on its own, so that route works
 even before a deploy has published them. The instruction sheet covers both
 routes.
 
-## Member explainer video
+## Member reel (video)
 
-`explainer/` holds a 68-second motion-graphics explainer for members, with
-its own music and sound design. It covers the logo intro, the three steps
-(Play & scan → Earn → Redeem), tiers, streaks, the
-birthday/bar-voucher/away-club extras, and an end card with App Store /
-Google Play download pills. The figures in it come from the seed catalogue
-and the tier/streak rules in `docs/Member-App-Features.md`, so if those
+`explainer/` holds a 44-second beat-cut motion-design reel for members, with
+its own trap soundtrack. Over an 80 BPM half-time beat it covers the hook
+("Your golf is about to start paying you back"), Snap a receipt → +170 FC,
+the four tiers as morphing shapes, the balance rolling up to Silver,
+streaks, the three perks, a rewards photo montage, the QR voucher, and an
+end card with App Store / Google Play pills. The figures come from the seed
+catalogue and the rules in `docs/Member-App-Features.md`, so if those
 change, update the copy in the HTML to match.
+
+The look is flat brand colour fields hard-cutting on the beat, extra-wide
+Archivo type with motion blur, Fraunces italic for the talking lines, and a
+monospace frame overlay (corner brackets, section label, timecode, beat
+light).
 
 | File | What it is |
 |---|---|
-| `flagrr-explainer.html` | The animation, one timeline in two formats: `?format=landscape` (1920×1080) and `?format=portrait` (1080×1920, Instagram Reels/Stories). |
-| `audio.py` | Synthesises the soundtrack (a 120 BPM track in D major, plus every sound effect) from the cue sheet the page exports. Every sound is generated, so nothing needs licensing. Needs numpy. |
+| `flagrr-explainer.html` | The reel, drawn on one canvas, with one timeline in two formats: `?format=landscape` (1920×1080) and `?format=portrait` (1080×1920, Instagram Reels/Stories, TikTok). |
+| `audio.py` | Synthesises the soundtrack (808s, snares, hats with rolls, a dark pluck hook, risers, tape-stop) and every sound effect from the cue sheet the page exports. Every sound is generated, so nothing needs licensing. Needs numpy. |
 | `render.cjs` | Screenshots every frame, builds the soundtrack, and muxes the two into an MP4. |
 
 Open the HTML in a browser to preview it. Space plays/pauses, ←/→ jump 1s,
-`?t=30` starts at 30s, and the link in the control bar switches format. Once
+`?t=12` starts at 12s, and the link in the control bar switches format. Once
 a soundtrack has been rendered, the preview plays it in sync. Preview from
 inside the repo, because the page pulls images from `mobile/assets`.
 
@@ -121,17 +127,13 @@ node marketing/explainer/render.cjs --format portrait  # -> marketing/dist/flagr
 node marketing/explainer/render.cjs --audio-only       # -> marketing/dist/flagrr-explainer.wav, for the preview
 ```
 
-Each format takes about 5–6 minutes on 4 cores.
+How picture and sound stay locked:
 
-How it fits together:
-
-- **Every frame is a pure function of time.** `render(t)` rebuilds the
-  picture from scratch, so the renderer can seek to any frame and the output
-  is frame-perfect however slow the machine is.
-- **Sound is cut from the same constants as picture.** Every scene's timing
-  lives in `buildTimeline()`, which also emits a cue (bounce, coin, pop,
-  whoosh…) for each event. `audio.py` renders those cues and arranges the
-  music around `GROOVE`, `BREAKDOWN` and `LEAD`. Retime a scene and its
-  sounds move with it.
-- **Cuts land on bar lines** (120 BPM, so every 2s), and the background dots
-  and glows pulse on the kick drum.
+- **Every frame is a pure function of time**, so the renderer can seek to
+  any frame and the output is frame-perfect however slow the machine is.
+- **The drum pattern lives in the HTML** (`KICK_PATTERNS`, snares on steps
+  4 and 12) because the picture punches on every kick. `audio.py` gets the
+  same kick and snare times, plus a cue for every effect the shots fire,
+  and writes the 808s, rolls and effects onto them.
+- **Cuts land on the grid**: one bar is 3s, and shots change on beats
+  (0.75s), eighths (0.375s) or sixteenths (0.1875s).
