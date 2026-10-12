@@ -91,3 +91,76 @@ than a campaign platform: opened in a browser and copy-pasted into a compose
 window, the mail client re-hosts the images on its own, so that route works
 even before a deploy has published them. The instruction sheet covers both
 routes.
+
+## Reels (video)
+
+`explainer/` holds two motion-design reels in the same design language: flat
+Flagrr colour fields cut on the beat, extra-wide Archivo type, Fraunces
+italic for the talking lines, and small monospace labels. Each has its
+own synthesised soundtrack and renders in two formats:
+`?format=landscape` (1920×1080) and `?format=portrait` (1080×1920, for
+Instagram, TikTok and LinkedIn stories).
+
+| Reel | Audience | Length | Music |
+|---|---|---|---|
+| `member-reel.html` | Members: why to download and use the app | 44s | 80 BPM half-time trap, 808s, hat rolls, hard drops |
+| `club-reel.html` | Club managers and committees: why to run Flagrr | 50s | 120 BPM house, electric-piano chords |
+
+**Member reel:** the hook ("Your golf is about to start paying you back"),
+Snap a receipt → +170 FC, the four tiers as morphing shapes, the balance
+rolling up to Silver, streaks, the three perks, a rewards photo montage,
+the QR voucher, and an end card with App Store / Google Play pills.
+
+**Club reel:** the opportunity (members already spend at the club), then
+one benefit per section, each backed by something built in the app:
+
+- no new hardware (members photograph receipts, so there's no POS integration)
+- more rounds, more often (weekly streak bonuses)
+- a reason to keep spending (quarterly tiers, Gold/Platinum bar vouchers)
+- spend stays at your club (your reward catalogue, redeemed by staff scanning a QR)
+- know your members (the club dashboard and Excel export; the numbers are
+  labelled on screen as illustrative)
+- talk to them directly (push notifications by tier)
+- fraud-checked receipts
+- sponsor ad space with reporting
+
+It ends on "Bring Flagrr to your club" and flagrr.com. If a claim stops
+being true in the product, take it out of the reel.
+
+| File | What it is |
+|---|---|
+| `reel-engine.js` | The shared engine: canvas, type helpers, generative pieces (dot-sphere golf ball, morphing shapes, truchet tiles), punch/glitch/grain post, transitions, playback, and a `?textlog=1` mode that records every text box so collisions can be checked. |
+| `member-reel.html`, `club-reel.html` | Each reel's timeline: its tempo, drum pattern, shots and sound cues. |
+| `audio.py` | Synthesises the soundtrack for either reel (`trap` or `house` style, picked by the page) plus every sound effect from the page's cue sheet. Every sound is generated, so nothing needs licensing. Needs numpy. |
+| `render.cjs` | Screenshots every frame, builds the soundtrack, and muxes the two into an MP4. |
+
+Open a reel's HTML in a browser to preview it. Space plays/pauses, ←/→ jump
+1s, `?t=12` starts at 12s, and the link in the control bar switches format.
+Once that reel's soundtrack has been rendered (`--audio-only`), the preview
+plays it in sync. Preview from inside the repo, because the pages pull images
+from `mobile/assets`.
+
+To render (needs Playwright with Chromium, ffmpeg, and python3 with numpy):
+
+```sh
+node marketing/explainer/render.cjs                                # member, 16:9 -> marketing/dist/flagrr-member-reel-16x9.mp4
+node marketing/explainer/render.cjs --format portrait              # member, 9:16
+node marketing/explainer/render.cjs --reel club                    # club,   16:9 -> marketing/dist/flagrr-club-reel-16x9.mp4
+node marketing/explainer/render.cjs --reel club --format portrait  # club,   9:16
+node marketing/explainer/render.cjs --reel club --audio-only       # just marketing/dist/club-reel.wav, for the preview
+```
+
+How picture and sound stay locked:
+
+- **Every frame is a pure function of time**, so the renderer can seek to
+  any frame and the output is frame-perfect however slow the machine is.
+- **The drum pattern lives in each reel's HTML** because the picture
+  punches on the kicks. `audio.py` gets the same kick and snare times, plus
+  a cue for every effect the shots fire, and builds the music around them.
+- **Cuts land on the beat grid** of each reel's tempo.
+
+When you change copy, check that no two pieces of text collide. Open a reel
+with `?render=1&textlog=1`: `window.FLAGRR.seek(t)` returns the screen box
+of every visible piece of text at time `t`, so a short Playwright loop over
+the timeline can flag any pair that intersects. Both reels currently pass in
+both formats at every frame.

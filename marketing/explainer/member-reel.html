@@ -1,0 +1,478 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Flagrr Member Reel</title>
+<!--
+  Flagrr member reel: 44s of beat-cut motion design over an 80 BPM half-time trap track.
+
+  Two formats from one timeline:
+    ?format=landscape (default)  1920x1080  YouTube, web, clubhouse screens
+    ?format=portrait             1080x1920  Instagram Reels / Stories, TikTok, WhatsApp Status
+
+  The drawing engine (canvas, type, post effects, transitions, playback)
+  is shared with the club reel in reel-engine.js; this file is the timeline.
+
+  The drum pattern lives here (KICK_PATTERNS, snares), not in the audio
+  script, because the picture punches on every kick. window.FLAGRR.AUDIO
+  hands audio.py the kick/snare times, the arrangement and a cue for every
+  sound effect, so picture and sound cannot drift. If
+  marketing/dist/member-reel.wav exists, the browser preview plays it
+  in sync.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&family=JetBrains+Mono:wght@400;500;700&family=Fraunces:ital,opsz,wght@1,9..144,500;1,9..144,700&display=block" rel="stylesheet">
+<style>
+  html, body { margin: 0; height: 100%; background: #050a07; overflow: hidden; }
+  #viewport { position: fixed; inset: 0 0 56px 0; display: flex; align-items: center; justify-content: center; }
+  body.render #viewport { inset: 0; }
+  #c { display: block; flex: none; transform-origin: center; }
+  #controls { position: fixed; left: 0; right: 0; bottom: 0; height: 56px; display: flex; align-items: center; gap: 14px; padding: 0 18px; background: #0F1712; color: #CCF2E6; font: 500 14px system-ui, sans-serif; box-sizing: border-box; }
+  #controls button { width: 40px; height: 36px; border: 0; border-radius: 8px; background: #CDDE5C; color: #1F4234; font: 700 16px system-ui, sans-serif; cursor: pointer; }
+  #controls input { flex: 1; accent-color: #CDDE5C; }
+  #controls span { font-variant-numeric: tabular-nums; min-width: 110px; text-align: right; }
+  #controls a { color: #CDDE5C; text-decoration: none; padding: 6px 10px; border: 1px solid #33473E; border-radius: 8px; }
+  body.render #controls { display: none; }
+</style>
+</head>
+<body>
+<div id="viewport"><canvas id="c"></canvas></div>
+<div id="controls">
+  <button id="play" title="Play / pause (space)">&#9654;</button>
+  <input id="scrub" type="range" min="0" max="44" step="0.01" value="0">
+  <span id="clock"></span>
+  <a id="fmt" href="#"></a>
+</div>
+<audio id="aud" src="../dist/member-reel.wav" preload="auto"></audio>
+
+<script src="reel-engine.js"></script>
+<script>
+(() => {
+  // ================================================================
+  // time grid: 80 BPM half-time, one bar = 3s, sixteenth = 0.1875s
+  // ================================================================
+  const BPM = 80, Q = 60 / BPM, E8 = Q / 2, S16 = Q / 4, BAR = Q * 4;
+  const DURATION = 44;
+  const GROOVE = [[6, 33], [36, 42]];  // full drums
+  const BUILDS = [[3, 6], [33, 36]];   // risers + snare rolls
+  const GAPS = [[5.8125, 6], [35.8125, 36]]; // a beat of silence before each drop
+  const TAPE_STOP = [35.25, 35.8125];  // the music winds down before the last drop
+  const FINAL_HIT = 42;
+  // 808 + kick rhythms, in sixteenths of a bar; snares sit on steps 4 and 12
+  const KICK_PATTERNS = [[0, 7, 10], [0, 3, 6, 10, 13], [0, 7, 10, 14], [0, 6, 8, 11, 14]];
+  const KICKS = [], SNARES = [];
+  for (let b = 0; b < DURATION / BAR; b++) {
+    const t0 = b * BAR;
+    if (within(t0, GROOVE)) {
+      KICK_PATTERNS[b % 4].forEach(s => KICKS.push({ t: t0 + s * S16, bar: b }));
+      [4, 12].forEach(s => SNARES.push(t0 + s * S16));
+    }
+  }
+  KICKS.push({ t: FINAL_HIT, bar: Math.floor(FINAL_HIT / BAR), last: true });
+
+  const REWARDS = [
+    ['18-hole-round', '18 HOLES', '900 FC'], ['coaching-session', 'COACHING', '1,200 FC'], ['golf-cart-hire', 'CART HIRE', '400 FC'],
+    ['driving-range', 'THE RANGE', '150 FC'], ['pro-shop-voucher', 'PRO SHOP', 'FROM 700 FC'], ['kitchen-voucher', 'KITCHEN', 'FROM 140 FC'],
+    ['bar-voucher', 'THE BAR', 'FROM 140 FC'],
+  ];
+
+  // ---------------- 00 INTRO: the golf ball assembles out of noise ----------------
+  shot(0, 3, '00 — INTRO', C.ink, (lt, t) => {
+    const cx = W / 2, cy = H / 2, R = Math.min(W, H) * .25;
+    const pulse = [1.5, 2.25].reduce((a, b) => a + .06 * decay(t, b, 8), 0);
+    // orbit ring + ticks draw on
+    const ring = P(t, .4, 1.2, E.inOutCubic);
+    g.strokeStyle = 'rgba(241,238,227,.25)'; g.lineWidth = 1.5;
+    g.beginPath(); g.arc(cx, cy, R * 1.45, -Math.PI / 2, -Math.PI / 2 + ring * Math.PI * 2); g.stroke();
+    for (let i = 0; i < 60; i++) {
+      if (i / 60 > ring) break;
+      const a = i / 60 * Math.PI * 2 - Math.PI / 2, l = i % 5 ? 8 : 18;
+      g.beginPath(); g.moveTo(cx + Math.cos(a) * R * 1.45, cy + Math.sin(a) * R * 1.45); g.lineTo(cx + Math.cos(a) * (R * 1.45 + l), cy + Math.sin(a) * (R * 1.45 + l)); g.stroke();
+    }
+    sphere(cx, cy, R * (1 + pulse), t, { form: P(t, .15, 1.6, E.lin) });
+    // annotations with leader lines
+    const ann = (label, value, ax, ay, lx, ly, t0) => {
+      const k = P(t, t0, .3);
+      if (k <= 0) return;
+      g.strokeStyle = C.lime; g.lineWidth = 1.5; g.beginPath(); g.moveTo(ax, ay); g.lineTo(lerp(ax, lx, k), lerp(ay, ly, k)); g.stroke();
+      g.fillStyle = C.lime; g.beginPath(); g.arc(ax, ay, 4, 0, Math.PI * 2); g.fill();
+      const al = lx < ax ? 'right' : 'left', ox = lx < ax ? -12 : 12;
+      wipeText(label, lx + ox, ly - L.hud * .8, L.hud, 'mono', 'rgba(241,238,227,.6)', t, t0 + .1, .3, al);
+      wipeText(value, lx + ox, ly + L.hud * .7, L.hud * 1.15, 'monoB', C.cream, t, t0 + .2, .3, al);
+    };
+    // on 9:16 the labels sit above and below the ball instead of beside it
+    const sx = PORT ? .9 : 1.75, sy = PORT ? 1.9 : 1;
+    ann('OBJECT', 'GOLF BALL', cx + R * .55, cy - R * .5, cx + R * sx * .95, cy - R * 1.05 * sy, .9);
+    ann('DIMPLES', '336', cx - R * .6, cy + R * .4, cx - R * sx, cy + R * .95 * sy, 1.3);
+    ann('STATUS', 'UNDERPAID', cx + R * .4, cy + R * .7, cx + R * sx * .9, cy + R * 1.25 * sy, 1.9);
+  });
+
+  // ---------------- BUILD: the hook, one word per eighth ----------------
+  const HOOK = [['YOUR', C.cream], ['GOLF', C.ink], ['IS ABOUT', C.lime], ['TO START', C.ink], ['PAYING', C.cream], ['YOU', C.club], ['BACK.', C.lime]];
+  HOOK.forEach(([w, bg], i) => {
+    const t0 = 3 + i * E8, inkc = bg === C.lime || bg === C.cream ? C.ink : (bg === C.club ? C.lime : C.cream);
+    shot(t0, t0 + E8, '00 — INTRO', bg, (lt, t) => {
+      const lines = PORT && w.includes(' ') ? w.split(' ') : [w];
+      lines.forEach((ln, j) => slam(ln, t, t0, inkc, { y: H / 2 + (j - (lines.length - 1) / 2) * H * .17, maxH: PORT ? H * .16 : H * .42, from: i % 2 ? 'up' : 'down' }));
+    });
+    cue(t0, i === HOOK.length - 1 ? 'thump' : 'swipe', { gain: .6 + i * .05, pitch: i });
+  });
+  shot(3 + 7 * E8, 6, '00 — INTRO', C.ink, (lt, t) => {
+    // the beat of silence before the drop: just the cursor
+    const on = Math.floor(t * 8) % 2;
+    text('FLAGRR' + (on ? '▍' : ' '), W / 2, H / 2, L.hud * 1.6, 'monoB', C.lime, {});
+  });
+  glitch(5.62, .18, 1.2);
+
+  // ---------------- DROP: the name ----------------
+  shot(6, 7.5, '00 — FLAGRR', C.lime, (lt, t) => {
+    const word = 'FLAGRR', px = fit(word, 'wide', W * .9, H * (PORT ? .2 : .4));
+    font('wide', px);
+    const widths = [...word].map(ch => g.measureText(ch).width), total = g.measureText(word).width;
+    let x = W / 2 - total / 2;
+    [...word].forEach((ch, i) => {
+      const t0 = 6 + i * .035, k = P(t, t0, .28, E.outBack), lin = clamp((t - t0) / .14), dir = i % 2 ? 1 : -1;
+      const yy = H / 2 + (1 - k) * dir * H * .6;
+      if (t >= t0) text(ch, x + widths[i] / 2, yy, px, 'wide', C.ink, { mb: [0, -dir * (1 - lin) * H * .5] });
+      x += widths[i];
+    });
+    // editorial rule with tiny labels
+    const rk = P(t, 6.3, .5, E.inOutCubic), ry = H / 2 - px * .62;
+    g.fillStyle = C.ink; g.fillRect(W * .06, ry, W * .88 * rk, 3);
+    if (rk > .3) { text('N° 01', W * .06, ry - L.hud, L.hud, 'monoB', C.ink, { align: 'left' }); text('LOYALTY — 2026', W * .94, ry - L.hud, L.hud, 'monoB', C.ink, { align: 'right' }); }
+    if (t >= 6.75) text('loyalty, for golfers.', W / 2, H / 2 + px * .78, px * .3, 'serif', C.ink, { alpha: P(t, 6.75, .2) });
+  });
+  cue(6, 'hit', { gain: 1.1 }); FLASH.push([6, .7]); PUNCH.push([6, .08]);
+  shot(7.5, 8.25, '00 — FLAGRR', C.ink, (lt, t) => {
+    const img = IMG.logo, k = P(t, 7.5, .35, E.outExpo), w = (PORT ? W * .82 : W * .5) * lerp(1.5, 1, k), h = w * img.height / img.width;
+    for (let i = 0; i < 6; i++) { g.globalAlpha = (1 - k) * .15; const z = 1 + i * .05 * (1 - k); g.drawImage(img, W / 2 - w * z / 2, H / 2 - h * z / 2, w * z, h * z); }
+    g.globalAlpha = 1; g.drawImage(img, W / 2 - w / 2, H / 2 - h / 2, w, h);
+  });
+  cue(7.5, 'whoosh', { gain: .6, pitch: 4 });
+  shot(8.25, 9, '00 — FLAGRR', C.cream, (lt, t) => {
+    const words = ['PLAY.', 'EARN.', 'REDEEM.'], lh = PORT ? H * .14 : H * .22;
+    // each word rises from below, into space nothing has been drawn in yet, so the stack never crosses itself
+    words.forEach((w, i) => slam(w, t, 8.25 + i * S16, i === 2 ? C.club : C.ink, { y: H / 2 + (i - 1) * lh, maxH: lh * .78, maxW: W * .8, from: 'down' }));
+  });
+  [0, 1, 2].forEach(i => cue(8.25 + i * S16, 'thump', { gain: .5, pitch: i * 3 }));
+
+  // ---------------- 01 SCAN ----------------
+  const ROWS = [['18 HOLE GREEN FEE', '+100 FC', E.outExpo], ['CART HIRE', '+20 FC', E.outBack], ['PRO V1 BALLS', '+50 FC', E.outElastic]];
+  const scanT = { phone: 9.0, scan: 9.75, rows: [10.875, 11.25, 11.625] };
+  shot(9, 12, '01 — SCAN', C.cream, (lt, t) => {
+    const ink = C.ink;
+    // headline + subline
+    const hx = PORT ? L.pad : W * .07, hy = PORT ? H * .14 : H * .26, hp = PORT ? 118 : 116;
+    g.save(); g.beginPath(); g.rect(0, hy - hp, W, hp * 1.9); g.clip();
+    text('Snap a receipt.', hx, hy + (1 - P(t, 9.05, .45, E.outExpo)) * hp * 1.2, hp, 'serif', ink, { align: 'left' });
+    g.restore();
+    wipeText('ANY RECEIPT FROM YOUR HOME CLUB', hx + 4, hy + hp * .82, L.hud * 1.1, 'mono', ink, t, 9.3, .5);
+    // phone: flat, poster-style
+    const pw = PORT ? 400 : 380, ph = pw * 1.9;
+    const px = PORT ? W / 2 - pw / 2 : W * .66, py = PORT ? H * .23 : H / 2 - ph / 2 + 20;
+    const pk = P(t, scanT.phone, .5, E.outExpo);
+    g.save(); g.translate(0, (1 - pk) * H * .6);
+    g.fillStyle = C.ink; rrect(px, py, pw, ph, 52); g.fill();
+    g.fillStyle = '#1B2A23'; rrect(px + 14, py + 14, pw - 28, ph - 28, 40); g.fill();
+    // receipt
+    const rx = px + 48, ry = py + 110, rw = pw - 96, rh = ph * .52, rk = P(t, 9.35, .4, E.outBack);
+    g.save(); g.beginPath(); rrect(px + 14, py + 14, pw - 28, ph - 28, 40); g.clip();
+    g.translate(0, (1 - rk) * ph);
+    g.fillStyle = C.cream; g.fillRect(rx, ry, rw, rh);
+    font('mono', 13); g.fillStyle = C.ink; g.textAlign = 'center';
+    g.fillText('STRAND GOLF CLUB', rx + rw / 2, ry + 34); g.fillText('TAX INVOICE #004817', rx + rw / 2, ry + 54);
+    const lines = [['18 HOLE GREEN FEE', '450.00'], ['CART HIRE', '320.00'], ['PRO V1 BALLS', '215.00'], ['TOTAL', 'R 985.00']];
+    lines.forEach(([a, b], i) => {
+      const ly = ry + 100 + i * 34 + (i === 3 ? 16 : 0);
+      if (i < 3) { const hk = P(t, scanT.rows[i] - .1, .2); g.fillStyle = 'rgba(205,222,92,.85)'; g.fillRect(rx + 10, ly - 18, (rw - 20) * hk, 26); }
+      g.fillStyle = C.ink; g.textAlign = 'left'; g.fillText(a, rx + 16, ly); g.textAlign = 'right'; g.fillText(b, rx + rw - 16, ly);
+    });
+    g.restore();
+    // brackets + scan beam
+    const bk = P(t, 9.6, .25, E.outBack), padb = (1 - bk) * 40;
+    g.strokeStyle = C.lime; g.lineWidth = 6;
+    [[rx - 18 - padb, ry - 18 - padb, 1, 1], [rx + rw + 18 + padb, ry - 18 - padb, -1, 1], [rx - 18 - padb, ry + rh + 18 + padb, 1, -1], [rx + rw + 18 + padb, ry + rh + 18 + padb, -1, -1]].forEach(([x, y, sx, sy]) => {
+      if (t < 9.6) return;
+      g.beginPath(); g.moveTo(x, y + sy * 40); g.lineTo(x, y); g.lineTo(x + sx * 40, y); g.stroke();
+    });
+    const down = P(t, scanT.scan, 1.1, E.inOutCubic) - P(t, scanT.scan + 1.1, .7, E.inOutCubic);
+    if (t > scanT.scan && t < scanT.scan + 1.9) {
+      const sy = lerp(ry, ry + rh, down);
+      const gr = g.createLinearGradient(0, sy - 60, 0, sy); gr.addColorStop(0, 'rgba(205,222,92,0)'); gr.addColorStop(1, 'rgba(205,222,92,.45)');
+      g.fillStyle = gr; g.fillRect(px + 14, sy - 60, pw - 28, 60);
+      g.fillStyle = C.lime; g.fillRect(px + 14, sy - 3, pw - 28, 6);
+    }
+    g.restore();
+    // readout rows: each value travels A → B on its own easing curve
+    const lx = PORT ? L.pad : W * .07, lw = PORT ? W - L.pad * 2 : W * .5, ly0 = PORT ? H * .7 : H * .5, rowH = PORT ? 92 : 96;
+    text('MATCHED ITEMS', lx, ly0 - rowH * .7, L.hud, 'monoB', ink, { align: 'left', alpha: P(t, 10.6, .2) });
+    ROWS.forEach(([label, val, ease], i) => {
+      const t0 = scanT.rows[i]; if (t < t0) return;
+      const y = ly0 + i * rowH, a = lx + lw * .46, b = lx + lw - 150;
+      text('0' + (i + 1), lx, y, L.hud, 'mono', C.club, { align: 'left' });
+      wipeText(label, lx + 50, y, L.hud * 1.15, 'monoB', ink, t, t0, .25);
+      g.fillStyle = 'rgba(13,26,20,.25)'; g.fillRect(a, y - 1, (b - a) * P(t, t0, .2), 2);
+      g.fillRect(a, y - 10, 2, 20); g.fillRect(b, y - 10, 2, 20);
+      const k = ease(clamp((t - t0 - .08) / .55)), kp = ease(clamp((t - t0 - .08 - 1 / 60) / .55));
+      const dx = lerp(a, b, k), vel = (k - kp) * (b - a) * 60;
+      g.fillStyle = C.club;
+      g.beginPath(); g.ellipse(dx - Math.min(60, Math.abs(vel) / 30) / 2, y, 11 + Math.min(60, Math.abs(vel) / 30), 11, 0, 0, Math.PI * 2); g.fill();
+      if (t > t0 + .45) text(val, lx + lw, y, L.hud * 1.4, 'monoB', C.club, { align: 'right', alpha: P(t, t0 + .45, .1) });
+    });
+  });
+  cue(9, 'hit', { gain: .7 }); cue(9.05, 'swipe', { gain: .5 }); cue(9.3, 'type', { dur: .5 });
+  cue(9.35, 'swipe', { gain: .4, pitch: 3 }); cue(9.6, 'click', { pitch: 0 }); cue(scanT.scan, 'scan', { dur: 1.8 });
+  scanT.rows.forEach((t0, i) => { cue(t0, 'click', { pitch: 2 + i * 2 }); cue(t0 + .1, 'zip', { gain: .6 }); });
+
+  shot(12, 13.5, '01 — SCAN', C.ink, (lt, t) => {
+    const k = P(t, 12, .3, E.outExpo);
+    const px = fit('+170 FC', 'wide', W * .9, H * (PORT ? .16 : .36));
+    g.save(); g.translate(W / 2, H / 2); g.scale(lerp(1.8, 1, k), lerp(1.8, 1, k));
+    for (let i = 5; i >= 1; i--) { g.save(); const z = 1 + i * .06 * (1 - k); g.scale(z, z); text('+170 FC', 0, 0, px, 'wide', C.lime, { alpha: .12 * (1 - k) }); g.restore(); }
+    text('+170 FC', 0, 0, px, 'wide', C.lime);
+    g.restore();
+    wipeText('CREDITED INSTANTLY', W / 2, H / 2 + px * .7, L.hud * 1.4, 'monoB', C.cream, t, 12.4, .35, 'center');
+    if (t > 12.75) text('MATCHED TO YOUR CLUB’S CATALOGUE — EACH RECEIPT COUNTS ONCE', W / 2, H / 2 + px * .7 + L.hud * 2.4, L.hud * (PORT ? .9 : 1), 'mono', 'rgba(241,238,227,.55)', {});
+  });
+  cue(12, 'hit', { gain: 1 }); glitch(12, .15, 1); PUNCH.push([12, .05]); cue(12.4, 'type', { dur: .35 });
+  shot(13.5, 15, '01 — SCAN', C.lime, (lt, t) => {
+    const second = t >= 14.25;
+    slam(second ? 'NO STAMPS.' : 'NO CARDS.', t, second ? 14.25 : 13.5, C.ink, { maxH: PORT ? H * .14 : H * .36, from: second ? 'down' : 'up' });
+    if (t > 14.625) text('JUST YOUR PHONE.', W / 2, H * (PORT ? .62 : .72), L.hud * 1.5, 'monoB', C.ink, {});
+  });
+  cue(13.5, 'thump', { gain: .7 }); cue(14.25, 'thump', { gain: .7, pitch: 3 }); cue(14.625, 'click', { pitch: 7 });
+
+  // ---------------- 02 EARN: tiers as morphing shapes, one per beat ----------------
+  const TIERS = [['BRONZE', '1X', '0 FC', C.bronze], ['SILVER', '1.2X', '5,000 FC', C.silver], ['GOLD', '1.5X', '10,000 FC', C.gold], ['PLATINUM', '1.7X', '15,000 FC', C.plat]];
+  TIERS.forEach(([name, mult, thr, col], i) => {
+    const t0 = 15 + i * Q;
+    shot(t0, t0 + Q, '02 — EARN', col, (lt, t) => {
+      const cx = PORT ? W / 2 : W * .3, cy = PORT ? H * .36 : H / 2, R = Math.min(W, H) * (PORT ? .26 : .27);
+      const k = E.outBack(clamp((t - t0) / .32)), rot = t * .6 + i * .5;
+      // orbiting markers
+      for (let j = 0; j < 14; j++) {
+        const a = j / 14 * Math.PI * 2 + t * (.8 + i * .2), rr = R * 1.55;
+        const x = cx + Math.cos(a) * rr, y = cy + Math.sin(a) * rr;
+        g.save(); g.translate(x, y); g.rotate(a + Math.PI / 2);
+        g.fillStyle = C.ink; g.globalAlpha = .85;
+        if (i % 2) { g.beginPath(); g.moveTo(0, -11); g.lineTo(9, 7); g.lineTo(-9, 7); g.closePath(); g.fill(); }
+        else { g.beginPath(); g.arc(0, 0, 8, 0, Math.PI * 2); g.fill(); }
+        g.restore();
+      }
+      g.globalAlpha = 1;
+      // crosshair + the shape
+      g.strokeStyle = 'rgba(13,26,20,.25)'; g.lineWidth = 1.5;
+      g.beginPath(); g.moveTo(cx - R * 2, cy); g.lineTo(cx + R * 2, cy); g.moveTo(cx, cy - R * 2); g.lineTo(cx, cy + R * 2); g.stroke();
+      morph(cx, cy, R, Math.max(0, i - 1), i, i === 0 ? E.outBack(clamp((t - t0) / .3)) * 1 : k, rot, C.ink);
+      if (!PORT) text(`MORPH  ${['—', 'CIRCLE → TRIANGLE', 'TRIANGLE → STAR', 'STAR → HEXAGON'][i]}`, cx - R * 1.9, cy + R * 2.05 * (PORT ? .82 : .96), L.hud * .85, 'mono', C.ink, { align: 'left', alpha: .6 });
+      // type
+      const tx = PORT ? W / 2 : W * .58, al = PORT ? 'center' : 'left';
+      const ty = PORT ? H * .64 : H * .3;
+      text(`TIER ${i + 1}/4`, tx, ty, L.hud * 1.1, 'monoB', C.ink, { align: al });
+      const np = fit(name, 'wide', PORT ? W * .84 : W * .38, H * .1);
+      text(name, tx, ty + np * .9, np, 'wide', C.ink, { align: al, mb: [-(1 - P(t, t0, .12, E.lin)) * 120, 0] });
+      const mp = PORT ? 250 : 300;
+      text(mult, tx, ty + np * 1.25 + mp * .62, mp, 'wide', C.ink, { align: al, mb: [0, -(1 - P(t, t0, .14, E.lin)) * 160] });
+      text(`EARNING RATE  ●  ${thr} / QUARTER`, tx, ty + np * 1.25 + mp * 1.25, L.hud * 1.05, 'mono', C.ink, { align: al });
+    });
+    cue(t0, 'thump', { gain: .7, pitch: [0, 3, 5, 7][i] }); cue(t0 + .02, 'morph', { gain: .5, pitch: i * 2 });
+  });
+  glitch(18, .1, .8);
+
+  shot(18, 20.25, '02 — EARN', C.ink, (lt, t) => {
+    // the balance rolls on sixteenths, digits blur as they spin
+    const steps = Math.floor(clamp((t - 18.375) / S16, 0, 8));
+    const frac = clamp((t - 18.375) / S16 - steps), target = 4790 + 270 * Math.min(1, (steps + E.outCubic(frac)) / 8);
+    const val = t < 18.375 ? 4790 : target;
+    const str = fmt(val);
+    const px = fit('5,060', 'wide', W * .86, H * (PORT ? .17 : .4));
+    // each sixteenth the number kicks up a notch: a short vertical smear, then crisp
+    const smear = t > 18.375 && steps < 8 ? px * .35 * (1 - E.outCubic(frac)) : 0;
+    text(str, W / 2, H / 2, px, 'wide', C.cream, { mb: smear > 2 ? [0, smear] : null });
+    font('wide', px); const nw = g.measureText('5,060').width;
+    text('FC', W / 2 + nw / 2, H / 2 - px * .62, px * .2, 'wide', C.lime, { align: 'right' });
+    if (t < 19.5) text('YOUR BALANCE', W / 2 - nw / 2, H / 2 - px * .62, L.hud * 1.2, 'monoB', C.lime, { align: 'left' });
+    // progress to Silver
+    const bw = W * (PORT ? .8 : .6), bx = W / 2 - bw / 2, by = H / 2 + px * .75, prog = clamp(val / 5000);
+    g.fillStyle = 'rgba(241,238,227,.18)'; g.fillRect(bx, by, bw, 6);
+    g.fillStyle = C.lime; g.fillRect(bx, by, bw * prog, 6);
+    text('BRONZE', bx, by + 34, L.hud, 'mono', C.cream, { align: 'left', alpha: .6 });
+    text('SILVER', bx + bw, by + 34, L.hud, 'mono', C.cream, { align: 'right', alpha: .6 });
+    if (t >= 19.5) {
+      const k = P(t, 19.5, .3, E.outBack);
+      g.save(); g.translate(W / 2 - nw / 2 + (PORT ? 210 : 180), H / 2 - px * .66); g.scale(k, k); g.rotate(-.04);
+      font('wide8', PORT ? 46 : 40); const tw = g.measureText('SILVER UNLOCKED').width;
+      g.fillStyle = C.lime; rrect(-tw / 2 - 30, -40, tw + 60, 80, 40); g.fill();
+      text('SILVER UNLOCKED', 0, 0, PORT ? 46 : 40, 'wide8', C.ink, {});
+      g.restore();
+    }
+  });
+  for (let s = 0; s < 8; s++) cue(18.375 + s * S16, 'tick', { pitch: s, gain: .5 });
+  cue(19.5, 'hit', { gain: .8 }); glitch(19.5, .12, .8);
+  shot(20.25, 21, '02 — EARN', C.lime, (lt, t) => {
+    const two = t >= 20.625;
+    const lines = PORT ? (two ? ['THE MORE', 'IT PAYS.'] : ['THE MORE', 'YOU PLAY,']) : [two ? 'THE MORE IT PAYS.' : 'THE MORE YOU PLAY,'];
+    lines.forEach((ln, j) => slam(ln, t, two ? 20.625 : 20.25, C.ink, { y: H / 2 + (j - (lines.length - 1) / 2) * H * .13, maxH: PORT ? H * .11 : H * .3, from: two ? 'down' : 'up' }));
+  });
+  cue(20.25, 'thump', { gain: .6 }); cue(20.625, 'thump', { gain: .6, pitch: 5 });
+
+  // ---------------- 03 STREAK ----------------
+  const WEEK_START = 21.75;
+  shot(21, 24, '03 — STREAK', C.ink, (lt, t) => {
+    // faint truchet underlay
+    g.globalAlpha = .12; truchet(t, C.club, 6); g.globalAlpha = 1;
+    const cols = PORT ? 3 : 6, rows = 12 / cols, cell = PORT ? 230 : 190, gap = PORT ? 26 : 22;
+    const gw = cols * cell + (cols - 1) * gap, gh = rows * cell + (rows - 1) * gap;
+    const gx = W / 2 - gw / 2, gy = (PORT ? H * .56 : H * .56) - gh / 2;
+    text(PORT ? 'PLAY ONCE A WEEK.' : 'PLAY AT LEAST ONE ROUND A WEEK.', W / 2, gy - (PORT ? 120 : 90), fit(PORT ? 'PLAY ONCE A WEEK.' : 'PLAY AT LEAST ONE ROUND A WEEK.', 'wide8', W * .84, 60), 'wide8', C.cream, { alpha: P(t, 21.1, .2) });
+    for (let i = 0; i < 12; i++) {
+      const cx = gx + (i % cols) * (cell + gap), cy = gy + Math.floor(i / cols) * (cell + gap);
+      const app = P(t, 21.15 + i * .02, .3, E.outBack), ft = WEEK_START + i * S16, fk = P(t, ft, .2, E.outBack), ms = (i + 1) % 4 === 0;
+      g.save(); g.translate(cx + cell / 2, cy + cell / 2); g.scale(app * (1 + .12 * decay(t, ft, 10) * (t >= ft ? 1 : 0)), app);
+      g.strokeStyle = ms ? C.lime : 'rgba(241,238,227,.4)'; g.lineWidth = ms ? 4 : 2;
+      rrect(-cell / 2, -cell / 2, cell, cell, 22); g.stroke();
+      if (fk > 0) { g.fillStyle = C.lime; g.save(); g.scale(clamp(fk, 0, 1.1), clamp(fk, 0, 1.1)); rrect(-cell / 2, -cell / 2, cell, cell, 22); g.fill(); g.restore(); }
+      text(`WK${String(i + 1).padStart(2, '0')}`, -cell / 2 + 18, -cell / 2 + 28, L.hud, 'monoB', fk > .5 ? C.ink : C.cream, { align: 'left' });
+      if (ms && fk > .5) text(`+${(i + 1) / 4 * 100}`, 0, 12, cell * .3, 'wide', C.ink, {});
+      g.restore();
+    }
+    // milestone flashes
+    [3, 7, 11].forEach((i, m) => {
+      const ft = WEEK_START + i * S16;
+      if (t >= ft && t < ft + .3) { g.fillStyle = `rgba(205,222,92,${.35 * (1 - (t - ft) / .3)})`; g.fillRect(0, 0, W, H); }
+    });
+    if (t >= 23.25) {
+      const k = P(t, 23.25, .25, E.outBack);
+      g.save(); g.translate(W / 2, gy + gh + (PORT ? 150 : 110)); g.scale(k, k);
+      text('+300 FC EVERY 4 WEEKS', 0, 0, fit('+300 FC EVERY 4 WEEKS', 'wide8', W * .8, 70), 'wide8', C.lime, {});
+      g.restore();
+    }
+  });
+  for (let i = 0; i < 12; i++) cue(WEEK_START + i * S16, (i + 1) % 4 === 0 ? 'thump' : 'tick', { pitch: i, gain: (i + 1) % 4 === 0 ? .6 : .45 });
+  cue(23.25, 'swipe', { gain: .5 });
+  // truchet flips on the sixteenths of the next beat
+  { const r = rng(9); for (let s = 0; s < 4; s++) TRU.tiles.forEach(tl => { if (r() < .35) tl.flips.push(24 + s * S16); }); }
+  shot(24, 24.75, '03 — STREAK', C.ink, (lt, t) => {
+    truchet(t, C.lime, PORT ? 14 : 16);
+    const bh = PORT ? H * .2 : H * .3;
+    g.fillStyle = C.ink; g.fillRect(0, H / 2 - bh / 2, W, bh * P(t, 24, .12, E.outCubic));
+    slam('KEEP IT ALIVE.', t, 24.05, C.lime, { maxH: bh * .5, maxW: W * .86 });
+  });
+  cue(24, 'hit', { gain: .7 }); glitch(24, .1, .7);
+  // perks: three cards, one per beat
+  const PERKS = [['BIRTHDAY', 'up to 200 FC, waiting in the app.', C.cream, C.ink], ['GOLD+', 'a free bar voucher every quarter.', C.gold, C.ink], ['PLAYING AWAY?', '1 FC for every R1 at partner clubs.', C.club, C.lime]];
+  PERKS.forEach(([title, sub, bg, ink], i) => {
+    const t0 = 24.75 + i * Q;
+    shot(t0, t0 + Q, '03 — PERKS', bg, (lt, t) => {
+      const k = P(t, t0, .25, E.outExpo);
+      text(`PERK 0${i + 1}/03`, W / 2, H * (PORT ? .33 : .26), L.hud * 1.2, 'monoB', ink, {});
+      const tp = fit(title, 'wide', W * .86, H * (PORT ? .1 : .24));
+      text(title, W / 2 + (1 - k) * W * .5, H / 2 - tp * .2, tp, 'wide', ink, { mb: [-(1 - clamp((t - t0) / .12)) * W * .3, 0] });
+      if (t > t0 + .15) text(sub, W / 2, H / 2 + tp * .75, Math.min(tp * .38, PORT ? 58 : 64), 'serif', ink, { alpha: P(t, t0 + .15, .15) });
+    });
+    cue(t0, 'swipe', { gain: .7, pitch: i * 2 }); cue(t0 + .02, 'thump', { gain: .45, pitch: i * 3 });
+  });
+
+  // ---------------- 04 REDEEM: rewards on the eighths ----------------
+  REWARDS.forEach(([img, label, cost], i) => {
+    const t0 = 27 + i * E8;
+    shot(t0, t0 + E8, '04 — REDEEM', C.ink, (lt, t) => {
+      cover(IMG['r' + i], 0, 0, W, H, 1.08 - .06 * (lt / E8));
+      const gr = g.createLinearGradient(0, H * .35, 0, H); gr.addColorStop(0, 'rgba(13,26,20,0)'); gr.addColorStop(1, 'rgba(13,26,20,.85)');
+      g.fillStyle = gr; g.fillRect(0, 0, W, H);
+      const lp = fit(label, 'wide', W * .8, H * (PORT ? .09 : .17));
+      const ly = H - L.pad - (PORT ? 260 : 170) - lp * .5;
+      text(label, L.pad + 10, ly, lp, 'wide', C.cream, { align: 'left', mb: [-(1 - clamp((t - t0) / .1)) * 200, 0] });
+      text(cost, L.pad + 14, ly + lp * .62 + L.hud * 1.4, L.hud * 1.6, 'monoB', C.lime, { align: 'left' });
+    });
+    cue(t0, 'shutter', { gain: .7 }); FLASH.push([t0, .25]);
+  });
+  shot(27 + 7 * E8, 30, '04 — REDEEM', C.lime, (lt, t) => {
+    slam('SWAP IT.', t, 27 + 7 * E8, C.ink, { maxH: PORT ? H * .14 : H * .34 });
+  });
+  cue(27 + 7 * E8, 'thump', { gain: .7 });
+  shot(30, 33, '04 — REDEEM', C.cream, (lt, t) => {
+    // voucher card flips in, laser scans the code
+    const cw = PORT ? 560 : 440, ch = cw * 1.42;
+    const cx = PORT ? W / 2 : W * .68, cy = PORT ? H * .55 : H / 2 + 10;
+    const flip = P(t, 30, .45, E.outBack);
+    if (flip < .15) return; // edge-on: nothing legible to draw yet
+    g.save(); g.translate(cx, cy); g.scale(flip, 1);
+    g.fillStyle = C.dark; rrect(-cw / 2, -ch / 2, cw, ch, 34); g.fill();
+    text('VOUCHER', 0, -ch / 2 + 60, L.hud * 1.1, 'monoB', C.lime, {});
+    text('18 HOLES', 0, -ch / 2 + 120, cw * .12, 'wide', C.cream, {});
+    const q = cw * .64; qr(-q / 2, -ch / 2 + 175, q, C.ink, C.cream);
+    text('FLG-7Q4K-2MXD', 0, -ch / 2 + 175 + q + 46, L.hud * 1.15, 'monoB', C.cream, {});
+    text('VALID 90 DAYS', 0, -ch / 2 + 175 + q + 84, L.hud, 'mono', C.lime, {});
+    const sk = P(t, 31.5, .7, E.inOutCubic);
+    if (t > 31.5 && t < 32.25) { g.fillStyle = 'rgba(205,222,92,.9)'; g.fillRect(-q / 2 - 20, -ch / 2 + 175 + q * sk - 2, q + 40, 5); }
+    g.restore();
+    const hx = PORT ? W / 2 : W * .07, al = PORT ? 'center' : 'left', hy = PORT ? H * .14 : H * .36, hp = PORT ? 104 : 104;
+    text('Show it at', hx, hy, hp, 'serif', C.ink, { align: al, alpha: P(t, 30.2, .2) });
+    text('the counter.', hx, hy + hp * 1.05, hp, 'serif', C.ink, { align: al, alpha: P(t, 30.35, .2) });
+    wipeText('ROUNDS · COACHING · CART HIRE · VOUCHERS', PORT ? W / 2 : hx + 4, hy + hp * 1.9, L.hud * 1.05, 'mono', C.ink, t, 30.6, .6, al);
+    if (t >= 31.125) {
+      const k = P(t, 31.125, .3, E.outBack);
+      g.save(); g.translate(PORT ? W / 2 : hx + 150, PORT ? H * .88 : hy + hp * 2.9); g.scale(k, k);
+      g.fillStyle = C.ink; rrect(-150, -44, 300, 88, 44); g.fill();
+      text('−900 FC', 0, 0, 44, 'wide8', C.lime, {});
+      g.restore();
+    }
+  });
+  cue(30, 'hit', { gain: .7 }); cue(30.02, 'swipe', { gain: .6 }); cue(30.6, 'type', { dur: .6 }); cue(31.125, 'thump', { gain: .5, pitch: -2 });
+  cue(31.5, 'scan', { dur: .75 }); glitch(32.25, .1, .6);
+
+  // ---------------- OUTRO BUILD: the four verbs ----------------
+  const VERBS = [['PLAY.', C.lime, C.ink], ['EARN.', C.ink, C.lime], ['REDEEM.', C.cream, C.ink], ['REPEAT.', C.club, C.lime]];
+  VERBS.forEach(([w, bg, ink], i) => {
+    const t0 = 33 + i * Q;
+    shot(t0, i === 3 ? 36 : t0 + Q, '05 — JOIN', bg, (lt, t) => {
+      const drift = 1 + (t - t0) * .05;
+      g.save(); g.translate(W / 2, H / 2); g.scale(drift, drift); g.translate(-W / 2, -H / 2);
+      slam(w, t, t0, ink, { maxH: PORT ? H * .15 : H * .4, from: i % 2 ? 'down' : 'up' });
+      g.restore();
+    });
+    cue(t0, 'thump', { gain: .75, pitch: [0, 3, 5, 7][i] });
+  });
+  glitch(35.3, .5, 1.4);
+
+  // ---------------- END CARD ----------------
+  shot(36, DURATION, '05 — JOIN', C.dark, (lt, t) => {
+    // ball bursts, logo lands
+    const R = Math.min(W, H) * .2, ly = PORT ? H * .3 : H * .3;
+    if (t < 37) sphere(W / 2, ly, R, t, { burst: P(t, 36, .9, E.outCubic) });
+    const img = IMG.logo, k = P(t, 36.02, .45, E.outExpo), lw = (PORT ? W * .78 : W * .38) * lerp(1.4, 1, k), lh = lw * img.height / img.width;
+    for (let i = 0; i < 5; i++) { g.globalAlpha = (1 - k) * .14; const z = 1 + i * .06 * (1 - k); g.drawImage(img, W / 2 - lw * z / 2, ly - lh * z / 2, lw * z, lh * z); }
+    g.globalAlpha = clamp(k * 3); g.drawImage(img, W / 2 - lw / 2, ly - lh / 2, lw, lh); g.globalAlpha = 1;
+    // call to action
+    const cy = PORT ? H * .52 : H * .6;
+    const dp = fit('DOWNLOAD FLAGRR', 'wide', W * (PORT ? .86 : .62), 120);
+    if (t >= 37.5) slam('DOWNLOAD FLAGRR', t, 37.5, C.cream, { y: cy, maxW: W * (PORT ? .86 : .62), maxH: 120 });
+    if (t >= 37.875) text('Sign up in a minute — just pick your home club.', W / 2, cy + dp * .95, PORT ? 44 : 38, 'serif', C.lime, { alpha: P(t, 37.875, .2) });
+    const pw = PORT ? 520 : 400, ph = PORT ? 150 : 120, gap = 34;
+    const pills = PORT ? [[W / 2 - pw / 2, H * .64], [W / 2 - pw / 2, H * .64 + ph + gap]] : [[W / 2 - pw - gap / 2, H * .74], [W / 2 + gap / 2, H * .74]];
+    ['apple', 'play'].forEach((kind, i) => {
+      const t0 = 38.25 + i * S16; if (t < t0) return;
+      const kk = P(t, t0, .35, E.outBack);
+      g.save(); g.translate(0, (1 - kk) * 160); g.globalAlpha = clamp((t - t0) * 6);
+      storePill(pills[i][0], pills[i][1], pw, ph, kind, P(t, 39.4 + i * .1, .6, E.inOutCubic));
+      g.restore();
+    });
+    if (t >= 39) wipeText('FLAGRR.COM', W / 2, PORT ? H * .88 : H * .92, L.hud * 1.6, 'monoB', C.lime, t, 39, .35, 'center');
+  }, { type: 'iris' });
+  cue(36, 'hit', { gain: 1.2 }); FLASH.push([36, .8]); PUNCH.push([36, .09]);
+  cue(37.5, 'thump', { gain: .6 }); cue(38.25, 'swipe', { gain: .5 }); cue(38.4375, 'swipe', { gain: .5, pitch: 3 });
+  cue(39, 'type', { dur: .35 }); cue(39.4, 'shine', { gain: .6 });
+  cue(FINAL_HIT, 'hit', { gain: .8 });
+
+  startReel({
+    duration: DURATION, bpm: BPM, kicks: KICKS, snares: SNARES, groove: GROOVE,
+    preload: [['logo', '../../mobile/assets/images/flagrr-logo-lime.png'], ...REWARDS.map(([f], i) => ['r' + i, `../../mobile/assets/images/rewards/${f}.jpg`])],
+    audio: { style: 'trap', bar: BAR, builds: BUILDS, gaps: GAPS, tapeStop: TAPE_STOP, finalHit: FINAL_HIT },
+  });
+})();
+</script>
+</body>
+</html>
