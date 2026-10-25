@@ -1,6 +1,7 @@
-"""Synthesises the soundtrack for video.html: a 120bpm, drop-driven electronic
-track (sidechained supersaw chords, offbeat bass, claps, rolls, risers,
-impacts) with sound effects locked to the picture.
+"""Synthesises the soundtrack for video.html: a modern, drop-driven house track
+at the film's tempo (warm pad, syncopated chord stabs, glassy FM-bell motif,
+swung hats, offbeat bass, risers, impacts) with sound effects locked to the
+picture.
 
 Slam hits, colour-card hits and wipe whooshes are read straight from the
 SLAMS / CARDS / WIPES lists in video.html, so picture and sound can't drift.
@@ -165,18 +166,6 @@ def hat(open_=False):
     return filt(rng.standard_normal(n), "high", 7500) * np.exp(-tt * (22 if open_ else 110))
 
 
-def supersaw(notes, dur):
-    n = int(dur * SR)
-    tt = np.arange(n) / SR
-    out = np.zeros(n)
-    for note in notes:
-        for det in (-0.14, -0.06, 0.0, 0.06, 0.14):
-            f = midi(note + det)
-            out += sawtooth(2 * np.pi * f * tt + rng.uniform(0, 6.28))
-        out += 0.5 * sawtooth(2 * np.pi * midi(note + 12) * tt + rng.uniform(0, 6.28))
-    return out / (len(notes) * 5)
-
-
 def bass_note(f, dur):
     n = int(dur * SR)
     tt = np.arange(n) / SR
@@ -188,6 +177,39 @@ def sub_note(f, dur):
     n = int(dur * SR)
     tt = np.arange(n) / SR
     return np.sin(2 * np.pi * f * tt) * np.minimum(1, tt / 0.01) * np.minimum(1, (dur - tt) / 0.02)
+
+
+def warm_pad(notes, dur):
+    """Soft rounded pad: two slightly detuned near-triangle voices per note."""
+    n = int(dur * SR)
+    tt = np.arange(n) / SR
+    out = np.zeros(n)
+    for note in notes:
+        for det in (-0.06, 0.06):
+            f = midi(note + det)
+            for h, a in ((1, 1.0), (3, 0.11), (5, 0.04)):
+                out += a * np.sin(2 * np.pi * f * h * tt + rng.uniform(0, 6.28))
+    return out / (len(notes) * 2)
+
+
+def stab(notes):
+    """Short, bright house chord stab."""
+    n = int(0.32 * SR)
+    tt = np.arange(n) / SR
+    out = np.zeros(n)
+    for note in notes + [notes[-1] + 12]:
+        for det in (-0.05, 0.05):
+            f = midi(note + det)
+            out += sawtooth(2 * np.pi * f * tt) * 0.6 + np.sign(np.sin(2 * np.pi * f * tt)) * 0.25
+    return filt(out / len(notes), "low", 3200) * env(n, 0.003, 0.11)
+
+
+def fm_bell(f, dur=0.7):
+    """Glassy FM pluck: the modulation index decays faster than the note."""
+    n = int(dur * SR)
+    tt = np.arange(n) / SR
+    index = 2.4 * np.exp(-tt * 14)
+    return np.sin(2 * np.pi * f * tt + index * np.sin(2 * np.pi * 2 * f * tt)) * env(n, 0.002, 0.2)
 
 
 def pluck(f, dur=0.22):
@@ -257,6 +279,7 @@ def key_click():
 
 
 # ------------------------------------------------------------------ music
+SWING = 0.03  # timeline units
 kick_t, clap_t, hat_t, ohat_t = [], [], [], []
 for i in range(int(END / BEAT)):
     b = i * BEAT
@@ -267,10 +290,12 @@ for i in range(int(END / BEAT)):
     if drop or within(b, [(46, 50), SOFT]):
         if on_beat_2_4:
             clap_t.append(b)
-    if drop or within(b, [(4, 7.5), (48, 51.5)]):
-        hat_t += [b, b + 0.25]
-        if drop:
-            ohat_t.append(b + 0.25)
+    if drop:
+        # Swung 16ths: the 2nd and 4th sixteenth of each beat land late.
+        hat_t += [(b, 0.16), (b + 0.125 + SWING, 0.07), (b + 0.25, 0.12), (b + 0.375 + SWING, 0.07)]
+        ohat_t.append(b + 0.25)
+    elif within(b, [(4, 7.5), (48, 51.5), SOFT]):
+        hat_t += [(b, 0.12), (b + 0.25, 0.1)]
 
 drums = np.zeros(N)
 for b in kick_t:
@@ -279,10 +304,10 @@ claps = np.zeros(N)
 for b in clap_t:
     add(claps, clap(), b, 0.55)
 hats = np.zeros(N)
-for b in hat_t:
-    add(hats, hat(), b, 0.16)
+for b, g in hat_t:
+    add(hats, hat(), b, g)
 for b in ohat_t:
-    add(hats, hat(True), b, 0.14)
+    add(hats, hat(True), b, 0.09)
 
 # Snare rolls into each drop: 8ths -> 16ths -> 32nds, rising.
 for start, end in ((6.0, 7.75), (50.0, 51.75), (64.0, 65.75)):
@@ -300,13 +325,23 @@ for b in kick_t:
     n = min(int(0.45 * SR), N - i)
     pump[i:i + n] = np.minimum(pump[i:i + n], 1 - 0.8 * np.exp(-np.arange(n) / SR * 9))
 
-chords = np.zeros(N)
+pad = np.zeros(N)
 for bar in range(int(END // BAR) + 1):
     t0 = bar * BAR
     _, notes = chord_at(t0 + 0.01)
-    seg = supersaw(notes, BAR * TEMPO + 0.05)
-    fade = np.minimum(1, np.minimum(np.arange(len(seg)), len(seg) - np.arange(len(seg))) / (SR * 0.01))
-    add(chords, seg * fade, t0)
+    seg = warm_pad(notes, BAR * TEMPO + 0.4)
+    seg *= np.minimum(1, np.arange(len(seg)) / (SR * 0.25)) * np.minimum(1, (len(seg) - np.arange(len(seg))) / (SR * 0.4))
+    add(pad, seg, t0 - 0.1)
+
+# Syncopated house stabs (16th steps 2, 6, 10, 13 of each bar).
+stabs = np.zeros(N)
+for bar in range(int(END // BAR) + 1):
+    for step in (2, 6, 10, 13):
+        t = bar * BAR + step * 0.125
+        if within(t, DROPS + [SOFT, (48, 51.75)]) and not within(t, [(23.75, 25.9)]):
+            _, notes = chord_at(t)
+            add(stabs, stab(notes), t, 1.0 if step != 13 else 0.7)
+chords = pad * 0.7 + stabs * 1.15
 cut = np.full(N, 8000.0)
 ka = np.clip((TL - BUILD_A[0]) / (8 - BUILD_A[0]), 0, 1)
 cut = np.where(TL < 8, 250 + 4500 * ka ** 2, cut)
@@ -332,15 +367,17 @@ for bar in range(int(END // BAR) + 1):
         add(sub, sub_note(midi(root - 12), BAR), t0, 1.0)
 sub *= pump
 
-# Lead hook: 16th-note arp over the chord, in the drops only.
+# Lead hook: a sparse two-bar FM-bell motif in 8ths, in the drops only.
 lead = np.zeros(N)
-PATTERN = [0, 2, 3, 2, 1, 2, 3, 1, 0, 2, 3, 2, 3, 2, 1, 2]
-ACCENT = [1, .5, .8, .5, .9, .5, .8, .5, 1, .5, .8, .5, .9, .6, .8, .6]
-for i in range(int(END / 0.125)):
-    t = i * 0.125
+MOTIF = [3, None, 2, 3, None, 1, 2, None, 3, None, 2, 1, None, 0, 1, None]
+for i in range(int(END / 0.25)):
+    t = i * 0.25
+    idx = MOTIF[i % 16]
+    if idx is None:
+        continue
     if within(t, [(8, 40), (52, 58), (66, 74)]) and not within(t, [(15, 17.5), (23.75, 25.9)]):
         _, notes = chord_at(t)
-        add(lead, pluck(midi(notes[PATTERN[i % 16]] + 12)), t, ACCENT[i % 16])
+        add(lead, fm_bell(midi(notes[idx] + 12)), t, 0.9 if i % 4 == 0 else 0.65)
 lead_delay = np.zeros(N)
 d = int(SR * 0.375 * TEMPO)  # dotted-8th delay
 lead_delay[d:] = lead[:-d] * 0.35
@@ -365,9 +402,10 @@ add(fx, reverse_cymbal(1.0 * TEMPO), 43.0, 0.3)
 
 # Final chord hit and ring-out.
 add(fx, impact(True), FINAL_HIT, 1.0)
-final_chord = supersaw([45 + 12, 57, 60, 64, 69, 72], DUR - FINAL_HIT * TEMPO)
+final_chord = warm_pad([45, 57, 60, 64, 69, 72], DUR - FINAL_HIT * TEMPO)
 final_chord *= np.exp(-np.arange(len(final_chord)) / SR * 0.9)
-add(chords, filt(final_chord, "low", 4000) * 0.9, FINAL_HIT)
+add(chords, final_chord * 0.9, FINAL_HIT)
+add(chords, stab([57, 60, 64, 69]), FINAL_HIT, 0.9)
 
 # Centre: drums, bass, fx. Wide: chords, hats, lead, bells, reverb — the right
 # channel gets them 11ms late (Haas) so the track opens up in stereo.

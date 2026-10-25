@@ -13,7 +13,7 @@ line of copy, timing or screen can be changed and the film re-rendered.
 | `video.html` | The film. One deterministic timeline: `render(t)` poses every element for time `t`. Open with `?play` to preview in a browser, or `?t=12.5` for a single frame. |
 | `make-audio.py` | Synthesises the 100bpm track and picture-locked SFX (cues read from `video.html`) into `out/`. |
 | `render.mjs` | Steps `video.html` frame by frame (30fps) into `out/flagrr-for-clubs-silent.mp4`. `--workers 4` renders in parallel; `--stills 1,8.9` renders single frames instead. |
-| `assets/` | Brand fonts (Fraunces, Poppins; OFL), logos, Strand Golf Club photography, ad banners. |
+| `assets/` | Brand fonts (Fraunces, Poppins; OFL), logos, Strand Golf Club photography, ad banners, film-grain texture. |
 | `plates/` | Captured app screens used in the film. |
 
 ## Rebuild
@@ -28,7 +28,9 @@ node marketing/club-explainer-video/render.mjs --workers 4
 python3 marketing/club-explainer-video/make-audio.py      # needs numpy + scipy
 cd marketing/club-explainer-video/out
 ffmpeg -i soundtrack.wav -af "loudnorm=I=-14.5:TP=-3:LRA=11,alimiter=limit=0.66:attack=1:release=40:level=disabled" master.wav
-ffmpeg -i flagrr-for-clubs-silent.mp4 -i master.wav -c:v copy -c:a aac -b:a 256k -shortest flagrr-for-clubs.mp4
+# re-encode for delivery: the film grain makes the lossless-ish render ~100 MB; CRF 21 keeps it clean at ~30 MB
+ffmpeg -i flagrr-for-clubs-silent.mp4 -i master.wav -c:v libx264 -preset slow -crf 21 -pix_fmt yuv420p \
+  -c:a aac -b:a 256k -shortest -movflags +faststart flagrr-for-clubs.mp4
 ```
 
 `out/` is git-ignored. Rendered videos are delivered separately.
