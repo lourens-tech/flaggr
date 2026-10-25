@@ -23,18 +23,23 @@ OUT = HERE / "out"
 OUT.mkdir(exist_ok=True)
 SR = 48000
 HTML = (HERE / "video.html").read_text()
-DUR = float(re.search(r"const DURATION = (\d+)", HTML).group(1))
+DUR = float(re.search(r"const DURATION = ([\d.]+)", HTML).group(1))
+# Every time in this file is in the film's timeline units (the 0.5s grid the
+# cues in video.html are written on); TEMPO converts them to seconds.
+TEMPO = float(re.search(r"const TEMPO = ([\d.]+)", HTML).group(1))
+END = DUR / TEMPO
 N = int(SR * DUR)
 TT = np.arange(N) / SR
+TL = TT / TEMPO  # timeline time of every sample
 rng = np.random.default_rng(11)
 
-BEAT = 0.5  # 120 bpm
+BEAT = 0.5  # one beat in timeline units (100bpm at TEMPO 1.2)
 BAR = 2.0
 
 # ------------------------------------------------------------------ cues from the picture
 def cues(list_name):
     block = re.search(rf"const {list_name} = \[(.*?)\n\];", HTML, re.S).group(1)
-    return [dict(t=float(m.group(1)), shake="shake" in line, flash="flash" in line)
+    return [dict(t=float(m.group(1)), hit="hit: true" in line)
             for line in block.splitlines() if (m := re.search(r"\{ t: ([\d.]+)", line))]
 
 
@@ -60,7 +65,7 @@ def within(t, spans):
 def mask(spans):
     m = np.zeros(N)
     for a, b in spans:
-        m[int(a * SR):int(b * SR)] = 1
+        m[at(a):at(b)] = 1
     return m
 
 
@@ -75,7 +80,8 @@ def midi(n):
 
 
 def at(t):
-    return int(round(t * SR))
+    """Sample index of timeline time t."""
+    return int(round(t * TEMPO * SR))
 
 
 def add(buf, sig, t, gain=1.0):
@@ -252,7 +258,7 @@ def key_click():
 
 # ------------------------------------------------------------------ music
 kick_t, clap_t, hat_t, ohat_t = [], [], [], []
-for i in range(int(DUR / BEAT)):
+for i in range(int(END / BEAT)):
     b = i * BEAT
     on_beat_2_4 = i % 2 == 1
     drop = within(b, DROPS)
@@ -295,31 +301,31 @@ for b in kick_t:
     pump[i:i + n] = np.minimum(pump[i:i + n], 1 - 0.8 * np.exp(-np.arange(n) / SR * 9))
 
 chords = np.zeros(N)
-for bar in range(int(DUR // BAR) + 1):
+for bar in range(int(END // BAR) + 1):
     t0 = bar * BAR
     _, notes = chord_at(t0 + 0.01)
-    seg = supersaw(notes, BAR + 0.05)
+    seg = supersaw(notes, BAR * TEMPO + 0.05)
     fade = np.minimum(1, np.minimum(np.arange(len(seg)), len(seg) - np.arange(len(seg))) / (SR * 0.01))
     add(chords, seg * fade, t0)
 cut = np.full(N, 8000.0)
-ka = np.clip((TT - BUILD_A[0]) / (8 - BUILD_A[0]), 0, 1)
-cut = np.where(TT < 8, 250 + 4500 * ka ** 2, cut)
-cut = np.where((TT >= BREAK[0]) & (TT < BREAK[1]), 900, cut)
-kb = np.clip((TT - BUILD_B[0]) / (52 - BUILD_B[0]), 0, 1)
-cut = np.where((TT >= BUILD_B[0]) & (TT < BUILD_B[1]), 700 + 4500 * kb ** 1.5, cut)
-cut = np.where((TT >= SOFT[0]) & (TT < SOFT[1]), 2600, cut)
+ka = np.clip((TL - BUILD_A[0]) / (8 - BUILD_A[0]), 0, 1)
+cut = np.where(TL < 8, 250 + 4500 * ka ** 2, cut)
+cut = np.where((TL >= BREAK[0]) & (TL < BREAK[1]), 900, cut)
+kb = np.clip((TL - BUILD_B[0]) / (52 - BUILD_B[0]), 0, 1)
+cut = np.where((TL >= BUILD_B[0]) & (TL < BUILD_B[1]), 700 + 4500 * kb ** 1.5, cut)
+cut = np.where((TL >= SOFT[0]) & (TL < SOFT[1]), 2600, cut)
 chords = sweep_lp(chords, cut)
-chord_gain = np.interp(TT, [0, 2, 8, 40, 40.01, 44, 52, 58, 66, 74, 76], [0, .55, 1, 1, .8, .9, 1, .85, 1, 1, 1])
+chord_gain = np.interp(TL, [0, 2, 8, 40, 40.01, 44, 52, 58, 66, 74, 76], [0, .55, 1, 1, .8, .9, 1, .85, 1, 1, 1])
 chords *= chord_gain * pump
 
 bass = np.zeros(N)
-for i in range(int(DUR / BEAT)):
+for i in range(int(END / BEAT)):
     b = i * BEAT + 0.25  # offbeat
     if within(b, DROPS + [SOFT, (46, 51.5)]):
         root, _ = chord_at(b)
         add(bass, bass_note(midi(root - 12), 0.22), b, 1.0)
 sub = np.zeros(N)
-for bar in range(int(DUR // BAR) + 1):
+for bar in range(int(END // BAR) + 1):
     t0 = bar * BAR
     if within(t0, DROPS + [SOFT, BUILD_B, BREAK, (2, 8)]):
         root, _ = chord_at(t0 + 0.01)
@@ -330,13 +336,13 @@ sub *= pump
 lead = np.zeros(N)
 PATTERN = [0, 2, 3, 2, 1, 2, 3, 1, 0, 2, 3, 2, 3, 2, 1, 2]
 ACCENT = [1, .5, .8, .5, .9, .5, .8, .5, 1, .5, .8, .5, .9, .6, .8, .6]
-for i in range(int(DUR / 0.125)):
+for i in range(int(END / 0.125)):
     t = i * 0.125
-    if within(t, [(8, 40), (52, 58), (66, 74)]) and not within(t, [(15, 17.5), (24, 25.5)]):
+    if within(t, [(8, 40), (52, 58), (66, 74)]) and not within(t, [(15, 17.5), (23.75, 25.9)]):
         _, notes = chord_at(t)
         add(lead, pluck(midi(notes[PATTERN[i % 16]] + 12)), t, ACCENT[i % 16])
 lead_delay = np.zeros(N)
-d = int(SR * 0.375)
+d = int(SR * 0.375 * TEMPO)  # dotted-8th delay
 lead_delay[d:] = lead[:-d] * 0.35
 
 # Breakdown bells.
@@ -346,20 +352,20 @@ for i, t in enumerate(np.arange(BREAK[0], BREAK[1], 0.5)):
     add(bells, bell(midi(notes[[3, 2, 1, 2, 3, 1, 2, 0][i % 8]] + 12)), t, 0.5)
 
 fx = np.zeros(N)
-add(fx, riser(2.0), 6.0, 0.5)
-add(fx, riser(4.0), 47.75, 0.45)
-add(fx, riser(1.75), 64.0, 0.4)
-add(fx, riser(1.0), 29.0, 0.35)
+add(fx, riser(2.0 * TEMPO), 6.0, 0.5)
+add(fx, riser(4.0 * TEMPO), 47.75, 0.45)
+add(fx, riser(1.75 * TEMPO), 64.0, 0.4)
+add(fx, riser(1.0 * TEMPO), 29.0, 0.35)
 for t_drop in (8.0, 52.0, 66.0):
-    add(fx, reverse_cymbal(1.5), t_drop - 1.5, 0.35)
+    add(fx, reverse_cymbal(1.5 * TEMPO), t_drop - 1.5, 0.35)
     add(fx, impact(True), t_drop, 0.9)
 for t_hit in (18.0, 30.0, 44.0):
     add(fx, impact(True), t_hit, 0.55)
-add(fx, reverse_cymbal(1.0), 43.0, 0.3)
+add(fx, reverse_cymbal(1.0 * TEMPO), 43.0, 0.3)
 
 # Final chord hit and ring-out.
 add(fx, impact(True), FINAL_HIT, 1.0)
-final_chord = supersaw([45 + 12, 57, 60, 64, 69, 72], DUR - FINAL_HIT)
+final_chord = supersaw([45 + 12, 57, 60, 64, 69, 72], DUR - FINAL_HIT * TEMPO)
 final_chord *= np.exp(-np.arange(len(final_chord)) / SR * 0.9)
 add(chords, filt(final_chord, "low", 4000) * 0.9, FINAL_HIT)
 
@@ -381,9 +387,7 @@ music[-at(1.2):] *= np.linspace(1, 0, at(1.2))[:, None]
 # ------------------------------------------------------------------ picture-locked sfx
 sfx = np.zeros(N)
 for c in SLAM_CUES:
-    add(sfx, hit(), c["t"], 0.75 if c["shake"] else 0.35)
-    if c["flash"]:
-        add(sfx, impact(False), c["t"], 0.6)
+    add(sfx, hit(), c["t"], 0.6 if c["hit"] else 0.3)
 for c in CARD_CUES:
     add(sfx, hit(), c["t"], 0.75)
 for w in WIPE_CUES:
@@ -398,7 +402,7 @@ add(sfx, tone(midi(88), 0.9, 6), 12.25, 0.35)
 add(sfx, tone(midi(93), 1.2, 5), 12.37, 0.35)
 # Tee slots filling, rising.
 for k in range(6):
-    add(sfx, tone(midi(76 + [0, 2, 4, 7, 9, 12][k]), 0.25, 18), 13.0 + k * 0.25, 0.3)
+    add(sfx, tone(midi(76 + [0, 2, 4, 7, 9, 12][k]), 0.25, 18), 13.15 + k * 0.2, 0.3)
 # Scan beeps and the Flagrr Cash "ka-ching".
 add(sfx, tone(1320, 0.1, 40), 18.9, 0.25)
 add(sfx, tone(1760, 0.1, 40), 19.45, 0.25)

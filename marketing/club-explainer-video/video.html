@@ -36,8 +36,6 @@ img { display: block; }
 /* backgrounds */
 #bgSolid { background: var(--dark); }
 .glow { position: absolute; border-radius: 50%; }
-.marquee { position: absolute; left: 0; white-space: nowrap; font-weight: 900; font-size: 300px; line-height: 1; letter-spacing: -0.02em;
-  color: transparent; -webkit-text-stroke: 2px rgba(205,222,92,.10); }
 .photo { position: absolute; inset: -4%; background-size: cover; background-position: center; }
 
 /* big type */
@@ -49,7 +47,6 @@ img { display: block; }
 .fcard { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; text-align: center; }
 .fcard b { font-weight: 900; text-transform: uppercase; letter-spacing: -0.04em; line-height: 0.9; display: inline-block; }
 .wipe { position: absolute; top: -200px; height: 1480px; width: 2600px; transform-origin: center; }
-#flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
 #dim { position: absolute; inset: 0; background: rgba(10,25,18,.72); opacity: 0; }
 .vignette { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,.35)); }
 
@@ -131,8 +128,6 @@ img { display: block; }
     <div class="glow" id="g1" style="width:1140px;height:1140px;background:radial-gradient(closest-side,#00805A,transparent);opacity:.6"></div>
     <div class="glow" id="g2" style="width:940px;height:940px;background:radial-gradient(closest-side,#CDDE5C,transparent);opacity:.12"></div>
     <div class="glow" id="g3" style="width:1040px;height:1040px;background:radial-gradient(closest-side,#0f2a20,transparent);opacity:.8"></div>
-    <div class="marquee" id="mq1" style="top:40px">FLAGRR · LOYALTY · FLAGRR · LOYALTY · FLAGRR · LOYALTY ·</div>
-    <div class="marquee" id="mq2" style="top:720px">PLAY · EARN · REDEEM · REPEAT · PLAY · EARN · REDEEM · REPEAT ·</div>
   </div>
   <div class="layer" id="bgLight" style="background:var(--paper)">
     <div class="glow" id="g4" style="width:1140px;height:1140px;background:radial-gradient(closest-side,#CCF2E6,transparent)"></div>
@@ -181,7 +176,7 @@ img { display: block; }
     <div class="abs phone" id="lPhone" style="left:1300px;top:120px">
       <div class="screen"><div class="notch"></div><img src="plates/member-home.png" style="width:382px"></div>
     </div>
-    <div class="abs receipt" id="receipt" style="left:760px;top:330px">
+    <div class="abs receipt" id="receipt" style="left:880px;top:400px">
       <div class="c">STRAND GOLF CLUB</div>
       <div class="s">Tue 28 Oct · 14:41 · Till 2</div>
       <div class="li"><span>Green fee 18H</span><span>R290.00</span></div>
@@ -189,7 +184,7 @@ img { display: block; }
       <div class="li tot"><span>TOTAL</span><span>R340.00</span></div>
       <div class="scanline" id="scan"></div>
     </div>
-    <div class="abs pill lime" id="earn" style="left:1225px;top:40px;font-size:40px;padding:20px 36px;font-weight:900">+510 FLAGRR CASH</div>
+    <div class="abs pill lime" id="earn" style="left:1225px;top:14px;font-size:40px;padding:20px 36px;font-weight:900">+510 FLAGRR CASH</div>
     <div class="abs pill white" id="lb1" style="font-size:26px"><span class="dot" style="background:#00805A"></span>7-week streak · +200 FC bonus</div>
     <div class="abs pill white" id="lb2" style="font-size:26px"><span class="dot" style="background:#A86C0A"></span>Gold tier · earns 1.5x</div>
     <div class="abs pill white" id="lb3" style="font-size:26px"><span class="dot" style="background:#CDDE5C"></span>Birthday bonus · automatic</div>
@@ -216,6 +211,13 @@ img { display: block; }
     <div class="abs promo" id="pr2" style="left:1030px;top:470px"><img src="assets/ads/ad-club-competition.png"></div>
   </div>
 
+  <!-- ======================= why chain (48–52) ======================= -->
+  <div class="scene" id="sFlow">
+    <svg class="abs" id="ch1" style="left:914px;top:282px" width="92" height="56" viewBox="0 0 70 44"><path d="M8 8 35 34 62 8" fill="none" stroke="#CDDE5C" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <svg class="abs" id="ch2" style="left:914px;top:502px" width="92" height="56" viewBox="0 0 70 44"><path d="M8 8 35 34 62 8" fill="none" stroke="#CDDE5C" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <svg class="abs" id="ch3" style="left:914px;top:714px" width="92" height="56" viewBox="0 0 70 44"><path d="M8 8 35 34 62 8" fill="none" stroke="#CDDE5C" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </div>
+
   <!-- ======================= partnership (58–66) ======================= -->
   <div class="scene" id="sPartner">
     <div class="photo" id="pPhoto" style="background-image:url(assets/img/strand-golf-club-sunset-swing.jpg);background-position:center 30%"></div>
@@ -239,7 +241,6 @@ img { display: block; }
   <img class="abs" id="markDark" src="assets/img/flagrr-logo-dark-green.png" style="left:56px;top:40px;width:150px">
 </div>
   <div class="vignette" id="vig"></div>
-  <div id="flash"></div>
   <div class="layer" id="black" style="background:#000;opacity:0"></div>
 </div>
 
@@ -282,75 +283,72 @@ function scene(id, t, a, b) {
 
 // ---------------------------------------------------------------- big type
 // Every headline in the film. anim: slam (crash in from big), up (mask
-// reveal), pop (spring from small). out: fly (blow past camera), cut, drop.
-// shake / flash add camera shake and a white flash on the hit.
+// reveal), pop (spring from small). out: fly (lift and fade), cut.
+// hit marks the lines make-audio.py puts an accent under.
 const W = 'white', L = '#CDDE5C', D = '#1F4234', G = '#00805A';
 const SLAMS = [
   // cold open
-  { t: 0.5, o: 2.0, html: 'TUESDAY.', x: 960, y: 420, size: 250, color: W, anim: 'slam', out: 'cut', shake: 18 },
-  { t: 1.0, o: 2.0, html: '2PM.', x: 960, y: 660, size: 250, color: L, anim: 'slam', out: 'cut', shake: 18 },
+  { t: 0.5, o: 2.0, html: 'TUESDAY.', x: 960, y: 420, size: 250, color: W, anim: 'slam', out: 'cut', hit: true },
+  { t: 1.0, o: 2.0, html: '2PM.', x: 960, y: 660, size: 250, color: L, anim: 'slam', out: 'cut', hit: true },
   // hook
   { t: 2.0, o: 5.75, html: 'HALF YOUR', x: 130, y: 300, size: 150, color: W, anim: 'up', out: 'fly', align: 'l' },
   { t: 2.5, o: 5.75, html: 'TEE SHEET', x: 130, y: 450, size: 150, color: W, anim: 'up', out: 'fly', align: 'l' },
-  { t: 3.0, o: 5.75, html: 'IS', x: 130, y: 600, size: 150, color: W, anim: 'up', out: 'fly', align: 'l' },
-  { t: 3.5, o: 5.75, html: 'EMPTY.', x: 130, y: 790, size: 260, color: L, anim: 'slam', out: 'fly', align: 'l', shake: 26, flash: 0.35 },
+  { t: 3.25, o: 5.75, html: "IS <span class='lime'>EMPTY.</span>", x: 130, y: 650, size: 210, color: W, anim: 'slam', out: 'fly', align: 'l', hit: true },
   // let's fill it (on lime)
-  { t: 6.0, o: 7.75, html: "LET'S", x: 960, y: 290, size: 230, color: D, anim: 'slam', out: 'fly', shake: 14 },
-  { t: 6.5, o: 7.75, html: 'FILL', x: 960, y: 540, size: 290, color: D, anim: 'slam', out: 'fly', shake: 18 },
-  { t: 7.0, o: 7.75, html: 'IT.', x: 960, y: 800, size: 290, color: D, anim: 'slam', out: 'fly', shake: 22 },
+  { t: 6.0, o: 7.75, html: "LET'S", x: 960, y: 290, size: 230, color: D, anim: 'slam', out: 'fly', hit: true },
+  { t: 6.5, o: 7.75, html: 'FILL', x: 960, y: 540, size: 290, color: D, anim: 'slam', out: 'fly', hit: true },
+  { t: 7.0, o: 7.75, html: 'IT.', x: 960, y: 800, size: 290, color: D, anim: 'slam', out: 'fly', hit: true },
   // push
-  { t: 8.0, o: 9.75, html: 'ONE', x: 960, y: 280, size: 220, color: W, anim: 'slam', out: 'fly', shake: 30, flash: 0.6 },
-  { t: 8.5, o: 9.75, html: 'PUSH', x: 960, y: 530, size: 300, color: L, anim: 'slam', out: 'fly', shake: 20 },
-  { t: 9.0, o: 9.75, html: 'NOTIFICATION.', x: 960, y: 790, size: 190, color: W, anim: 'slam', out: 'fly', shake: 20 },
+  { t: 8.0, o: 9.75, html: 'ONE', x: 960, y: 280, size: 220, color: W, anim: 'slam', out: 'fly', hit: true },
+  { t: 8.5, o: 9.75, html: 'PUSH', x: 960, y: 530, size: 300, color: L, anim: 'slam', out: 'fly', hit: true },
+  { t: 9.0, o: 9.75, html: 'NOTIFICATION.', x: 960, y: 790, size: 190, color: W, anim: 'slam', out: 'fly', hit: true },
   { t: 10.0, o: 14.6, html: "ONE PUSH. <span class='lime'>EVERY MEMBER'S PHONE.</span>", x: 960, y: 140, size: 76, color: W, anim: 'up', out: 'fly' },
-  { t: 15.0, o: 17.5, html: 'FULL', x: 960, y: 400, size: 340, color: L, anim: 'slam', out: 'cut', shake: 30, flash: 0.4 },
-  { t: 15.5, o: 17.5, html: 'SAME DAY.', x: 960, y: 700, size: 220, color: W, anim: 'slam', out: 'cut', shake: 20 },
+  { t: 15.0, o: 17.5, html: 'FULL', x: 960, y: 400, size: 340, color: L, anim: 'slam', out: 'cut', hit: true },
+  { t: 15.5, o: 17.5, html: 'SAME DAY.', x: 960, y: 700, size: 220, color: W, anim: 'slam', out: 'cut', hit: true },
   // loyalty
-  { t: 18.0, o: 23.75, html: 'SCAN.', x: 120, y: 250, size: 230, color: W, anim: 'slam', out: 'fly', align: 'l', shake: 22, flash: 0.4 },
-  { t: 20.0, o: 23.75, html: 'EARN.', x: 120, y: 470, size: 230, color: L, anim: 'slam', out: 'fly', align: 'l', shake: 22 },
-  { t: 21.0, o: 23.75, html: 'SPEND.', x: 120, y: 690, size: 230, color: W, anim: 'slam', out: 'fly', align: 'l', shake: 22 },
-  { t: 22.0, o: 23.75, html: 'at your club.', x: 130, y: 860, size: 110, color: L, anim: 'up', out: 'fly', align: 'l', serif: true },
+  { t: 18.0, o: 23.75, html: 'SCAN.', x: 120, y: 250, size: 230, color: W, anim: 'slam', out: 'cut', align: 'l', hit: true },
+  { t: 20.0, o: 23.75, html: 'EARN.', x: 120, y: 470, size: 230, color: L, anim: 'slam', out: 'cut', align: 'l', hit: true },
+  { t: 21.0, o: 23.75, html: 'SPEND.', x: 120, y: 690, size: 230, color: W, anim: 'slam', out: 'cut', align: 'l', hit: true },
+  { t: 22.0, o: 23.75, html: 'at your club.', x: 130, y: 860, size: 110, color: L, anim: 'up', out: 'cut', align: 'l', serif: true },
   { t: 26.0, o: 29.5, html: 'THEY KEEP', x: 120, y: 360, size: 150, color: W, anim: 'up', out: 'cut', align: 'l' },
   { t: 26.5, o: 29.5, html: 'COMING', x: 120, y: 520, size: 150, color: W, anim: 'up', out: 'cut', align: 'l' },
-  { t: 27.0, o: 29.5, html: 'BACK.', x: 120, y: 700, size: 220, color: L, anim: 'slam', out: 'cut', align: 'l', shake: 22 },
+  { t: 27.0, o: 29.5, html: 'BACK.', x: 120, y: 700, size: 220, color: L, anim: 'slam', out: 'cut', align: 'l', hit: true },
   // dashboard (on paper)
-  { t: 30.0, o: 31.75, html: 'ONE', x: 960, y: 290, size: 230, color: D, anim: 'slam', out: 'fly', shake: 24, flash: 0.3 },
-  { t: 30.5, o: 31.75, html: 'ADMIN', x: 960, y: 540, size: 280, color: G, anim: 'slam', out: 'fly', shake: 20 },
-  { t: 31.0, o: 31.75, html: 'DASHBOARD.', x: 960, y: 790, size: 220, color: D, anim: 'slam', out: 'fly', shake: 20 },
-  { t: 38.0, o: 39.5, html: 'ALL IN', x: 960, y: 420, size: 230, color: D, anim: 'slam', out: 'cut', shake: 24 },
-  { t: 38.5, o: 39.5, html: 'ONE PLACE.', x: 960, y: 660, size: 230, color: G, anim: 'slam', out: 'cut', shake: 24 },
+  { t: 30.0, o: 31.75, html: 'ONE', x: 960, y: 290, size: 230, color: D, anim: 'slam', out: 'fly', hit: true },
+  { t: 30.5, o: 31.75, html: 'ADMIN', x: 960, y: 540, size: 280, color: G, anim: 'slam', out: 'fly', hit: true },
+  { t: 31.0, o: 31.75, html: 'DASHBOARD.', x: 960, y: 790, size: 220, color: D, anim: 'slam', out: 'fly', hit: true },
+  { t: 38.0, o: 39.5, html: 'ALL IN', x: 960, y: 420, size: 230, color: D, anim: 'slam', out: 'cut', hit: true },
+  { t: 38.5, o: 39.5, html: 'ONE PLACE.', x: 960, y: 660, size: 230, color: G, anim: 'slam', out: 'cut', hit: true },
   // not alone
   { t: 40.5, o: 43.75, html: "YOU'RE NOT", x: 960, y: 420, size: 180, color: W, anim: 'up', out: 'fly' },
-  { t: 41.5, o: 43.75, html: 'ALONE.', x: 960, y: 650, size: 330, color: L, anim: 'slam', out: 'fly', shake: 26, flash: 0.3 },
+  { t: 41.5, o: 43.75, html: 'ALONE.', x: 960, y: 650, size: 330, color: L, anim: 'slam', out: 'fly', hit: true },
   { t: 44.0, o: 46.75, html: "FLAGRR RUNS <span class='lime'>PROMOS &amp; COMPETITIONS</span>", x: 960, y: 150, size: 82, color: W, anim: 'up', out: 'fly' },
   { t: 44.5, o: 46.75, html: 'PLATFORM-WIDE', x: 570, y: 380, size: 74, color: L, anim: 'pop', out: 'fly' },
   { t: 45.5, o: 46.75, html: 'AT YOUR CLUB', x: 1350, y: 380, size: 74, color: L, anim: 'pop', out: 'fly' },
-  { t: 47.0, o: 47.75, html: 'WHY?', x: 960, y: 540, size: 420, color: L, anim: 'slam', out: 'cut', shake: 34, flash: 0.5 },
+  { t: 47.0, o: 47.75, html: 'WHY?', x: 960, y: 540, size: 420, color: L, anim: 'slam', out: 'cut', hit: true },
   { t: 48.0, o: 51.75, html: 'SOMETHING TO WIN', x: 960, y: 200, size: 120, color: W, anim: 'up', out: 'fly' },
   { t: 48.75, o: 51.75, html: 'MORE ROUNDS', x: 960, y: 420, size: 120, color: W, anim: 'up', out: 'fly' },
   { t: 49.5, o: 51.75, html: 'MORE SPEND', x: 960, y: 640, size: 120, color: W, anim: 'up', out: 'fly' },
-  { t: 50.25, o: 51.75, html: 'AT YOUR CLUB.', x: 960, y: 870, size: 170, color: L, anim: 'slam', out: 'fly', shake: 26 },
+  { t: 50.25, o: 51.75, html: 'AT YOUR CLUB.', x: 960, y: 870, size: 170, color: L, anim: 'slam', out: 'fly', hit: true },
   // simple to start
-  { t: 56.0, o: 57.75, html: 'SIMPLE', x: 960, y: 420, size: 300, color: W, anim: 'slam', out: 'fly', shake: 28, flash: 0.4 },
-  { t: 56.5, o: 57.75, html: 'TO START.', x: 960, y: 690, size: 200, color: L, anim: 'slam', out: 'fly', shake: 20 },
+  { t: 56.0, o: 57.75, html: 'SIMPLE', x: 960, y: 420, size: 300, color: W, anim: 'slam', out: 'fly', hit: true },
+  { t: 56.5, o: 57.75, html: 'TO START.', x: 960, y: 690, size: 200, color: L, anim: 'slam', out: 'fly', hit: true },
   // partnership
   { t: 58.5, o: 61.75, html: "WE'RE BUILDING", x: 790, y: 230, size: 104, color: W, anim: 'up', out: 'fly', align: 'l' },
   { t: 59.0, o: 61.75, html: "SOUTH AFRICA'S", x: 790, y: 350, size: 104, color: W, anim: 'up', out: 'fly', align: 'l' },
   { t: 59.5, o: 61.75, html: 'NO.1 LOYALTY', x: 790, y: 470, size: 104, color: L, anim: 'up', out: 'fly', align: 'l' },
   { t: 60.0, o: 61.75, html: '&amp; VALUE APP', x: 790, y: 590, size: 104, color: L, anim: 'up', out: 'fly', align: 'l' },
   { t: 60.5, o: 61.75, html: 'FOR GOLFERS.', x: 790, y: 710, size: 104, color: W, anim: 'up', out: 'fly', align: 'l' },
-  { t: 62.0, o: 65.5, html: 'BUILD IT', x: 790, y: 420, size: 220, color: W, anim: 'slam', out: 'fly', align: 'l', shake: 26, flash: 0.35 },
-  { t: 62.5, o: 65.5, html: 'WITH US.', x: 790, y: 660, size: 220, color: L, anim: 'slam', out: 'fly', align: 'l', shake: 26 },
+  { t: 62.0, o: 65.5, html: 'BUILD IT', x: 790, y: 420, size: 220, color: W, anim: 'slam', out: 'fly', align: 'l', hit: true },
+  { t: 62.5, o: 65.5, html: 'WITH US.', x: 790, y: 660, size: 220, color: L, anim: 'slam', out: 'fly', align: 'l', hit: true },
 ];
 
 // Full-screen colour cards that hard-cut on the beat.
 const CARDS = [
-  { t: 24.0, o: 24.5, bg: G, color: W, html: 'STREAKS.', size: 300 },
-  { t: 24.5, o: 25.0, bg: L, color: D, html: 'TIERS.', size: 340 },
-  { t: 25.0, o: 25.5, bg: D, color: L, html: 'BIRTHDAY<br>BONUSES.', size: 230 },
+  { t: 23.75, o: 25.9, bg: G, size: 170, rows: [['STREAKS.', 23.9, W], ['TIERS.', 24.4, L], ['BIRTHDAY', 24.9, W], ['BONUSES.', 24.9, W]] },
   { t: 52.0, o: 53.0, bg: L, color: D, html: 'NO NEW<br>HARDWARE.', size: 230, tick: true },
   { t: 53.0, o: 54.0, bg: D, color: L, html: 'NO POS<br>INTEGRATION.', size: 210, tick: true },
-  { t: 54.0, o: 55.0, bg: G, color: W, html: 'MEMBERS<br>PAY R0.', size: 240, tick: true },
+  { t: 54.0, o: 55.0, bg: G, color: W, html: 'MEMBERS PAY<br>NOTHING.', size: 210, tick: true },
   { t: 55.0, o: 56.0, bg: L, color: D, html: 'LIVE IN<br>DAYS.', size: 260, tick: true },
 ];
 
@@ -382,10 +380,13 @@ function build() {
     const tick = c.tick
       ? `<svg width="190" height="190" viewBox="0 0 24 24" style="display:block;margin:0 auto 30px"><circle cx="12" cy="12" r="11" fill="${c.color}"/><path d="M6.5 12.5l3.8 3.8 7.2-8" fill="none" stroke="${c.bg}" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" pathLength="1"/></svg>`
       : '';
-    el.innerHTML = `<div>${tick}<b style="font-size:${c.size}px;color:${c.color}">${c.html}</b></div>`;
+    el.innerHTML = c.rows
+      ? `<div>${c.rows.map(([h, , col]) => `<b style="display:block;font-size:${c.size}px;color:${col};margin:0.06em 0">${h}</b>`).join('')}</div>`
+      : `<div>${tick}<b style="font-size:${c.size}px;color:${c.color}">${c.html}</b></div>`;
     $('cards').appendChild(el);
     c.el = el;
     c.txt = el.querySelector('b');
+    c.rowEls = [...el.querySelectorAll('b')];
     c.svg = el.querySelector('svg');
     c.path = el.querySelector('path');
   }
@@ -400,30 +401,30 @@ function build() {
 
 function poseSlams(t) {
   for (const s of SLAMS) {
-    const flyEnd = s.out === 'cut' ? s.o : s.o + 0.28;
+    const flyEnd = s.out === 'cut' ? s.o : s.o + 0.3;
     if (t < s.t || t >= flyEnd) { s.el.style.display = 'none'; continue; }
     s.el.style.display = 'block';
     let o = 1, sc = 1, blur = 0, iy = 0, y = 0;
     if (s.anim === 'slam') {
-      const k = prog(t, s.t, s.t + 0.22);
-      sc = mix(2.1, 1, ease.outQuint(k)) * (1 + 0.012 * Math.sin((t - s.t) * 2));
-      o = clamp(k * 5);
-      blur = (1 - ease.out(k)) * 26;
+      const k = prog(t, s.t, s.t + 0.35);
+      sc = mix(1.3, 1, ease.outQuint(k));
+      o = clamp(k * 3);
+      blur = (1 - ease.out(k)) * 10;
     } else if (s.anim === 'up') {
-      iy = (1 - ep(t, s.t, s.t + 0.4, ease.outQuint)) * 115;
+      iy = (1 - ep(t, s.t, s.t + 0.5, ease.outQuint)) * 115;
     } else if (s.anim === 'pop') {
       const k = prog(t, s.t, s.t + 0.4);
       sc = mix(0.3, 1, ease.back(k));
       o = clamp(k * 4);
     }
     if (s.out === 'fly' && t >= s.o) {
-      const ko = prog(t, s.o, s.o + 0.28);
-      sc *= mix(1, 1.8, ease.in(ko));
-      o *= 1 - ease.in(ko);
-      blur += ko * 24;
+      const ko = prog(t, s.o, s.o + 0.3);
+      sc *= mix(1, 1.1, ease.inOut(ko));
+      o *= 1 - ease.inOut(ko);
+      blur += ko * 8;
     }
     // Slow push while the line holds, so nothing sits dead still.
-    sc *= 1 + Math.max(0, t - s.t - 0.25) * 0.012;
+    sc *= 1 + Math.max(0, t - s.t - 0.35) * 0.008;
     s.el.style.opacity = o;
     s.el.style.transform = `translateY(${y}px) scale(${sc})`;
     s.el.style.filter = blur > 0.05 ? `blur(${blur}px)` : 'none';
@@ -436,8 +437,15 @@ function poseCards(t) {
     const on = t >= c.t && t < c.o;
     c.el.style.display = on ? 'flex' : 'none';
     if (!on) continue;
-    const k = prog(t, c.t, c.t + 0.2);
-    pose(c.txt, { s: mix(1.6, 1, ease.outQuint(k)) * (1 + (t - c.t) * 0.04), o: clamp(k * 5), blur: (1 - ease.out(k)) * 20 });
+    if (c.rows) {
+      c.rows.forEach(([, at], i) => {
+        const k = prog(t, at, at + 0.35);
+        pose(c.rowEls[i], { s: mix(1.25, 1, ease.outQuint(k)), o: clamp(k * 3), blur: (1 - ease.out(k)) * 8 });
+      });
+      continue;
+    }
+    const k = prog(t, c.t, c.t + 0.3);
+    pose(c.txt, { s: mix(1.25, 1, ease.outQuint(k)) * (1 + (t - c.t) * 0.02), o: clamp(k * 3), blur: (1 - ease.out(k)) * 8 });
     if (c.svg) {
       pose(c.svg, { s: mix(0.2, 1, ease.back(prog(t, c.t, c.t + 0.3))) });
       c.path.style.strokeDasharray = 1;
@@ -448,33 +456,16 @@ function poseCards(t) {
 
 function poseWipes(t) {
   for (const w of WIPES) {
-    const k = prog(t, w.t - 0.25, w.t + 0.25);
+    const k = prog(t, w.t - 0.35, w.t + 0.35);
     const on = k > 0 && k < 1;
     w.el.style.display = on ? 'block' : 'none';
     if (on) w.el.style.transform = `translateX(${mix(2400, -3080, ease.inOut(k))}px) skewX(-14deg)`;
   }
 }
 
-// Camera shake and white flashes on every hit that asks for one.
-const HITS = [...SLAMS.filter((s) => s.shake).map((s) => ({ t: s.t, a: s.shake, f: s.flash || 0 })),
-  ...CARDS.map((c) => ({ t: c.t, a: 16, f: 0 })), { t: 12.0, a: 14, f: 0 }, { t: 12.25, a: 18, f: 0 }, { t: 66.0, a: 30, f: 0.7 }];
-function camera(t) {
-  let x = 0, y = 0, f = 0, r = 0;
-  for (const h of HITS) {
-    const d = t - h.t;
-    if (d < 0 || d > 0.6) continue;
-    const a = h.a * Math.exp(-d * 9);
-    x += a * Math.sin(d * 83 + h.t * 7);
-    y += a * Math.cos(d * 71 + h.t * 3);
-    r += a * 0.012 * Math.sin(d * 57);
-    f = Math.max(f, h.f * Math.exp(-d * 12));
-  }
-  $('cam').style.transform = `translate(${x}px,${y}px) rotate(${r}deg)`;
-  $('flash').style.opacity = f;
-}
-
 // ---------------------------------------------------------------- tee sheet
 const TEE = [['13:00', 'J. van Wyk', 4], ['13:10', null, 4], ['13:20', null, 3], ['13:30', 'T. Nkosi', 2], ['13:40', null, 4], ['13:50', null, 2], ['14:00', null, 4], ['14:10', null, 3]];
+const FILL_STEP = 0.2; // one slot every 8th note
 const FILL = ['P. Steyn', 'M. Jacobs', 'S. Dlamini', 'R. Pretorius', 'L. Mokoena', 'C. Swart'];
 function buildTee(host) {
   const card = document.createElement('div');
@@ -496,7 +487,7 @@ function poseTee(hostId, t, fillStart) {
   for (const row of $(hostId).querySelectorAll('.row')) {
     const o = row.querySelector('.open'), n = row.querySelector('.name');
     if (row.dataset.booked === '1') { o.style.opacity = 0; pose(n, {}); continue; }
-    const at = fillStart == null ? null : fillStart + k * 0.25;
+    const at = fillStart == null ? null : fillStart + k * FILL_STEP;
     k++;
     const p = at == null ? 0 : ep(t, at, at + 0.3, ease.back);
     o.style.opacity = 1 - clamp(p * 2);
@@ -507,7 +498,8 @@ function poseTee(hostId, t, fillStart) {
   b.textContent = open ? `${open} OPEN` : 'FULL ✓';
   b.className = open ? 'badge' : 'badge ok';
   const pulse = 1 + 0.08 * Math.max(0, Math.sin(t * Math.PI * 4));
-  pose(b, { s: open ? pulse : mix(1.4, 1, ep(t, fillStart + 1.5, fillStart + 1.8, ease.back)) });
+  const full = fillStart + FILL.length * FILL_STEP;
+  pose(b, { s: open ? pulse : mix(1.4, 1, ep(t, full, full + 0.3, ease.back)) });
 }
 
 // ---------------------------------------------------------------- typing
@@ -520,7 +512,12 @@ function typeInto(el, text, k, caret, ph) {
 }
 
 // ---------------------------------------------------------------- sections
-const DURATION = 76;
+// Cues above are authored on a 0.5s grid (120bpm). TEMPO stretches the whole
+// film to a calmer 100bpm (0.6s beats) so every line has time to be read;
+// make-audio.py reads TEMPO too and builds the track at the matching tempo.
+const TIMELINE_END = 76;
+const TEMPO = 1.2;
+const DURATION = 91.2; // TIMELINE_END * TEMPO, in seconds
 
 function backgrounds(t) {
   const lime = t >= 6.0 && t < 8.0;
@@ -536,11 +533,9 @@ function backgrounds(t) {
   pose($('g3'), { x: 260 + Math.sin(t * 0.17) * 260, y: 160 + Math.cos(t * 0.21) * 200, o: 0.75 });
   pose($('g4'), { x: 1100 + Math.sin(t * 0.3) * 160, y: -280 + Math.cos(t * 0.2) * 120, s: 1 + beat * 0.05 });
   pose($('g5'), { x: -200 + Math.cos(t * 0.2) * 180, y: 620 + Math.sin(t * 0.25) * 120 });
-  pose($('mq1'), { x: -((t * 90) % 1800) });
-  pose($('mq2'), { x: -1800 + ((t * 70) % 1800) });
   $('vig').style.opacity = light || lime ? 0 : 1;
 
-  const dark = t > 8 && t < 66 && !light && !(t >= 52 && t < 56) && !(t >= 24 && t < 25.5);
+  const dark = t > 8 && t < 66 && !light && !(t >= 52 && t < 56) && !(t >= 23.75 && t < 25.9);
   $('mark').style.opacity = dark ? 0.9 : 0;
   $('markDark').style.opacity = light ? 0.9 : 0;
   // Dim behind the big words that land on top of product shots.
@@ -560,7 +555,7 @@ function hook(t) {
 
 function push(t) {
   if (!scene('sPush', t, 9.75, 17.75)) return;
-  block('compose', t, 10.0, 12.5, { dx: -200, dy: 0, ox: -300, oy: 0, e: ease.back, dur: 0.5 });
+  block('compose', t, 10.0, 12.45, { dx: -200, dy: 0, ox: -260, oy: 0, e: ease.back, dur: 0.5, outDur: 0.25 });
   typeInto($('cTitle'), TITLE, prog(t, 10.35, 10.9), t >= 10.35 && t < 10.95, 'Title');
   typeInto($('cMsg'), MSG, prog(t, 10.95, 11.65), t >= 10.95 && t < 11.9, 'Message');
   const press = ep(t, 11.95, 12.02) * (1 - ep(t, 12.02, 12.2));
@@ -572,8 +567,8 @@ function push(t) {
   const nk = ep(t, 12.25, 12.6, ease.back);
   pose($('notif'), { o: clamp(nk * 2), y: (1 - nk) * -160, s: mix(0.85, 1, nk) });
 
-  block('pushTee', t, 12.5, 14.6, { dx: -300, dy: 0, oy: 200, e: ease.back, dur: 0.45 });
-  poseTee('pushTee', t, 13.0);
+  block('pushTee', t, 12.75, 14.6, { dx: -300, dy: 0, oy: 200, e: ease.back, dur: 0.45 });
+  poseTee('pushTee', t, 13.15);
 }
 
 function loyalty(t) {
@@ -581,7 +576,7 @@ function loyalty(t) {
   const zoom = ep(t, 25.5, 26.2, ease.inOut);
   block('lPhone', t, 18.25, 29.5, { dx: 0, dy: 500, dur: 0.6, e: ease.back, oy: 0,
     extra: (p, ki) => ({ s: p.s * mix(1, 1.3, zoom), x: p.x + zoom * -140, y: p.y + zoom * 170 + Math.sin(t * 1.4) * 5, r: (1 - ki) * 10 }) });
-  $('lPhone').style.visibility = t >= 24 && t < 25.5 ? 'hidden' : $('lPhone').style.visibility;
+  $('lPhone').style.visibility = t >= 23.75 && t < 25.9 ? 'hidden' : $('lPhone').style.visibility;
 
   const rIn = ep(t, 18.5, 18.85, ease.back), rFly = ep(t, 19.55, 19.85, ease.in);
   $('receipt').style.visibility = t > 18.5 && t < 19.9 ? 'visible' : 'hidden';
@@ -632,6 +627,11 @@ function promos(t) {
   block('pr2', t, 45.5, 46.75, { dx: 300, dy: 120, e: ease.back, dur: 0.5, extra: (p, ki) => ({ r: (1 - ki) * 12 + 2, y: p.y + Math.cos(t * 2) * 6 }) });
 }
 
+function flow(t) {
+  if (!scene('sFlow', t, 48.0, 52.1)) return;
+  ['ch1', 'ch2', 'ch3'].forEach((id, i) => block(id, t, 48.45 + i * 0.75, 51.75, { dy: -30, s0: 0.6, e: ease.back, dur: 0.35, oy: 0 }));
+}
+
 function partner(t) {
   if (!scene('sPartner', t, 57.75, 65.75)) return;
   pose($('pPhoto'), { s: mix(1.2, 1.05, ep(t, 57.75, 58.6, ease.outQuint)) + (t - 58) * 0.006, x: (t - 58) * 8 });
@@ -646,10 +646,11 @@ function cta(t) {
   block('ctaPrice', t, 68.25, 99, { dy: 40 });
 }
 
-function render(t) {
+function render(seconds) {
+  const t = seconds / TEMPO;
   backgrounds(t);
-  hook(t); push(t); loyalty(t); dash(t); promos(t); partner(t); cta(t);
-  poseSlams(t); poseCards(t); poseWipes(t); camera(t);
+  hook(t); push(t); loyalty(t); dash(t); promos(t); flow(t); partner(t); cta(t);
+  poseSlams(t); poseCards(t); poseWipes(t);
 }
 
 build();
