@@ -22,7 +22,7 @@ const workers = args.includes('--workers') ? Number(args[args.indexOf('--workers
 // processes, then join the segments losslessly.
 if (workers > 1) {
   fs.mkdirSync(OUT, { recursive: true });
-  const DURATION = 62;
+  const DURATION = Number(fs.readFileSync(path.join(HERE, 'video.html'), 'utf8').match(/const DURATION = (\d+)/)[1]);
   const frames = DURATION * FPS;
   const cuts = Array.from({ length: workers + 1 }, (_, i) => Math.round((frames * i) / workers) / FPS);
   const segs = [];

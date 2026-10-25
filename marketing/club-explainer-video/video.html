@@ -8,60 +8,66 @@
   for time t (seconds), so render.mjs can step through it frame by frame and
   any single frame can be re-rendered exactly. Open in a browser and append
   ?play to watch it in real time, or ?t=12.5 to inspect one frame.
+
+  Cut to a 120bpm grid (one beat = 0.5s, one bar = 2s): every slam, wipe and
+  screen change lands on a beat, and make-audio.py puts a hit on the same
+  beats. Move a cue here, move it there.
 -->
 <style>
-@font-face { font-family: Fraunces; src: url(assets/fonts/Fraunces_400Regular.ttf); font-weight: 400; }
 @font-face { font-family: Fraunces; src: url(assets/fonts/Fraunces_600SemiBold.ttf); font-weight: 600; }
-@font-face { font-family: Fraunces; src: url(assets/fonts/Fraunces_700Bold.ttf); font-weight: 700; }
+@font-face { font-family: Fraunces; src: url(assets/fonts/Fraunces_900Black_Italic.ttf); font-weight: 900; font-style: italic; }
 @font-face { font-family: Poppins; src: url(assets/fonts/Poppins_400Regular.ttf); font-weight: 400; }
 @font-face { font-family: Poppins; src: url(assets/fonts/Poppins_500Medium.ttf); font-weight: 500; }
 @font-face { font-family: Poppins; src: url(assets/fonts/Poppins_600SemiBold.ttf); font-weight: 600; }
+@font-face { font-family: Poppins; src: url(assets/fonts/Poppins_800ExtraBold.ttf); font-weight: 800; }
+@font-face { font-family: Poppins; src: url(assets/fonts/Poppins_900Black.ttf); font-weight: 900; }
 
-:root {
-  --dark: #1F4234;
-  --club: #00805A;
-  --lime: #CDDE5C;
-  --mint: #CCF2E6;
-  --paper: #F3F6F1;
-  --ink: #1F1F1F;
-}
+:root { --dark: #1F4234; --club: #00805A; --lime: #CDDE5C; --mint: #CCF2E6; --paper: #F3F6F1; --ink: #1F1F1F; }
 html, body { margin: 0; background: #000; }
-#stage {
-  position: relative; width: 1920px; height: 1080px; overflow: hidden;
-  background: var(--dark); font-family: Poppins, sans-serif; color: #fff;
-}
+#stage { position: relative; width: 1920px; height: 1080px; overflow: hidden; background: var(--dark); font-family: Poppins, sans-serif; color: #fff; }
+#cam { position: absolute; inset: 0; }
 .layer, .scene { position: absolute; inset: 0; }
 .scene { display: none; }
 .abs { position: absolute; }
-.h { font-family: Fraunces, serif; font-weight: 600; letter-spacing: -0.015em; line-height: 1.08; }
-.w { display: inline-block; white-space: pre; will-change: transform, opacity, filter; }
+img { display: block; }
 .lime { color: var(--lime); }
 .green { color: var(--club); }
-img { display: block; }
 
 /* backgrounds */
-#bgLight { background: var(--paper); opacity: 0; }
+#bgSolid { background: var(--dark); }
 .glow { position: absolute; border-radius: 50%; }
+.marquee { position: absolute; left: 0; white-space: nowrap; font-weight: 900; font-size: 300px; line-height: 1; letter-spacing: -0.02em;
+  color: transparent; -webkit-text-stroke: 2px rgba(205,222,92,.10); }
 .photo { position: absolute; inset: -4%; background-size: cover; background-position: center; }
 
-/* cards */
-.card {
-  background: #fff; color: var(--ink); border-radius: 28px;
-  box-shadow: 0 40px 80px rgba(0,0,0,.28), 0 4px 14px rgba(0,0,0,.12);
-}
+/* big type */
+.sl { position: absolute; white-space: nowrap; font-weight: 900; text-transform: uppercase; letter-spacing: -0.035em; line-height: 0.92; will-change: transform, opacity, filter; }
+.sl.mask { overflow: hidden; padding: 0.06em 0.04em 0.1em; }
+.sl .in { display: inline-block; will-change: transform; }
+.sl.serif { font-family: Fraunces; font-style: italic; font-weight: 900; text-transform: none; letter-spacing: -0.02em; }
+.sub { position: absolute; font-weight: 800; letter-spacing: -0.02em; white-space: nowrap; }
+.fcard { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; text-align: center; }
+.fcard b { font-weight: 900; text-transform: uppercase; letter-spacing: -0.04em; line-height: 0.9; display: inline-block; }
+.wipe { position: absolute; top: -200px; height: 1480px; width: 2600px; transform-origin: center; }
+#flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
+#dim { position: absolute; inset: 0; background: rgba(10,25,18,.72); opacity: 0; }
+.vignette { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,.35)); }
+
+/* product pieces */
+.card { background: #fff; color: var(--ink); border-radius: 28px; box-shadow: 0 40px 80px rgba(0,0,0,.3), 0 4px 14px rgba(0,0,0,.12); }
 .tee { width: 560px; padding: 28px 30px 18px; }
 .tee .hd { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 14px; }
 .tee .hd b { font-family: Fraunces; font-weight: 600; font-size: 30px; color: var(--dark); }
 .tee .hd span { font-size: 18px; color: #5E5E5E; }
-.row { display: flex; align-items: center; height: 54px; border-top: 1px solid #EEE; font-size: 20px; position: relative; }
+.row { display: flex; align-items: center; height: 54px; border-top: 1px solid #EEE; font-size: 20px; }
 .row .tm { width: 92px; font-weight: 600; color: var(--dark); }
 .row .slot { flex: 1; position: relative; height: 38px; }
-.row .open, .row .name {
-  position: absolute; inset: 0; display: flex; align-items: center; padding: 0 16px; border-radius: 12px;
-}
-.row .open { border: 2px dashed #D5DAD7; color: #9AA39E; }
+.row .open, .row .name { position: absolute; inset: 0; display: flex; align-items: center; padding: 0 16px; border-radius: 12px; }
+.row .open { border: 2px dashed #E3A9A9; color: #C46A6A; font-weight: 500; }
 .row .name { background: var(--mint); color: var(--dark); font-weight: 500; justify-content: space-between; }
 .row .name i { font-style: normal; color: var(--club); font-weight: 600; font-size: 18px; }
+.badge { position: absolute; right: -26px; top: -26px; background: #DE5C5C; color: #fff; font-weight: 800; font-size: 26px; padding: 12px 22px; border-radius: 999px; box-shadow: 0 10px 24px rgba(0,0,0,.3); }
+.badge.ok { background: var(--lime); color: var(--dark); }
 
 .compose { width: 660px; padding: 34px 36px 36px; }
 .compose .ttl { font-family: Fraunces; font-weight: 600; font-size: 34px; color: var(--dark); margin-bottom: 22px; }
@@ -71,16 +77,10 @@ img { display: block; }
 .caret { display: inline-block; width: 2px; height: 1.05em; background: var(--club); vertical-align: -0.15em; margin-left: 1px; }
 .sendto { display: flex; justify-content: space-between; }
 .sendto b { color: var(--club); font-weight: 600; }
-.btn {
-  display: flex; align-items: center; justify-content: center; gap: 12px;
-  background: var(--lime); color: var(--dark); border-radius: 999px; font-weight: 600;
-}
+.btn { display: flex; align-items: center; justify-content: center; gap: 12px; background: var(--lime); color: var(--dark); border-radius: 999px; font-weight: 700; }
 .compose .btn { height: 64px; font-size: 22px; margin-top: 8px; }
 
-.phone {
-  width: 410px; height: 850px; border-radius: 64px; background: #0d1210; padding: 14px; box-sizing: border-box;
-  box-shadow: 0 60px 120px rgba(0,0,0,.45), inset 0 0 0 2px #2b3330;
-}
+.phone { width: 410px; height: 850px; border-radius: 64px; background: #0d1210; padding: 14px; box-sizing: border-box; box-shadow: 0 60px 120px rgba(0,0,0,.5), inset 0 0 0 2px #2b3330; }
 .phone .screen { position: relative; width: 100%; height: 100%; border-radius: 52px; overflow: hidden; background: #fff; }
 .phone .notch { position: absolute; top: 12px; left: 50%; width: 120px; height: 34px; margin-left: -60px; background: #0d1210; border-radius: 20px; z-index: 5; }
 .lock { position: absolute; inset: 0; background-size: cover; background-position: 40% center; }
@@ -88,102 +88,82 @@ img { display: block; }
 .lock .clock { position: absolute; top: 90px; width: 100%; text-align: center; z-index: 2; }
 .lock .clock b { display: block; font-size: 92px; font-weight: 500; letter-spacing: -2px; line-height: 1; }
 .lock .clock span { font-size: 19px; font-weight: 500; }
-.notif {
-  position: absolute; left: 14px; right: 14px; top: 300px; z-index: 3;
-  background: rgba(255,255,255,.88); color: var(--ink); border-radius: 26px; padding: 16px 18px;
-  display: flex; gap: 14px; box-shadow: 0 12px 30px rgba(0,0,0,.25);
-}
+.notif { position: absolute; left: 14px; right: 14px; top: 300px; z-index: 3; background: rgba(255,255,255,.9); color: var(--ink); border-radius: 26px; padding: 16px 18px; display: flex; gap: 14px; box-shadow: 0 12px 30px rgba(0,0,0,.25); }
 .notif .ic { width: 44px; height: 44px; border-radius: 11px; background: var(--dark); flex: none; display: flex; align-items: center; justify-content: center; }
 .notif .ic img { width: 34px; }
 .notif .top { display: flex; justify-content: space-between; font-size: 14px; color: #555; margin-bottom: 2px; }
 .notif b { display: block; font-size: 17px; font-weight: 600; }
 .notif p { margin: 2px 0 0; font-size: 15.5px; line-height: 1.35; color: #333; }
 
-.receipt {
-  width: 330px; padding: 30px 28px 40px; background: #FFFEFA; color: #222; font-size: 17px;
-  box-shadow: 0 30px 60px rgba(0,0,0,.35);
-  -webkit-mask: linear-gradient(#000, #000) top / 100% calc(100% - 14px) no-repeat,
-    radial-gradient(circle at 10px 0, transparent 9px, #000 10px) bottom left / 20px 14px repeat-x;
-}
+.receipt { width: 330px; padding: 30px 28px 40px; background: #FFFEFA; color: #222; font-size: 17px; box-shadow: 0 30px 60px rgba(0,0,0,.4);
+  -webkit-mask: linear-gradient(#000, #000) top / 100% calc(100% - 14px) no-repeat, radial-gradient(circle at 10px 0, transparent 9px, #000 10px) bottom left / 20px 14px repeat-x; }
 .receipt .c { text-align: center; font-weight: 600; letter-spacing: 1px; }
 .receipt .s { text-align: center; color: #777; font-size: 14px; margin: 4px 0 16px; }
 .receipt .li { display: flex; justify-content: space-between; padding: 6px 0; }
 .receipt .tot { border-top: 2px dashed #bbb; margin-top: 10px; padding-top: 12px; font-weight: 600; }
-.scanline { position: absolute; left: -10px; right: -10px; height: 4px; background: var(--lime); box-shadow: 0 0 24px 6px rgba(205,222,92,.7); border-radius: 4px; }
+.scanline { position: absolute; left: -10px; right: -10px; height: 5px; background: var(--lime); box-shadow: 0 0 30px 8px rgba(205,222,92,.8); border-radius: 4px; }
 
-.pill { display: inline-flex; align-items: center; gap: 12px; padding: 14px 26px; border-radius: 999px; font-weight: 600; white-space: nowrap; }
+.pill { display: inline-flex; align-items: center; gap: 12px; padding: 14px 26px; border-radius: 999px; font-weight: 700; white-space: nowrap; }
 .pill.lime { background: var(--lime); color: var(--dark); }
-.pill.glass { background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.22); color: #fff; }
 .pill.white { background: #fff; color: var(--dark); box-shadow: 0 16px 40px rgba(0,0,0,.25); }
-.dot { width: 12px; height: 12px; border-radius: 50%; background: var(--lime); flex: none; }
+.dot { width: 14px; height: 14px; border-radius: 50%; flex: none; }
 
-.browser { width: 1400px; border-radius: 22px; overflow: hidden; background: #fff; box-shadow: 0 60px 120px rgba(31,66,52,.28), 0 6px 18px rgba(0,0,0,.1); }
+.browser { width: 1400px; border-radius: 22px; overflow: hidden; background: #fff; box-shadow: 0 60px 120px rgba(31,66,52,.3), 0 6px 18px rgba(0,0,0,.1); }
 .browser .bar { height: 46px; background: #EEF1EE; display: flex; align-items: center; gap: 9px; padding: 0 20px; }
 .browser .bar i { width: 13px; height: 13px; border-radius: 50%; background: #D3D8D4; }
 .browser .bar .url { margin-left: 22px; background: #fff; border-radius: 9px; padding: 5px 18px; font-size: 15px; color: #6B746F; width: 420px; }
 .browser .vp { position: relative; width: 1400px; height: 875px; overflow: hidden; }
 .browser .vp img { position: absolute; inset: 0; width: 1400px; height: 875px; }
+.labelbar { position: absolute; left: 0; bottom: 70px; height: 210px; background: var(--dark); display: flex; align-items: center; padding: 0 70px 0 110px; }
+.labelbar b { font-size: 170px; font-weight: 900; letter-spacing: -0.04em; color: var(--lime); line-height: 1; white-space: nowrap; }
 
-.promo { width: 600px; }
-.promo .lbl { font-size: 18px; font-weight: 600; letter-spacing: 2px; color: var(--lime); margin-bottom: 14px; }
-.promo .lbl span { color: rgba(255,255,255,.7); font-weight: 500; letter-spacing: 0; }
-.promo img { width: 600px; height: 300px; border-radius: 26px; box-shadow: 0 40px 90px rgba(0,0,0,.4); }
-
-.node { width: 300px; text-align: center; }
-.node .ring { width: 150px; height: 150px; margin: 0 auto 26px; border-radius: 50%; background: rgba(205,222,92,.12); border: 2px solid rgba(205,222,92,.5); display: flex; align-items: center; justify-content: center; }
-.node .ring svg { width: 70px; height: 70px; }
-.node b { font-size: 28px; font-weight: 600; }
-
-.check { display: flex; align-items: center; gap: 26px; font-size: 40px; font-weight: 500; width: 720px; }
-.check .cb { width: 72px; height: 72px; border-radius: 50%; background: var(--lime); flex: none; display: flex; align-items: center; justify-content: center; }
-.check .cb svg { width: 40px; height: 40px; }
-
-.cursor { width: 40px; height: 40px; z-index: 20; }
-.vignette { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,.35)); }
+.promo { width: 640px; }
+.promo img { width: 640px; height: 320px; border-radius: 26px; box-shadow: 0 40px 90px rgba(0,0,0,.45); }
+.chev { position: absolute; font-weight: 900; font-size: 80px; color: var(--lime); line-height: 1; }
 </style>
 </head>
 <body>
 <div id="stage">
+<div id="cam">
   <!-- ======================= backgrounds ======================= -->
-  <div class="layer" id="bgDark">
-    <div class="glow" id="g1" style="width:1140px;height:1140px;background:radial-gradient(closest-side,#00805A,transparent);opacity:.55"></div>
-    <div class="glow" id="g2" style="width:940px;height:940px;background:radial-gradient(closest-side,#CDDE5C,transparent);opacity:.10"></div>
+  <div class="layer" id="bgSolid"></div>
+  <div class="layer" id="bgGlow">
+    <div class="glow" id="g1" style="width:1140px;height:1140px;background:radial-gradient(closest-side,#00805A,transparent);opacity:.6"></div>
+    <div class="glow" id="g2" style="width:940px;height:940px;background:radial-gradient(closest-side,#CDDE5C,transparent);opacity:.12"></div>
     <div class="glow" id="g3" style="width:1040px;height:1040px;background:radial-gradient(closest-side,#0f2a20,transparent);opacity:.8"></div>
+    <div class="marquee" id="mq1" style="top:40px">FLAGRR · LOYALTY · FLAGRR · LOYALTY · FLAGRR · LOYALTY ·</div>
+    <div class="marquee" id="mq2" style="top:720px">PLAY · EARN · REDEEM · REPEAT · PLAY · EARN · REDEEM · REPEAT ·</div>
   </div>
-  <div class="layer" id="bgLight">
-    <div class="glow" id="g4" style="width:1140px;height:1140px;background:radial-gradient(closest-side,#CCF2E6,transparent);opacity:.9"></div>
-    <div class="glow" id="g5" style="width:940px;height:940px;background:radial-gradient(closest-side,#CDDE5C,transparent);opacity:.22"></div>
-  </div>
-
-  <!-- ======================= S1 hook ======================= -->
-  <div class="scene" id="s1">
-    <div class="photo" id="s1photo" style="background-image:url(assets/img/strand-golf-club-fairway.jpg)"></div>
-    <div class="abs" id="s1shade" style="inset:0;background:linear-gradient(90deg,rgba(31,66,52,.92) 0%,rgba(31,66,52,.7) 42%,rgba(31,66,52,.15) 75%)"></div>
-    <div class="abs h" id="s1a" style="left:150px;top:330px;font-size:104px;" data-words>Tuesday, 2pm.</div>
-    <div class="abs h" id="s1b" style="left:150px;top:470px;font-size:76px;width:900px" data-words>Half your tee sheet is <span class="lime">empty.</span></div>
-    <div class="abs" id="s1tee" style="left:1210px;top:240px"></div>
+  <div class="layer" id="bgLight" style="background:var(--paper)">
+    <div class="glow" id="g4" style="width:1140px;height:1140px;background:radial-gradient(closest-side,#CCF2E6,transparent)"></div>
+    <div class="glow" id="g5" style="width:940px;height:940px;background:radial-gradient(closest-side,#CDDE5C,transparent);opacity:.3"></div>
   </div>
 
-  <!-- ======================= S2 push ======================= -->
-  <div class="scene" id="s2">
-    <div class="abs h" id="s2a" style="left:0;right:0;top:92px;text-align:center;font-size:62px" data-words>Send a push notification to every member's phone.</div>
-    <div class="abs h" id="s2b" style="left:0;right:0;top:92px;text-align:center;font-size:62px" data-words>Fill quiet tee times <span class="lime">the same day.</span></div>
-    <div class="abs card compose" id="s2compose" style="left:190px;top:300px">
+  <!-- ======================= hook: empty tee sheet (2–6) ======================= -->
+  <div class="scene" id="sHook">
+    <div class="photo" id="hookPhoto" style="background-image:url(assets/img/strand-golf-club-fairway.jpg)"></div>
+    <div class="abs" style="inset:0;background:linear-gradient(90deg,rgba(31,66,52,.95) 0%,rgba(31,66,52,.75) 45%,rgba(31,66,52,.2) 80%)"></div>
+    <div class="abs" id="hookTee" style="left:1240px;top:230px"></div>
+  </div>
+
+  <!-- ======================= push (8–18) ======================= -->
+  <div class="scene" id="sPush">
+    <div class="abs card compose" id="compose" style="left:190px;top:290px">
       <div class="ttl">New Notification</div>
-      <div class="field" id="s2title"></div>
-      <div class="field msg" id="s2msg"></div>
+      <div class="field" id="cTitle"></div>
+      <div class="field msg" id="cMsg"></div>
       <div class="field sendto"><span>Send to</span><b>All members · 642</b></div>
-      <div class="btn" id="s2send">Send Notification
+      <div class="btn" id="cSend">Send Notification
         <svg width="24" height="24" viewBox="0 0 24 24"><path d="M3 11.5 21 3l-7.5 18-2.6-7.4z" fill="#1F4234"/></svg></div>
     </div>
-    <div class="abs" id="s2tee" style="left:240px;top:270px"></div>
-    <div class="abs phone" id="s2phone" style="left:1250px;top:200px">
+    <div class="abs" id="pushTee" style="left:240px;top:250px"></div>
+    <div class="abs phone" id="pushPhone" style="left:1260px;top:190px">
       <div class="screen">
         <div class="notch"></div>
         <div class="lock" style="background-image:url(assets/img/strand-golf-club-tee.jpg)">
           <div class="clock"><b>14:02</b><span>Tuesday 28 October</span></div>
         </div>
-        <div class="notif" id="s2notif">
+        <div class="notif" id="notif">
           <div class="ic"><img src="assets/img/flagrr-icon-lime.png"></div>
           <div style="flex:1">
             <div class="top"><span>FLAGRR · STRAND GOLF CLUB</span><span>now</span></div>
@@ -193,111 +173,73 @@ img { display: block; }
         </div>
       </div>
     </div>
-    <svg class="abs cursor" id="s2cursor" viewBox="0 0 24 24"><path d="M4 2l15 9-6.5 1.5L16 20l-3 1.4-3.4-7.6L4 18z" fill="#fff" stroke="#1F4234" stroke-width="1.4" stroke-linejoin="round"/></svg>
+    <svg class="abs" id="cursor" width="40" height="40" viewBox="0 0 24 24"><path d="M4 2l15 9-6.5 1.5L16 20l-3 1.4-3.4-7.6L4 18z" fill="#fff" stroke="#1F4234" stroke-width="1.4" stroke-linejoin="round"/></svg>
   </div>
 
-  <!-- ======================= S3 loyalty ======================= -->
-  <div class="scene" id="s3">
-    <div class="abs h" id="s3a" style="left:150px;top:250px;font-size:80px;width:1100px" data-words>Members scan their slip.</div>
-    <div class="abs" id="s3chips" style="left:150px;top:380px;display:flex;gap:14px;font-size:24px">
-      <div class="pill glass"><span class="dot"></span>Green fees</div>
-      <div class="pill glass"><span class="dot"></span>Pro shop</div>
-      <div class="pill glass"><span class="dot"></span>Halfway house</div>
-      <div class="pill glass"><span class="dot"></span>Bar</div>
+  <!-- ======================= loyalty (18–30) ======================= -->
+  <div class="scene" id="sLoyal">
+    <div class="abs phone" id="lPhone" style="left:1300px;top:120px">
+      <div class="screen"><div class="notch"></div><img src="plates/member-home.png" style="width:382px"></div>
     </div>
-    <div class="abs h" id="s3b" style="left:150px;top:520px;font-size:62px;width:900px" data-words>They earn Flagrr Cash they spend <span class="lime">back at your club.</span></div>
-    <div class="abs h" id="s3c" style="left:150px;top:330px;font-size:64px;width:860px" data-words>Streaks, tiers and birthday bonuses bring them <span class="lime">back every week.</span></div>
-    <div class="abs phone" id="s3phone" style="left:1240px;top:130px">
-      <div class="screen"><div class="notch"></div><img id="s3home" src="plates/member-home.png" style="width:382px"></div>
-    </div>
-    <div class="abs receipt" id="s3receipt" style="left:800px;top:500px">
+    <div class="abs receipt" id="receipt" style="left:760px;top:330px">
       <div class="c">STRAND GOLF CLUB</div>
       <div class="s">Tue 28 Oct · 14:41 · Till 2</div>
       <div class="li"><span>Green fee 18H</span><span>R290.00</span></div>
       <div class="li"><span>Coffee &amp; toastie</span><span>R50.00</span></div>
       <div class="li tot"><span>TOTAL</span><span>R340.00</span></div>
-      <div class="scanline" id="s3scan"></div>
+      <div class="scanline" id="scan"></div>
     </div>
-    <div class="abs pill lime" id="s3earn" style="left:1262px;top:44px;font-size:30px;padding:18px 32px">+510 Flagrr Cash</div>
-    <div class="abs pill white" id="s3b1" style="font-size:24px"><span class="dot" style="background:#00805A"></span>7-week streak · +200 FC bonus</div>
-    <div class="abs pill white" id="s3b2" style="font-size:24px"><span class="dot" style="background:#A86C0A"></span>Gold tier · earns 1.5x</div>
-    <div class="abs pill white" id="s3b3" style="font-size:24px"><span class="dot" style="background:#CDDE5C"></span>Birthday bonus · automatic</div>
+    <div class="abs pill lime" id="earn" style="left:1225px;top:40px;font-size:40px;padding:20px 36px;font-weight:900">+510 FLAGRR CASH</div>
+    <div class="abs pill white" id="lb1" style="font-size:26px"><span class="dot" style="background:#00805A"></span>7-week streak · +200 FC bonus</div>
+    <div class="abs pill white" id="lb2" style="font-size:26px"><span class="dot" style="background:#A86C0A"></span>Gold tier · earns 1.5x</div>
+    <div class="abs pill white" id="lb3" style="font-size:26px"><span class="dot" style="background:#CDDE5C"></span>Birthday bonus · automatic</div>
   </div>
 
-  <!-- ======================= S4 dashboard ======================= -->
-  <div class="scene" id="s4" style="perspective:2400px">
-    <div class="abs h" id="s4a" style="left:0;right:0;top:78px;text-align:center;font-size:66px;color:#1F4234" data-words>One admin dashboard.</div>
-    <div class="abs h" id="s4b" style="left:0;right:0;top:78px;text-align:center;font-size:66px;color:#1F4234" data-words>Rewards. Members. Notifications. <span class="green">Fraud review.</span></div>
-    <div class="abs h" id="s4c" style="left:0;right:0;top:78px;text-align:center;font-size:66px;color:#1F4234" data-words>See what's working, <span class="green">live.</span></div>
-    <div class="abs browser" id="s4browser" style="left:260px;top:220px">
+  <!-- ======================= dashboard (30–40) ======================= -->
+  <div class="scene" id="sDash" style="perspective:2400px">
+    <div class="abs browser" id="browser" style="left:260px;top:150px">
       <div class="bar"><i></i><i></i><i></i><div class="url">flagrr.co.za/club · Strand Golf Club</div></div>
-      <div class="vp"><div id="s4zoom" style="position:absolute;inset:0;transform-origin:0 0">
-        <img id="s4d" src="plates/console-dashboard.png">
-        <img id="s4r" src="plates/console-rewards.png">
-        <img id="s4p" src="plates/console-push.png">
-        <img id="s4f" src="plates/console-fraud.png">
-        <img id="s4d2" src="plates/console-dashboard.png">
+      <div class="vp"><div id="zoom" style="position:absolute;inset:0;transform-origin:0 0">
+        <img id="vD" src="plates/console-dashboard.png">
+        <img id="vR" src="plates/console-rewards.png">
+        <img id="vP" src="plates/console-push.png">
+        <img id="vF" src="plates/console-fraud.png">
+        <img id="vD2" src="plates/console-dashboard.png">
       </div></div>
     </div>
+    <div class="labelbar" id="lbl"><b id="lblText">REWARDS</b></div>
   </div>
 
-  <!-- ======================= S5 not alone ======================= -->
-  <div class="scene" id="s5">
-    <div class="abs h" id="s5a" style="left:0;right:0;top:440px;text-align:center;font-size:110px" data-words>You're not doing this <span class="lime">alone.</span></div>
-    <div class="abs h" id="s5b" style="left:210px;right:210px;top:110px;text-align:center;font-size:60px" data-words>Flagrr runs platform-wide and club-specific promos and competitions.</div>
-    <div class="abs promo" id="s5p1" style="left:300px;top:420px">
-      <div class="lbl">PLATFORM-WIDE <span>· every partner club</span></div>
-      <img src="assets/ads/ad-platform-promo.png">
-    </div>
-    <div class="abs promo" id="s5p2" style="left:1020px;top:420px">
-      <div class="lbl">CLUB-SPECIFIC <span>· just for your members</span></div>
-      <img src="assets/ads/ad-club-competition.png">
-    </div>
-    <div class="abs h" id="s5c" style="left:200px;right:200px;top:150px;text-align:center;font-size:62px" data-words>A member with something to win plays more, and spends where they earn: <span class="lime">at your club.</span></div>
-    <svg class="abs" id="s5line" style="left:0;top:0" width="1920" height="1080">
-      <path id="s5path" d="M560 605 H1360" stroke="#CDDE5C" stroke-width="4" stroke-dasharray="2 18" stroke-linecap="round" fill="none"/>
-    </svg>
-    <div class="abs node" id="s5n1" style="left:410px;top:530px">
-      <div class="ring"><svg viewBox="0 0 24 24" fill="none" stroke="#CDDE5C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/></svg></div>
-      <b>Something to win</b></div>
-    <div class="abs node" id="s5n2" style="left:810px;top:530px">
-      <div class="ring"><svg viewBox="0 0 24 24" fill="none" stroke="#CDDE5C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 21V3l11 4-11 4"/><ellipse cx="9" cy="21" rx="6" ry="1.2"/></svg></div>
-      <b>More rounds played</b></div>
-    <div class="abs node" id="s5n3" style="left:1210px;top:530px">
-      <div class="ring"><svg viewBox="0 0 24 24" fill="none" stroke="#CDDE5C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h3"/></svg></div>
-      <b>More spend at your club</b></div>
+  <!-- ======================= promos (44–47) ======================= -->
+  <div class="scene" id="sPromo">
+    <div class="abs promo" id="pr1" style="left:250px;top:470px"><img src="assets/ads/ad-platform-promo.png"></div>
+    <div class="abs promo" id="pr2" style="left:1030px;top:470px"><img src="assets/ads/ad-club-competition.png"></div>
   </div>
 
-  <!-- ======================= S6 easy ======================= -->
-  <div class="scene" id="s6">
-    <div class="abs h" id="s6a" style="left:0;right:0;top:170px;text-align:center;font-size:84px" data-words>Simple to <span class="lime">start.</span></div>
-    <div class="abs check" id="s6c1" style="left:230px;top:420px"><div class="cb"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="#1F4234" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" pathLength="1"/></svg></div>No new hardware</div>
-    <div class="abs check" id="s6c2" style="left:1010px;top:420px"><div class="cb"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="#1F4234" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" pathLength="1"/></svg></div>No POS integration</div>
-    <div class="abs check" id="s6c3" style="left:230px;top:600px"><div class="cb"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="#1F4234" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" pathLength="1"/></svg></div>Members never pay a cent</div>
-    <div class="abs check" id="s6c4" style="left:1010px;top:600px"><div class="cb"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="#1F4234" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" pathLength="1"/></svg></div>Live within days</div>
+  <!-- ======================= partnership (58–66) ======================= -->
+  <div class="scene" id="sPartner">
+    <div class="photo" id="pPhoto" style="background-image:url(assets/img/strand-golf-club-sunset-swing.jpg);background-position:center 30%"></div>
+    <div class="abs" id="pShade" style="inset:0;background:linear-gradient(270deg,rgba(31,66,52,.95) 0%,rgba(31,66,52,.82) 42%,rgba(31,66,52,.15) 75%)"></div>
   </div>
 
-  <!-- ======================= S7 partnership ======================= -->
-  <div class="scene" id="s7">
-    <div class="photo" id="s7photo" style="background-image:url(assets/img/strand-golf-club-sunset-swing.jpg);background-position:center 30%"></div>
-    <div class="abs" style="inset:0;background:linear-gradient(270deg,rgba(31,66,52,.94) 0%,rgba(31,66,52,.8) 40%,rgba(31,66,52,.1) 72%)"></div>
-    <div class="abs h" id="s7a" style="left:860px;top:250px;font-size:66px;width:960px" data-words>We're building South Africa's number one loyalty and value app for golfers.</div>
-    <div class="abs h lime" id="s7b" style="left:860px;top:600px;font-size:66px;width:960px" data-words>With the clubs that join us.</div>
+  <!-- ======================= CTA (66–76) ======================= -->
+  <div class="scene" id="sCta">
+    <img class="abs" id="logo" src="assets/img/flagrr-logo-lime.png" style="left:610px;top:120px;width:700px">
+    <div class="abs btn" id="ctaBtn" style="left:460px;top:590px;width:1000px;height:124px;font-size:46px;font-weight:900;letter-spacing:-0.02em">BOOK A 30-MINUTE WALKTHROUGH
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#1F4234" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+    <div class="abs" id="ctaMail" style="left:0;right:0;top:770px;text-align:center;font-size:52px;font-weight:800">hello@flagrr.co.za</div>
+    <div class="abs" id="ctaPrice" style="left:0;right:0;top:860px;text-align:center;font-size:30px;font-weight:500;color:rgba(255,255,255,.75)">R2 500 for your first month · No lock-in contract</div>
   </div>
 
-  <!-- ======================= S8 CTA ======================= -->
-  <div class="scene" id="s8">
-    <img class="abs" id="s8logo" src="assets/img/flagrr-logo-lime.png" style="left:660px;top:170px;width:600px">
-    <div class="abs btn" id="s8btn" style="left:560px;top:600px;width:800px;height:110px;font-size:40px">Book a 30-minute walkthrough
-      <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#1F4234" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
-    <div class="abs" id="s8mail" style="left:0;right:0;top:760px;text-align:center;font-size:40px;font-weight:500">hello@flagrr.co.za</div>
-    <div class="abs" id="s8price" style="left:0;right:0;top:836px;text-align:center;font-size:26px;color:rgba(255,255,255,.72)">R2 500 for your first month · No lock-in contract</div>
-  </div>
-
-  <!-- ======================= overlays ======================= -->
+  <div id="dim"></div>
+  <div class="layer" id="cards"></div>
+  <div class="layer" id="slams"></div>
+  <div class="layer" id="wipes"></div>
   <img class="abs" id="mark" src="assets/img/flagrr-logo-lime.png" style="left:56px;top:40px;width:150px">
   <img class="abs" id="markDark" src="assets/img/flagrr-logo-dark-green.png" style="left:56px;top:40px;width:150px">
+</div>
   <div class="vignette" id="vig"></div>
+  <div id="flash"></div>
   <div class="layer" id="black" style="background:#000;opacity:0"></div>
 </div>
 
@@ -312,326 +254,412 @@ const ease = {
   outQuint: (x) => 1 - Math.pow(1 - x, 5),
   inOut: (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2),
   in: (x) => x * x * x,
-  back: (x) => { const c = 1.6; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); },
+  back: (x) => { const c = 1.7; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); },
 };
-// Normalised 0..1 position of t inside [a, b], eased.
 const ep = (t, a, b, e = ease.out) => e(prog(t, a, b));
 
-function pose(el, { o = 1, x = 0, y = 0, s = 1, r = 0, rx = 0, ry = 0, blur = 0 } = {}) {
+function pose(el, { o = 1, x = 0, y = 0, s = 1, sx = 1, r = 0, rx = 0, ry = 0, blur = 0 } = {}) {
   el.style.opacity = o;
-  el.style.transform = `translate3d(${x}px,${y}px,0) rotateX(${rx}deg) rotateY(${ry}deg) rotate(${r}deg) scale(${s})`;
+  el.style.transform = `translate3d(${x}px,${y}px,0) rotateX(${rx}deg) rotateY(${ry}deg) rotate(${r}deg) scale(${s * sx},${s})`;
   el.style.filter = blur > 0.05 ? `blur(${blur}px)` : 'none';
 }
-
-// Split [data-words] headings into per-word spans (keeps inline spans' colour).
-function splitWords(root) {
-  const out = [];
-  const walk = (node, parent) => {
-    for (const child of [...node.childNodes]) {
-      if (child.nodeType === 3) {
-        const parts = child.textContent.split(/(\s+)/).filter((p) => p.length);
-        const frag = document.createDocumentFragment();
-        for (const p of parts) {
-          if (/^\s+$/.test(p)) { frag.appendChild(document.createTextNode(' ')); continue; }
-          const span = document.createElement('span');
-          span.className = 'w';
-          span.textContent = p;
-          frag.appendChild(span);
-          out.push(span);
-        }
-        node.replaceChild(frag, child);
-      } else if (child.nodeType === 1) {
-        walk(child);
-      }
-    }
-  };
-  walk(root);
-  return out;
-}
-const WORDS = {};
-document.querySelectorAll('[data-words]').forEach((el) => { WORDS[el.id] = splitWords(el); });
-
-// Words rise out of a blur one after another (the reference films' signature
-// move), then the line leaves as one piece.
-function words(id, t, tIn, tOut, { stagger = 0.07, dur = 0.55, rise = 34, outDur = 0.4 } = {}) {
-  const el = $(id);
-  if (t < tIn - 0.01 || t > tOut + outDur) { el.style.visibility = 'hidden'; return; }
-  el.style.visibility = 'visible';
-  WORDS[id].forEach((w, i) => {
-    const k = ep(t, tIn + i * stagger, tIn + i * stagger + dur, ease.outQuint);
-    pose(w, { o: k, y: (1 - k) * rise, blur: (1 - k) * 14 });
-  });
-  const ko = ep(t, tOut, tOut + outDur, ease.in);
-  pose(el, { o: 1 - ko, y: -ko * 26, blur: ko * 10 });
-}
-
-// Generic in/out envelope for a block: slides from (dx,dy) and out to (ox,oy).
-function block(id, t, tIn, tOut, { dx = 0, dy = 60, ox = 0, oy = -40, dur = 0.7, outDur = 0.45, s0 = 0.96, blur = 12, e = ease.outQuint, extra } = {}) {
+// In/out envelope for a block: arrives from (dx,dy), leaves toward (ox,oy).
+function block(id, t, tIn, tOut, { dx = 0, dy = 80, ox = 0, oy = -60, dur = 0.45, outDur = 0.3, s0 = 0.9, blur = 14, e = ease.outQuint, extra } = {}) {
   const el = $(id);
   if (t < tIn || t > tOut + outDur) { el.style.visibility = 'hidden'; return 0; }
   el.style.visibility = 'visible';
-  const ki = ep(t, tIn, tIn + dur, e);
-  const ko = ep(t, tOut, tOut + outDur, ease.in);
-  const p = {
-    o: ki * (1 - ko),
-    x: (1 - ki) * dx + ko * ox,
-    y: (1 - ki) * dy + ko * oy,
-    s: mix(s0, 1, ki),
-    blur: (1 - ki) * blur + ko * blur,
-  };
+  const ki = ep(t, tIn, tIn + dur, e), ko = ep(t, tOut, tOut + outDur, ease.in);
+  const p = { o: ki * (1 - ko), x: (1 - ki) * dx + ko * ox, y: (1 - ki) * dy + ko * oy, s: mix(s0, 1, ki), blur: (1 - ki) * blur + ko * blur };
   if (extra) Object.assign(p, extra(p, ki, ko));
   pose(el, p);
   return ki * (1 - ko);
 }
-
 function scene(id, t, a, b) {
   const on = t >= a && t < b;
-  // display, not visibility: a child posed visible would override a hidden parent.
   $(id).style.display = on ? 'block' : 'none';
   return on;
 }
 
-// ---------------------------------------------------------------- tee sheet
-const TEE = [
-  ['13:00', 'J. van Wyk', 4], ['13:10', null, 4], ['13:20', null, 3], ['13:30', 'T. Nkosi', 2],
-  ['13:40', null, 4], ['13:50', null, 2], ['14:00', null, 4], ['14:10', null, 3],
+// ---------------------------------------------------------------- big type
+// Every headline in the film. anim: slam (crash in from big), up (mask
+// reveal), pop (spring from small). out: fly (blow past camera), cut, drop.
+// shake / flash add camera shake and a white flash on the hit.
+const W = 'white', L = '#CDDE5C', D = '#1F4234', G = '#00805A';
+const SLAMS = [
+  // cold open
+  { t: 0.5, o: 2.0, html: 'TUESDAY.', x: 960, y: 420, size: 250, color: W, anim: 'slam', out: 'cut', shake: 18 },
+  { t: 1.0, o: 2.0, html: '2PM.', x: 960, y: 660, size: 250, color: L, anim: 'slam', out: 'cut', shake: 18 },
+  // hook
+  { t: 2.0, o: 5.75, html: 'HALF YOUR', x: 130, y: 300, size: 150, color: W, anim: 'up', out: 'fly', align: 'l' },
+  { t: 2.5, o: 5.75, html: 'TEE SHEET', x: 130, y: 450, size: 150, color: W, anim: 'up', out: 'fly', align: 'l' },
+  { t: 3.0, o: 5.75, html: 'IS', x: 130, y: 600, size: 150, color: W, anim: 'up', out: 'fly', align: 'l' },
+  { t: 3.5, o: 5.75, html: 'EMPTY.', x: 130, y: 790, size: 260, color: L, anim: 'slam', out: 'fly', align: 'l', shake: 26, flash: 0.35 },
+  // let's fill it (on lime)
+  { t: 6.0, o: 7.75, html: "LET'S", x: 960, y: 290, size: 230, color: D, anim: 'slam', out: 'fly', shake: 14 },
+  { t: 6.5, o: 7.75, html: 'FILL', x: 960, y: 540, size: 290, color: D, anim: 'slam', out: 'fly', shake: 18 },
+  { t: 7.0, o: 7.75, html: 'IT.', x: 960, y: 800, size: 290, color: D, anim: 'slam', out: 'fly', shake: 22 },
+  // push
+  { t: 8.0, o: 9.75, html: 'ONE', x: 960, y: 280, size: 220, color: W, anim: 'slam', out: 'fly', shake: 30, flash: 0.6 },
+  { t: 8.5, o: 9.75, html: 'PUSH', x: 960, y: 530, size: 300, color: L, anim: 'slam', out: 'fly', shake: 20 },
+  { t: 9.0, o: 9.75, html: 'NOTIFICATION.', x: 960, y: 790, size: 190, color: W, anim: 'slam', out: 'fly', shake: 20 },
+  { t: 10.0, o: 14.6, html: "ONE PUSH. <span class='lime'>EVERY MEMBER'S PHONE.</span>", x: 960, y: 140, size: 76, color: W, anim: 'up', out: 'fly' },
+  { t: 15.0, o: 17.5, html: 'FULL', x: 960, y: 400, size: 340, color: L, anim: 'slam', out: 'cut', shake: 30, flash: 0.4 },
+  { t: 15.5, o: 17.5, html: 'SAME DAY.', x: 960, y: 700, size: 220, color: W, anim: 'slam', out: 'cut', shake: 20 },
+  // loyalty
+  { t: 18.0, o: 23.75, html: 'SCAN.', x: 120, y: 250, size: 230, color: W, anim: 'slam', out: 'fly', align: 'l', shake: 22, flash: 0.4 },
+  { t: 20.0, o: 23.75, html: 'EARN.', x: 120, y: 470, size: 230, color: L, anim: 'slam', out: 'fly', align: 'l', shake: 22 },
+  { t: 21.0, o: 23.75, html: 'SPEND.', x: 120, y: 690, size: 230, color: W, anim: 'slam', out: 'fly', align: 'l', shake: 22 },
+  { t: 22.0, o: 23.75, html: 'at your club.', x: 130, y: 860, size: 110, color: L, anim: 'up', out: 'fly', align: 'l', serif: true },
+  { t: 26.0, o: 29.5, html: 'THEY KEEP', x: 120, y: 360, size: 150, color: W, anim: 'up', out: 'cut', align: 'l' },
+  { t: 26.5, o: 29.5, html: 'COMING', x: 120, y: 520, size: 150, color: W, anim: 'up', out: 'cut', align: 'l' },
+  { t: 27.0, o: 29.5, html: 'BACK.', x: 120, y: 700, size: 220, color: L, anim: 'slam', out: 'cut', align: 'l', shake: 22 },
+  // dashboard (on paper)
+  { t: 30.0, o: 31.75, html: 'ONE', x: 960, y: 290, size: 230, color: D, anim: 'slam', out: 'fly', shake: 24, flash: 0.3 },
+  { t: 30.5, o: 31.75, html: 'ADMIN', x: 960, y: 540, size: 280, color: G, anim: 'slam', out: 'fly', shake: 20 },
+  { t: 31.0, o: 31.75, html: 'DASHBOARD.', x: 960, y: 790, size: 220, color: D, anim: 'slam', out: 'fly', shake: 20 },
+  { t: 38.0, o: 39.5, html: 'ALL IN', x: 960, y: 420, size: 230, color: D, anim: 'slam', out: 'cut', shake: 24 },
+  { t: 38.5, o: 39.5, html: 'ONE PLACE.', x: 960, y: 660, size: 230, color: G, anim: 'slam', out: 'cut', shake: 24 },
+  // not alone
+  { t: 40.5, o: 43.75, html: "YOU'RE NOT", x: 960, y: 420, size: 180, color: W, anim: 'up', out: 'fly' },
+  { t: 41.5, o: 43.75, html: 'ALONE.', x: 960, y: 650, size: 330, color: L, anim: 'slam', out: 'fly', shake: 26, flash: 0.3 },
+  { t: 44.0, o: 46.75, html: "FLAGRR RUNS <span class='lime'>PROMOS &amp; COMPETITIONS</span>", x: 960, y: 150, size: 82, color: W, anim: 'up', out: 'fly' },
+  { t: 44.5, o: 46.75, html: 'PLATFORM-WIDE', x: 570, y: 380, size: 74, color: L, anim: 'pop', out: 'fly' },
+  { t: 45.5, o: 46.75, html: 'AT YOUR CLUB', x: 1350, y: 380, size: 74, color: L, anim: 'pop', out: 'fly' },
+  { t: 47.0, o: 47.75, html: 'WHY?', x: 960, y: 540, size: 420, color: L, anim: 'slam', out: 'cut', shake: 34, flash: 0.5 },
+  { t: 48.0, o: 51.75, html: 'SOMETHING TO WIN', x: 960, y: 200, size: 120, color: W, anim: 'up', out: 'fly' },
+  { t: 48.75, o: 51.75, html: 'MORE ROUNDS', x: 960, y: 420, size: 120, color: W, anim: 'up', out: 'fly' },
+  { t: 49.5, o: 51.75, html: 'MORE SPEND', x: 960, y: 640, size: 120, color: W, anim: 'up', out: 'fly' },
+  { t: 50.25, o: 51.75, html: 'AT YOUR CLUB.', x: 960, y: 870, size: 170, color: L, anim: 'slam', out: 'fly', shake: 26 },
+  // simple to start
+  { t: 56.0, o: 57.75, html: 'SIMPLE', x: 960, y: 420, size: 300, color: W, anim: 'slam', out: 'fly', shake: 28, flash: 0.4 },
+  { t: 56.5, o: 57.75, html: 'TO START.', x: 960, y: 690, size: 200, color: L, anim: 'slam', out: 'fly', shake: 20 },
+  // partnership
+  { t: 58.5, o: 61.75, html: "WE'RE BUILDING", x: 790, y: 230, size: 104, color: W, anim: 'up', out: 'fly', align: 'l' },
+  { t: 59.0, o: 61.75, html: "SOUTH AFRICA'S", x: 790, y: 350, size: 104, color: W, anim: 'up', out: 'fly', align: 'l' },
+  { t: 59.5, o: 61.75, html: 'NO.1 LOYALTY', x: 790, y: 470, size: 104, color: L, anim: 'up', out: 'fly', align: 'l' },
+  { t: 60.0, o: 61.75, html: '&amp; VALUE APP', x: 790, y: 590, size: 104, color: L, anim: 'up', out: 'fly', align: 'l' },
+  { t: 60.5, o: 61.75, html: 'FOR GOLFERS.', x: 790, y: 710, size: 104, color: W, anim: 'up', out: 'fly', align: 'l' },
+  { t: 62.0, o: 65.5, html: 'BUILD IT', x: 790, y: 420, size: 220, color: W, anim: 'slam', out: 'fly', align: 'l', shake: 26, flash: 0.35 },
+  { t: 62.5, o: 65.5, html: 'WITH US.', x: 790, y: 660, size: 220, color: L, anim: 'slam', out: 'fly', align: 'l', shake: 26 },
 ];
+
+// Full-screen colour cards that hard-cut on the beat.
+const CARDS = [
+  { t: 24.0, o: 24.5, bg: G, color: W, html: 'STREAKS.', size: 300 },
+  { t: 24.5, o: 25.0, bg: L, color: D, html: 'TIERS.', size: 340 },
+  { t: 25.0, o: 25.5, bg: D, color: L, html: 'BIRTHDAY<br>BONUSES.', size: 230 },
+  { t: 52.0, o: 53.0, bg: L, color: D, html: 'NO NEW<br>HARDWARE.', size: 230, tick: true },
+  { t: 53.0, o: 54.0, bg: D, color: L, html: 'NO POS<br>INTEGRATION.', size: 210, tick: true },
+  { t: 54.0, o: 55.0, bg: G, color: W, html: 'MEMBERS<br>PAY R0.', size: 240, tick: true },
+  { t: 55.0, o: 56.0, bg: L, color: D, html: 'LIVE IN<br>DAYS.', size: 260, tick: true },
+];
+
+// Skewed colour panels that sweep across and hide a cut at time t.
+const WIPES = [
+  { t: 6.0, color: L }, { t: 17.75, color: G }, { t: 29.75, color: '#F3F6F1' }, { t: 39.75, color: D },
+  { t: 57.75, color: L }, { t: 65.75, color: G },
+];
+
+function build() {
+  for (const s of SLAMS) {
+    const el = document.createElement('div');
+    el.className = 'sl' + (s.anim === 'up' ? ' mask' : '') + (s.serif ? ' serif' : '');
+    el.innerHTML = `<span class="in">${s.html}</span>`;
+    el.style.left = s.x + 'px';
+    el.style.top = s.y + 'px';
+    el.style.fontSize = s.size + 'px';
+    el.style.color = s.color;
+    el.style.translate = s.align === 'l' ? '0 -50%' : '-50% -50%';
+    el.style.transformOrigin = s.align === 'l' ? '0% 50%' : '50% 50%';
+    $('slams').appendChild(el);
+    s.el = el;
+    s.inner = el.firstChild;
+  }
+  for (const c of CARDS) {
+    const el = document.createElement('div');
+    el.className = 'fcard';
+    el.style.background = c.bg;
+    const tick = c.tick
+      ? `<svg width="190" height="190" viewBox="0 0 24 24" style="display:block;margin:0 auto 30px"><circle cx="12" cy="12" r="11" fill="${c.color}"/><path d="M6.5 12.5l3.8 3.8 7.2-8" fill="none" stroke="${c.bg}" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" pathLength="1"/></svg>`
+      : '';
+    el.innerHTML = `<div>${tick}<b style="font-size:${c.size}px;color:${c.color}">${c.html}</b></div>`;
+    $('cards').appendChild(el);
+    c.el = el;
+    c.txt = el.querySelector('b');
+    c.svg = el.querySelector('svg');
+    c.path = el.querySelector('path');
+  }
+  for (const w of WIPES) {
+    const el = document.createElement('div');
+    el.className = 'wipe';
+    el.style.background = w.color;
+    $('wipes').appendChild(el);
+    w.el = el;
+  }
+}
+
+function poseSlams(t) {
+  for (const s of SLAMS) {
+    const flyEnd = s.out === 'cut' ? s.o : s.o + 0.28;
+    if (t < s.t || t >= flyEnd) { s.el.style.display = 'none'; continue; }
+    s.el.style.display = 'block';
+    let o = 1, sc = 1, blur = 0, iy = 0, y = 0;
+    if (s.anim === 'slam') {
+      const k = prog(t, s.t, s.t + 0.22);
+      sc = mix(2.1, 1, ease.outQuint(k)) * (1 + 0.012 * Math.sin((t - s.t) * 2));
+      o = clamp(k * 5);
+      blur = (1 - ease.out(k)) * 26;
+    } else if (s.anim === 'up') {
+      iy = (1 - ep(t, s.t, s.t + 0.4, ease.outQuint)) * 115;
+    } else if (s.anim === 'pop') {
+      const k = prog(t, s.t, s.t + 0.4);
+      sc = mix(0.3, 1, ease.back(k));
+      o = clamp(k * 4);
+    }
+    if (s.out === 'fly' && t >= s.o) {
+      const ko = prog(t, s.o, s.o + 0.28);
+      sc *= mix(1, 1.8, ease.in(ko));
+      o *= 1 - ease.in(ko);
+      blur += ko * 24;
+    }
+    // Slow push while the line holds, so nothing sits dead still.
+    sc *= 1 + Math.max(0, t - s.t - 0.25) * 0.012;
+    s.el.style.opacity = o;
+    s.el.style.transform = `translateY(${y}px) scale(${sc})`;
+    s.el.style.filter = blur > 0.05 ? `blur(${blur}px)` : 'none';
+    s.inner.style.transform = `translateY(${iy}%)`;
+  }
+}
+
+function poseCards(t) {
+  for (const c of CARDS) {
+    const on = t >= c.t && t < c.o;
+    c.el.style.display = on ? 'flex' : 'none';
+    if (!on) continue;
+    const k = prog(t, c.t, c.t + 0.2);
+    pose(c.txt, { s: mix(1.6, 1, ease.outQuint(k)) * (1 + (t - c.t) * 0.04), o: clamp(k * 5), blur: (1 - ease.out(k)) * 20 });
+    if (c.svg) {
+      pose(c.svg, { s: mix(0.2, 1, ease.back(prog(t, c.t, c.t + 0.3))) });
+      c.path.style.strokeDasharray = 1;
+      c.path.style.strokeDashoffset = 1 - ep(t, c.t + 0.08, c.t + 0.35, ease.inOut);
+    }
+  }
+}
+
+function poseWipes(t) {
+  for (const w of WIPES) {
+    const k = prog(t, w.t - 0.25, w.t + 0.25);
+    const on = k > 0 && k < 1;
+    w.el.style.display = on ? 'block' : 'none';
+    if (on) w.el.style.transform = `translateX(${mix(2400, -3080, ease.inOut(k))}px) skewX(-14deg)`;
+  }
+}
+
+// Camera shake and white flashes on every hit that asks for one.
+const HITS = [...SLAMS.filter((s) => s.shake).map((s) => ({ t: s.t, a: s.shake, f: s.flash || 0 })),
+  ...CARDS.map((c) => ({ t: c.t, a: 16, f: 0 })), { t: 12.0, a: 14, f: 0 }, { t: 12.25, a: 18, f: 0 }, { t: 66.0, a: 30, f: 0.7 }];
+function camera(t) {
+  let x = 0, y = 0, f = 0, r = 0;
+  for (const h of HITS) {
+    const d = t - h.t;
+    if (d < 0 || d > 0.6) continue;
+    const a = h.a * Math.exp(-d * 9);
+    x += a * Math.sin(d * 83 + h.t * 7);
+    y += a * Math.cos(d * 71 + h.t * 3);
+    r += a * 0.012 * Math.sin(d * 57);
+    f = Math.max(f, h.f * Math.exp(-d * 12));
+  }
+  $('cam').style.transform = `translate(${x}px,${y}px) rotate(${r}deg)`;
+  $('flash').style.opacity = f;
+}
+
+// ---------------------------------------------------------------- tee sheet
+const TEE = [['13:00', 'J. van Wyk', 4], ['13:10', null, 4], ['13:20', null, 3], ['13:30', 'T. Nkosi', 2], ['13:40', null, 4], ['13:50', null, 2], ['14:00', null, 4], ['14:10', null, 3]];
 const FILL = ['P. Steyn', 'M. Jacobs', 'S. Dlamini', 'R. Pretorius', 'L. Mokoena', 'C. Swart'];
 function buildTee(host) {
   const card = document.createElement('div');
   card.className = 'card tee';
-  card.innerHTML = `<div class="hd"><b>Tee sheet</b><span id="${host.id}Count">Tue 28 Oct · 2 of 8 booked</span></div>`;
+  card.style.position = 'relative';
+  card.innerHTML = `<div class="hd"><b>Tee sheet</b><span>Tue 28 Oct · this afternoon</span></div><div class="badge" id="${host.id}Badge">6 OPEN</div>`;
   let f = 0;
   for (const [tm, who, n] of TEE) {
-    const name = who || FILL[f++];
     const row = document.createElement('div');
     row.className = 'row';
-    row.innerHTML = `<div class="tm">${tm}</div><div class="slot"><div class="open">Open</div><div class="name"><span>${name}</span><i>${n} players</i></div></div>`;
     row.dataset.booked = who ? '1' : '0';
+    row.innerHTML = `<div class="tm">${tm}</div><div class="slot"><div class="open">Open</div><div class="name"><span>${who || FILL[f++]}</span><i>${n} players</i></div></div>`;
     card.appendChild(row);
   }
   host.appendChild(card);
 }
-buildTee($('s1tee'));
-buildTee($('s2tee'));
-
 function poseTee(hostId, t, fillStart) {
-  const rows = [...$(hostId).querySelectorAll('.row')];
-  let booked = 0, k = 0;
-  rows.forEach((row) => {
-    const open = row.querySelector('.open');
-    const name = row.querySelector('.name');
-    if (row.dataset.booked === '1') { open.style.opacity = 0; pose(name, {}); booked++; return; }
-    const at = fillStart == null ? Infinity : fillStart + k * 0.32;
+  let open = 0, k = 0;
+  for (const row of $(hostId).querySelectorAll('.row')) {
+    const o = row.querySelector('.open'), n = row.querySelector('.name');
+    if (row.dataset.booked === '1') { o.style.opacity = 0; pose(n, {}); continue; }
+    const at = fillStart == null ? null : fillStart + k * 0.25;
     k++;
-    const p = fillStart == null ? 0 : ep(t, at, at + 0.35, ease.back);
-    open.style.opacity = 1 - clamp(p * 2);
-    pose(name, { o: clamp(p * 1.4), s: mix(0.7, 1, p) });
-    if (t >= at + 0.12) booked++;
-  });
-  $(hostId + 'Count').textContent = `Tue 28 Oct · ${booked} of 8 booked`;
+    const p = at == null ? 0 : ep(t, at, at + 0.3, ease.back);
+    o.style.opacity = 1 - clamp(p * 2);
+    pose(n, { o: clamp(p * 1.4), s: mix(0.6, 1, p) });
+    if (at == null || t < at + 0.1) open++;
+  }
+  const b = $(hostId + 'Badge');
+  b.textContent = open ? `${open} OPEN` : 'FULL ✓';
+  b.className = open ? 'badge' : 'badge ok';
+  const pulse = 1 + 0.08 * Math.max(0, Math.sin(t * Math.PI * 4));
+  pose(b, { s: open ? pulse : mix(1.4, 1, ep(t, fillStart + 1.5, fillStart + 1.8, ease.back)) });
 }
 
 // ---------------------------------------------------------------- typing
 const TITLE = 'Quiet course this afternoon';
 const MSG = 'Tee off before 3pm today and earn double Flagrr Cash on your green fee.';
-function typeInto(el, text, k, showCaret, placeholder) {
+function typeInto(el, text, k, caret, ph) {
   const n = Math.round(text.length * clamp(k));
-  if (n === 0 && !showCaret) { el.innerHTML = `<span class="ph">${placeholder}</span>`; return; }
-  el.innerHTML = text.slice(0, n).replace(/&/g, '&amp;') + (showCaret ? '<span class="caret"></span>' : '');
+  if (n === 0 && !caret) { el.innerHTML = `<span class="ph">${ph}</span>`; return; }
+  el.innerHTML = text.slice(0, n) + (caret ? '<span class="caret"></span>' : '');
 }
 
-// ---------------------------------------------------------------- scenes
-const T = { s1: [0, 5.2], s2: [5.0, 13.2], s3: [13.0, 23.2], s4: [23.0, 33.2], s5: [33.0, 43.2], s6: [43.0, 48.2], s7: [48.0, 54.2], s8: [54.0, 62.0] };
-const DURATION = 62;
+// ---------------------------------------------------------------- sections
+const DURATION = 76;
 
 function backgrounds(t) {
-  // Light paper only under the console scene.
-  const light = ep(t, 22.7, 23.3, ease.inOut) * (1 - ep(t, 32.7, 33.3, ease.inOut));
-  $('bgLight').style.opacity = light;
-  pose($('g1'), { x: 1100 + Math.sin(t * 0.21) * 160, y: -200 + Math.cos(t * 0.17) * 120, o: 0.55 });
-  pose($('g2'), { x: -200 + Math.cos(t * 0.13) * 200, y: 600 + Math.sin(t * 0.19) * 120, o: 0.12 });
-  pose($('g3'), { x: 300 + Math.sin(t * 0.11) * 220, y: 200 + Math.cos(t * 0.15) * 160, o: 0.7 });
-  pose($('g4'), { x: 1200 + Math.sin(t * 0.2) * 140, y: -250 + Math.cos(t * 0.16) * 100, o: 0.9 });
-  pose($('g5'), { x: -150 + Math.cos(t * 0.14) * 160, y: 650 + Math.sin(t * 0.18) * 100, o: 0.3 });
-  $('vig').style.opacity = 1 - light;
+  const lime = t >= 6.0 && t < 8.0;
+  const light = t >= 29.75 && t < 39.75;
+  $('bgSolid').style.background = lime ? '#CDDE5C' : '#1F4234';
+  $('bgLight').style.opacity = light ? 1 : 0;
+  $('bgGlow').style.opacity = lime || light ? 0 : 1;
+  // Glows breathe with the kick while the groove plays.
+  const groove = (t > 8 && t < 40) || (t > 44 && t < 76);
+  const beat = groove ? Math.exp(-((t - 0.0) % 0.5) * 7) : 0;
+  pose($('g1'), { x: 1000 + Math.sin(t * 0.3) * 220, y: -260 + Math.cos(t * 0.23) * 160, s: 1 + beat * 0.06, o: 0.6 });
+  pose($('g2'), { x: -260 + Math.cos(t * 0.19) * 260, y: 560 + Math.sin(t * 0.27) * 160, s: 1 + beat * 0.08, o: 0.14 });
+  pose($('g3'), { x: 260 + Math.sin(t * 0.17) * 260, y: 160 + Math.cos(t * 0.21) * 200, o: 0.75 });
+  pose($('g4'), { x: 1100 + Math.sin(t * 0.3) * 160, y: -280 + Math.cos(t * 0.2) * 120, s: 1 + beat * 0.05 });
+  pose($('g5'), { x: -200 + Math.cos(t * 0.2) * 180, y: 620 + Math.sin(t * 0.25) * 120 });
+  pose($('mq1'), { x: -((t * 90) % 1800) });
+  pose($('mq2'), { x: -1800 + ((t * 70) % 1800) });
+  $('vig').style.opacity = light || lime ? 0 : 1;
 
-  const dark = t > 5.2 && t < 54 && !(t > 23.2 && t < 33.1);
-  const markIn = ep(t, 5.4, 6.0) * (1 - ep(t, 53.4, 53.9));
-  $('mark').style.opacity = dark ? markIn * 0.9 : 0;
-  $('markDark').style.opacity = t > 23.3 && t < 33.0 ? ep(t, 23.3, 23.9) * (1 - ep(t, 32.5, 33.0)) * 0.9 : 0;
-  $('black').style.opacity = ep(t, 0, 0.5) < 1 ? 1 - ep(t, 0, 0.5) : ep(t, 61.3, 62, ease.inOut);
+  const dark = t > 8 && t < 66 && !light && !(t >= 52 && t < 56) && !(t >= 24 && t < 25.5);
+  $('mark').style.opacity = dark ? 0.9 : 0;
+  $('markDark').style.opacity = light ? 0.9 : 0;
+  // Dim behind the big words that land on top of product shots.
+  const dimOn = (t >= 15 && t < 17.5) || (t >= 38 && t < 39.5);
+  const dimAt = t >= 38 ? 38 : 15;
+  $('dim').style.background = light ? 'rgba(243,246,241,.9)' : 'rgba(10,25,18,.72)';
+  $('dim').style.opacity = dimOn ? ep(t, dimAt, dimAt + 0.2) : 0;
+  $('black').style.opacity = t < 0.4 ? 1 - ep(t, 0, 0.4) : ep(t, 75.2, 76, ease.inOut);
 }
 
-function s1(t) {
-  if (!scene('s1', t, ...T.s1)) return;
-  const out = ep(t, 4.6, 5.2, ease.in);
-  pose($('s1photo'), { s: mix(1.04, 1.13, t / 5.2), x: -t * 8, blur: out * 18, o: 1 - out });
-  $('s1shade').style.opacity = 1 - out;
-  words('s1a', t, 0.35, 4.55, { stagger: 0.12, dur: 0.7 });
-  words('s1b', t, 1.35, 4.55, { stagger: 0.09, dur: 0.6 });
-  block('s1tee', t, 2.1, 4.5, { dx: 120, dy: 40, ox: 0, oy: 80, dur: 0.9, extra: (p, ki) => ({ ry: (1 - ki) * -18, rx: 4 }) });
-  poseTee('s1tee', t, null);
+function hook(t) {
+  if (!scene('sHook', t, 2.0, 6.0)) return;
+  pose($('hookPhoto'), { s: mix(1.18, 1.06, ep(t, 2.0, 3.0, ease.outQuint)) + (t - 2) * 0.01, x: -(t - 2) * 14 });
+  block('hookTee', t, 4.0, 5.75, { dx: 260, dy: 0, s0: 0.8, dur: 0.5, e: ease.back, extra: (p, ki) => ({ r: (1 - ki) * 10 + 3 }) });
+  poseTee('hookTee', t, null);
 }
 
-function s2(t) {
-  if (!scene('s2', t, ...T.s2)) return;
-  words('s2a', t, 5.3, 9.35);
-  words('s2b', t, 9.8, 12.75);
+function push(t) {
+  if (!scene('sPush', t, 9.75, 17.75)) return;
+  block('compose', t, 10.0, 12.5, { dx: -200, dy: 0, ox: -300, oy: 0, e: ease.back, dur: 0.5 });
+  typeInto($('cTitle'), TITLE, prog(t, 10.35, 10.9), t >= 10.35 && t < 10.95, 'Title');
+  typeInto($('cMsg'), MSG, prog(t, 10.95, 11.65), t >= 10.95 && t < 11.9, 'Message');
+  const press = ep(t, 11.95, 12.02) * (1 - ep(t, 12.02, 12.2));
+  pose($('cSend'), { s: 1 - press * 0.08 });
+  const ck = ep(t, 11.5, 11.95, ease.inOut);
+  pose($('cursor'), { o: t > 11.4 && t < 12.45 ? ep(t, 11.4, 11.5) * (1 - ep(t, 12.25, 12.45)) : 0, x: mix(800, 560, ck), y: mix(860, 690, ck), s: 1 - press * 0.2 });
 
-  // Compose card types the message, then the admin hits Send.
-  block('s2compose', t, 5.6, 9.3, { dx: -80, dy: 40, ox: -140, oy: 0 });
-  const kt = prog(t, 6.3, 7.1), km = prog(t, 7.2, 8.4);
-  typeInto($('s2title'), TITLE, kt, t >= 6.3 && t < 7.15, 'Title');
-  typeInto($('s2msg'), MSG, km, t >= 7.15 && t < 8.6, 'Message');
-  const press = ep(t, 8.75, 8.85) * (1 - ep(t, 8.85, 9.05));
-  pose($('s2send'), { s: 1 - press * 0.06 });
+  block('pushPhone', t, 10.25, 14.6, { dx: 0, dy: 400, oy: 300, dur: 0.6, e: ease.back, extra: (p, ki) => ({ r: (1 - ki) * -8 }) });
+  const nk = ep(t, 12.25, 12.6, ease.back);
+  pose($('notif'), { o: clamp(nk * 2), y: (1 - nk) * -160, s: mix(0.85, 1, nk) });
 
-  // Cursor glides to Send.
-  const ck = ep(t, 8.2, 8.75, ease.inOut);
-  const cursorOn = t > 8.05 && t < 9.4;
-  pose($('s2cursor'), {
-    o: cursorOn ? ep(t, 8.05, 8.25) * (1 - ep(t, 9.1, 9.4)) : 0,
-    x: mix(780, 560, ck), y: mix(840, 690, ck), s: 1 - press * 0.15,
-  });
-
-  // Phone rises, notification drops in after Send.
-  block('s2phone', t, 5.9, 12.75, { dx: 0, dy: 160, oy: 120, dur: 1.0, extra: (p, ki) => ({ rx: (1 - ki) * 10 }) });
-  const nk = ep(t, 9.0, 9.55, ease.back);
-  pose($('s2notif'), { o: clamp(nk * 1.5), y: (1 - nk) * -140, s: mix(0.9, 1, nk) });
-
-  // Tee sheet replaces the compose card and fills up.
-  block('s2tee', t, 9.6, 12.75, { dx: -60, dy: 30, oy: 60, dur: 0.8 });
-  poseTee('s2tee', t, 10.3);
+  block('pushTee', t, 12.5, 14.6, { dx: -300, dy: 0, oy: 200, e: ease.back, dur: 0.45 });
+  poseTee('pushTee', t, 13.0);
 }
 
-function s3(t) {
-  if (!scene('s3', t, ...T.s3)) return;
-  words('s3a', t, 13.3, 17.0);
-  const chips = [...$('s3chips').children];
-  $('s3chips').style.visibility = t > 13.8 && t < 17.45 ? 'visible' : 'hidden';
-  chips.forEach((c, i) => {
-    const k = ep(t, 14.0 + i * 0.16, 14.5 + i * 0.16, ease.back);
-    const ko = ep(t, 17.0, 17.4, ease.in);
-    pose(c, { o: clamp(k * 1.5) * (1 - ko), y: (1 - k) * 30 - ko * 20, s: mix(0.8, 1, k) });
-  });
-  words('s3b', t, 17.4, 19.35);
-  words('s3c', t, 19.7, 22.7);
+function loyalty(t) {
+  if (!scene('sLoyal', t, 18.0, 29.75)) return;
+  const zoom = ep(t, 25.5, 26.2, ease.inOut);
+  block('lPhone', t, 18.25, 29.5, { dx: 0, dy: 500, dur: 0.6, e: ease.back, oy: 0,
+    extra: (p, ki) => ({ s: p.s * mix(1, 1.3, zoom), x: p.x + zoom * -140, y: p.y + zoom * 170 + Math.sin(t * 1.4) * 5, r: (1 - ki) * 10 }) });
+  $('lPhone').style.visibility = t >= 24 && t < 25.5 ? 'hidden' : $('lPhone').style.visibility;
 
-  // Phone and the slip flying in to be scanned.
-  const zoom = ep(t, 19.8, 20.8, ease.inOut);
-  block('s3phone', t, 13.4, 22.65, {
-    dx: 0, dy: 200, oy: 140, dur: 1.0,
-    extra: (p, ki) => ({ s: p.s * mix(1, 1.32, zoom), x: p.x - zoom * 120, y: p.y + zoom * 150, ry: (1 - ki) * -12 }),
-  });
-  pose($('s3home'), { y: -ep(t, 17.6, 19.2, ease.inOut) * 0 });
+  const rIn = ep(t, 18.5, 18.85, ease.back), rFly = ep(t, 19.55, 19.85, ease.in);
+  $('receipt').style.visibility = t > 18.5 && t < 19.9 ? 'visible' : 'hidden';
+  pose($('receipt'), { o: clamp(rIn * 2) * (1 - rFly), x: (1 - rIn) * -500 + rFly * 640, y: rFly * 60, r: mix(-20, -4, rIn) + rFly * 10, s: mix(1, 0.3, rFly) });
+  $('scan').style.top = `${mix(8, 300, ease.inOut(prog(t, 18.9, 19.45)))}px`;
+  $('scan').style.opacity = t > 18.85 && t < 19.5 ? 1 : 0;
 
-  const rIn = ep(t, 14.7, 15.4);
-  const rFly = ep(t, 16.2, 16.75, ease.in);
-  const rOn = t > 14.7 && t < 16.8;
-  $('s3receipt').style.visibility = rOn ? 'visible' : 'hidden';
-  pose($('s3receipt'), {
-    o: rIn * (1 - rFly),
-    x: (1 - rIn) * -200 + rFly * 560, y: (1 - rIn) * 80 + rFly * 120,
-    r: mix(-8, -3, rIn) + rFly * 6, s: mix(0.9, 1, rIn) * mix(1, 0.35, rFly),
-  });
-  const sk = prog(t, 15.45, 16.1);
-  $('s3scan').style.top = `${mix(8, 300, ease.inOut(sk))}px`;
-  $('s3scan').style.opacity = t > 15.4 && t < 16.15 ? 1 : 0;
-
-  block('s3earn', t, 16.7, 19.5, { dy: 30, s0: 0.6, e: ease.back, dur: 0.5, oy: -30 });
-
-  // Retention badges float in beside the zoomed phone.
-  const spots = [[700, 610], [760, 720], [700, 830]];
-  ['s3b1', 's3b2', 's3b3'].forEach((id, i) => {
+  block('earn', t, 20.0, 23.75, { dy: 0, s0: 0.2, e: ease.back, dur: 0.4, oy: -80 });
+  const spots = [[124, 850], [586, 850], [124, 940]];
+  ['lb1', 'lb2', 'lb3'].forEach((id, i) => {
     $(id).style.left = spots[i][0] + 'px';
     $(id).style.top = spots[i][1] + 'px';
-    block(id, t, 20.5 + i * 0.3, 22.6, { dx: 80, dy: 0, s0: 0.85, e: ease.back, dur: 0.55, oy: 30 });
+    block(id, t, 27.5 + i * 0.25, 29.5, { dx: 0, dy: 60, s0: 0.6, e: ease.back, dur: 0.4, outDur: 0.01 });
   });
 }
 
-function s4(t) {
-  if (!scene('s4', t, ...T.s4)) return;
-  words('s4a', t, 23.4, 26.75);
-  words('s4b', t, 27.1, 30.75, { stagger: 0.09 });
-  words('s4c', t, 31.0, 32.6);
+function dash(t) {
+  if (!scene('sDash', t, 31.75, 39.75)) return;
+  const ki = ep(t, 32.0, 32.6, ease.outQuint);
+  $('browser').style.visibility = 'visible';
+  $('browser').style.transformOrigin = '50% 0%';
+  pose($('browser'), { o: clamp(ki * 2), y: (1 - ki) * 500 + Math.sin(t * 0.8) * 4, rx: mix(40, 6, ki), s: mix(0.85, 1, ki) * (1 + (t - 32) * 0.004) });
+  const zin = ep(t, 32.6, 33.1, ease.inOut) * (1 - ep(t, 33.6, 34.0, ease.inOut));
+  pose($('zoom'), { s: mix(1, 1.6, zin), x: -zin * 360, y: -zin * 130 });
 
-  const ki = ep(t, 23.4, 24.6, ease.outQuint);
-  const ko = ep(t, 32.55, 33.1, ease.in);
-  $('s4browser').style.visibility = 'visible';
-  pose($('s4browser'), {
-    o: ki * (1 - ko), y: (1 - ki) * 260 + ko * 120 + Math.sin(t * 0.6) * 4,
-    rx: mix(24, 7, ki) - ep(t, 25, 27, ease.inOut) * 3, s: mix(0.92, 1, ki) * (1 + (t - 23.4) * 0.003),
-  });
-  $('s4browser').style.transformOrigin = '50% 0%';
-
-  // Push into the stat cards, then pull back for the screen tour.
-  const zin = ep(t, 24.9, 26.0, ease.inOut) * (1 - ep(t, 26.6, 27.3, ease.inOut));
-  pose($('s4zoom'), { s: mix(1, 1.55, zin), x: -zin * 340, y: -zin * 120 });
-
-  const screens = [['s4d', 23.0], ['s4r', 27.4], ['s4p', 28.65], ['s4f', 29.9], ['s4d2', 31.1]];
+  const screens = [['vD', 0], ['vR', 34.0], ['vP', 35.0], ['vF', 36.0], ['vD2', 37.0]];
   screens.forEach(([id, at], i) => {
     const next = screens[i + 1] ? screens[i + 1][1] : 99;
-    const k = i === 0 ? 1 : ep(t, at, at + 0.4, ease.out);
-    const gone = t >= next + 0.4;
-    pose($(id), { o: gone ? 0 : k, x: (1 - k) * 60, blur: (1 - k) * 6 });
+    const k = i === 0 ? 1 : ep(t, at, at + 0.25, ease.outQuint);
+    pose($(id), { o: t >= next + 0.25 ? 0 : k, x: (1 - k) * 140 });
   });
+  const labels = [[34.0, 'REWARDS'], [35.0, 'MEMBER COMMS'], [36.0, 'FRAUD REVIEW'], [37.0, 'LIVE STATS']];
+  const cur = labels.filter(([at]) => t >= at).pop();
+  const on = cur && t < 38.0;
+  $('lbl').style.visibility = on ? 'visible' : 'hidden';
+  if (on) {
+    $('lblText').textContent = cur[1];
+    const k = ep(t, cur[0], cur[0] + 0.25, ease.outQuint);
+    const barIn = ep(t, 34.0, 34.3, ease.outQuint), barOut = ep(t, 37.75, 38.0, ease.in);
+    pose($('lbl'), { x: (1 - barIn) * -1600 - barOut * 1600 });
+    pose($('lblText'), { y: (1 - k) * 160, o: k });
+  }
 }
 
-function s5(t) {
-  if (!scene('s5', t, ...T.s5)) return;
-  words('s5a', t, 33.35, 35.55, { stagger: 0.1, dur: 0.7 });
-  words('s5b', t, 35.9, 39.2, { stagger: 0.06 });
-  block('s5p1', t, 36.5, 39.15, { dy: 120, dur: 0.9, extra: (p, ki) => ({ y: p.y + Math.sin(t * 1.1) * 6, rx: (1 - ki) * 20 }) });
-  block('s5p2', t, 36.85, 39.15, { dy: 120, dur: 0.9, extra: (p, ki) => ({ y: p.y + Math.cos(t * 1.1) * 6, rx: (1 - ki) * 20 }) });
-  words('s5c', t, 39.5, 42.65, { stagger: 0.06 });
-  ['s5n1', 's5n2', 's5n3'].forEach((id, i) => block(id, t, 40.0 + i * 0.45, 42.6, { dy: 50, s0: 0.8, e: ease.back, dur: 0.6 }));
-  const lk = ep(t, 40.2, 41.4, ease.inOut) * (1 - ep(t, 42.6, 43.0));
-  $('s5line').style.visibility = t > 40.2 && t < 43 ? 'visible' : 'hidden';
-  $('s5path').setAttribute('d', `M560 605 H${mix(560, 1360, ep(t, 40.2, 41.4, ease.inOut))}`);
-  $('s5path').style.strokeDashoffset = -t * 30;
-  $('s5line').style.opacity = lk;
+function promos(t) {
+  if (!scene('sPromo', t, 44.0, 47.0)) return;
+  block('pr1', t, 44.5, 46.75, { dx: -300, dy: 120, e: ease.back, dur: 0.5, extra: (p, ki) => ({ r: (1 - ki) * -12 - 2, y: p.y + Math.sin(t * 2) * 6 }) });
+  block('pr2', t, 45.5, 46.75, { dx: 300, dy: 120, e: ease.back, dur: 0.5, extra: (p, ki) => ({ r: (1 - ki) * 12 + 2, y: p.y + Math.cos(t * 2) * 6 }) });
 }
 
-function s6(t) {
-  if (!scene('s6', t, ...T.s6)) return;
-  words('s6a', t, 43.3, 47.6);
-  ['s6c1', 's6c2', 's6c3', 's6c4'].forEach((id, i) => {
-    const at = 43.9 + i * 0.55;
-    block(id, t, at, 47.6, { dx: -40, dy: 0, dur: 0.6 });
-    const path = $(id).querySelector('path');
-    path.style.strokeDasharray = 1;
-    path.style.strokeDashoffset = 1 - ep(t, at + 0.2, at + 0.6, ease.inOut);
-  });
+function partner(t) {
+  if (!scene('sPartner', t, 57.75, 65.75)) return;
+  pose($('pPhoto'), { s: mix(1.2, 1.05, ep(t, 57.75, 58.6, ease.outQuint)) + (t - 58) * 0.006, x: (t - 58) * 8 });
 }
 
-function s7(t) {
-  if (!scene('s7', t, ...T.s7)) return;
-  const kin = ep(t, 48.0, 48.8), out = ep(t, 53.6, 54.2, ease.in);
-  pose($('s7photo'), { s: mix(1.12, 1.03, prog(t, 48, 54.2)), x: (t - 48) * 6, o: kin * (1 - out), blur: (1 - kin) * 14 + out * 20 });
-  words('s7a', t, 48.5, 53.55, { stagger: 0.07 });
-  words('s7b', t, 50.9, 53.55, { stagger: 0.1, dur: 0.7 });
-}
-
-function s8(t) {
-  if (!scene('s8', t, ...T.s8)) return;
-  const k = ep(t, 54.3, 55.3, ease.outQuint);
-  pose($('s8logo'), { o: k, s: mix(0.85, 1, k), blur: (1 - k) * 20, y: (1 - k) * 30 });
-  block('s8btn', t, 55.5, 99, { dy: 40, s0: 0.85, e: ease.back, dur: 0.6, extra: (p) => ({ s: p.s * (1 + Math.max(0, Math.sin((t - 57) * 3)) * 0.015 * (t > 57 ? 1 : 0)) }) });
-  block('s8mail', t, 56.2, 99, { dy: 30 });
-  block('s8price', t, 56.7, 99, { dy: 20 });
+function cta(t) {
+  if (!scene('sCta', t, 65.75, 76)) return;
+  const k = prog(t, 66.0, 66.3);
+  pose($('logo'), { o: clamp(k * 4), s: mix(2.2, 1, ease.outQuint(k)) * (1 + Math.max(0, t - 66.3) * 0.006), blur: (1 - ease.out(k)) * 30 });
+  block('ctaBtn', t, 67.0, 99, { dy: 0, s0: 0.3, e: ease.back, dur: 0.45, extra: (p) => ({ s: p.s * (1 + (t > 68 ? 0.025 * Math.max(0, Math.sin((t - 68) * Math.PI * 2)) : 0)) }) });
+  block('ctaMail', t, 67.75, 99, { dy: 60 });
+  block('ctaPrice', t, 68.25, 99, { dy: 40 });
 }
 
 function render(t) {
   backgrounds(t);
-  s1(t); s2(t); s3(t); s4(t); s5(t); s6(t); s7(t); s8(t);
+  hook(t); push(t); loyalty(t); dash(t); promos(t); partner(t); cta(t);
+  poseSlams(t); poseCards(t); poseWipes(t); camera(t);
 }
+
+build();
+buildTee($('hookTee'));
+buildTee($('pushTee'));
 window.render = render;
 window.DURATION = DURATION;
 
-// Ready once fonts and every image are decoded, so no frame shows a fallback.
 window.ready = Promise.all([
-  document.fonts.ready,
+  document.fonts.load('900 100px Poppins'), document.fonts.load('italic 900 100px Fraunces'), document.fonts.ready,
   ...[...document.images].map((im) => im.decode().catch(() => {})),
   ...[...document.querySelectorAll('.photo,.lock')].map((el) => new Promise((res) => {
     const im = new Image();
@@ -644,11 +672,11 @@ const q = new URLSearchParams(location.search);
 if (q.has('play')) {
   window.ready.then(() => {
     const t0 = performance.now();
-    const tick = () => { const t = (performance.now() - t0) / 1000; render(t % DURATION); requestAnimationFrame(tick); };
+    const tick = () => { render(((performance.now() - t0) / 1000) % DURATION); requestAnimationFrame(tick); };
     tick();
   });
 } else {
-  render(parseFloat(q.get('t') || '0'));
+  window.ready.then(() => render(parseFloat(q.get('t') || '0')));
 }
 </script>
 </body>
