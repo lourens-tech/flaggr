@@ -1,9 +1,9 @@
-# Flagrr for Clubs — 91-second explainer
+# Flagrr for Clubs — 84-second explainer
 
 **Purpose:** cold sales pitch sent to South African golf clubs (GM, club manager, committee).
 **One job:** get the club to book a 30-minute walkthrough.
-**Format:** 16:9, 1920×1080, 30fps, 91 seconds. Big, bold kinetic type cut to a 100bpm
-electronic track, so it works with the sound on or muted (as most people will first play it in
+**Format:** 16:9, 1920×1080, 30fps, 84 seconds. Modern kinetic type cut to a ~109bpm
+house track, so it works with the sound on or muted (as most people will first play it in
 an email, WhatsApp or LinkedIn). The voiceover below is optional.
 
 ## Creative approach
@@ -14,7 +14,7 @@ an email, WhatsApp or LinkedIn). The voiceover below is optional.
   sections change with a soft blur-dissolve, and lists become glass "bento" tiles with glowing
   borders. Product pieces are pulled out of the UI: a live stat card counting up, glass label
   pills, a cursor click ripple, a glowing notification.
-- **On the beat, easy to read.** 100bpm (one beat = 0.6s). The key lines land word by word on the
+- **On the beat, easy to read.** ~109bpm (one beat = 0.55s). The key lines land word by word on the
   beat, and every line holds long enough to read. No camera shake. The track drops where the
   film turns: "One push notification", "No new hardware", the logo.
 - **Say it plain.** Every line is something a club manager would say out loud. No slogans.
@@ -31,14 +31,14 @@ an email, WhatsApp or LinkedIn). The voiceover below is optional.
 
 | # | Time | On screen | Voiceover (optional) | Visual / music |
 |---|---|---|---|---|
-| 1 | 0:00–0:10 | **Tuesday, 2pm.** / **Half your tee sheet is empty.** / **Let's fill it.** | It's Tuesday afternoon, and half your tee sheet is empty. | Words rise out of the dark, then the Strand fairway with a tee sheet showing "6 open". "Let's fill it." lands a word per beat. Filtered build, snare roll, riser, a half-beat of silence. |
-| 2 | 0:10–0:22 | **One push notification.** / **One push. Every member's phone.** / **Fully booked. Same day.** | Send one push notification to every member's phone, and fill the tee sheet the same day. | **Drop.** Admin types *"Quiet course this afternoon — tee off before 3pm and earn double Flagrr Cash"*, clicks Send (ripple). The notification lands on a phone with a glow; the slots fill on 8th notes and the badge flips to "Fully booked ✓". |
-| 3 | 0:22–0:36 | **Scan. Earn. Spend.** *At your club.* / **Reasons to come back, built in.** (Weekly streaks · Member tiers · Birthday bonuses) / **They keep coming back.** | Members scan their slip, earn Flagrr Cash, and spend it at your club. Weekly streaks, tiers and birthday bonuses keep them coming back. | A slip is scanned into the phone; a glass "+510 Flagrr Cash" pill counts up. Three glass tiles with glowing borders. Real member Home screen with streak, tier and birthday chips. |
-| 4 | 0:36–0:48 | **One admin dashboard.** / Rewards · Member comms · Fraud review · Live stats / **All in one place.** | One admin dashboard: rewards, member comms, fraud review and live stats, all in one place. | The real console rises on a 3D tilt; a glass stat card pulled out of it counts up to 184,350. Screens change every bar under a glass label pill. |
-| 5 | 0:48–1:02 | **You're not alone.** / **Flagrr runs promos & competitions** (Platform-wide · At your club) / **Why?** / Something to win → More rounds played → More spend → **At your club.** | You're not doing this alone. Flagrr runs promotions and competitions, platform-wide and at your club. Why? A member with something to win plays more rounds, and spends more, at your club. | **Breakdown**: drums drop out, bells. Promo cards (*Double Flagrr Cash Weekend*, *October Medal*) rise in, then three glass nodes joined by a glowing line, building to the second drop. |
-| 6 | 1:02–1:10 | ✓ No new hardware · ✓ No POS integration · ✓ Members pay nothing · ✓ Live in days / **Simple to start.** | No new hardware, no POS integration, members pay nothing, and you're live in days. | **Second drop.** A 2×2 glass bento grid, one tile lighting up per bar with its tick drawing in. |
-| 7 | 1:10–1:19 | **We're building South Africa's no.1 loyalty & value app for golfers.** / **Build it with us.** | We're building South Africa's number one loyalty and value app for golfers. Build it with us. | Sunset swing at Strand. Lighter groove, then a roll into the last drop. |
-| 8 | 1:19–1:31 | Flagrr logo / **Book a 30-minute walkthrough** / hello@flagrr.co.za / *R2 500 for your first month · No lock-in contract* | Book a thirty-minute walkthrough at hello@flagrr.co.za. | **Final drop.** Logo resolves out of a blur with a light sweep; the CTA button gets a glowing animated border. Final chord and ring-out. |
+| 1 | 0:00–0:09 | **Tuesday, 2pm.** / **Half your tee sheet is empty.** / **Let's fill it.** | It's Tuesday afternoon, and half your tee sheet is empty. | Words rise out of the dark, then the Strand fairway with a tee sheet showing "6 open". "Let's fill it." lands a word per beat. Filtered build, snare roll, riser, a half-beat of silence. |
+| 2 | 0:09–0:20 | **One push notification.** / **One push. Every member's phone.** / **Fully booked. Same day.** | Send one push notification to every member's phone, and fill the tee sheet the same day. | **Drop.** Admin types *"Quiet course this afternoon — tee off before 3pm and earn double Flagrr Cash"*, clicks Send (ripple). The notification lands on a phone with a glow; the slots fill on 8th notes and the badge flips to "Fully booked ✓". |
+| 3 | 0:20–0:33 | **Scan. Earn. Spend.** *At your club.* / **Reasons to come back, built in.** (Weekly streaks · Member tiers · Birthday bonuses) / **They keep coming back.** | Members scan their slip, earn Flagrr Cash, and spend it at your club. Weekly streaks, tiers and birthday bonuses keep them coming back. | A slip is scanned into the phone; a glass "+510 Flagrr Cash" pill counts up. Three glass tiles with glowing borders. Real member Home screen with streak, tier and birthday chips. |
+| 4 | 0:33–0:44 | **One admin dashboard.** / Rewards · Member comms · Fraud review · Live stats / **All in one place.** | One admin dashboard: rewards, member comms, fraud review and live stats, all in one place. | The real console rises on a 3D tilt; a glass stat card pulled out of it counts up to 184,350. Screens change every bar under a glass label pill. |
+| 5 | 0:44–0:57 | **You're not alone.** / **Flagrr runs promos & competitions** (Platform-wide · At your club) / **Why?** / Something to win → More rounds played → More spend → **At your club.** | You're not doing this alone. Flagrr runs promotions and competitions, platform-wide and at your club. Why? A member with something to win plays more rounds, and spends more, at your club. | **Breakdown**: drums drop out, bells. Promo cards (*Double Flagrr Cash Weekend*, *October Medal*) rise in, then three glass icons joined by drawn arrows, building to the second drop. |
+| 6 | 0:57–1:04 | ✓ No new hardware · ✓ No POS integration · ✓ Members pay nothing · ✓ Live in days / **Simple to start.** | No new hardware, no POS integration, members pay nothing, and you're live in days. | **Second drop.** A 2×2 glass bento grid, one tile lighting up per bar with its tick drawing in. |
+| 7 | 1:04–1:13 | **We're building South Africa's no.1 loyalty & value app for golfers.** / **Build it with us.** | We're building South Africa's number one loyalty and value app for golfers. Build it with us. | Sunset swing at Strand. Lighter groove, then a roll into the last drop. |
+| 8 | 1:13–1:24 | Flagrr logo / **Book a 30-minute walkthrough** / hello@flagrr.co.za / *R2 500 for your first month · No lock-in contract* | Book a thirty-minute walkthrough at hello@flagrr.co.za. | **Final drop.** Logo resolves out of a blur with a light sweep; the CTA button gets a glowing animated border. Final chord and ring-out. |
 
 ### Why the "not alone" beat is worded that way
 
@@ -63,9 +63,12 @@ ambition backed by a working product.
   any frame can be re-rendered exactly.
 - **Render:** `render.mjs` steps through every frame with Playwright (in parallel workers), then
   ffmpeg encodes H.264.
-- **Music/SFX:** `make-audio.py` synthesises a modern 100bpm house track (warm pad, syncopated
-  chord stabs, glassy FM-bell motif, swung hats, offbeat bass, risers, impacts) plus
-  picture-locked SFX. Slam hits,
+- **Music/SFX:** `make-audio.py` synthesises a ~109bpm house track arranged like a real song:
+  a sung vocal-chop hook with glides, two chord progressions (the second half of the first drop
+  re-harmonises the hook), a moving bassline, drum fills at every phrase end, shaker and
+  rimshots, a bell counter-melody, a breakdown where bells carry the hook, a half-time build
+  with a vocal stutter, and a whole-tone key change into the final drop. Plus picture-locked
+  SFX. Slam hits,
   card hits and wipe whooshes are read straight from the cue lists in `video.html`, so sound and
   picture can't drift. Stems are written separately so a licensed track can replace the music.
 
@@ -102,7 +105,7 @@ Check every clip's licence allows paid advertising.
 4. **Voiceover:** a warm, unhurried South African English voice (not a radio-ad read). The VO
    column above is timed to the cut.
 5. **Music:** the synthesised track is built to the cut and works as-is. For a release-grade
-   version, license a 100bpm modern house/electronic track with drops at 0:10, 1:02 and 1:19 and
+   version, license a ~109bpm modern house track with drops at 0:09, 0:57 and 1:13 and
    lay `out/sfx-only.wav` over it.
 
 ## Questions before final release

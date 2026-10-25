@@ -10,7 +10,7 @@
   append ?play to watch it in real time, or ?t=12.5 to inspect one frame.
 
   Cues are authored on a 0.5s grid (timeline units); TEMPO stretches the film
-  to 100bpm. make-audio.py reads SLAMS / CARDS / WIPES and TEMPO from this
+  to ~109bpm. make-audio.py reads SLAMS / CARDS / WIPES and TEMPO from this
   file, so sound and picture can't drift.
 -->
 <style>
@@ -44,6 +44,7 @@ img { display: block; }
 #grain { position: absolute; inset: -256px; background: url(assets/img/grain.png); mix-blend-mode: overlay; opacity: .09; pointer-events: none; }
 .vignette { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,.55)); }
 .photo { position: absolute; inset: -4%; background-size: cover; background-position: center; }
+.footage { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: none; }
 
 /* ---------- type ---------- */
 .sl { position: absolute; white-space: nowrap; font-weight: 600; letter-spacing: -0.045em; line-height: 1.02; color: var(--text); }
@@ -137,7 +138,8 @@ img { display: block; }
 
 .promo img { width: 640px; height: 320px; border-radius: 26px; box-shadow: 0 50px 100px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.12); }
 .node { width: 360px; text-align: center; }
-.node .ico { width: 132px; height: 132px; border-radius: 40px; margin: 0 auto; }
+.node .ico { width: 132px; height: 132px; border-radius: 40px; margin: 0 auto;
+  background: radial-gradient(circle at 30% 25%, #2E4A22, #12241A 70%); border: 1px solid rgba(205,222,92,.4); }
 .node .ico svg { width: 64px; height: 64px; }
 </style>
 </head>
@@ -156,6 +158,7 @@ img { display: block; }
   <!-- ======================= hook: empty tee sheet (2–6) ======================= -->
   <div class="scene" id="sHook">
     <div class="photo" id="hookPhoto" style="background-image:url(assets/img/strand-golf-club-fairway.jpg)"></div>
+    <video class="footage" id="hookVid" muted playsinline preload="auto" data-src="assets/footage/hook.webm"></video>
     <div class="abs" style="inset:0;background:linear-gradient(90deg,rgba(7,18,13,.95) 0%,rgba(7,18,13,.78) 45%,rgba(7,18,13,.25) 80%)"></div>
     <div class="abs" id="hookTee" style="left:1240px;top:230px"></div>
   </div>
@@ -247,9 +250,13 @@ img { display: block; }
   <!-- ======================= why chain (48–52) ======================= -->
   <div class="scene" id="sFlow">
     <svg class="abs" style="left:0;top:0" width="1920" height="1080">
-      <defs><linearGradient id="lg" gradientUnits="userSpaceOnUse" x1="420" y1="0" x2="1500" y2="0"><stop offset="0" stop-color="#CDDE5C"/><stop offset="1" stop-color="#7FE0B4"/></linearGradient></defs>
-      <path id="flowLine" d="M420 420 H1500" stroke="url(#lg)" stroke-width="3" fill="none" stroke-linecap="round" pathLength="1"/>
-      <circle id="flowDot" r="9" fill="#E6F28A" style="filter:drop-shadow(0 0 12px #CDDE5C)"/>
+      <defs><linearGradient id="lg" gradientUnits="userSpaceOnUse" x1="500" y1="0" x2="1420" y2="0"><stop offset="0" stop-color="#CDDE5C"/><stop offset="1" stop-color="#7FE0B4"/></linearGradient></defs>
+      <g id="seg1"><path class="segLine" d="M516 420 H862" stroke="url(#lg)" stroke-width="3" fill="none" stroke-linecap="round" pathLength="1"/>
+        <path class="segHead" d="M850 410 L866 420 L850 430" stroke="#D9EA7A" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle class="segDot" cy="420" r="6" fill="#E6F28A" style="filter:drop-shadow(0 0 10px #CDDE5C)"/></g>
+      <g id="seg2"><path class="segLine" d="M1056 420 H1402" stroke="url(#lg)" stroke-width="3" fill="none" stroke-linecap="round" pathLength="1"/>
+        <path class="segHead" d="M1390 410 L1406 420 L1390 430" stroke="#A6E8A0" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle class="segDot" cy="420" r="6" fill="#E6F28A" style="filter:drop-shadow(0 0 10px #CDDE5C)"/></g>
     </svg>
     <div class="abs node" id="n1" style="left:240px;top:354px"><div class="ico glass ring"><svg viewBox="0 0 24 24" fill="none" stroke="#CDDE5C" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/></svg></div></div>
     <div class="abs node" id="n2" style="left:780px;top:354px"><div class="ico glass ring"><svg viewBox="0 0 24 24" fill="none" stroke="#CDDE5C" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 21V3l11 4-11 4"/><ellipse cx="9" cy="21" rx="6" ry="1.2"/></svg></div></div>
@@ -259,6 +266,7 @@ img { display: block; }
   <!-- ======================= partnership (58–65.75) ======================= -->
   <div class="scene" id="sPartner">
     <div class="photo" id="pPhoto" style="background-image:url(assets/img/strand-golf-club-sunset-swing.jpg);background-position:center 30%"></div>
+    <video class="footage" id="pVid" muted playsinline preload="auto" data-src="assets/footage/partner.webm"></video>
     <div class="abs" style="inset:0;background:linear-gradient(270deg,rgba(7,18,13,.96) 0%,rgba(7,18,13,.84) 42%,rgba(7,18,13,.2) 75%)"></div>
   </div>
 
@@ -545,11 +553,11 @@ const fmt = (n) => Math.round(n).toLocaleString('en-US');
 
 // ---------------------------------------------------------------- sections
 // Cues above are authored on a 0.5s grid (120bpm). TEMPO stretches the whole
-// film to a calmer 100bpm (0.6s beats) so every line has time to be read;
-// make-audio.py reads TEMPO too and builds the track at the matching tempo.
+// film to ~109bpm (0.55s beats): quick, but every line still has time to be
+// read. make-audio.py reads TEMPO too and builds the track at the same tempo.
 const TIMELINE_END = 76;
-const TEMPO = 1.2;
-const DURATION = 91.2; // TIMELINE_END * TEMPO, in seconds
+const TEMPO = 1.1;
+const DURATION = 83.6; // TIMELINE_END * TEMPO, in seconds
 
 function atmosphere(t) {
   const groove = (t > 8 && t < 40) || (t > 44 && t < 74);
@@ -571,8 +579,25 @@ function atmosphere(t) {
   $('black').style.opacity = t < 0.4 ? 1 - ep(t, 0, 0.4) : ep(t, 75.2, 76, ease.inOut);
 }
 
+// Drone footage: if assets/footage/<slot>.webm exists it replaces the photo in
+// that scene and is seeked frame-accurately (see prep notes in README.md).
+const FOOTAGE = [...document.querySelectorAll('video.footage')].map((v) => ({ v, ok: false }));
+const seeks = [];
+function footage(id, photoId, t, t0) {
+  const f = FOOTAGE.find((x) => x.v.id === id);
+  if (!f || !f.ok) return;
+  $(photoId).style.display = 'none';
+  f.v.style.display = 'block';
+  const want = Math.min((t - t0) * TEMPO, f.v.duration - 0.05);
+  if (Math.abs(f.v.currentTime - want) > 0.001) {
+    seeks.push(new Promise((res) => f.v.addEventListener('seeked', res, { once: true })));
+    f.v.currentTime = want;
+  }
+}
+
 function hook(t) {
   if (!scene('sHook', t, 2.0, 6.0)) return;
+  footage('hookVid', 'hookPhoto', t, 2.0);
   pose($('hookPhoto'), { s: mix(1.14, 1.05, ep(t, 2.0, 3.2, ease.outQuint)) + (t - 2) * 0.008, x: -(t - 2) * 10 });
   block('hookTee', t, 4.0, 5.6, { dx: 120, dy: 0, s0: 0.92, dur: 0.7, extra: (p, ki) => ({ ry: (1 - ki) * -16 - 4, rx: 3 }) });
   poseTee('hookTee', t, null);
@@ -666,19 +691,26 @@ function flow(t) {
     block(id, t, at, 51.6, { dy: 40, s0: 0.85, dur: 0.6 });
     ring($(id).firstElementChild, t, ep(t, at, at + 0.4) * (t > at + 0.75 ? 0.35 : 1));
   });
-  const lk = ep(t, 48.2, 49.9, ease.inOut);
-  const path = $('flowLine');
-  path.style.strokeDasharray = 1;
-  path.style.strokeDashoffset = 1 - lk;
-  path.style.opacity = 1 - ep(t, 51.6, 51.95);
-  const dk = ((t - 49.9) * 0.6) % 1;
-  $('flowDot').setAttribute('cx', mix(420, 1500, t < 49.9 ? lk : dk));
-  $('flowDot').setAttribute('cy', 420);
-  $('flowDot').style.opacity = t > 48.2 && t < 51.6 ? 1 : 0;
+  // Each connector draws from one icon to the next as the next one arrives,
+  // then a small light runs along it on a loop.
+  [['seg1', 48.3, 516, 862], ['seg2', 49.05, 1056, 1402]].forEach(([id, at, x0, x1]) => {
+    const g = $(id);
+    const k = ep(t, at, at + 0.45, ease.inOut);
+    const line = g.querySelector('.segLine');
+    line.style.strokeDasharray = 1;
+    line.style.strokeDashoffset = 1 - k;
+    g.querySelector('.segHead').style.opacity = ep(t, at + 0.35, at + 0.5);
+    const dot = g.querySelector('.segDot');
+    const run = ((t - at - 0.5) * 0.9) % 1;
+    dot.setAttribute('cx', mix(x0, x1, run));
+    dot.style.opacity = t > at + 0.5 ? Math.sin(run * Math.PI) : 0;
+    g.style.opacity = 1 - ep(t, 51.6, 51.95);
+  });
 }
 
 function partner(t) {
   if (!scene('sPartner', t, 57.75, 65.75)) return;
+  footage('pVid', 'pPhoto', t, 57.75);
   pose($('pPhoto'), { s: mix(1.14, 1.05, ep(t, 57.75, 58.8, ease.outQuint)) + (t - 58) * 0.005, x: (t - 58) * 6 });
 }
 
@@ -697,9 +729,11 @@ function cta(t) {
 
 function render(seconds) {
   const t = seconds / TEMPO;
+  seeks.length = 0;
   atmosphere(t);
   hook(t); push(t); loyalty(t); dash(t); promos(t); flow(t); partner(t); cta(t);
   poseSlams(t); poseCards(t); lens(t);
+  return Promise.all(seeks); // render.mjs waits for footage frames before capturing
 }
 
 build();
@@ -709,6 +743,11 @@ window.render = render;
 window.DURATION = DURATION;
 
 window.ready = Promise.all([
+  ...FOOTAGE.map((f) => new Promise((res) => {
+    f.v.addEventListener('loadeddata', () => { f.ok = true; res(); }, { once: true });
+    f.v.addEventListener('error', () => res(), { once: true });
+    f.v.src = f.v.dataset.src;
+  })),
   document.fonts.load('600 100px Poppins'), document.fonts.load('700 100px Poppins'), document.fonts.ready,
   ...[...document.images].map((im) => im.decode().catch(() => {})),
   ...[...document.querySelectorAll('.photo,.lock')].map((el) => new Promise((res) => {
