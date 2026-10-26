@@ -1,0 +1,779 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Flagrr for Clubs</title>
+<!--
+  The whole film as one deterministic timeline: render(seconds) poses every
+  element for that moment, so render.mjs can step through it frame by frame
+  and any single frame can be re-rendered exactly. Open in a browser and
+  append ?play to watch it in real time, or ?t=12.5 to inspect one frame.
+
+  Cues are authored on a 0.5s grid (timeline units); TEMPO stretches the film
+  to ~114bpm. make-audio.py reads SLAMS / CARDS / WIPES and TEMPO from this
+  file, so sound and picture can't drift.
+-->
+<style>
+@font-face { font-family: Fraunces; src: url(assets/fonts/Fraunces_600SemiBold.ttf); font-weight: 600; }
+@font-face { font-family: Poppins; src: url(assets/fonts/Poppins_400Regular.ttf); font-weight: 400; }
+@font-face { font-family: Poppins; src: url(assets/fonts/Poppins_500Medium.ttf); font-weight: 500; }
+@font-face { font-family: Poppins; src: url(assets/fonts/Poppins_600SemiBold.ttf); font-weight: 600; }
+@font-face { font-family: Poppins; src: url(assets/fonts/Poppins_800ExtraBold.ttf); font-weight: 700; }
+
+:root {
+  --ink0: #07120D; --dark: #1F4234; --club: #00805A; --lime: #CDDE5C; --mint: #7FE0B4; --mintBg: #CCF2E6;
+  --text: #F1F6F3; --muted: rgba(241,246,243,.62);
+  --grad: linear-gradient(100deg, #E6F28A 0%, #CDDE5C 38%, #7FE0B4 100%);
+  --warn: linear-gradient(100deg, #FFB38A 0%, #F07C6B 100%);
+}
+html, body { margin: 0; background: #000; }
+#stage { position: relative; width: 1920px; height: 1080px; overflow: hidden; background: var(--ink0); font-family: Poppins, sans-serif; color: var(--text); }
+#cam { position: absolute; inset: 0; transform-origin: 50% 50%; }
+.layer, .scene { position: absolute; inset: 0; }
+.scene { display: none; }
+.abs { position: absolute; }
+img { display: block; }
+
+/* ---------- atmosphere ---------- */
+.aurora { position: absolute; border-radius: 50%; mix-blend-mode: screen; }
+#dots { position: absolute; inset: -60px; opacity: .55;
+  background-image: radial-gradient(rgba(205,222,92,.22) 1.3px, transparent 1.8px); background-size: 44px 44px;
+  -webkit-mask: radial-gradient(ellipse 70% 60% at 50% 45%, #000 0%, transparent 75%); }
+#beam { position: absolute; left: 50%; top: -300px; width: 1800px; height: 1400px; margin-left: -900px;
+  background: conic-gradient(from 180deg at 50% 0%, transparent 160deg, rgba(205,222,92,.07) 175deg, rgba(255,255,255,.10) 180deg, rgba(127,224,180,.07) 185deg, transparent 200deg); }
+#grain { position: absolute; inset: -256px; background: url(assets/img/grain.png); mix-blend-mode: overlay; opacity: .09; pointer-events: none; }
+.vignette { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,.55)); }
+.photo { position: absolute; inset: -4%; background-size: cover; background-position: center; }
+.footage { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: none; }
+
+/* ---------- type ---------- */
+.sl { position: absolute; white-space: nowrap; font-weight: 600; letter-spacing: -0.045em; line-height: 1.02; color: var(--text); }
+.sl .w { display: inline-block; white-space: pre; will-change: transform, opacity, filter; padding-bottom: 0.06em; }
+.gr { background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.warn { background: var(--warn); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.muted { color: var(--muted); }
+
+/* ---------- glass ---------- */
+.glass { border-radius: 28px;
+  background: linear-gradient(180deg, rgba(255,255,255,.085), rgba(255,255,255,.025));
+  border: 1px solid rgba(255,255,255,.12);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.14), 0 30px 80px rgba(0,0,0,.45); }
+.glass:not(.abs), .ring:not(.abs) { position: relative; }
+.ring::before { content: ''; position: absolute; inset: -1px; border-radius: inherit; padding: 2px;
+  background: conic-gradient(from var(--a, 0deg), transparent 0deg, #CDDE5C 60deg, #7FE0B4 120deg, transparent 200deg);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude;
+  opacity: var(--ro, 0); }
+.ring::after { content: ''; position: absolute; inset: 0; border-radius: inherit; box-shadow: 0 0 60px rgba(205,222,92,.25); opacity: var(--ro, 0); pointer-events: none; }
+.ico { width: 76px; height: 76px; border-radius: 22px; display: flex; align-items: center; justify-content: center;
+  background: radial-gradient(circle at 30% 25%, rgba(205,222,92,.35), rgba(205,222,92,.08)); border: 1px solid rgba(205,222,92,.35); }
+.ico svg { width: 40px; height: 40px; }
+.tile { padding: 38px 40px; box-sizing: border-box; }
+.tile h3 { margin: 26px 0 8px; font-size: 50px; font-weight: 600; letter-spacing: -0.035em; line-height: 1.05; }
+.tile p { margin: 0; font-size: 25px; color: var(--muted); line-height: 1.35; }
+.tag { display: inline-flex; align-items: center; gap: 16px; padding: 18px 34px 18px 26px; border-radius: 999px; font-size: 44px; font-weight: 600; letter-spacing: -0.03em; white-space: nowrap; }
+.tag .dot { width: 16px; height: 16px; border-radius: 50%; background: var(--lime); box-shadow: 0 0 18px var(--lime); }
+.chip { display: inline-flex; align-items: center; gap: 12px; padding: 14px 26px; border-radius: 999px; font-size: 24px; font-weight: 500; white-space: nowrap; }
+.chip i { width: 10px; height: 10px; border-radius: 50%; background: var(--lime); box-shadow: 0 0 12px var(--lime); }
+.eyebrow { font-size: 22px; font-weight: 600; letter-spacing: .18em; text-transform: uppercase; color: var(--lime); }
+
+/* ---------- product pieces (real UI, white) ---------- */
+.card { background: #fff; color: #1F1F1F; border-radius: 28px; box-shadow: 0 50px 100px rgba(0,0,0,.5), 0 0 0 1px rgba(255,255,255,.08); }
+.tee { width: 560px; padding: 28px 30px 18px; position: relative; }
+.tee .hd { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 14px; }
+.tee .hd b { font-family: Fraunces; font-weight: 600; font-size: 30px; color: var(--dark); }
+.tee .hd span { font-size: 18px; color: #5E5E5E; }
+.row { display: flex; align-items: center; height: 54px; border-top: 1px solid #EEE; font-size: 20px; }
+.row .tm { width: 92px; font-weight: 600; color: var(--dark); }
+.row .slot { flex: 1; position: relative; height: 38px; }
+.row .open, .row .name { position: absolute; inset: 0; display: flex; align-items: center; padding: 0 16px; border-radius: 12px; }
+.row .open { border: 2px dashed #E3A9A9; color: #C46A6A; font-weight: 500; }
+.row .name { background: var(--mintBg); color: var(--dark); font-weight: 500; justify-content: space-between; }
+.row .name i { font-style: normal; color: var(--club); font-weight: 600; font-size: 18px; }
+.badge { position: absolute; right: -22px; top: -22px; background: #E0685E; color: #fff; font-weight: 600; font-size: 22px; padding: 10px 20px; border-radius: 999px; box-shadow: 0 10px 24px rgba(0,0,0,.3); }
+.badge.ok { background: var(--lime); color: var(--dark); box-shadow: 0 0 40px rgba(205,222,92,.6); }
+
+.compose { width: 660px; padding: 34px 36px 36px; }
+.compose .ttl { font-family: Fraunces; font-weight: 600; font-size: 34px; color: var(--dark); margin-bottom: 22px; }
+.field { background: #F5F6F8; border-radius: 16px; padding: 16px 20px; font-size: 21px; color: #1F1F1F; margin-bottom: 14px; min-height: 30px; }
+.field.msg { min-height: 64px; line-height: 1.45; }
+.field .ph { color: #9AA39E; }
+.caret { display: inline-block; width: 2px; height: 1.05em; background: var(--club); vertical-align: -0.15em; margin-left: 1px; }
+.sendto { display: flex; justify-content: space-between; }
+.sendto b { color: var(--club); font-weight: 600; }
+.btn { display: flex; align-items: center; justify-content: center; gap: 12px; background: var(--lime); color: var(--dark); border-radius: 999px; font-weight: 600; }
+.compose .btn { height: 64px; font-size: 22px; margin-top: 8px; position: relative; }
+
+.phone { width: 410px; height: 850px; border-radius: 64px; background: #0d1210; padding: 14px; box-sizing: border-box;
+  box-shadow: 0 70px 140px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.14), inset 0 0 0 2px #2b3330, 0 0 120px rgba(127,224,180,.10); }
+.phone .screen { position: relative; width: 100%; height: 100%; border-radius: 52px; overflow: hidden; background: #fff; }
+.phone .screen::after { content: ''; position: absolute; inset: 0; background: linear-gradient(115deg, rgba(255,255,255,.16) 0%, transparent 30%); pointer-events: none; z-index: 6; }
+.phone .notch { position: absolute; top: 12px; left: 50%; width: 120px; height: 34px; margin-left: -60px; background: #0d1210; border-radius: 20px; z-index: 5; }
+.lock { position: absolute; inset: 0; background-size: cover; background-position: 40% center; }
+.lock::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,.35), rgba(0,0,0,.05) 45%, rgba(0,0,0,.35)); }
+.lock .clock { position: absolute; top: 90px; width: 100%; text-align: center; z-index: 2; color: #fff; }
+.lock .clock b { display: block; font-size: 92px; font-weight: 500; letter-spacing: -2px; line-height: 1; }
+.lock .clock span { font-size: 19px; font-weight: 500; }
+.notif { position: absolute; left: 14px; right: 14px; top: 300px; z-index: 3; background: rgba(255,255,255,.92); color: #1F1F1F; border-radius: 26px; padding: 16px 18px; display: flex; gap: 14px; }
+.notif .ic { width: 44px; height: 44px; border-radius: 11px; background: var(--dark); flex: none; display: flex; align-items: center; justify-content: center; }
+.notif .ic img { width: 34px; }
+.notif .top { display: flex; justify-content: space-between; font-size: 14px; color: #555; margin-bottom: 2px; }
+.notif b { display: block; font-size: 17px; font-weight: 600; }
+.notif p { margin: 2px 0 0; font-size: 15.5px; line-height: 1.35; color: #333; }
+
+.receipt { width: 330px; padding: 30px 28px 40px; background: #FFFEFA; color: #222; font-size: 17px; box-shadow: 0 30px 60px rgba(0,0,0,.5);
+  -webkit-mask: linear-gradient(#000, #000) top / 100% calc(100% - 14px) no-repeat, radial-gradient(circle at 10px 0, transparent 9px, #000 10px) bottom left / 20px 14px repeat-x; }
+.receipt .c { text-align: center; font-weight: 600; letter-spacing: 1px; }
+.receipt .s { text-align: center; color: #777; font-size: 14px; margin: 4px 0 16px; }
+.receipt .li { display: flex; justify-content: space-between; padding: 6px 0; }
+.receipt .tot { border-top: 2px dashed #bbb; margin-top: 10px; padding-top: 12px; font-weight: 600; }
+.scanline { position: absolute; left: -10px; right: -10px; height: 4px; background: var(--lime); box-shadow: 0 0 30px 8px rgba(205,222,92,.8); border-radius: 4px; }
+
+.browser { width: 1400px; border-radius: 22px; overflow: hidden; background: #fff;
+  box-shadow: 0 80px 160px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.12), 0 0 200px rgba(127,224,180,.12); }
+.browser .bar { height: 46px; background: #EEF1EE; display: flex; align-items: center; gap: 9px; padding: 0 20px; }
+.browser .bar i { width: 13px; height: 13px; border-radius: 50%; background: #D3D8D4; }
+.browser .bar .url { margin-left: 22px; background: #fff; border-radius: 9px; padding: 5px 18px; font-size: 15px; color: #6B746F; width: 420px; }
+.browser .vp { position: relative; width: 1400px; height: 875px; overflow: hidden; }
+.browser .vp img { position: absolute; inset: 0; width: 1400px; height: 875px; }
+
+.promo img { width: 640px; height: 320px; border-radius: 26px; box-shadow: 0 50px 100px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.12); }
+.social { width: 78px; height: 78px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+.social svg { width: 38px; height: 38px; }
+.node { width: 360px; text-align: center; }
+.node .ico { width: 132px; height: 132px; border-radius: 40px; margin: 0 auto;
+  background: radial-gradient(circle at 30% 25%, #2E4A22, #12241A 70%); border: 1px solid rgba(205,222,92,.4); }
+.node .ico svg { width: 64px; height: 64px; }
+</style>
+</head>
+<body>
+<div id="stage">
+<div id="cam">
+  <!-- ======================= atmosphere ======================= -->
+  <div class="layer" id="atmos">
+    <div class="aurora" id="a1" style="width:1500px;height:1100px;background:radial-gradient(closest-side,rgba(0,128,90,.85),transparent)"></div>
+    <div class="aurora" id="a2" style="width:1100px;height:900px;background:radial-gradient(closest-side,rgba(205,222,92,.35),transparent)"></div>
+    <div class="aurora" id="a3" style="width:1300px;height:1000px;background:radial-gradient(closest-side,rgba(31,166,122,.45),transparent)"></div>
+    <div id="dots"></div>
+    <div id="beam"></div>
+  </div>
+
+  <!-- ======================= hook: empty tee sheet (2–6) ======================= -->
+  <div class="scene" id="sHook">
+    <div class="photo" id="hookPhoto" style="background-image:url(assets/img/strand-golf-club-fairway.jpg)"></div>
+    <video class="footage" id="hookVid" muted playsinline preload="auto" data-src="assets/footage/hook.webm"></video>
+    <div class="abs" style="inset:0;background:linear-gradient(90deg,rgba(7,18,13,.95) 0%,rgba(7,18,13,.78) 45%,rgba(7,18,13,.25) 80%)"></div>
+    <div class="abs" id="hookTee" style="left:1240px;top:230px"></div>
+  </div>
+
+  <!-- ======================= push (10–17.5) ======================= -->
+  <div class="scene" id="sPush">
+    <div class="abs card compose" id="compose" style="left:190px;top:300px">
+      <div class="ttl">New Notification</div>
+      <div class="field" id="cTitle"></div>
+      <div class="field msg" id="cMsg"></div>
+      <div class="field sendto"><span>Send to</span><b>All members · 642</b></div>
+      <div class="btn" id="cSend">Send Notification
+        <svg width="24" height="24" viewBox="0 0 24 24"><path d="M3 11.5 21 3l-7.5 18-2.6-7.4z" fill="#1F4234"/></svg></div>
+    </div>
+    <div class="abs" id="ripple" style="left:520px;top:690px;width:120px;height:120px;margin:-60px 0 0 -60px;border-radius:50%;border:3px solid #CDDE5C"></div>
+    <div class="abs" id="pushTee" style="left:240px;top:260px"></div>
+    <div class="abs phone" id="pushPhone" style="left:1260px;top:190px">
+      <div class="screen">
+        <div class="notch"></div>
+        <div class="lock" style="background-image:url(assets/img/strand-golf-club-tee.jpg)">
+          <div class="clock"><b>14:02</b><span>Tuesday 28 October</span></div>
+        </div>
+        <div class="notif" id="notif">
+          <div class="ic"><img src="assets/img/flagrr-icon-lime.png"></div>
+          <div style="flex:1">
+            <div class="top"><span>FLAGRR · STRAND GOLF CLUB</span><span>now</span></div>
+            <b>Quiet course this afternoon</b>
+            <p>Tee off before 3pm today and earn double Flagrr Cash on your green fee.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <svg class="abs" id="cursor" width="40" height="40" viewBox="0 0 24 24"><path d="M4 2l15 9-6.5 1.5L16 20l-3 1.4-3.4-7.6L4 18z" fill="#fff" stroke="#07120D" stroke-width="1.4" stroke-linejoin="round"/></svg>
+  </div>
+
+  <!-- ======================= loyalty (18–29.75) ======================= -->
+  <div class="scene" id="sLoyal">
+    <div class="abs phone" id="lPhone" style="left:1300px;top:120px">
+      <div class="screen"><div class="notch"></div><img src="plates/member-home.png" style="width:382px"></div>
+    </div>
+    <div class="abs receipt" id="receipt" style="left:880px;top:400px">
+      <div class="c">STRAND GOLF CLUB</div>
+      <div class="s">Tue 28 Oct · 14:41 · Till 2</div>
+      <div class="li"><span>Green fee 18H</span><span>R290.00</span></div>
+      <div class="li"><span>Coffee &amp; toastie</span><span>R50.00</span></div>
+      <div class="li tot"><span>TOTAL</span><span>R340.00</span></div>
+      <div class="scanline" id="scan"></div>
+    </div>
+    <div class="abs glass ring tag" id="earn" style="left:1215px;top:18px;font-size:38px"><span class="dot"></span><span>+<b id="earnN" style="font-weight:600">510</b> Flagrr Cash</span></div>
+    <div class="abs glass chip" id="lb1"><i></i>7-week streak · +200 FC bonus</div>
+    <div class="abs glass chip" id="lb2"><i></i>Gold tier · earns 1.5x</div>
+    <div class="abs glass chip" id="lb3"><i></i>Birthday bonus · automatic</div>
+  </div>
+
+  <!-- ======================= dashboard (31.75–39.75) ======================= -->
+  <div class="scene" id="sDash" style="perspective:2400px">
+    <div class="abs browser" id="browser" style="left:260px;top:170px">
+      <div class="bar"><i></i><i></i><i></i><div class="url">flagrr.com/club · Strand Golf Club</div></div>
+      <div class="vp"><div id="zoom" style="position:absolute;inset:0;transform-origin:0 0">
+        <img id="vD" src="plates/console-dashboard.png">
+        <img id="vR" src="plates/console-rewards.png">
+        <img id="vP" src="plates/console-push.png">
+        <img id="vF" src="plates/console-fraud.png">
+        <img id="vD2" src="plates/console-dashboard.png">
+      </div></div>
+    </div>
+    <div class="abs glass ring" id="stat" style="left:1230px;top:90px;width:560px;padding:30px 34px;box-sizing:border-box;background:linear-gradient(180deg,rgba(20,40,32,.92),rgba(10,24,18,.92))">
+      <div class="eyebrow" style="font-size:18px">Flagrr Cash earned · this month</div>
+      <div style="display:flex;align-items:baseline;gap:18px;margin-top:10px">
+        <b id="statN" style="font-size:84px;font-weight:600;letter-spacing:-0.04em">184,350</b>
+        <span class="chip" style="padding:8px 16px;font-size:22px;background:rgba(205,222,92,.15);color:#CDDE5C">↑ 23%</span>
+      </div>
+    </div>
+    <div class="abs glass ring tag" id="lbl" style="left:140px;top:870px;background:linear-gradient(180deg,rgba(20,40,32,.94),rgba(10,24,18,.94))"><span class="dot"></span><span id="lblText">Rewards</span></div>
+  </div>
+
+  <!-- ======================= promos (44–47) ======================= -->
+  <div class="scene" id="sPromo">
+    <div class="abs promo" id="pr1" style="left:250px;top:430px">
+      <div class="glass chip" style="margin-bottom:22px"><i></i>Platform-wide · every partner club</div>
+      <img src="assets/ads/ad-platform-promo.png">
+    </div>
+    <div class="abs promo" id="pr2" style="left:1030px;top:430px">
+      <div class="glass chip" style="margin-bottom:22px"><i></i>At your club · just for your members</div>
+      <img src="assets/ads/ad-club-competition.png">
+    </div>
+  </div>
+
+  <!-- ======================= why chain (48–52) ======================= -->
+  <div class="scene" id="sFlow">
+    <svg class="abs" style="left:0;top:0" width="1920" height="1080">
+      <defs><linearGradient id="lg" gradientUnits="userSpaceOnUse" x1="500" y1="0" x2="1420" y2="0"><stop offset="0" stop-color="#CDDE5C"/><stop offset="1" stop-color="#7FE0B4"/></linearGradient></defs>
+      <g id="seg1"><path class="segLine" d="M516 420 H862" stroke="url(#lg)" stroke-width="3" fill="none" stroke-linecap="round" pathLength="1"/>
+        <path class="segHead" d="M850 410 L866 420 L850 430" stroke="#D9EA7A" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle class="segDot" cy="420" r="6" fill="#E6F28A" style="filter:drop-shadow(0 0 10px #CDDE5C)"/></g>
+      <g id="seg2"><path class="segLine" d="M1056 420 H1402" stroke="url(#lg)" stroke-width="3" fill="none" stroke-linecap="round" pathLength="1"/>
+        <path class="segHead" d="M1390 410 L1406 420 L1390 430" stroke="#A6E8A0" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle class="segDot" cy="420" r="6" fill="#E6F28A" style="filter:drop-shadow(0 0 10px #CDDE5C)"/></g>
+    </svg>
+    <div class="abs node" id="n1" style="left:240px;top:354px"><div class="ico glass ring"><svg viewBox="0 0 24 24" fill="none" stroke="#CDDE5C" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/></svg></div></div>
+    <div class="abs node" id="n2" style="left:780px;top:354px"><div class="ico glass ring"><svg viewBox="0 0 24 24" fill="none" stroke="#CDDE5C" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 21V3l11 4-11 4"/><ellipse cx="9" cy="21" rx="6" ry="1.2"/></svg></div></div>
+    <div class="abs node" id="n3" style="left:1320px;top:354px"><div class="ico glass ring"><svg viewBox="0 0 24 24" fill="none" stroke="#CDDE5C" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h3"/></svg></div></div>
+  </div>
+
+  <!-- ======================= partnership (58–65.75) ======================= -->
+  <div class="scene" id="sPartner">
+    <div class="photo" id="pPhoto" style="background-image:url(assets/img/strand-golf-club-sunset-swing.jpg);background-position:center 30%"></div>
+    <video class="footage" id="pVid" muted playsinline preload="auto" data-src="assets/footage/partner.webm"></video>
+    <div class="abs" style="inset:0;background:linear-gradient(270deg,rgba(7,18,13,.96) 0%,rgba(7,18,13,.84) 42%,rgba(7,18,13,.2) 75%)"></div>
+  </div>
+
+  <!-- ======================= CTA (65.75–76) ======================= -->
+  <div class="scene" id="sCta">
+    <div class="abs" id="logoWrap" style="left:640px;top:150px;width:640px;height:332px">
+      <img id="logo" src="assets/img/flagrr-logo-lime.png" style="width:640px">
+      <div id="shine" style="position:absolute;inset:0;background:linear-gradient(105deg,transparent 40%,rgba(255,255,255,.85) 50%,transparent 60%) no-repeat;background-size:1400px 100%;
+        -webkit-mask:url(assets/img/flagrr-logo-lime.png) 0 0/640px auto no-repeat;mix-blend-mode:screen"></div>
+    </div>
+    <div class="abs ring" id="ctaBtn" style="left:510px;top:590px;width:900px;height:116px;border-radius:999px">
+      <div class="btn" style="position:absolute;inset:0;font-size:40px;letter-spacing:-0.02em;box-shadow:0 0 80px rgba(205,222,92,.35)">Book a 30-minute walkthrough
+        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#1F4234" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+    </div>
+    <div class="abs" id="ctaUrl" style="left:0;right:0;top:760px;text-align:center;font-size:48px;font-weight:600;letter-spacing:-0.03em">www.flagrr.com</div>
+    <div class="abs" id="ctaSocial" style="left:0;right:0;top:912px;display:flex;justify-content:center;gap:26px">
+      <div class="glass social"><svg viewBox="0 0 24 24"><path d="M13.5 21v-7.5h2.6l.4-3h-3V8.6c0-.9.3-1.5 1.6-1.5h1.6V4.4c-.3 0-1.2-.1-2.3-.1-2.3 0-3.9 1.4-3.9 4v2.2H8v3h2.5V21z" fill="#CDDE5C"/></svg></div>
+      <div class="glass social"><svg viewBox="0 0 24 24" fill="none" stroke="#CDDE5C" stroke-width="1.9"><rect x="3.5" y="3.5" width="17" height="17" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.2" cy="6.8" r="0.9" fill="#CDDE5C" stroke="none"/></svg></div>
+    </div>
+    <div class="abs" id="ctaPrice" style="left:0;right:0;top:846px;text-align:center;font-size:28px;font-weight:500;color:var(--muted)">R2 500 for your first month · No lock-in contract</div>
+  </div>
+
+  <div class="layer" id="dim" style="background:radial-gradient(ellipse at center,rgba(7,18,13,.82),rgba(7,18,13,.95));opacity:0"></div>
+  <div class="layer" id="cards"></div>
+  <div class="layer" id="slams"></div>
+  <img class="abs" id="mark" src="assets/img/flagrr-logo-lime.png" style="left:56px;top:40px;width:140px">
+</div>
+  <div id="grain"></div>
+  <div class="vignette"></div>
+  <div class="layer" id="black" style="background:#000;opacity:0"></div>
+</div>
+
+<script>
+// ---------------------------------------------------------------- helpers
+const $ = (id) => document.getElementById(id);
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const prog = (t, a, b) => clamp((t - a) / (b - a));
+const mix = (a, b, k) => a + (b - a) * k;
+const ease = {
+  out: (x) => 1 - Math.pow(1 - x, 3),
+  outQuint: (x) => 1 - Math.pow(1 - x, 5),
+  inOut: (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2),
+  in: (x) => x * x * x,
+  back: (x) => { const c = 1.4; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); },
+};
+const ep = (t, a, b, e = ease.out) => e(prog(t, a, b));
+
+function pose(el, { o = 1, x = 0, y = 0, s = 1, r = 0, rx = 0, ry = 0, blur = 0 } = {}) {
+  el.style.opacity = o;
+  el.style.transform = `translate3d(${x}px,${y}px,0) rotateX(${rx}deg) rotateY(${ry}deg) rotate(${r}deg) scale(${s})`;
+  el.style.filter = blur > 0.05 ? `blur(${blur}px)` : 'none';
+}
+// In/out envelope for a block: arrives from (dx,dy) out of a blur, leaves the same way.
+function block(id, t, tIn, tOut, { dx = 0, dy = 60, ox = 0, oy = -30, dur = 0.6, outDur = 0.35, s0 = 0.96, blur = 16, e = ease.outQuint, extra } = {}) {
+  const el = $(id);
+  if (t < tIn || t > tOut + outDur) { el.style.visibility = 'hidden'; return 0; }
+  el.style.visibility = 'visible';
+  const ki = ep(t, tIn, tIn + dur, e), ko = ep(t, tOut, tOut + outDur, ease.inOut);
+  const p = { o: ki * (1 - ko), x: (1 - ki) * dx + ko * ox, y: (1 - ki) * dy + ko * oy, s: mix(s0, 1, ki), blur: (1 - ki) * blur + ko * blur };
+  if (extra) Object.assign(p, extra(p, ki, ko));
+  pose(el, p);
+  return ki * (1 - ko);
+}
+function scene(id, t, a, b) {
+  const on = t >= a && t < b;
+  $(id).style.display = on ? 'block' : 'none';
+  return on;
+}
+// Animated gradient ring: --a spins the conic border, --ro fades it.
+function ring(el, t, strength) {
+  el.style.setProperty('--a', `${(t * 90) % 360}deg`);
+  el.style.setProperty('--ro', strength);
+}
+
+// ---------------------------------------------------------------- type
+// Every headline. Words rise out of a blur one after another; `step` sets the
+// gap between words (0.5 = one word per beat). Wrap a word in
+// <span class='gr'> for the lime-to-mint gradient, 'warn' for coral.
+// hit: make-audio.py puts an accent under the line (per word when step: 0.5).
+const SLAMS = [
+  // cold open
+  { t: 0.5, o: 1.85, html: 'Tuesday,', x: 960, y: 420, size: 190, hit: true },
+  { t: 1.0, o: 1.85, html: "<span class='gr'>2pm.</span>", x: 960, y: 630, size: 190, hit: true },
+  // hook
+  { t: 2.0, o: 5.6, html: 'Half your', x: 130, y: 330, size: 140, align: 'l' },
+  { t: 2.5, o: 5.6, html: 'tee sheet', x: 130, y: 480, size: 140, align: 'l' },
+  { t: 3.25, o: 5.6, html: "is <span class='warn'>empty.</span>", x: 130, y: 640, size: 170, align: 'l', hit: true },
+  // let's fill it
+  { t: 6.0, o: 7.6, html: "Let's fill <span class='gr'>it.</span>", x: 960, y: 540, size: 220, step: 0.5, hit: true },
+  // push
+  { t: 8.0, o: 9.6, html: "One <span class='gr'>push</span> notification.", x: 960, y: 540, size: 150, step: 0.5, hit: true },
+  { t: 10.0, o: 14.55, html: "One push. <span class='gr'>Every member's phone.</span>", x: 960, y: 140, size: 64, step: 0.06 },
+  { t: 15.0, o: 17.4, html: "Fully <span class='gr'>booked.</span>", x: 960, y: 440, size: 200, hit: true },
+  { t: 15.5, o: 17.4, html: 'Same day.', x: 960, y: 660, size: 150, hit: true },
+  // loyalty
+  { t: 18.0, o: 23.6, html: 'Scan.', x: 120, y: 260, size: 190, align: 'l', hit: true },
+  { t: 20.0, o: 23.6, html: "<span class='gr'>Earn.</span>", x: 120, y: 470, size: 190, align: 'l', hit: true },
+  { t: 21.0, o: 23.6, html: 'Spend.', x: 120, y: 680, size: 190, align: 'l', hit: true },
+  { t: 22.0, o: 23.6, html: "<span class='gr'>At your club.</span>", x: 126, y: 850, size: 80, align: 'l' },
+  { t: 23.85, o: 25.75, html: "Reasons to come back, <span class='gr'>built in.</span>", x: 960, y: 260, size: 70, step: 0.06 },
+  { t: 26.0, o: 29.4, html: 'They keep', x: 120, y: 380, size: 130, align: 'l' },
+  { t: 26.5, o: 29.4, html: 'coming', x: 120, y: 520, size: 130, align: 'l' },
+  { t: 27.0, o: 29.4, html: "<span class='gr'>back.</span>", x: 120, y: 680, size: 170, align: 'l', hit: true },
+  // dashboard
+  { t: 30.0, o: 31.6, html: "One admin <span class='gr'>dashboard.</span>", x: 960, y: 540, size: 150, step: 0.5, hit: true },
+  { t: 38.0, o: 39.4, html: "All in <span class='gr'>one place.</span>", x: 960, y: 540, size: 180, step: 0.5, hit: true },
+  // not alone
+  { t: 40.5, o: 43.6, html: "You're not", x: 960, y: 430, size: 170 },
+  { t: 41.5, o: 43.6, html: "<span class='gr'>alone.</span>", x: 960, y: 640, size: 230, hit: true },
+  { t: 44.0, o: 46.6, html: "Flagrr runs <span class='gr'>promos &amp; competitions</span>", x: 960, y: 220, size: 84, step: 0.06 },
+  { t: 47.0, o: 47.75, html: "<span class='gr'>Why?</span>", x: 960, y: 540, size: 300, hit: true },
+  { t: 48.0, o: 51.6, html: 'Something to win', x: 420, y: 560, size: 46 },
+  { t: 48.75, o: 51.6, html: 'More rounds played', x: 960, y: 560, size: 46 },
+  { t: 49.5, o: 51.6, html: 'More spend', x: 1500, y: 560, size: 46 },
+  { t: 50.25, o: 51.6, html: "At <span class='gr'>your club.</span>", x: 960, y: 790, size: 130, hit: true },
+  // simple to start
+  { t: 56.0, o: 57.6, html: "Simple to <span class='gr'>start.</span>", x: 960, y: 540, size: 200, hit: true },
+  // partnership
+  { t: 58.5, o: 61.6, html: "We're building", x: 830, y: 290, size: 86, align: 'l' },
+  { t: 59.0, o: 61.6, html: "South Africa's no.1", x: 830, y: 400, size: 86, align: 'l' },
+  { t: 59.5, o: 61.6, html: "<span class='gr'>loyalty &amp; value app</span>", x: 830, y: 510, size: 86, align: 'l' },
+  { t: 60.0, o: 61.6, html: 'for golfers.', x: 830, y: 620, size: 86, align: 'l' },
+  { t: 62.0, o: 65.4, html: 'Build it', x: 830, y: 430, size: 170, align: 'l', hit: true },
+  { t: 62.5, o: 65.4, html: "<span class='gr'>with us.</span>", x: 830, y: 620, size: 170, align: 'l', hit: true },
+];
+
+// Glass tiles: three reasons to come back, then the four reasons it's easy.
+const ICONS = {
+  flame: 'M12 3c1 3 4 4.5 4 8.5a4 4 0 0 1-8 0c0-2 1-3 2-4 0 2 1 3 2 3 0-3-1-5 0-7.5z',
+  crown: 'M3 8l4.5 4L12 5l4.5 7L21 8l-2 10H5z',
+  gift: 'M4 11h16v9H4zM3 7h18v4H3zM12 7v13M12 7c-1.5-3-5-3-5-1s3 1 5 1c2 0 5 1 5-1s-3.5-2-5 1',
+  check: 'M5 12.5l4.5 4.5L19 7.5',
+};
+const CARDS = [
+  { t: 23.9, o: 25.75, x: 200, y: 380, w: 480, h: 380, icon: 'flame', title: 'Weekly streaks', text: 'A round a week builds a Flagrr Cash bonus.' },
+  { t: 24.4, o: 25.75, x: 720, y: 380, w: 480, h: 380, icon: 'crown', title: 'Member tiers', text: 'Bronze to Platinum. Earn up to 1.7x.' },
+  { t: 24.9, o: 25.75, x: 1240, y: 380, w: 480, h: 380, icon: 'gift', title: 'Birthday bonuses', text: 'Sent automatically. No admin work.' },
+  { t: 52.0, o: 55.75, x: 230, y: 190, w: 700, h: 300, icon: 'check', title: 'No new hardware', text: 'Runs on the phones your members already carry.' },
+  { t: 53.0, o: 55.75, x: 990, y: 190, w: 700, h: 300, icon: 'check', title: 'No POS integration', text: 'Your till stays your till.' },
+  { t: 54.0, o: 55.75, x: 230, y: 550, w: 700, h: 300, icon: 'check', title: 'Members pay nothing', text: "The club's subscription covers everything." },
+  { t: 55.0, o: 55.75, x: 990, y: 550, w: 700, h: 300, icon: 'check', title: 'Live in days', text: 'Guided setup, with real people to help.' },
+];
+
+// Soft blur-dissolves that hide each section change.
+const WIPES = [
+  { t: 6.0, color: 'lime' }, { t: 17.75, color: 'mint' }, { t: 29.75, color: 'mint' }, { t: 39.75, color: 'lime' },
+  { t: 57.75, color: 'lime' }, { t: 65.75, color: 'mint' },
+];
+
+function splitWords(el) {
+  const words = [];
+  for (const node of [...el.childNodes]) {
+    const cls = node.nodeType === 1 ? node.className : '';
+    const frag = document.createDocumentFragment();
+    for (const part of node.textContent.split(/(\s+)/)) {
+      if (!part) continue;
+      if (/^\s+$/.test(part)) { frag.appendChild(document.createTextNode(' ')); continue; }
+      const span = document.createElement('span');
+      span.className = 'w ' + cls;
+      span.textContent = part;
+      frag.appendChild(span);
+      words.push(span);
+    }
+    el.replaceChild(frag, node);
+  }
+  return words;
+}
+
+function build() {
+  for (const s of SLAMS) {
+    const el = document.createElement('div');
+    el.className = 'sl';
+    el.innerHTML = s.html;
+    el.style.left = s.x + 'px';
+    el.style.top = s.y + 'px';
+    el.style.fontSize = s.size + 'px';
+    el.style.translate = s.align === 'l' ? '0 -50%' : '-50% -50%';
+    el.style.transformOrigin = s.align === 'l' ? '0% 50%' : '50% 50%';
+    $('slams').appendChild(el);
+    s.el = el;
+    s.words = splitWords(el);
+  }
+  CARDS.forEach((c, i) => {
+    const el = document.createElement('div');
+    el.id = 'card' + i;
+    el.className = 'abs glass ring tile';
+    Object.assign(el.style, { left: c.x + 'px', top: c.y + 'px', width: c.w + 'px', height: c.h + 'px' });
+    el.innerHTML = `<div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="#CDDE5C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="${ICONS[c.icon]}" pathLength="1"/></svg></div><h3>${c.title}</h3><p>${c.text}</p>`;
+    $('cards').appendChild(el);
+    c.el = el;
+    c.path = el.querySelector('path');
+  });
+}
+
+function poseSlams(t) {
+  for (const s of SLAMS) {
+    const end = s.o + 0.4;
+    if (t < s.t || t >= end) { s.el.style.display = 'none'; continue; }
+    s.el.style.display = 'block';
+    const step = s.step ?? 0.07;
+    s.words.forEach((w, i) => {
+      const a = s.t + i * step;
+      const k = ep(t, a, a + 0.6, ease.outQuint);
+      pose(w, { o: clamp(k * 1.6), y: (1 - k) * s.size * 0.32, blur: (1 - k) * 14 });
+    });
+    const ko = ep(t, s.o, end, ease.inOut);
+    const drift = 1 + Math.max(0, t - s.t) * 0.006;
+    s.el.style.opacity = 1 - ko;
+    s.el.style.transform = `translateY(${-ko * 24}px) scale(${drift})`;
+    s.el.style.filter = ko > 0.01 ? `blur(${ko * 12}px)` : 'none';
+  }
+}
+
+function poseCards(t) {
+  CARDS.forEach((c) => {
+    block(c.el.id, t, c.t, c.o, { dy: 70, s0: 0.94, dur: 0.6, outDur: 0.35 });
+    // The newest tile glows; earlier ones settle.
+    const newer = CARDS.some((d) => d.t > c.t && d.o === c.o && t > d.t);
+    ring(c.el, t, ep(t, c.t, c.t + 0.4) * (newer ? 0.2 : 1));
+    c.path.style.strokeDasharray = 1;
+    c.path.style.strokeDashoffset = 1 - ep(t, c.t + 0.15, c.t + 0.7, ease.inOut);
+  });
+}
+
+// Soft blur-dissolve: the whole frame defocuses and lifts through each cut.
+function lens(t) {
+  let b = 0, s = 1, glow = 0;
+  for (const w of WIPES) {
+    const d = Math.abs(t - w.t);
+    if (d > 0.4) continue;
+    const k = 1 - d / 0.4;
+    const e = k * k * (3 - 2 * k);
+    b = Math.max(b, e * 22);
+    s = Math.max(s, 1 + e * 0.04);
+    glow = Math.max(glow, e);
+  }
+  $('cam').style.filter = b > 0.05 ? `blur(${b}px) brightness(${1 + glow * 0.08})` : 'none';
+  $('cam').style.transform = `scale(${s})`;
+}
+
+// ---------------------------------------------------------------- tee sheet
+const TEE = [['13:00', 'J. van Wyk', 4], ['13:10', null, 4], ['13:20', null, 3], ['13:30', 'T. Nkosi', 2], ['13:40', null, 4], ['13:50', null, 2], ['14:00', null, 4], ['14:10', null, 3]];
+const FILL_STEP = 0.2; // one slot every 8th note
+const FILL = ['P. Steyn', 'M. Jacobs', 'S. Dlamini', 'R. Pretorius', 'L. Mokoena', 'C. Swart'];
+function buildTee(host) {
+  const card = document.createElement('div');
+  card.className = 'card tee';
+  card.innerHTML = `<div class="hd"><b>Tee sheet</b><span>Tue 28 Oct · this afternoon</span></div><div class="badge" id="${host.id}Badge">6 open</div>`;
+  let f = 0;
+  for (const [tm, who, n] of TEE) {
+    const row = document.createElement('div');
+    row.className = 'row';
+    row.dataset.booked = who ? '1' : '0';
+    row.innerHTML = `<div class="tm">${tm}</div><div class="slot"><div class="open">Open</div><div class="name"><span>${who || FILL[f++]}</span><i>${n} players</i></div></div>`;
+    card.appendChild(row);
+  }
+  host.appendChild(card);
+}
+function poseTee(hostId, t, fillStart) {
+  let open = 0, k = 0;
+  for (const row of $(hostId).querySelectorAll('.row')) {
+    const o = row.querySelector('.open'), n = row.querySelector('.name');
+    if (row.dataset.booked === '1') { o.style.opacity = 0; pose(n, {}); continue; }
+    const at = fillStart == null ? null : fillStart + k * FILL_STEP;
+    k++;
+    const p = at == null ? 0 : ep(t, at, at + 0.3, ease.back);
+    o.style.opacity = 1 - clamp(p * 2);
+    pose(n, { o: clamp(p * 1.4), s: mix(0.8, 1, p) });
+    if (at == null || t < at + 0.1) open++;
+  }
+  const b = $(hostId + 'Badge');
+  b.textContent = open ? `${open} open` : 'Fully booked ✓';
+  b.className = open ? 'badge' : 'badge ok';
+  if (fillStart == null) { pose(b, { s: 1 + 0.05 * Math.max(0, Math.sin(t * Math.PI * 2)) }); return; }
+  const full = fillStart + FILL.length * FILL_STEP;
+  pose(b, { s: open ? 1 : mix(1.25, 1, ep(t, full, full + 0.35, ease.back)) });
+}
+
+// ---------------------------------------------------------------- typing
+const TITLE = 'Quiet course this afternoon';
+const MSG = 'Tee off before 3pm today and earn double Flagrr Cash on your green fee.';
+function typeInto(el, text, k, caret, ph) {
+  const n = Math.round(text.length * clamp(k));
+  if (n === 0 && !caret) { el.innerHTML = `<span class="ph">${ph}</span>`; return; }
+  el.innerHTML = text.slice(0, n) + (caret ? '<span class="caret"></span>' : '');
+}
+const fmt = (n) => Math.round(n).toLocaleString('en-US');
+
+// ---------------------------------------------------------------- sections
+// Cues above are authored on a 0.5s grid (120bpm). TEMPO stretches the whole
+// film to ~114bpm (0.525s beats): upbeat, but every line still has time to be
+// read. make-audio.py reads TEMPO too and builds the track at the same tempo.
+const TIMELINE_END = 76;
+const TEMPO = 1.05;
+const DURATION = 79.8; // TIMELINE_END * TEMPO, in seconds
+
+function atmosphere(t) {
+  const groove = (t > 8 && t < 40) || (t > 44 && t < 74);
+  const beat = groove ? Math.exp(-(t % 0.5) * 6) : 0;
+  // Lime warms up into each drop and cools in the breakdown.
+  const heat = (t < 40 || t > 44 ? 1 : 0.35) * mix(0.35, 0.9, Math.max(ep(t, 5.5, 8), groove ? 0.7 : 0));
+  pose($('a1'), { x: 900 + Math.sin(t * 0.21) * 260, y: -380 + Math.cos(t * 0.17) * 160, s: 1 + beat * 0.04, o: 0.75 });
+  pose($('a2'), { x: -300 + Math.cos(t * 0.15) * 280, y: 520 + Math.sin(t * 0.19) * 160, s: 1 + beat * 0.06, o: heat });
+  pose($('a3'), { x: 400 + Math.sin(t * 0.12) * 300, y: -200 + Math.cos(t * 0.14) * 220, o: 0.55 });
+  pose($('dots'), { y: (t * 6) % 44, o: 0.55 });
+  pose($('beam'), { o: 0.7 + 0.3 * Math.sin(t * 0.4), r: Math.sin(t * 0.2) * 4 });
+  const f = Math.floor(t * TEMPO * 30);
+  $('grain').style.transform = `translate(${(f * 137) % 256}px, ${(f * 251) % 256}px)`;
+
+  $('mark').style.opacity = t > 8 && t < 65.75 && !(t >= 23.75 && t < 25.9) ? 0.85 : 0;
+  const dimOn = (t >= 15 && t < 17.5) || (t >= 38 && t < 40.2); // held through the cut
+  const dimAt = t >= 38 ? 38 : 15;
+  $('dim').style.opacity = dimOn ? ep(t, dimAt, dimAt + 0.35, ease.inOut) : 0;
+  $('black').style.opacity = t < 0.4 ? 1 - ep(t, 0, 0.4) : ep(t, 75.2, 76, ease.inOut);
+}
+
+// Drone footage: if assets/footage/<slot>.webm exists it replaces the photo in
+// that scene and is seeked frame-accurately (see prep notes in README.md).
+const FOOTAGE = [...document.querySelectorAll('video.footage')].map((v) => ({ v, ok: false }));
+const seeks = [];
+function footage(id, photoId, t, t0) {
+  const f = FOOTAGE.find((x) => x.v.id === id);
+  if (!f || !f.ok) return;
+  $(photoId).style.display = 'none';
+  f.v.style.display = 'block';
+  const want = Math.min((t - t0) * TEMPO, f.v.duration - 0.05);
+  if (Math.abs(f.v.currentTime - want) > 0.001) {
+    seeks.push(new Promise((res) => f.v.addEventListener('seeked', res, { once: true })));
+    f.v.currentTime = want;
+  }
+}
+
+function hook(t) {
+  if (!scene('sHook', t, 2.0, 6.0)) return;
+  footage('hookVid', 'hookPhoto', t, 2.0);
+  pose($('hookPhoto'), { s: mix(1.14, 1.05, ep(t, 2.0, 3.2, ease.outQuint)) + (t - 2) * 0.008, x: -(t - 2) * 10 });
+  block('hookTee', t, 4.0, 5.6, { dx: 120, dy: 0, s0: 0.92, dur: 0.7, extra: (p, ki) => ({ ry: (1 - ki) * -16 - 4, rx: 3 }) });
+  poseTee('hookTee', t, null);
+}
+
+function push(t) {
+  if (!scene('sPush', t, 9.6, 17.75)) return;
+  block('compose', t, 10.0, 12.45, { dx: -80, dy: 0, ox: -120, oy: 0, dur: 0.6, outDur: 0.3 });
+  typeInto($('cTitle'), TITLE, prog(t, 10.35, 10.9), t >= 10.35 && t < 10.95, 'Title');
+  typeInto($('cMsg'), MSG, prog(t, 10.95, 11.65), t >= 10.95 && t < 11.9, 'Message');
+  const press = ep(t, 11.95, 12.02) * (1 - ep(t, 12.02, 12.2));
+  pose($('cSend'), { s: 1 - press * 0.05 });
+  const ck = ep(t, 11.5, 11.95, ease.inOut);
+  pose($('cursor'), { o: t > 11.4 && t < 12.45 ? ep(t, 11.4, 11.5) * (1 - ep(t, 12.25, 12.45)) : 0, x: mix(800, 520, ck), y: mix(860, 690, ck), s: 1 - press * 0.15 });
+  const rk = prog(t, 12.0, 12.45);
+  pose($('ripple'), { o: t >= 12.0 && t < 12.45 ? 1 - rk : 0, s: mix(0.2, 1.6, ease.out(rk)) });
+
+  block('pushPhone', t, 10.25, 14.6, { dx: 0, dy: 160, oy: 120, dur: 0.8, extra: (p, ki) => ({ rx: (1 - ki) * 14 }) });
+  const nk = ep(t, 12.25, 12.65, ease.back);
+  pose($('notif'), { o: clamp(nk * 2), y: (1 - nk) * -140, s: mix(0.9, 1, nk) });
+  const glow = t > 12.25 ? Math.exp(-Math.max(0, t - 12.35) * 2.5) : 0;
+  $('notif').style.boxShadow = `0 12px 30px rgba(0,0,0,.25), 0 0 ${60 * glow}px rgba(205,222,92,${0.8 * glow})`;
+
+  block('pushTee', t, 12.75, 14.6, { dx: -80, dy: 0, oy: 60, dur: 0.6 });
+  poseTee('pushTee', t, 13.15);
+}
+
+function loyalty(t) {
+  if (!scene('sLoyal', t, 18.0, 29.75)) return;
+  const zoom = ep(t, 25.5, 26.3, ease.inOut);
+  block('lPhone', t, 18.25, 29.4, { dx: 0, dy: 160, dur: 0.8, oy: 0,
+    extra: (p, ki) => ({ s: p.s * mix(1, 1.25, zoom), x: p.x + zoom * -130, y: p.y + zoom * 160 + Math.sin(t * 1.2) * 4, rx: (1 - ki) * 12 }) });
+  if (t >= 23.75 && t < 25.9) $('lPhone').style.visibility = 'hidden';
+
+  const rIn = ep(t, 18.5, 18.95, ease.outQuint), rFly = ep(t, 19.55, 19.9, ease.inOut);
+  $('receipt').style.visibility = t > 18.5 && t < 19.95 ? 'visible' : 'hidden';
+  pose($('receipt'), { o: clamp(rIn * 2) * (1 - rFly), x: (1 - rIn) * -160 + rFly * 520, y: rFly * 60, r: mix(-10, -4, rIn) + rFly * 6, s: mix(1, 0.35, rFly), blur: (1 - rIn) * 10 });
+  $('scan').style.top = `${mix(8, 300, ease.inOut(prog(t, 18.95, 19.45)))}px`;
+  $('scan').style.opacity = t > 18.9 && t < 19.5 ? 1 : 0;
+
+  block('earn', t, 20.0, 23.6, { dy: 30, s0: 0.85, dur: 0.5 });
+  ring($('earn'), t, ep(t, 20.0, 20.4));
+  $('earnN').textContent = fmt(510 * ep(t, 20.0, 20.9, ease.out));
+  const spots = [[124, 850], [574, 850], [124, 930]];
+  ['lb1', 'lb2', 'lb3'].forEach((id, i) => {
+    $(id).style.left = spots[i][0] + 'px';
+    $(id).style.top = spots[i][1] + 'px';
+    block(id, t, 27.5 + i * 0.25, 29.4, { dy: 30, dur: 0.5 });
+  });
+}
+
+function dash(t) {
+  if (!scene('sDash', t, 31.6, 39.75)) return;
+  const ki = ep(t, 32.0, 33.0, ease.outQuint);
+  $('browser').style.visibility = 'visible';
+  $('browser').style.transformOrigin = '50% 0%';
+  pose($('browser'), { o: clamp(ki * 1.5), y: (1 - ki) * 200 + Math.sin(t * 0.7) * 4, rx: mix(28, 8, ki) - ep(t, 33, 37, ease.inOut) * 3, s: mix(0.9, 1, ki) * (1 + (t - 32) * 0.003), blur: (1 - ki) * 12 });
+  const zin = ep(t, 32.8, 33.4, ease.inOut) * (1 - ep(t, 33.7, 34.1, ease.inOut));
+  pose($('zoom'), { s: mix(1, 1.45, zin), x: -zin * 300, y: -zin * 100 });
+
+  block('stat', t, 32.6, 37.6, { dx: 60, dy: 0, dur: 0.7, extra: (p) => ({ y: p.y + Math.sin(t * 1.3) * 6 }) });
+  ring($('stat'), t, ep(t, 32.6, 33.0) * 0.9);
+  $('statN').textContent = fmt(184350 * ep(t, 32.7, 34.0, ease.out));
+
+  const screens = [['vD', 0], ['vR', 34.0], ['vP', 35.0], ['vF', 36.0], ['vD2', 37.0]];
+  screens.forEach(([id, at], i) => {
+    const next = screens[i + 1] ? screens[i + 1][1] : 99;
+    const k = i === 0 ? 1 : ep(t, at, at + 0.4, ease.outQuint);
+    pose($(id), { o: t >= next + 0.4 ? 0 : k, x: (1 - k) * 60, blur: (1 - k) * 8 });
+  });
+  const labels = [[34.0, 'Rewards'], [35.0, 'Member comms'], [36.0, 'Fraud review'], [37.0, 'Live stats']];
+  const cur = labels.filter(([at]) => t >= at).pop();
+  const v = block('lbl', t, 34.0, 37.75, { dx: -60, dy: 0, dur: 0.5 });
+  ring($('lbl'), t, v);
+  if (cur) {
+    $('lblText').textContent = cur[1];
+    const k = ep(t, cur[0], cur[0] + 0.35, ease.outQuint);
+    pose($('lblText'), { y: (1 - k) * 30, o: k, blur: (1 - k) * 8 });
+  }
+}
+
+function promos(t) {
+  if (!scene('sPromo', t, 44.0, 47.0)) return;
+  block('pr1', t, 44.5, 46.6, { dx: 0, dy: 100, dur: 0.8, extra: (p, ki) => ({ y: p.y + Math.sin(t * 1.6) * 6, rx: (1 - ki) * 16 }) });
+  block('pr2', t, 45.5, 46.6, { dx: 0, dy: 100, dur: 0.8, extra: (p, ki) => ({ y: p.y + Math.cos(t * 1.6) * 6, rx: (1 - ki) * 16 }) });
+}
+
+function flow(t) {
+  if (!scene('sFlow', t, 48.0, 52.0)) return;
+  [['n1', 48.0], ['n2', 48.75], ['n3', 49.5]].forEach(([id, at]) => {
+    block(id, t, at, 51.6, { dy: 40, s0: 0.85, dur: 0.6 });
+    ring($(id).firstElementChild, t, ep(t, at, at + 0.4) * (t > at + 0.75 ? 0.35 : 1));
+  });
+  // Each connector draws from one icon to the next as the next one arrives,
+  // then a small light runs along it on a loop.
+  [['seg1', 48.3, 516, 862], ['seg2', 49.05, 1056, 1402]].forEach(([id, at, x0, x1]) => {
+    const g = $(id);
+    const k = ep(t, at, at + 0.45, ease.inOut);
+    const line = g.querySelector('.segLine');
+    line.style.strokeDasharray = 1;
+    line.style.strokeDashoffset = 1 - k;
+    g.querySelector('.segHead').style.opacity = ep(t, at + 0.35, at + 0.5);
+    const dot = g.querySelector('.segDot');
+    const run = ((t - at - 0.5) * 0.9) % 1;
+    dot.setAttribute('cx', mix(x0, x1, run));
+    dot.style.opacity = t > at + 0.5 ? Math.sin(run * Math.PI) : 0;
+    g.style.opacity = 1 - ep(t, 51.6, 51.95);
+  });
+}
+
+function partner(t) {
+  if (!scene('sPartner', t, 57.75, 65.75)) return;
+  footage('pVid', 'pPhoto', t, 57.75);
+  pose($('pPhoto'), { s: mix(1.14, 1.05, ep(t, 57.75, 58.8, ease.outQuint)) + (t - 58) * 0.005, x: (t - 58) * 6 });
+}
+
+function cta(t) {
+  if (!scene('sCta', t, 65.75, 76)) return;
+  const k = ep(t, 66.0, 66.9, ease.outQuint);
+  pose($('logoWrap'), { o: k, s: mix(0.9, 1, k) * (1 + Math.max(0, t - 66) * 0.004), blur: (1 - k) * 24, y: (1 - k) * 30 });
+  const sh = prog(t, 66.6, 67.6);
+  $('shine').style.backgroundPosition = `${mix(-900, 500, ease.inOut(sh))}px 0`;
+  $('shine').style.opacity = sh > 0 && sh < 1 ? 1 : 0;
+  block('ctaBtn', t, 67.0, 99, { dy: 40, s0: 0.92, dur: 0.6 });
+  ring($('ctaBtn'), t, ep(t, 67.2, 67.8));
+  block('ctaUrl', t, 67.75, 99, { dy: 30 });
+  block('ctaPrice', t, 68.25, 99, { dy: 20 });
+  block('ctaSocial', t, 68.75, 99, { dy: 20 });
+}
+
+function render(seconds) {
+  const t = seconds / TEMPO;
+  seeks.length = 0;
+  atmosphere(t);
+  hook(t); push(t); loyalty(t); dash(t); promos(t); flow(t); partner(t); cta(t);
+  poseSlams(t); poseCards(t); lens(t);
+  return Promise.all(seeks); // render.mjs waits for footage frames before capturing
+}
+
+build();
+buildTee($('hookTee'));
+buildTee($('pushTee'));
+window.render = render;
+window.DURATION = DURATION;
+
+window.ready = Promise.all([
+  ...FOOTAGE.map((f) => new Promise((res) => {
+    f.v.addEventListener('loadeddata', () => { f.ok = true; res(); }, { once: true });
+    f.v.addEventListener('error', () => res(), { once: true });
+    f.v.src = f.v.dataset.src;
+  })),
+  document.fonts.load('600 100px Poppins'), document.fonts.load('700 100px Poppins'), document.fonts.ready,
+  ...[...document.images].map((im) => im.decode().catch(() => {})),
+  ...[...document.querySelectorAll('.photo,.lock')].map((el) => new Promise((res) => {
+    const im = new Image();
+    im.onload = im.onerror = res;
+    im.src = getComputedStyle(el).backgroundImage.slice(5, -2);
+  })),
+]);
+
+const q = new URLSearchParams(location.search);
+if (q.has('play')) {
+  window.ready.then(() => {
+    const t0 = performance.now();
+    const tick = () => { render(((performance.now() - t0) / 1000) % DURATION); requestAnimationFrame(tick); };
+    tick();
+  });
+} else {
+  window.ready.then(() => render(parseFloat(q.get('t') || '0')));
+}
+</script>
+</body>
+</html>
