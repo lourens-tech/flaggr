@@ -137,6 +137,8 @@ img { display: block; }
 .browser .vp img { position: absolute; inset: 0; width: 1400px; height: 875px; }
 
 .promo img { width: 640px; height: 320px; border-radius: 26px; box-shadow: 0 50px 100px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.12); }
+.social { width: 78px; height: 78px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+.social svg { width: 38px; height: 38px; }
 .node { width: 360px; text-align: center; }
 .node .ico { width: 132px; height: 132px; border-radius: 40px; margin: 0 auto;
   background: radial-gradient(circle at 30% 25%, #2E4A22, #12241A 70%); border: 1px solid rgba(205,222,92,.4); }
@@ -216,7 +218,7 @@ img { display: block; }
   <!-- ======================= dashboard (31.75–39.75) ======================= -->
   <div class="scene" id="sDash" style="perspective:2400px">
     <div class="abs browser" id="browser" style="left:260px;top:170px">
-      <div class="bar"><i></i><i></i><i></i><div class="url">flagrr.co.za/club · Strand Golf Club</div></div>
+      <div class="bar"><i></i><i></i><i></i><div class="url">flagrr.com/club · Strand Golf Club</div></div>
       <div class="vp"><div id="zoom" style="position:absolute;inset:0;transform-origin:0 0">
         <img id="vD" src="plates/console-dashboard.png">
         <img id="vR" src="plates/console-rewards.png">
@@ -281,7 +283,11 @@ img { display: block; }
       <div class="btn" style="position:absolute;inset:0;font-size:40px;letter-spacing:-0.02em;box-shadow:0 0 80px rgba(205,222,92,.35)">Book a 30-minute walkthrough
         <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#1F4234" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
     </div>
-    <div class="abs" id="ctaMail" style="left:0;right:0;top:760px;text-align:center;font-size:48px;font-weight:600;letter-spacing:-0.03em">hello@flagrr.co.za</div>
+    <div class="abs" id="ctaUrl" style="left:0;right:0;top:760px;text-align:center;font-size:48px;font-weight:600;letter-spacing:-0.03em">www.flagrr.com</div>
+    <div class="abs" id="ctaSocial" style="left:0;right:0;top:912px;display:flex;justify-content:center;gap:26px">
+      <div class="glass social"><svg viewBox="0 0 24 24"><path d="M13.5 21v-7.5h2.6l.4-3h-3V8.6c0-.9.3-1.5 1.6-1.5h1.6V4.4c-.3 0-1.2-.1-2.3-.1-2.3 0-3.9 1.4-3.9 4v2.2H8v3h2.5V21z" fill="#CDDE5C"/></svg></div>
+      <div class="glass social"><svg viewBox="0 0 24 24" fill="none" stroke="#CDDE5C" stroke-width="1.9"><rect x="3.5" y="3.5" width="17" height="17" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.2" cy="6.8" r="0.9" fill="#CDDE5C" stroke="none"/></svg></div>
+    </div>
     <div class="abs" id="ctaPrice" style="left:0;right:0;top:846px;text-align:center;font-size:28px;font-weight:500;color:var(--muted)">R2 500 for your first month · No lock-in contract</div>
   </div>
 
@@ -723,8 +729,9 @@ function cta(t) {
   $('shine').style.opacity = sh > 0 && sh < 1 ? 1 : 0;
   block('ctaBtn', t, 67.0, 99, { dy: 40, s0: 0.92, dur: 0.6 });
   ring($('ctaBtn'), t, ep(t, 67.2, 67.8));
-  block('ctaMail', t, 67.75, 99, { dy: 30 });
+  block('ctaUrl', t, 67.75, 99, { dy: 30 });
   block('ctaPrice', t, 68.25, 99, { dy: 20 });
+  block('ctaSocial', t, 68.75, 99, { dy: 20 });
 }
 
 function render(seconds) {
