@@ -35,7 +35,7 @@ TT = np.arange(N) / SR
 TL = TT / TEMPO  # timeline time of every sample
 rng = np.random.default_rng(11)
 
-BEAT = 0.5  # one beat in timeline units (100bpm at TEMPO 1.2)
+BEAT = 0.5  # one beat in timeline units (~114bpm at TEMPO 1.05)
 BAR = 2.0
 
 # ------------------------------------------------------------------ cues from the picture
@@ -127,10 +127,12 @@ def reverb(x):
 
 
 # ------------------------------------------------------------------ harmony
-# Am – F – C – G for the first drop, F – C – G – Am for its second half (same
-# hook, new harmony underneath), and the final drop lifts a whole tone.
-P1 = [(45, [57, 60, 64, 69]), (41, [53, 57, 60, 65]), (48, [55, 60, 64, 67]), (43, [55, 59, 62, 67])]
-P2 = [(41, [53, 57, 60, 65]), (48, [55, 60, 64, 67]), (43, [55, 59, 62, 67]), (45, [57, 60, 64, 69])]
+# Major key, so it feels bright and upbeat: C – G – Am – F for the first drop,
+# F – G – Em – Am for its second half (same hook, new harmony underneath), and
+# the final drop lifts a whole tone into D.
+C, G, AM, F, EM = (48, [55, 60, 64, 67]), (43, [55, 59, 62, 67]), (45, [57, 60, 64, 69]), (41, [53, 57, 60, 65]), (40, [55, 59, 64, 67])
+P1 = [C, G, AM, F]
+P2 = [F, G, EM, AM]
 SECOND_HALF = (24, 40)
 KEY_CHANGE = 66.0
 
@@ -150,8 +152,8 @@ def chord_at(t):
 def kick():
     n = int(0.42 * SR)
     tt = np.arange(n) / SR
-    f = 46 + 130 * np.exp(-tt * 32)
-    body = np.sin(2 * np.pi * np.cumsum(f) / SR) * np.exp(-tt * 7.5)
+    f = 50 + 140 * np.exp(-tt * 30)
+    body = np.sin(2 * np.pi * np.cumsum(f) / SR) * np.exp(-tt * 5.5)  # long, weighty body
     click = filt(rng.standard_normal(n), "high", 3000) * np.exp(-tt * 400) * 0.35
     return np.tanh((body + click) * 1.8)
 
@@ -165,13 +167,21 @@ def clap():
         i = int(o * SR)
         e[i:] = np.maximum(e[i:], np.exp(-(tt[: n - i]) * 70))
     e += np.exp(-tt * 14) * 0.35 * (tt > 0.02)
-    return noise * e
+    body = np.sin(2 * np.pi * 190 * tt) * np.exp(-tt * 30) * 0.5  # snare-like punch
+    return noise * e + body
 
 
 def hat(open_=False):
     n = int((0.16 if open_ else 0.045) * SR)
     tt = np.arange(n) / SR
     return filt(rng.standard_normal(n), "high", 7500) * np.exp(-tt * (22 if open_ else 110))
+
+
+def tambourine():
+    n = int(0.09 * SR)
+    tt = np.arange(n) / SR
+    jingle = filt(rng.standard_normal(n), "band", [6000, 13000]) * (1 + 0.6 * np.sin(2 * np.pi * 160 * tt))
+    return jingle * np.minimum(1, tt / 0.003) * np.exp(-tt * 38)
 
 
 def shaker():
@@ -197,7 +207,8 @@ def bass_note(f, dur):
     n = int(dur * SR)
     tt = np.arange(n) / SR
     s = sawtooth(2 * np.pi * f * tt) * 0.6 + np.sin(2 * np.pi * f * tt)
-    return filt(s, "low", 750) * np.minimum(1, tt / 0.004) * np.exp(-tt / max(dur, 0.12))
+    s = np.tanh(s * 2.2)  # drive: harmonics that carry on phone and laptop speakers
+    return filt(s, "low", 1100) * np.minimum(1, tt / 0.004) * np.exp(-tt / max(dur, 0.12))
 
 
 def sub_note(f, dur):
@@ -331,8 +342,9 @@ HOOK_B = [(0, 2, 72), (2, 2, 74), (4, 3, 76), (8, 2, 79), (10, 2, 81), (12, 4, 7
           (16, 2, 76), (18, 2, 74), (20, 3, 72), (24, 2, 74), (26, 4, 76), (30, 2, 74)]
 VOWELS = "aoae"
 
-# Bass per bar: (16th step, length in 16ths, interval above the root).
-BASSLINE = [(0, 2, 0), (3, 1, 0), (4, 2, 12), (7, 1, 0), (8, 2, 0), (10, 1, 7), (11, 1, 0), (12, 2, 12), (14, 2, 10)]
+# Disco octave bass per bar: (16th step, length in 16ths, interval above the
+# root) — bouncing low/high on every 8th is what makes the groove feel upbeat.
+BASSLINE = [(0, 1.6, 0), (2, 1.6, 12), (4, 1.6, 0), (6, 1.6, 12), (8, 1.6, 0), (10, 1.6, 12), (12, 1.6, 7), (14, 1.6, 12)]
 
 drums, claps, hats, perc = (np.zeros(N) for _ in range(4))
 kick_t = []
@@ -352,7 +364,9 @@ for i in range(int(END / BEAT)):
         for k, (o, g) in enumerate(((0, 0.15), (S16 + swing, 0.07), (2 * S16, 0.12), (3 * S16 + swing, 0.07))):
             add(hats, hat(), b + o, g)
             add(perc, shaker(), b + o, 0.05 + 0.03 * (k % 2))
-        add(hats, hat(True), b + 2 * S16, 0.08)
+        add(hats, hat(True), b + 2 * S16, 0.13)          # open hat on every offbeat
+        add(perc, tambourine(), b + 2 * S16, 0.16)
+        add(perc, tambourine(), b + 3 * S16 + swing, 0.07)
     elif within(b, [(4, 7.5), (48, 51.5), SOFT]):
         add(hats, hat(), b, 0.12)
         add(hats, hat(), b + 2 * S16, 0.1)
@@ -395,7 +409,9 @@ for bar in range(int(END // BAR) + 1):
 
 stabs = np.zeros(N)
 for bar in range(int(END // BAR) + 1):
-    for step in (2, 6, 10, 13):
+    # Offbeat piano-house stabs; the second half of drop one syncopates them.
+    steps = (2, 6, 10, 13) if within(bar * BAR, [SECOND_HALF, SOFT]) else (2, 6, 10, 14)
+    for step in steps:
         t = bar * BAR + step * S16
         if within(t, FULL + [SOFT, (44, 51.75)]) and not within(t, [(23.75, 25.9)]):
             _, notes = chord_at(t)
@@ -488,7 +504,7 @@ add(fx, reverse_cymbal(1.0 * TEMPO), 43.0, 0.3)
 
 FINAL_HIT = 74.0
 add(fx, impact(True), FINAL_HIT, 1.0)
-final_notes = [n + key_at(FINAL_HIT) for n in (45, 57, 60, 64, 69, 72)]
+final_notes = [n + key_at(FINAL_HIT) for n in (48, 60, 64, 67, 72, 76)]
 final_chord = warm_pad(final_notes, DUR - FINAL_HIT * TEMPO)
 final_chord *= np.exp(-np.arange(len(final_chord)) / SR * 0.9)
 add(chords, final_chord * 0.9, FINAL_HIT)
@@ -500,7 +516,7 @@ add(hook, vox(midi(81 + 2), midi(81 + 2), 1.2 * TEMPO, "a"), FINAL_HIT, 0.5)
 hook_delay = np.zeros(N)
 d = int(SR * 0.375 * TEMPO)  # dotted-8th echo
 hook_delay[d:] = hook[:-d] * 0.3
-center = drums * 0.7 + claps * 1.2 + bass * 0.36 + sub * 0.09 + fx * 0.55 + hook * 0.28 + stutter * 0.24
+center = drums * 0.85 + claps * 1.25 + bass * 0.66 + sub * 0.16 + fx * 0.55 + hook * 0.28 + stutter * 0.24
 wide = (hats * 1.9 + perc * 1.4 + chords * 0.48 + bells * 0.22 + hook_delay * 0.18
         + reverb(claps * 0.5 + hook * 0.35 + bells * 0.6 + chords * 0.05 + fx * 0.2) * 0.35)
 haas = int(SR * 0.011)

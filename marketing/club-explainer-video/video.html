@@ -10,7 +10,7 @@
   append ?play to watch it in real time, or ?t=12.5 to inspect one frame.
 
   Cues are authored on a 0.5s grid (timeline units); TEMPO stretches the film
-  to ~109bpm. make-audio.py reads SLAMS / CARDS / WIPES and TEMPO from this
+  to ~114bpm. make-audio.py reads SLAMS / CARDS / WIPES and TEMPO from this
   file, so sound and picture can't drift.
 -->
 <style>
@@ -559,11 +559,11 @@ const fmt = (n) => Math.round(n).toLocaleString('en-US');
 
 // ---------------------------------------------------------------- sections
 // Cues above are authored on a 0.5s grid (120bpm). TEMPO stretches the whole
-// film to ~109bpm (0.55s beats): quick, but every line still has time to be
+// film to ~114bpm (0.525s beats): upbeat, but every line still has time to be
 // read. make-audio.py reads TEMPO too and builds the track at the same tempo.
 const TIMELINE_END = 76;
-const TEMPO = 1.1;
-const DURATION = 83.6; // TIMELINE_END * TEMPO, in seconds
+const TEMPO = 1.05;
+const DURATION = 79.8; // TIMELINE_END * TEMPO, in seconds
 
 function atmosphere(t) {
   const groove = (t > 8 && t < 40) || (t > 44 && t < 74);
