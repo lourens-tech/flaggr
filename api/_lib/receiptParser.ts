@@ -24,14 +24,21 @@ export interface ParsedReceipt {
   subtotal: number | null;
   vat: number | null;
   grandTotal: number | null;
+  // Where grandTotal came from: the slip's own TOTAL line, or — when OCR
+  // couldn't read one — worked out from how it was paid (amount tendered
+  // less change, or the card/account/cash payment lines), or the "Taxable
+  // Total" line as a last resort. null when no total could be found at all.
+  totalSource: 'total' | 'payment' | 'taxable' | null;
 }
 
 // Matches an amount with cents in either "1,779.05" (thousands=comma,
 // decimal=period) or "1.779,05" (thousands=period, decimal=comma) form —
 // South African tills print both depending on the POS system's locale.
 // Whichever separator immediately precedes the final 2 digits is the
-// decimal point; parseAmount below relies on that.
-const PRICE = /(\d{1,3}(?:[,.\s]\d{3})*[.,]\d{2})/;
+// decimal point; parseAmount below relies on that. Amounts of R1000+ printed
+// without grouping ("R1280.00") take the second branch — with only the first,
+// the match skipped the leading digit and read 280.
+const PRICE = /(\d{1,3}(?:[,.\s]\d{3})+[.,]\d{2}|\d+[.,]\d{2})/;
 
 function firstMatch(text: string, patterns: RegExp[]): string | null {
   for (const pattern of patterns) {
@@ -71,7 +78,26 @@ function findAmount(text: string, keywordPatterns: RegExp[]): number | null {
 // positive here just means one fewer noise line getting misread as an item,
 // never a real item being scored wrong.
 const skipLinePattern =
-  /^\s*(?:sub\s*-?\s*total|vat\s*no|vat|tax|grand\s*total|nett?\s*total|amount\s*due|balance\s*due|total\s*due|total|receipt|invoice|trans|till|register|thank you|change|cash|card|visa|mastercard|eft|debit|credit|balance|account|acc\.?\s*no|member\s*(?:no|number)?|loyalty|points?\s*earned|signature|approved|auth(?:oris|oriz)ation|operator|cashier|served\s*by|waiter|table|covers|customer|copy|duplicate|original|qty\s+description|description\s+amount|date|time|tel|www\.|reg(?:istration)?\s*no|tip|gratuity|service\s*charge|delivery|levy|surcharge|round(?:ing)?|tender|terminal|merchant\s*copy)/i;
+  /^\s*(?:sub\s*-?\s*total|vat\s*no|vat|tax|grand\s*total|nett?\s*total|amount|balance\s*due|total\s*due|total|receipt|invoice|trans|till|register|thank you|change|cash|card|visa|mastercard|eft|debit|credit|balance|account|on\s*account|acc\.?\s*no|member\s*(?:no|number)?|loyalty|points?\s*earned|signature|approved|auth(?:oris|oriz)ation|operator|cashier|served\s*by|waiter|table|covers|customer|copy|duplicate|original|qty\s+description|description\s+amount|date|time|tel|www\.|reg(?:istration)?\s*no|tip|gratuity|service\s*charge|delivery|levy|surcharge|round(?:ing)?|tender|terminal|merchant\s*copy|rate\b|discount|current|previous|new\s+account|voucher|credits?\s*used|valid\s*on|player\s*name|tee-?\s*off|starting\s*hole)/i;
+
+// Payment, balance and VAT lines whose keyword isn't the first word — "Amount
+// Tendered", "Current Account Balance", "Gratuity Paid", "VAT Included",
+// "Taxable Total", "Discount Received" — and OCR misreads of them ("Anount
+// Tendered"). Checked anywhere in the line: none of these phrases is ever part
+// of a real product name, and on real slips every one of them was being read
+// as an extra purchase, so a R40 slip could score R40 for the item plus R40
+// again for "Amount Tendered".
+const nonItemAnywherePattern =
+  /\b(?:tender\w*|amount\s*paid|gratuity|vat\s*incl\w*|incl\w*\s*vat|taxable|discount|account\s*bal\w*|balance|on\s*account|voucher\w*|credits?\s*used|snapscan|zapper|speedpoint|yoco|handicap)\b/i;
+
+// A line that carries a full date ("Wednesday, 02 September 2026",
+// "02/09/2026") is a header or a voucher's validity line, never an item —
+// even when OCR glues a stray amount onto the end of it.
+const fullDatePattern =
+  /\b\d{1,2}\s+(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+\d{4}\b|\b\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{2,4}\b/i;
+
+const isNonItemLine = (line: string) =>
+  skipLinePattern.test(line) || nonItemAnywherePattern.test(line) || fullDatePattern.test(line);
 
 // Some tills print an "R" / "ZAR" / "$" right against the amount instead of
 // leaving it implicit — consumed here so it never leaks into the item
@@ -118,11 +144,11 @@ function toItem(descriptionRaw: string, priceRaw: string): ParsedLineItem | null
   const price = parseAmount(priceRaw);
   const { quantity, description: splitDescription } = splitQuantity(descriptionRaw);
   const description = splitDescription.replace(/\s{2,}/g, ' ').trim();
-  // price === 0 is a valid, meaningful read (a member billed the item to
-  // their course account rather than paying at the till) — only a price
-  // that failed to parse at all should drop the item. Scoring never uses
-  // price anyway (see pointsEngine.ts): a matched catalog item earns its own
-  // fixed/per-unit points regardless of what was actually paid for it.
+  // price === 0 is a valid, meaningful read (a pre-paid round, or an item
+  // billed to the member's course account) — only a price that failed to
+  // parse at all should drop the item. Points come from the slip's total
+  // whenever one can be read, plus the catalog value of any R0 line matched
+  // to the club's catalog (see finalizePoints in pointsEngine.ts).
   if (price === null || !description || description.length < 2) return null;
   return { description, quantity, price };
 }
@@ -138,7 +164,7 @@ function extractItems(lines: string[]): ParsedLineItem[] {
   let pendingDescription: string | null = null;
 
   for (const line of lines) {
-    if (skipLinePattern.test(line)) {
+    if (isNonItemLine(line)) {
       pendingDescription = null;
       continue;
     }
@@ -204,16 +230,15 @@ const DATE_OR_TIME_ONLY_LINE =
 // a price to recognise a line as an item) naturally finds nothing. This
 // fallback only runs when that happens: every remaining line that looks
 // like a real item name, rather than a header/summary/date line, becomes a
-// price-0 item instead. Scoring is unaffected either way — a matched
-// catalog item earns its own fixed/per-unit points value, never derived
-// from what (if anything) was actually paid for it (see pointsEngine.ts) —
-// and an unmatched line just scores 0, so a stray non-item line slipping
-// through here can't inflate points, only add a harmless zero-point row.
+// price-0 item instead. These only affect points on a slip with no readable
+// total at all (see finalizePoints in pointsEngine.ts), and an unmatched line
+// scores 0, so a stray non-item line slipping through here can't inflate
+// points, only add a harmless zero-point row.
 function extractNameOnlyItems(lines: string[], merchantNameGuess: string | null): ParsedLineItem[] {
   const items: ParsedLineItem[] = [];
   for (const line of lines) {
     if (line === merchantNameGuess) continue;
-    if (skipLinePattern.test(line)) continue;
+    if (isNonItemLine(line)) continue;
     if (GENERIC_HEADER_LINE.test(line)) continue;
     if (DATE_OR_TIME_ONLY_LINE.test(line)) continue;
     if (!/[a-z]{2,}/i.test(line)) continue;
@@ -236,12 +261,100 @@ function guessMerchantName(lines: string[]): string | null {
   return lines[0] ?? null;
 }
 
+// OCR of thermal slips often splits an amount around its decimal point —
+// "TOTAL R40 .00", "Total R285 . 00", "40. 00" — which no amount pattern can
+// read. On the pilot club's slips that hid the TOTAL line on most receipts, so
+// points fell back to adding up every amount on the slip. Rejoined here
+// before anything else reads the line, along with the "S" OCR reads for a 5
+// straight after the Rand sign ("Amount Tendered: RS50.00" for R550.00).
+function repairAmounts(line: string): string {
+  return line
+    .replace(/(\d)\s+([.,])\s*(\d{2})(?!\d)/g, '$1$2$3')
+    .replace(/(\d[.,])\s+(\d{2})(?!\d)/g, '$1$2')
+    .replace(/\bR[Ss](\d)/g, 'R5$1');
+}
+
+const PRICE_GLOBAL = new RegExp(PRICE.source, 'g');
+// A line that is only an amount, give or take a currency prefix and a stray
+// OCR mark — what follows a label whose amount the till printed (or OCR
+// split) onto the next line, e.g. "TOTAL:" then "R285.00".
+const AMOUNT_ONLY_LINE = new RegExp(`^\\W{0,3}(?:${CURRENCY_PREFIX.source})?${PRICE.source}\\W{0,3}$`);
+
+// A Rand amount whose cents OCR couldn't read ("Total R757 (0)").
+const WHOLE_RAND = /(?:^|[^a-z0-9])R\s?(\d{2,5})(?![\d.,])/i;
+
+// The amount belonging to the first line that matches `label` (and not
+// `exclude`): the last amount printed after the label on that line, or failing
+// that an amount-only line directly below it. With `wholeRand`, an "R757"
+// with unreadable cents on the label's own line counts too.
+function findLabeledAmount(lines: string[], label: RegExp, exclude?: RegExp, wholeRand = false): number | null {
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const m = line.match(label);
+    if (!m || exclude?.test(line)) continue;
+    const after = line.slice((m.index ?? 0) + m[0].length);
+    const onLine = after.match(PRICE_GLOBAL);
+    if (onLine) return parseAmount(onLine[onLine.length - 1]);
+    const whole = wholeRand ? after.match(WHOLE_RAND) : null;
+    if (whole) return Number(whole[1]);
+    for (const next of lines.slice(i + 1, i + 3)) {
+      const below = next.match(AMOUNT_ONLY_LINE);
+      if (below) return parseAmount(below[1]);
+    }
+  }
+  return null;
+}
+
+// "TOTAL", "Grand Total", "Nett Total", "Amount Due", "Balance Due", "To Pay"
+// — at the start of the line, so "Taxable Total" and "Sub Total" don't count.
+// The first branch tolerates the OCR misreads of "Total" seen on real slips
+// ("fotal", "loti", "T0tal", "tota1").
+const TOTAL_LABEL = /^\W*(?:(?:grand|nett?)\s*)?[tfl1][o0][t1l][a@i1l][l1i]?\b|^\W*(?:amount|balance|total)\s*due\b|^\W*to\s*pay\b/i;
+// Total-labelled lines that aren't the bill: cash handed over, or a
+// VAT/quantity/savings breakdown.
+const NOT_THE_TOTAL = /t[o0]t[a@]l\s*(?:amount\s*)?tender|t[o0]t[a@]l\s*(?:excl|vat|tax|items?|qty|quantity|savings?|discount|points)/i;
+
+// The amount actually paid for this slip — the figure points are based on.
+// The TOTAL line is used whenever OCR can read it. Without one, it's worked
+// out from how the slip was paid: amount tendered less change, or the
+// card/account/cash payment lines. "Taxable Total" is a last resort: it never
+// exceeds the bill, so it can only under-award, never over-award.
+//
+// Payment lines are where OCR slips most ("Tendered: RE40.00" for R640.00), so
+// a payment-derived figure below what the slip's 15% VAT implies was taxed is
+// discarded — nobody pays less than the taxable amount.
+function findTotal(lines: string[], vat: number | null): { value: number; source: ParsedReceipt['totalSource'] } | null {
+  const total = findLabeledAmount(lines, TOTAL_LABEL, NOT_THE_TOTAL, true);
+  if (total !== null) return { value: total, source: 'total' };
+
+  const change = findLabeledAmount(lines, /^\W*change\b/i) ?? 0;
+  const taxedAtLeast = vat !== null ? (vat * 115) / 15 - 1 : 0;
+  const plausible = (paid: number) => paid >= 0 && paid >= taxedAtLeast;
+
+  const tendered = findLabeledAmount(lines, /tender\w*/i);
+  if (tendered !== null && plausible(tendered - change)) return { value: tendered - change, source: 'payment' };
+
+  const payments = [
+    findLabeledAmount(lines, /^\W*(?:credit\s*|debit\s*)?(?:card|visa|mastercard|eft)\b/i),
+    findLabeledAmount(lines, /^\W*(?:on\s*)?account\b/i, /balance|no\b|number/i),
+    findLabeledAmount(lines, /^\W*cash\b/i),
+  ].filter((v): v is number => v !== null);
+  if (payments.length > 0) {
+    const paid = payments.reduce((sum, v) => sum + v, 0) - change;
+    if (plausible(paid)) return { value: paid, source: 'payment' };
+  }
+
+  const taxable = findLabeledAmount(lines, /^\W*taxable\s*t[o0]t[a@]l\b/i);
+  if (taxable !== null) return { value: taxable, source: 'taxable' };
+  return null;
+}
+
 export function parseReceiptText(rawText: string): ParsedReceipt {
   const lines = rawText
     .split('\n')
-    .map((l) => l.trim())
+    .map((l) => repairAmounts(l.trim()))
     .filter(Boolean);
-  const text = rawText;
+  const text = lines.join('\n');
 
   // "Invoice No" / "Tax Invoice Nr" is at least as common as "Receipt No" on
   // South African tills — this used to only look for "receipt"/"slip",
@@ -282,17 +395,12 @@ export function parseReceiptText(rawText: string): ParsedReceipt {
   // "VAT @ 15.00% 271.37", "VAT (15%) 271.37") — skip an optional rate so
   // its digits don't stop the match short of the actual VAT amount.
   const VAT_RATE = '(?:[^\\d\\n]{0,30}?\\d{1,2}(?:[.,]\\d+)?[ \\t]*%)?';
-  const vat = findAmount(text, [new RegExp(`\\b(?:vat|tax)\\b${VAT_RATE}[^\\d\\n]{0,30}${PRICE.source}`, 'i')]);
-  const grandTotal = findAmount(text, [
-    new RegExp(`grand\\s*total[^\\d\\n]{0,30}${PRICE.source}`, 'i'),
-    new RegExp(`(?:nett?\\s*total|amount\\s*due|balance\\s*due|total\\s*due)[^\\d\\n]{0,30}${PRICE.source}`, 'i'),
-    // Bare "total" as a last resort — but never "Total Tendered"/"Total
-    // Amount Tendered", the cash actually handed over (usually more than
-    // the bill, with change given back), which would otherwise get read as
-    // the receipt's total if it's the first "total"-labeled line the OCR
-    // text happens to contain.
-    new RegExp(`\\btotal\\b(?!\\s*(?:amount\\s*)?tender)[^\\d\\n]{0,30}${PRICE.source}`, 'i'),
+  // "Included @ 15% 78.26" counts too: OCR often drops the "VAT" before it.
+  const vat = findAmount(text, [
+    new RegExp(`\\b(?:vat|tax)\\b${VAT_RATE}[^\\d\\n]{0,30}${PRICE.source}`, 'i'),
+    new RegExp(`\\bincl\\w*\\W{0,4}15\\s*%[^\\d\\n]{0,30}${PRICE.source}`, 'i'),
   ]);
+  const total = findTotal(lines, vat);
 
   const merchantNameGuess = guessMerchantName(lines);
   const items = extractItems(lines);
@@ -309,6 +417,7 @@ export function parseReceiptText(rawText: string): ParsedReceipt {
     items: finalItems,
     subtotal,
     vat,
-    grandTotal,
+    grandTotal: total?.value ?? null,
+    totalSource: total?.source ?? null,
   };
 }

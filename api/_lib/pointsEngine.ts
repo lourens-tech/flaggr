@@ -32,6 +32,7 @@ export interface PointsResult {
   merchant: { id: string; name: string; merchantType: string; courseId: string | null } | null;
   subtotalPoints: number; // before merchant bonus multiplier
   totalPointsAwarded: number; // after merchant bonus multiplier
+  bonusMultiplier: number; // the matched merchant's promo multiplier, 1 when none
 }
 
 // Products/activities are scoped to one club — every club manages its own
@@ -140,6 +141,7 @@ export async function matchAndScoreReceipt(
       : null,
     subtotalPoints,
     totalPointsAwarded,
+    bonusMultiplier,
   };
 }
 
@@ -147,6 +149,85 @@ export interface FinalizedPoints {
   finalPointsAwarded: number;
   awayClub: boolean;
   nonParticipatingClub: boolean;
+  // 'total': earned on the amount the slip says was paid (R1 = 1 Flagrr Cash
+  // before multipliers). 'items': no total could be read, so it's the sum of
+  // the line items instead.
+  pointsBasis: 'total' | 'items';
+  // The line items as shown to the member and stored with the receipt, each
+  // carrying what it actually earned (before tier/merchant multipliers).
+  items: MatchedItem[];
+}
+
+// A catalog item already on another of the member's slips scanned today —
+// see loadSameDayCatalogItems.
+export interface SameDayCatalogItem {
+  matchedProductId: string | null;
+  matchedActivityId: string | null;
+  price: number;
+  pointsAwarded: number;
+}
+
+// What a slip earns on is its total — never the sum of every amount OCR
+// happens to read. Adding up line amounts used to count "Amount Tendered",
+// account balances and the like as extra purchases, and catalog prices could
+// exceed what was actually paid, so one R40 slip could earn hundreds. The
+// subtotal stands in when only that was legible; the item sum is a last
+// resort for slips with no readable total at all.
+function amountPaid(spend: { subtotal: number | null; grandTotal: number | null }): number | null {
+  return spend.grandTotal ?? spend.subtotal ?? null;
+}
+
+function catalogKey(item: { matchedProductId: string | null; matchedActivityId: string | null }): string | null {
+  if (item.matchedProductId) return `p:${item.matchedProductId}`;
+  if (item.matchedActivityId) return `a:${item.matchedActivityId}`;
+  return null;
+}
+
+// A line the slip shows at R0 (a round paid for in advance, or comped) that
+// matched this club's catalog. The slip total doesn't include it, so it earns
+// its catalog value on top — otherwise a fully pre-paid slip would earn
+// nothing at all.
+function isPrepaidCatalogItem(item: MatchedItem): boolean {
+  return item.price === 0 && catalogKey(item) !== null;
+}
+
+// The same round can show up on two slips the same day: paid for at the pro
+// shop, then again as PAID on the tee-sheet slip. It earns once:
+// - a pre-paid line earns nothing if that catalog item is already on another
+//   of today's slips (paid there, or already credited as pre-paid);
+// - a paid line for an item already credited as pre-paid today has that
+//   credit taken off what this slip earns (up to the line's own value).
+// `base` is what a paid line is worth before this check — its price on a
+// total basis, its catalog value on an items basis. A pre-paid line is always
+// worth its catalog value.
+function applySameDay(
+  items: MatchedItem[],
+  base: (item: MatchedItem) => number,
+  sameDay: SameDayCatalogItem[],
+): { items: MatchedItem[]; deducted: number } {
+  const alreadyOnSlip = new Set<string>();
+  const prepaidCredit = new Map<string, number>();
+  for (const row of sameDay) {
+    const key = catalogKey(row);
+    if (!key || (row.price <= 0 && row.pointsAwarded <= 0)) continue;
+    alreadyOnSlip.add(key);
+    if (row.price <= 0) prepaidCredit.set(key, (prepaidCredit.get(key) ?? 0) + row.pointsAwarded);
+  }
+
+  let deducted = 0;
+  const adjusted = items.map((item) => {
+    const key = catalogKey(item);
+    if (isPrepaidCatalogItem(item)) {
+      return { ...item, pointsAwarded: alreadyOnSlip.has(key!) ? 0 : item.pointsAwarded };
+    }
+    const value = Math.max(0, base(item));
+    const credit = key ? (prepaidCredit.get(key) ?? 0) : 0;
+    const deduct = Math.min(value, credit);
+    if (deduct > 0) prepaidCredit.set(key!, credit - deduct);
+    deducted += deduct;
+    return { ...item, pointsAwarded: value - deduct };
+  });
+  return { items: adjusted, deducted };
 }
 
 // Members play away from their home club all the time. A receipt matched to
@@ -162,27 +243,72 @@ export interface FinalizedPoints {
 // its own catalog/tier-multiplier scoring isn't honored for a club that
 // isn't on the platform, but a member shouldn't lose access to what they've
 // already earned just because their club fell behind on billing.
+//
+// When points come from the slip total, each line shows what it actually
+// cost (R1 = 1 Flagrr Cash) rather than a catalog value, so the lines can't
+// suggest a different figure from the one actually earned — except pre-paid
+// catalog items at the home club, which show the catalog value they earn.
 export function finalizePoints(
   scored: PointsResult,
   spend: { subtotal: number | null; grandTotal: number | null },
   homeCourseId: string,
   tierMultiplier: number,
   homeClubParticipating: boolean,
+  sameDay: SameDayCatalogItem[] = [],
 ): FinalizedPoints {
   const awayClub = scored.merchant?.courseId != null && scored.merchant.courseId !== homeCourseId;
-  if (!homeClubParticipating) {
-    const amountSpent = spend.grandTotal ?? spend.subtotal ?? 0;
-    return { finalPointsAwarded: Math.round(amountSpent), awayClub, nonParticipatingClub: true };
+  const paid = amountPaid(spend);
+  const priced = (item: MatchedItem) => Math.round(item.price);
+
+  if (!homeClubParticipating || awayClub) {
+    return {
+      finalPointsAwarded: Math.round(paid ?? 0),
+      awayClub,
+      nonParticipatingClub: !homeClubParticipating,
+      pointsBasis: 'total',
+      items: scored.items.map((i) => ({ ...i, pointsAwarded: Math.max(0, priced(i)) })),
+    };
   }
-  if (awayClub) {
-    const amountSpent = spend.grandTotal ?? spend.subtotal ?? 0;
-    return { finalPointsAwarded: Math.round(amountSpent), awayClub: true, nonParticipatingClub: false };
+  if (paid !== null) {
+    const { items, deducted } = applySameDay(scored.items, priced, sameDay);
+    const prepaid = items.filter(isPrepaidCatalogItem).reduce((sum, i) => sum + i.pointsAwarded, 0);
+    return {
+      finalPointsAwarded: Math.max(0, Math.round((paid - deducted + prepaid) * scored.bonusMultiplier * tierMultiplier)),
+      awayClub: false,
+      nonParticipatingClub: false,
+      pointsBasis: 'total',
+      items,
+    };
   }
+  const { items } = applySameDay(scored.items, (i) => i.pointsAwarded, sameDay);
+  const itemPoints = items.reduce((sum, i) => sum + i.pointsAwarded, 0);
   return {
-    finalPointsAwarded: Math.round(scored.totalPointsAwarded * tierMultiplier),
+    finalPointsAwarded: Math.round(itemPoints * scored.bonusMultiplier * tierMultiplier),
     awayClub: false,
     nonParticipatingClub: false,
+    pointsBasis: 'items',
+    items,
   };
+}
+
+// Catalog items on the member's other slips scanned today (South African
+// time), for finalizePoints' same-day check. Rejected slips don't count.
+export async function loadSameDayCatalogItems(userId: string): Promise<SameDayCatalogItem[]> {
+  const rows = (await sql`
+    select ri.matched_product_id, ri.matched_activity_id, ri.price::float as price, ri.points_awarded
+    from receipt_items ri
+    join receipts r on r.id = ri.receipt_id
+    where r.user_id = ${userId}
+      and r.status <> 'rejected'
+      and (ri.matched_product_id is not null or ri.matched_activity_id is not null)
+      and (r.submitted_at at time zone 'Africa/Johannesburg')::date = (now() at time zone 'Africa/Johannesburg')::date
+  `) as Array<{ matched_product_id: string | null; matched_activity_id: string | null; price: number; points_awarded: number }>;
+  return rows.map((r) => ({
+    matchedProductId: r.matched_product_id,
+    matchedActivityId: r.matched_activity_id,
+    price: Number(r.price),
+    pointsAwarded: Number(r.points_awarded),
+  }));
 }
 
 /** A club counts as participating unless a super_admin has explicitly

@@ -6,7 +6,7 @@ import { HttpError, withErrorHandling } from '../_lib/http';
 import { checkDuplicateReceipt, describeFraudReasons, evaluateFraudSignals } from '../_lib/fraudChecks';
 import { runScanPipeline } from '../_lib/scanPipeline';
 import { clearScanExtraction } from '../_lib/scanCache';
-import { finalizePoints, isClubParticipating, type MatchedItem } from '../_lib/pointsEngine';
+import { finalizePoints, isClubParticipating, loadSameDayCatalogItems, type MatchedItem } from '../_lib/pointsEngine';
 import { getCurrentTierStatus } from '../_lib/tierRewards';
 import { sendPushToUser } from '../_lib/pushNotifications';
 import { notifyCourseAdmins } from '../_lib/adminNotifications';
@@ -129,16 +129,18 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         res.status(200).json({ isDuplicate: true, reason: duplicate.reason });
         return;
       }
-      const [tierStatus, homeClubParticipating] = await Promise.all([
+      const [tierStatus, homeClubParticipating, sameDay] = await Promise.all([
         getCurrentTierStatus(authed.id),
         isClubParticipating(authed.courseId),
+        loadSameDayCatalogItems(authed.id),
       ]);
-      const { finalPointsAwarded, awayClub, nonParticipatingClub } = finalizePoints(
+      const { finalPointsAwarded, awayClub, nonParticipatingClub, pointsBasis, items } = finalizePoints(
         scored,
         { subtotal: parsed.subtotal, grandTotal: parsed.grandTotal },
         authed.courseId,
         tierStatus.multiplier,
         homeClubParticipating,
+        sameDay,
       );
       res.status(200).json({
         isDuplicate: false,
@@ -151,7 +153,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         tillNumber: parsed.tillNumber,
         date: parsed.date,
         time: parsed.time,
-        items: scored.items,
+        items,
         subtotal: parsed.subtotal,
         vat: parsed.vat,
         grandTotal: parsed.grandTotal,
@@ -161,6 +163,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         tierMultiplier: tierStatus.multiplier,
         awayClub,
         nonParticipatingClub,
+        pointsBasis,
       });
       return;
     }
@@ -187,16 +190,18 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     // Tier multiplier uses the tier as of before this receipt (points earned
     // so far this quarter, not including it), so a receipt's own points
     // can't retroactively change the multiplier applied to itself.
-    const [tierStatus, homeClubParticipating] = await Promise.all([
+    const [tierStatus, homeClubParticipating, sameDay] = await Promise.all([
       getCurrentTierStatus(authed.id),
       isClubParticipating(authed.courseId),
+      loadSameDayCatalogItems(authed.id),
     ]);
-    const { finalPointsAwarded, awayClub, nonParticipatingClub } = finalizePoints(
+    const { finalPointsAwarded, awayClub, nonParticipatingClub, items } = finalizePoints(
       scored,
       { subtotal: parsed.subtotal, grandTotal: parsed.grandTotal },
       authed.courseId,
       tierStatus.multiplier,
       homeClubParticipating,
+      sameDay,
     );
 
     const fraud = await evaluateFraudSignals({
@@ -206,7 +211,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     });
 
     const courseName = scored.merchant?.name ?? parsed.merchantNameGuess ?? '';
-    const itemsSnapshot = scored.items.map((i) => ({ label: i.description, amount: i.price }));
+    const itemsSnapshot = items.map((i) => ({ label: i.description, amount: i.price }));
     const receiptId = randomUUID();
     const notificationBody =
       `You earned ${finalPointsAwarded} Flagrr Cash from your receipt${courseName ? ` at ${courseName}` : ''}.` +
@@ -251,7 +256,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     const monthNumber = new Date().getMonth() + 1;
 
     await sql.transaction([
-      ...scored.items.map(
+      ...items.map(
         (i) => sql`
           insert into receipt_items (receipt_id, description, quantity, price, matched_product_id, matched_activity_id, points_awarded)
           values (${receiptId}, ${i.description}, ${i.quantity}, ${i.price}, ${i.matchedProductId}, ${i.matchedActivityId}, ${i.pointsAwarded})
