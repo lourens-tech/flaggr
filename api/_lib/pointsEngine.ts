@@ -32,6 +32,7 @@ export interface PointsResult {
   merchant: { id: string; name: string; merchantType: string; courseId: string | null } | null;
   subtotalPoints: number; // before merchant bonus multiplier
   totalPointsAwarded: number; // after merchant bonus multiplier
+  bonusMultiplier: number; // the matched merchant's promo multiplier, 1 when none
 }
 
 // Products/activities are scoped to one club — every club manages its own
@@ -140,6 +141,7 @@ export async function matchAndScoreReceipt(
       : null,
     subtotalPoints,
     totalPointsAwarded,
+    bonusMultiplier,
   };
 }
 
@@ -147,6 +149,20 @@ export interface FinalizedPoints {
   finalPointsAwarded: number;
   awayClub: boolean;
   nonParticipatingClub: boolean;
+  // 'total': earned on the amount the slip says was paid (R1 = 1 Flagrr Cash
+  // before multipliers). 'items': no total could be read, so it's the sum of
+  // the line items instead.
+  pointsBasis: 'total' | 'items';
+}
+
+// What a slip earns on is its total — never the sum of every amount OCR
+// happens to read. Adding up line amounts used to count "Amount Tendered",
+// account balances and the like as extra purchases, and catalog prices could
+// exceed what was actually paid, so one R40 slip could earn hundreds. The
+// subtotal stands in when only that was legible; the item sum is a last
+// resort for slips with no readable total at all.
+function amountPaid(spend: { subtotal: number | null; grandTotal: number | null }): number | null {
+  return spend.grandTotal ?? spend.subtotal ?? null;
 }
 
 // Members play away from their home club all the time. A receipt matched to
@@ -170,19 +186,36 @@ export function finalizePoints(
   homeClubParticipating: boolean,
 ): FinalizedPoints {
   const awayClub = scored.merchant?.courseId != null && scored.merchant.courseId !== homeCourseId;
+  const paid = amountPaid(spend);
   if (!homeClubParticipating) {
-    const amountSpent = spend.grandTotal ?? spend.subtotal ?? 0;
-    return { finalPointsAwarded: Math.round(amountSpent), awayClub, nonParticipatingClub: true };
+    return { finalPointsAwarded: Math.round(paid ?? 0), awayClub, nonParticipatingClub: true, pointsBasis: 'total' };
   }
   if (awayClub) {
-    const amountSpent = spend.grandTotal ?? spend.subtotal ?? 0;
-    return { finalPointsAwarded: Math.round(amountSpent), awayClub: true, nonParticipatingClub: false };
+    return { finalPointsAwarded: Math.round(paid ?? 0), awayClub: true, nonParticipatingClub: false, pointsBasis: 'total' };
+  }
+  if (paid !== null) {
+    return {
+      finalPointsAwarded: Math.round(paid * scored.bonusMultiplier * tierMultiplier),
+      awayClub: false,
+      nonParticipatingClub: false,
+      pointsBasis: 'total',
+    };
   }
   return {
     finalPointsAwarded: Math.round(scored.totalPointsAwarded * tierMultiplier),
     awayClub: false,
     nonParticipatingClub: false,
+    pointsBasis: 'items',
   };
+}
+
+// Line items as shown to the member and stored with the receipt. When points
+// come from the slip total, each line shows what it actually cost (R1 = 1
+// Flagrr Cash) rather than a catalog value, so the lines can't suggest a
+// different figure from the one actually earned.
+export function itemsForBasis(items: MatchedItem[], basis: FinalizedPoints['pointsBasis']): MatchedItem[] {
+  if (basis === 'items') return items;
+  return items.map((i) => ({ ...i, pointsAwarded: Math.max(0, Math.round(i.price)) }));
 }
 
 /** A club counts as participating unless a super_admin has explicitly

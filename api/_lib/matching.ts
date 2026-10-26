@@ -34,15 +34,22 @@ function levenshtein(a: string, b: string): number {
   return dist[rows - 1][cols - 1];
 }
 
-// 1.0 = identical, 0.0 = completely different.
+// 1.0 = identical, 0.0 = completely different. a is the text being matched (an
+// OCR'd line), b the catalog name or alias it's compared against.
 export function similarity(a: string, b: string): number {
   const na = normalize(a);
   const nb = normalize(b);
   if (!na || !nb) return 0;
   if (na === nb) return 1;
-  // One is a substring of the other (e.g. "pro v1 dz" inside a longer OCR
-  // line) — treat as a strong match rather than penalizing the length gap.
-  if (na.includes(nb) || nb.includes(na)) return 0.92;
+  // The catalog name (b) appears inside the OCR line (a), e.g. "pro v1 dz"
+  // inside a longer line — treat as a strong match rather than penalizing
+  // the length gap.
+  if (na.includes(nb)) return 0.92;
+  // The other way round — the OCR line is a fragment of a longer catalog
+  // name — only counts when the fragment is most of that name. Otherwise a
+  // generic line like "-- 18 HOLES --" (a section header on the pilot club's
+  // slips) matched "Visitors Golf Cart Rental 18 Holes" and scored R490.
+  if (nb.includes(na) && na.length / nb.length >= 0.6) return 0.92;
   const maxLen = Math.max(na.length, nb.length);
   return 1 - levenshtein(na, nb) / maxLen;
 }

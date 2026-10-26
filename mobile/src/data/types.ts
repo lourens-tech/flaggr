@@ -179,6 +179,10 @@ export type ScanResult =
       // (misleading, since they may be at their actual home club) "not your
       // home club" copy.
       nonParticipatingClub: boolean;
+      // 'total': Flagrr Cash was earned on the slip total, and each item's
+      // pointsAwarded is just its price. 'items': no total could be read, so
+      // it's the sum of the matched items instead.
+      pointsBasis?: 'total' | 'items';
     };
 
 export type AdPlacement = 'home' | 'homeTop' | 'rewardsShop';

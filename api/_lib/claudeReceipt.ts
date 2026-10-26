@@ -92,7 +92,7 @@ Field guidance:
 - date as YYYY-MM-DD and time as HH:MM (24-hour). South African slips usually print dates day-first.
 - items: each purchased line item. quantity defaults to 1. price is the line total in Rand for that item, as a number. A leading number that is part of the product name ("9 Hole Round", "3 Wood", "56 Wedge") is not a quantity. An item marked PAID, PREPAID, COMP or charged to a member account has price 0.
 - Do not list totals, VAT, tenders, change, card or payment lines, tips or loyalty/points lines as items.
-- subtotal, vat and grand_total as numbers when printed, else null. grand_total is the amount due, never the cash tendered.
+- subtotal, vat and grand_total as numbers when printed, else null. grand_total is the slip's final total (the amount due, after any discount), never the cash tendered, an account balance, or the "Taxable Total". Points are based on grand_total alone, so read it carefully.
 - Use null for anything not printed or not legible.`;
 
 export class ClaudeExtractionError extends Error {}
@@ -173,6 +173,7 @@ export async function extractReceiptWithClaude(imageDataUri: string): Promise<Cl
     subtotal: json.subtotal,
     vat: json.vat,
     grandTotal: json.is_receipt ? json.grand_total : null,
+    totalSource: json.is_receipt && json.grand_total !== null ? 'total' : null,
   };
 
   return { parsed, confidence: LEGIBILITY_CONFIDENCE[json.legibility] ?? 35, isReceipt: json.is_receipt, model: response.model };

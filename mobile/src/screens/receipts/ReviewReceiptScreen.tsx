@@ -25,8 +25,11 @@ export function ReviewReceiptScreen({ route, navigation }: Props) {
   const isLowConfidence = scanResult.ocrConfidence < 55;
   const isAwayClub = scanResult.awayClub;
   const isNonParticipatingClub = scanResult.nonParticipatingClub;
+  // Earned on the slip total (always the case away or at a non-participating
+  // club), so line items just show what they cost rather than their own FC.
+  const earnsOnTotal = isAwayClub || isNonParticipatingClub || scanResult.pointsBasis === 'total';
   const hasUnmatchedItems =
-    !isAwayClub && !isNonParticipatingClub && scanResult.items.some((i) => !i.matchedProductId && !i.matchedActivityId);
+    !earnsOnTotal && scanResult.items.some((i) => !i.matchedProductId && !i.matchedActivityId);
 
   const handleSubmit = async () => {
     setSubmitting(true);
@@ -114,14 +117,14 @@ export function ReviewReceiptScreen({ route, navigation }: Props) {
                     {item.quantity > 1 ? `${item.quantity}x ` : ''}
                     {item.description}
                   </Text>
-                  {isAwayClub ? null : item.matchedName ? (
+                  {earnsOnTotal ? null : item.matchedName ? (
                     <Text style={styles.itemMatched}>Matched: {item.matchedName}</Text>
                   ) : (
                     <Text style={styles.itemUnmatched}>Not eligible for points</Text>
                   )}
                 </View>
                 <Text style={styles.itemAmount}>
-                  {isAwayClub ? `R${item.price.toFixed(2)}` : item.pointsAwarded > 0 ? `+${item.pointsAwarded} FC` : '—'}
+                  {earnsOnTotal ? `R${item.price.toFixed(2)}` : item.pointsAwarded > 0 ? `+${item.pointsAwarded} FC` : '—'}
                 </Text>
               </View>
             ))
@@ -145,6 +148,9 @@ export function ReviewReceiptScreen({ route, navigation }: Props) {
             <Text style={styles.totalLabel}>Flagrr Cash Earned</Text>
             <Text style={styles.totalValue}>+{scanResult.totalPointsAwarded} FC</Text>
           </View>
+          {earnsOnTotal ? (
+            <Text style={styles.unmatchedHint}>Flagrr Cash is earned on the slip total.</Text>
+          ) : null}
         </View>
 
         <Text style={styles.disclaimer}>
