@@ -151,7 +151,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         tillNumber: parsed.tillNumber,
         date: parsed.date,
         time: parsed.time,
-        items: itemsForBasis(scored.items, pointsBasis),
+        items: itemsForBasis(scored.items, { pointsBasis, awayClub, nonParticipatingClub }),
         subtotal: parsed.subtotal,
         vat: parsed.vat,
         grandTotal: parsed.grandTotal,
@@ -207,7 +207,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     });
 
     const courseName = scored.merchant?.name ?? parsed.merchantNameGuess ?? '';
-    const items = itemsForBasis(scored.items, pointsBasis);
+    const items = itemsForBasis(scored.items, { pointsBasis, awayClub, nonParticipatingClub });
     const itemsSnapshot = items.map((i) => ({ label: i.description, amount: i.price }));
     const receiptId = randomUUID();
     const notificationBody =

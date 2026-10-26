@@ -147,8 +147,8 @@ function toItem(descriptionRaw: string, priceRaw: string): ParsedLineItem | null
   // price === 0 is a valid, meaningful read (a pre-paid round, or an item
   // billed to the member's course account) — only a price that failed to
   // parse at all should drop the item. Points come from the slip's total
-  // whenever one can be read (see finalizePoints in pointsEngine.ts); line
-  // items only decide points on a slip with no readable total.
+  // whenever one can be read, plus the catalog value of any R0 line matched
+  // to the club's catalog (see finalizePoints in pointsEngine.ts).
   if (price === null || !description || description.length < 2) return null;
   return { description, quantity, price };
 }

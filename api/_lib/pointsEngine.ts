@@ -165,6 +165,14 @@ function amountPaid(spend: { subtotal: number | null; grandTotal: number | null 
   return spend.grandTotal ?? spend.subtotal ?? null;
 }
 
+// A line the slip shows at R0 (a round paid for in advance, or comped) that
+// matched this club's catalog. The slip total doesn't include it, so it earns
+// its catalog value on top — otherwise a fully pre-paid slip would earn
+// nothing at all.
+function isPrepaidCatalogItem(item: MatchedItem): boolean {
+  return item.price === 0 && (item.matchedProductId !== null || item.matchedActivityId !== null);
+}
+
 // Members play away from their home club all the time. A receipt matched to
 // another Flagrr-partnered club's merchant (course_id set, but not the
 // member's own) doesn't use that club's product/activity catalog match or
@@ -194,8 +202,9 @@ export function finalizePoints(
     return { finalPointsAwarded: Math.round(paid ?? 0), awayClub: true, nonParticipatingClub: false, pointsBasis: 'total' };
   }
   if (paid !== null) {
+    const prepaid = scored.items.filter(isPrepaidCatalogItem).reduce((sum, i) => sum + i.pointsAwarded, 0);
     return {
-      finalPointsAwarded: Math.round(paid * scored.bonusMultiplier * tierMultiplier),
+      finalPointsAwarded: Math.round((paid + prepaid) * scored.bonusMultiplier * tierMultiplier),
       awayClub: false,
       nonParticipatingClub: false,
       pointsBasis: 'total',
@@ -212,10 +221,17 @@ export function finalizePoints(
 // Line items as shown to the member and stored with the receipt. When points
 // come from the slip total, each line shows what it actually cost (R1 = 1
 // Flagrr Cash) rather than a catalog value, so the lines can't suggest a
-// different figure from the one actually earned.
-export function itemsForBasis(items: MatchedItem[], basis: FinalizedPoints['pointsBasis']): MatchedItem[] {
-  if (basis === 'items') return items;
-  return items.map((i) => ({ ...i, pointsAwarded: Math.max(0, Math.round(i.price)) }));
+// different figure from the one actually earned — except pre-paid catalog
+// items at the home club, which keep the catalog value they're earning.
+export function itemsForBasis(
+  items: MatchedItem[],
+  points: Pick<FinalizedPoints, 'pointsBasis' | 'awayClub' | 'nonParticipatingClub'>,
+): MatchedItem[] {
+  if (points.pointsBasis === 'items') return items;
+  const prepaidEarns = !points.awayClub && !points.nonParticipatingClub;
+  return items.map((i) =>
+    prepaidEarns && isPrepaidCatalogItem(i) ? i : { ...i, pointsAwarded: Math.max(0, Math.round(i.price)) },
+  );
 }
 
 /** A club counts as participating unless a super_admin has explicitly
