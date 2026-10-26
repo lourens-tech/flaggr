@@ -6,7 +6,7 @@ import { HttpError, withErrorHandling } from '../_lib/http';
 import { checkDuplicateReceipt, describeFraudReasons, evaluateFraudSignals } from '../_lib/fraudChecks';
 import { runScanPipeline } from '../_lib/scanPipeline';
 import { clearScanExtraction } from '../_lib/scanCache';
-import { finalizePoints, isClubParticipating, itemsForBasis, type MatchedItem } from '../_lib/pointsEngine';
+import { finalizePoints, isClubParticipating, loadSameDayCatalogItems, type MatchedItem } from '../_lib/pointsEngine';
 import { getCurrentTierStatus } from '../_lib/tierRewards';
 import { sendPushToUser } from '../_lib/pushNotifications';
 import { notifyCourseAdmins } from '../_lib/adminNotifications';
@@ -129,16 +129,18 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         res.status(200).json({ isDuplicate: true, reason: duplicate.reason });
         return;
       }
-      const [tierStatus, homeClubParticipating] = await Promise.all([
+      const [tierStatus, homeClubParticipating, sameDay] = await Promise.all([
         getCurrentTierStatus(authed.id),
         isClubParticipating(authed.courseId),
+        loadSameDayCatalogItems(authed.id),
       ]);
-      const { finalPointsAwarded, awayClub, nonParticipatingClub, pointsBasis } = finalizePoints(
+      const { finalPointsAwarded, awayClub, nonParticipatingClub, pointsBasis, items } = finalizePoints(
         scored,
         { subtotal: parsed.subtotal, grandTotal: parsed.grandTotal },
         authed.courseId,
         tierStatus.multiplier,
         homeClubParticipating,
+        sameDay,
       );
       res.status(200).json({
         isDuplicate: false,
@@ -151,7 +153,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         tillNumber: parsed.tillNumber,
         date: parsed.date,
         time: parsed.time,
-        items: itemsForBasis(scored.items, { pointsBasis, awayClub, nonParticipatingClub }),
+        items,
         subtotal: parsed.subtotal,
         vat: parsed.vat,
         grandTotal: parsed.grandTotal,
@@ -188,16 +190,18 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     // Tier multiplier uses the tier as of before this receipt (points earned
     // so far this quarter, not including it), so a receipt's own points
     // can't retroactively change the multiplier applied to itself.
-    const [tierStatus, homeClubParticipating] = await Promise.all([
+    const [tierStatus, homeClubParticipating, sameDay] = await Promise.all([
       getCurrentTierStatus(authed.id),
       isClubParticipating(authed.courseId),
+      loadSameDayCatalogItems(authed.id),
     ]);
-    const { finalPointsAwarded, awayClub, nonParticipatingClub, pointsBasis } = finalizePoints(
+    const { finalPointsAwarded, awayClub, nonParticipatingClub, items } = finalizePoints(
       scored,
       { subtotal: parsed.subtotal, grandTotal: parsed.grandTotal },
       authed.courseId,
       tierStatus.multiplier,
       homeClubParticipating,
+      sameDay,
     );
 
     const fraud = await evaluateFraudSignals({
@@ -207,7 +211,6 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     });
 
     const courseName = scored.merchant?.name ?? parsed.merchantNameGuess ?? '';
-    const items = itemsForBasis(scored.items, { pointsBasis, awayClub, nonParticipatingClub });
     const itemsSnapshot = items.map((i) => ({ label: i.description, amount: i.price }));
     const receiptId = randomUUID();
     const notificationBody =

@@ -68,8 +68,43 @@ test('away clubs earn the flat rate on what was paid', () => {
 
 test('on a total basis each line shows what it cost, pre-paid items their catalog value', () => {
   const items = [prepaidRound, { ...competition, pointsAwarded: 90 }];
-  const home = { pointsBasis: 'total', awayClub: false, nonParticipatingClub: false } as const;
-  assert.deepEqual(engine.itemsForBasis(items, home).map((i) => i.pointsAwarded), [285, 40]);
-  assert.deepEqual(engine.itemsForBasis(items, { ...home, awayClub: true }).map((i) => i.pointsAwarded), [0, 40]);
-  assert.equal(engine.itemsForBasis(items, { ...home, pointsBasis: 'items' }), items);
+  const home = engine.finalizePoints(scoredWith(items), { subtotal: null, grandTotal: 40 }, HOME, 1, true);
+  assert.deepEqual(home.items.map((i) => i.pointsAwarded), [285, 40]);
+  const away = { ...scoredWith(items), merchant: { ...merchant, courseId: 'other-club' } };
+  assert.deepEqual(engine.finalizePoints(away, { subtotal: null, grandTotal: 40 }, HOME, 1, true).items.map((i) => i.pointsAwarded), [0, 40]);
+  const noTotal = engine.finalizePoints(scoredWith(items), { subtotal: null, grandTotal: null }, HOME, 1, true);
+  assert.deepEqual(noTotal.items.map((i) => i.pointsAwarded), [285, 90]);
+});
+
+// The round as stored on another of today's slips.
+const paidEarlier = { matchedProductId: null, matchedActivityId: 'a1', price: 285, pointsAwarded: 285 };
+const creditedEarlier = { matchedProductId: null, matchedActivityId: 'a1', price: 0, pointsAwarded: 285 };
+
+test('a pre-paid round already paid for on another slip today earns nothing more', () => {
+  const result = engine.finalizePoints(scoredWith([prepaidRound, competition]), { subtotal: null, grandTotal: 40 }, HOME, 1, true, [paidEarlier]);
+  assert.equal(result.finalPointsAwarded, 40);
+  assert.deepEqual(result.items.map((i) => i.pointsAwarded), [0, 40]);
+});
+
+test('a pre-paid round already credited on another slip today earns nothing more', () => {
+  const result = engine.finalizePoints(scoredWith([prepaidRound]), { subtotal: null, grandTotal: 0 }, HOME, 1, true, [creditedEarlier]);
+  assert.equal(result.finalPointsAwarded, 0);
+});
+
+test('paying for a round already credited as pre-paid today earns only the rest of the slip', () => {
+  const round = { ...prepaidRound, description: 'Senior 18 Holes', price: 285 };
+  const result = engine.finalizePoints(scoredWith([round, competition]), { subtotal: null, grandTotal: 325 }, HOME, 1.2, true, [creditedEarlier]);
+  assert.equal(result.finalPointsAwarded, 48); // (325 - 285) x 1.2
+  assert.deepEqual(result.items.map((i) => i.pointsAwarded), [0, 40]);
+});
+
+test('other catalog items on today\'s slips change nothing', () => {
+  const other = { matchedProductId: 'p9', matchedActivityId: null, price: 0, pointsAwarded: 120 };
+  const result = engine.finalizePoints(scoredWith([prepaidRound, competition]), { subtotal: null, grandTotal: 40 }, HOME, 1, true, [other]);
+  assert.equal(result.finalPointsAwarded, 325);
+});
+
+test('with no total, a pre-paid round already paid for today is left out of the item sum', () => {
+  const result = engine.finalizePoints(scoredWith([prepaidRound, competition]), { subtotal: null, grandTotal: null }, HOME, 1, true, [paidEarlier]);
+  assert.equal(result.finalPointsAwarded, 40);
 });

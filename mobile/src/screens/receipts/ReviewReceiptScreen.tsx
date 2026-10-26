@@ -33,6 +33,14 @@ export function ReviewReceiptScreen({ route, navigation }: Props) {
   // it counted them.
   const isPrepaidEarning = (item: { price: number; pointsAwarded: number }) => item.price === 0 && item.pointsAwarded > 0;
   const hasPrepaidEarning = earnsOnTotal && scanResult.items.some(isPrepaidEarning);
+  // A catalog item already on another of today's slips earns once: the server
+  // zeroes a repeat pre-paid line, or takes an earlier pre-paid credit off a
+  // paid one (see applySameDay in api/_lib/pointsEngine.ts).
+  const homeClubTotal = earnsOnTotal && !isAwayClub && !isNonParticipatingClub;
+  const isAlreadyEarnedToday = (item: { price: number; pointsAwarded: number; matchedName: string | null }) =>
+    homeClubTotal &&
+    item.matchedName !== null &&
+    (item.price === 0 ? item.pointsAwarded === 0 : item.pointsAwarded < Math.round(item.price));
   const hasUnmatchedItems =
     !earnsOnTotal && scanResult.items.some((i) => !i.matchedProductId && !i.matchedActivityId);
 
@@ -124,6 +132,8 @@ export function ReviewReceiptScreen({ route, navigation }: Props) {
                   </Text>
                   {earnsOnTotal && isPrepaidEarning(item) ? (
                     <Text style={styles.itemMatched}>Pre-paid · Matched: {item.matchedName}</Text>
+                  ) : isAlreadyEarnedToday(item) ? (
+                    <Text style={styles.itemUnmatched}>Already earned on another slip today</Text>
                   ) : earnsOnTotal ? null : item.matchedName ? (
                     <Text style={styles.itemMatched}>Matched: {item.matchedName}</Text>
                   ) : (
