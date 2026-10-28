@@ -36,7 +36,7 @@ Bottom tabs / sidebar: Dashboard, Enquiries, Rewards, Push, Vouchers, Course Pro
 
 | Area | Screens | Notes |
 |---|---|---|
-| Dashboard | `AdminDashboard`, `AdminReportDetail`, `AdminMemberStats` | KPIs, member search, paged member list, report tables for redemptions, receipts and members. |
+| Dashboard | `AdminDashboard`, `AdminReportDetail`, `AdminMemberStats` | KPIs, member search, paged member list, report tables for redemptions, receipts and members. The **Course map** panel (`ScorecardUploadPanel`) is where the GM uploads up to 12 scorecard photos and sees the map's stage (send your scorecard, photos received, being built, live); see [Course Maps](Course-Maps). |
 | Enquiries | `AdminEnquiriesListScreen`, `AdminEnquiryChat` | Member-to-club chat threads with status changes. |
 | Rewards | `AdminRewardsList`, `AdminRewardEdit` | Rewards with variants and images. |
 | Products and activities | `AdminCatalog`, `AdminCatalogItemEdit` | The receipt-matching catalogue. Soft or permanent delete. |
@@ -66,6 +66,7 @@ Bottom tabs / sidebar: Courses, Ads, Reports, Push, Support, Profile.
 
 | Area | Screens | Notes |
 |---|---|---|
+| Course maps | `SuperAdminCourseMaps`, `SuperAdminCourseMap` | Every club's map stage; view and download a club's scorecard photos; import a course map file, see what blocks publishing, publish, unpublish, replace, delete a draft. Away-only courses (not Flagrr clubs) are imported here too. Reached from the sidebar or the map icon on Courses. See [Course Maps](Course-Maps). |
 | Courses | `SuperAdminCourses`, `SuperAdminCourseCreate` | List with filters; create a club (also creates its `merchants` row and first course admin); archive and unarchive; cancel and reactivate subscription (see [Billing](Billing-and-Club-Signup)). |
 | Per club | `SuperAdminCourseAds`, `SuperAdminCourseRewards`, `SuperAdminCourseCatalog`, `SuperAdminCourseMemberList`, `SuperAdminCourseEnquiries` (read-only chat), `SuperAdminCourseAdmins`, `SuperAdminCourseAdminCreate` | Includes roster upload and course admin password reset, revoke, reactivate, delete. |
 | Ads | `SuperAdminAds`, `SuperAdminAdEdit`, `SuperAdminAdDetail` | Global ads or ads targeted at specific clubs; performance by slot, by club and over time; click log. |
@@ -74,7 +75,7 @@ Bottom tabs / sidebar: Courses, Ads, Reports, Push, Support, Profile.
 | Push and broadcasts | `SuperAdminPush`, `SuperAdminBroadcastCompose` | Includes a `course_admins` target. |
 | Support | `SuperAdminSupport`, `SuperAdminSupportTicketChat` | Cross-club inbox: claim, assign, set priority and status, reply. |
 | Agents | `SuperAdminAgents`, `SuperAdminAgentCreate` | Create, reset password, revoke, reactivate, delete support agents. |
-| Audit log | `SuperAdminAuditLog` | Records super admin mutations and fraud decisions. |
+| Audit log | `SuperAdminAuditLog` | Records super admin mutations and fraud decisions, plus course map imports, publishing and scorecard photo uploads. |
 
 ## Support agent
 

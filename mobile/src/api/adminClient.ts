@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
+import type { CourseMapStatus, ScorecardPhoto, SuperAdminGolfCourseDetail, SuperAdminGolfCourses } from '../golf/adminDto';
 import type {
   AdminAd,
   AdminBroadcast,
@@ -93,6 +94,8 @@ export class AdminApiError extends Error {
   constructor(
     public status: number,
     message: string,
+    // A list of specific problems, e.g. why a course map file can't be imported.
+    public problems: string[] = [],
   ) {
     super(message);
   }
@@ -120,7 +123,11 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
 
   const data = await res.json().catch(() => null);
   if (!res.ok) {
-    throw new AdminApiError(res.status, (data && data.error) || `Request to ${path} failed`);
+    throw new AdminApiError(
+      res.status,
+      (data && data.error) || `Request to ${path} failed`,
+      Array.isArray(data?.problems) ? data.problems.filter((p: unknown): p is string => typeof p === 'string') : [],
+    );
   }
   return data as T;
 }
@@ -221,6 +228,23 @@ export interface SupportAgentCreatePayload {
 }
 
 export const adminApi = {
+  // Course maps (api/_lib/golfAdmin.ts): the GM's scorecard photos...
+  courseMapStatus: () => request<CourseMapStatus>('?action=courseMapStatus'),
+  scorecardPhoto: (id: string) => request<{ imageData: string }>(`?action=scorecardPhoto&id=${encodeURIComponent(id)}`),
+  scorecardPhotoUpload: (imageBase64: string) => request<CourseMapStatus>('?action=scorecardPhotoUpload', { method: 'POST', body: { imageBase64 } }),
+  scorecardPhotoDelete: (id: string) => request<CourseMapStatus>('?action=scorecardPhotoDelete', { method: 'POST', body: { id } }),
+  // ...and the super admin's import and publishing.
+  superAdminGolfCourses: () => request<SuperAdminGolfCourses>('?action=superAdminGolfCourses'),
+  superAdminGolfCourse: (id: string) => request<SuperAdminGolfCourseDetail>(`?action=superAdminGolfCourse&id=${encodeURIComponent(id)}`),
+  superAdminScorecardPhotos: (courseId: string) =>
+    request<ScorecardPhoto[]>(`?action=superAdminScorecardPhotos&courseId=${encodeURIComponent(courseId)}`),
+  superAdminScorecardPhoto: (id: string) => request<{ imageData: string }>(`?action=superAdminScorecardPhoto&id=${encodeURIComponent(id)}`),
+  superAdminGolfCourseImport: (payload: { mapJson: string; clubId?: string | null; golfCourseId?: string | null }) =>
+    request<SuperAdminGolfCourseDetail>('?action=superAdminGolfCourseImport', { method: 'POST', body: payload }),
+  superAdminGolfCoursePublish: (id: string, live: boolean) =>
+    request<SuperAdminGolfCourseDetail>('?action=superAdminGolfCoursePublish', { method: 'POST', body: { id, live } }),
+  superAdminGolfCourseDelete: (id: string) => request<{ ok: boolean }>('?action=superAdminGolfCourseDelete', { method: 'POST', body: { id } }),
+
   // `identifier` is a course_admin/super_admin's email, or a staff
   // account's generated username — one login screen serves both, and the
   // server checks whichever applies to the matched account's role.

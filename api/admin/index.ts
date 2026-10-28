@@ -44,6 +44,7 @@ import {
 import { getRosterStatus, replaceMemberRoster } from '../_lib/memberRoster';
 import { parseMemberRosterFile } from '../_lib/memberRosterFileParsing';
 import { logAudit } from '../_lib/auditLog';
+import { handleCourseAdminGolfAction, handleSuperAdminGolfAction, SUPER_ADMIN_GOLF_ACTIONS } from '../_lib/golfAdmin';
 import {
   applyApprovalEffects,
   applyFraudConfirmationEffects,
@@ -445,6 +446,7 @@ const SUPER_ADMIN_ALLOWED_ACTIONS = new Set([
   'supportAgentRevoke',
   'supportAgentReactivate',
   'supportAgentDelete',
+  ...SUPER_ADMIN_GOLF_ACTIONS,
 ]);
 
 // A support_agent is a Flagrr-team account (created by a super_admin) that
@@ -1494,6 +1496,9 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       });
       return;
     }
+
+    // Course maps: scorecard photos from clubs, map import and publishing.
+    if (authedAdmin.role === 'super_admin' && (await handleSuperAdminGolfAction(String(action), authedAdmin, req, res))) return;
 
     // --- Support Centre inbox — shared by super_admin and support_agent;
     // any agent can pick up and reply to any ticket. A ticket auto-assigns
@@ -3211,6 +3216,9 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     });
     return;
   }
+
+  // Course map: the GM's scorecard photo uploads (course_admin only).
+  if (await handleCourseAdminGolfAction(String(action), authed, req, res)) return;
 
   if (action === 'dashboard' && req.method === 'GET') {
     const period: StatsPeriod = isStatsPeriod(req.query.period) ? req.query.period : 'month';

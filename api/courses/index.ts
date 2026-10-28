@@ -14,6 +14,7 @@ import {
 } from '../_lib/payfast';
 import { renderBrandedEmailHtml, emailParagraph } from '../_lib/emailTemplate';
 import { grantCourseReferralBonus } from '../_lib/referrals';
+import { handleGolfAction } from '../_lib/golf';
 
 const APP_URL = process.env.APP_URL || 'https://app.flagrr.com';
 // Matches the marketing site's advertised pricing exactly (see
@@ -321,6 +322,8 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     await payfastGracePeriodCheck(req, res);
     return;
   }
+  // Course Guide and My Golf (member-authenticated) — see api/_lib/golf.ts.
+  if (typeof action === 'string' && (await handleGolfAction(action, req, res))) return;
 
   if (req.method !== 'GET') {
     res.status(405).json({ error: 'Method not allowed' });

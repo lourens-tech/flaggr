@@ -18,6 +18,11 @@ type Props = NativeStackScreenProps<SuperAdminStackParamList, 'SuperAdminAuditLo
 
 export const ACTION_LABELS: Record<string, string> = {
   superAdminCourseCreate: 'Created club',
+  golf_course_import: 'Imported course map',
+  golf_course_publish: 'Published course map',
+  golf_course_unpublish: 'Unpublished course map',
+  golf_course_delete: 'Deleted course map',
+  scorecard_photo_upload: 'Uploaded scorecard photo',
   superAdminCourseCancelSubscription: "Cancelled club's subscription",
   superAdminCourseReactivateSubscription: "Reactivated club's subscription",
   superAdminCourseArchive: 'Archived club',

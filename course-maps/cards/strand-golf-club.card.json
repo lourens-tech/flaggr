@@ -1,0 +1,222 @@
+{
+  "name": "Strand Golf Club",
+  "location": "Strand, Western Cape",
+  "osm": {
+    "lat": -34.096,
+    "lon": 18.822,
+    "radius": 1000
+  },
+  "holeCount": 18,
+  "tees": [
+    {
+      "id": "yellow",
+      "name": "Yellow",
+      "color": "#E6C229",
+      "lengths": [
+        344,
+        421,
+        158,
+        237,
+        472,
+        383,
+        317,
+        156,
+        300,
+        393,
+        394,
+        363,
+        352,
+        213,
+        340,
+        472,
+        174,
+        508
+      ],
+      "ratings": {
+        "men": {
+          "full": {
+            "cr": 72.0,
+            "slope": 123
+          }
+        },
+        "ladies": {
+          "full": {
+            "cr": 78.2,
+            "slope": 142
+          }
+        }
+      }
+    },
+    {
+      "id": "white",
+      "name": "White",
+      "color": "#F4F4F2",
+      "lengths": [
+        328,
+        408,
+        145,
+        214,
+        429,
+        369,
+        302,
+        149,
+        293,
+        368,
+        356,
+        344,
+        330,
+        173,
+        321,
+        444,
+        159,
+        473
+      ],
+      "ratings": {
+        "men": {
+          "full": {
+            "cr": 70.0,
+            "slope": 120
+          }
+        },
+        "ladies": {
+          "full": {
+            "cr": 75.8,
+            "slope": 136
+          }
+        }
+      }
+    },
+    {
+      "id": "red",
+      "name": "Red",
+      "color": "#D64545",
+      "lengths": [
+        303,
+        387,
+        120,
+        205,
+        379,
+        316,
+        248,
+        131,
+        259,
+        331,
+        326,
+        330,
+        285,
+        142,
+        280,
+        393,
+        124,
+        418
+      ],
+      "ratings": {
+        "men": {
+          "full": {
+            "cr": 67.2,
+            "slope": 110
+          }
+        },
+        "ladies": {
+          "full": {
+            "cr": 71.7,
+            "slope": 126
+          }
+        }
+      }
+    }
+  ],
+  "card": {
+    "men": {
+      "par": [
+        4,
+        5,
+        3,
+        4,
+        5,
+        4,
+        4,
+        3,
+        4,
+        4,
+        4,
+        4,
+        4,
+        3,
+        4,
+        5,
+        3,
+        5
+      ],
+      "si": [
+        12,
+        6,
+        14,
+        18,
+        8,
+        2,
+        4,
+        16,
+        10,
+        3,
+        9,
+        15,
+        1,
+        7,
+        17,
+        11,
+        13,
+        5
+      ]
+    },
+    "ladies": {
+      "par": [
+        4,
+        5,
+        3,
+        4,
+        5,
+        4,
+        4,
+        3,
+        4,
+        4,
+        4,
+        4,
+        4,
+        3,
+        4,
+        5,
+        3,
+        5
+      ],
+      "si": [
+        12,
+        6,
+        14,
+        18,
+        8,
+        2,
+        4,
+        16,
+        10,
+        3,
+        9,
+        15,
+        1,
+        7,
+        17,
+        11,
+        13,
+        5
+      ]
+    }
+  },
+  "notes": [
+    "Card data from Strand's scorecard photos (IMG_1572), read on 28 Oct 2026: par, stroke index, metres per hole for Yellow, White and Red, and each tee's men's and ladies' Course Rating / Slope.",
+    "The card has one par and stroke index row, used for men and ladies.",
+    "The card has no separate front-nine or back-nine ratings, so only 18-hole rounds can be scored. Add them here if the club supplies them.",
+    "The card prints the White total as 5606; its nines (2637 + 2968) make 5605. Per-hole lengths are used as printed.",
+    "Card note: plus handicaps give back strokes on holes 4, 15, 8, 12, then 3, the same as stroke index 18, 17, 16, 15, 14."
+  ]
+}

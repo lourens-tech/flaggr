@@ -81,9 +81,21 @@ These need native code, so they wait for a new App Store / Play Store build (eve
 - Apple's real Liquid Glass material on iOS 26 (`expo-glass-effect`).
 - Skeleton loaders while lists load are not built yet; screens still show a spinner.
 
+## Course Guide and My Golf
+
+- **Not live until migration `048` is applied and Strand's map is imported and published** (see [Course Maps](Course-Maps)). Strand's card and map are built and pass every check.
+- **No GPS yet.** The ball starts on the tee and the member drags it; the hole view says "GPS integration coming soon". Club distances are typed in, not learned from shots.
+- **No satellite imagery:** holes are drawn from OpenStreetMap outlines.
+- **Nine-hole rounds need nine-hole ratings on the card.** Strand's card has none, so only 18-hole rounds can be scored there.
+- **Map geometry is only as good as OpenStreetMap.** Tee boxes more than 15 m off the card length are placed from the card length instead; the builder lists them.
+- **Scores are not submitted to GolfRSA,** and Flagrr never calculates a Handicap Index; members type theirs in.
+- **Away courses are only courses Flagrr has mapped.** A member cannot add an unmapped course.
+- **A map stays live if its club's subscription is cancelled**; unpublish it from the super admin console if it should go.
+- **Deferred on purpose:** the Flagrr Amateur Cup teaser from the mockup was left out; strokes gained, scrambling and handicap history are not built.
+
 ## Database and migrations
 
-- **`db/schema.sql` is stale.** It still has Stripe columns, an `admins` role check limited to `super_admin|course_admin`, `ads.placement` without `home_top`, `golf_products` without `course_id` and `rand_value`, and it is missing about 13 tables (roster, support, audit log, reset codes, pending signups, referrals, ad courses, ad impressions, scan cache, duplicate attempts, super-admin broadcasts) and many columns.
+- **`db/schema.sql` is stale.** It still has Stripe columns, an `admins` role check limited to `super_admin|course_admin`, `ads.placement` without `home_top`, `golf_products` without `course_id` and `rand_value`, and it is missing about 13 tables (roster, support, audit log, reset codes, pending signups, referrals, ad courses, ad impressions, scan cache, duplicate attempts, super-admin broadcasts) and many columns. The `048` golf tables are in it.
 - **Migrations cannot be replayed cleanly.** `018` uses `create table` without `if not exists`, `003` and `017` are destructive, and there is no migration runner or tracking table.
 - **`db/seed.sql` fails on a current database:** it inserts `golf_products` without `course_id` (made NOT NULL by `042`), and its merchants insert uses `on conflict` with no unique constraint.
 - **Unused columns and tables:** `admins.invite_token` and `invite_expires_at` (the invite flow was never built), `golf_products.sku`, `barcode` and `points_value`, `golf_activities.points_value`, legacy `user_stats` counters, the `streaks` table (created at signup, never updated, so `exportMyData` returns stale zeros), `receipts.image_uri`, and `ads.course_id`.
