@@ -151,7 +151,7 @@ Needs migration `048` applied and at least one live course map.
 - [ ] Away courses: search by name and by town; a recently played course is listed first.
 - [ ] Start a round: men's / ladies' and tees change the lengths and ratings; the Course and Playing Handicap match the working shown (for example index 14.2, White men's 70.0 / 120, par 72: course 13, playing 12 at 95%). A plus index like +1.4 is accepted; 55 or 14.25 is refused.
 - [ ] Only full rounds are offered on a card without nine-hole ratings.
-- [ ] Starting a second round while one is in progress is refused with a Resume option.
+- [ ] Starting a second round while one is in progress (from the Course tab or Start round) offers Resume round or Discard it, and every alert with a single OK button can be closed on a phone.
 - [ ] Hole view: drag, pinch / scroll and the zoom buttons work; the frame button fits the hole; tapping sets a target and the card says when it's risky; dragging the ball moves the start; distance arcs and hazard numbers turn off under layers. The "GPS integration coming soon" label shows.
 - [ ] The tee distance on the green card matches the card length within 15 m from every tee.
 - [ ] Score bar: tap for par, − / +, press and hold to clear; Stableford points and net results are right on a hole with a shot; **Pick up** appears once a hole is worth 0 points.

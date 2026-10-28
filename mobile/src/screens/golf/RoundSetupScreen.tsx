@@ -1,11 +1,11 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/types';
 import { ScreenHeader } from '../../components/common/ScreenHeader';
 import { PillButton } from '../../components/common/PillButton';
-import { api } from '../../api/client';
+import { api, ApiError } from '../../api/client';
 import { showAlert } from '../../utils/alert';
 import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 import { fontFamily, radius, spacing } from '../../theme';
@@ -78,16 +78,55 @@ export function RoundSetupScreen({ navigation, route }: Props) {
     return { rating, par, holes: idx.length, h };
   }, [course, option, gender, effectiveLayout, index, allowance]);
 
+  // A ref as well as the button's loading state: a quick double tap can fire
+  // twice before the button re-renders as disabled.
+  const startingRef = useRef(false);
+
+  // The member already has a round going (one at a time): let them pick it
+  // up or throw it away rather than leaving them stuck on this screen.
+  const offerInProgress = async () => {
+    let inProgress: Awaited<ReturnType<typeof api.golfHome>>['inProgress'] = null;
+    try {
+      inProgress = (await api.golfHome()).inProgress;
+    } catch {
+      // fall through to the plain message
+    }
+    if (!inProgress) {
+      showAlert('Could not start the round', 'You already have a round in progress. Open the Course tab to finish or discard it.');
+      return;
+    }
+    const round = inProgress;
+    showAlert('You have a round in progress', `${round.courseName}, ${round.teeName} tees. Pick it up where you left off, or discard it to start this one.`, [
+      { text: 'Resume round', onPress: () => navigation.replace('CourseGuide', { roundId: round.id }) },
+      {
+        text: 'Discard it',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await api.golfRoundDelete(round.id);
+            start();
+          } catch (err) {
+            showAlert('Could not discard the round', err instanceof Error ? err.message : undefined);
+          }
+        },
+      },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  };
+
   const start = async () => {
-    if (!course || !option || indexInvalid) return;
+    if (!course || !option || indexInvalid || startingRef.current) return;
+    startingRef.current = true;
     setStarting(true);
     try {
       await api.saveGolfProfile({ handicapIndex: index ?? null, trackStats });
       const round = await api.golfRoundStart({ golfCourseId: course.id, teeId: option.teeId, gender, layout: effectiveLayout, format, allowance });
       navigation.replace('CourseGuide', { roundId: round.id });
     } catch (e) {
-      showAlert('Could not start the round', e instanceof Error ? e.message : undefined);
+      if (e instanceof ApiError && e.status === 409) await offerInProgress();
+      else showAlert('Could not start the round', e instanceof Error ? e.message : undefined);
     } finally {
+      startingRef.current = false;
       setStarting(false);
     }
   };

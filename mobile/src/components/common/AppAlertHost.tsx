@@ -29,7 +29,8 @@ export function AppAlertHost() {
           <Text style={styles.title}>{config.title}</Text>
           {config.message ? <Text style={styles.message}>{config.message}</Text> : null}
 
-          <View style={config.buttons.length > 1 ? styles.buttonRow : styles.buttonColumn}>
+          {/* Two buttons side by side; one, or three or more, stacked. */}
+          <View style={config.buttons.length === 2 ? styles.buttonRow : styles.buttonColumn}>
             {config.buttons.map((button, i) => {
               const isCancel = button.style === 'cancel';
               const isDestructive = button.style === 'destructive';
@@ -40,6 +41,7 @@ export function AppAlertHost() {
                   onPress={() => handlePress(button)}
                   style={[
                     styles.button,
+                    config.buttons.length === 2 && styles.buttonInRow,
                     isCancel && styles.buttonOutline,
                     isDestructive && styles.buttonDestructive,
                     !isCancel && !isDestructive && styles.buttonPrimary,
@@ -90,15 +92,17 @@ function createStyles(colors: ThemeColors) {
     lineHeight: 20,
   },
   buttonRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.lg, width: '100%' },
-  buttonColumn: { marginTop: spacing.lg, width: '100%' },
+  buttonColumn: { marginTop: spacing.lg, width: '100%', gap: spacing.sm },
+  // No flex here: in the one-button column a flex: 1 button has no height to
+  // fill and collapses to nothing on iOS and Android (the web still drew it).
   button: {
-    flex: 1,
     height: 48,
     borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: spacing.md,
   },
+  buttonInRow: { flex: 1 },
   buttonPrimary: { backgroundColor: colors.darkGreen },
   buttonDestructive: { backgroundColor: colors.negative },
   buttonOutline: { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: colors.darkGreen },
