@@ -475,14 +475,24 @@ export function SuperAdminCoursesScreen({ navigation }: Props) {
               {superAdminCourses.length} club{superAdminCourses.length === 1 ? '' : 's'} on Flagrr
             </Text>
           </View>
-          <TouchableOpacity
-            onPress={() => navigation.navigate('SuperAdminCourseCreate')}
-            hitSlop={8}
-            accessibilityLabel="Add Course"
-            accessibilityRole="button"
-          >
-            <Ionicons name="add-circle" size={26} color={colors.white} />
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+            <TouchableOpacity
+              onPress={() => navigation.navigate('SuperAdminCourseMaps')}
+              hitSlop={8}
+              accessibilityLabel="Course maps"
+              accessibilityRole="button"
+            >
+              <Ionicons name="map-outline" size={24} color={colors.white} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => navigation.navigate('SuperAdminCourseCreate')}
+              hitSlop={8}
+              accessibilityLabel="Add Course"
+              accessibilityRole="button"
+            >
+              <Ionicons name="add-circle" size={26} color={colors.white} />
+            </TouchableOpacity>
+          </View>
         </View>
       </SafeAreaView>
 

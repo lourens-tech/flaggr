@@ -89,7 +89,10 @@ export function getAdminNavGroups(role: AdminRole): DesktopNavGroup[] {
 export const SUPER_ADMIN_NAV_GROUPS: DesktopNavGroup[] = [
   {
     label: 'Overview',
-    items: [{ key: 'SuperAdminCourses', label: 'Courses', icon: 'business-outline', target: tab('SuperAdminTabs', 'SuperAdminCourses') }],
+    items: [
+      { key: 'SuperAdminCourses', label: 'Courses', icon: 'business-outline', target: tab('SuperAdminTabs', 'SuperAdminCourses') },
+      { key: 'SuperAdminCourseMaps', label: 'Course Maps', icon: 'map-outline', target: stack('SuperAdminCourseMaps') },
+    ],
   },
   {
     label: 'Engagement',

@@ -20,6 +20,9 @@ import type {
   User,
   Voucher,
 } from '../data/types';
+import type { GolfCourseDto, GolfHomeDto, GolfProfileDto, GolfStatsDto, RoundDto } from '../golf/dto';
+import type { Gender, Layout } from '../golf/courseMap';
+import type { Format, HoleEntry } from '../golf/scoring';
 
 // Points at the deployed backend by default so the app works out of the box
 // (Expo Go, standalone builds). Override with EXPO_PUBLIC_API_URL for local
@@ -268,6 +271,31 @@ export const api = {
 
   deleteAccount: (password: string) =>
     request<{ ok: boolean }>('/profile?action=deleteAccount', { method: 'POST', body: { password } }),
+
+  // Course Guide and My Golf (api/_lib/golf.ts).
+  golfHome: () => request<GolfHomeDto>('/courses?action=golfHome'),
+
+  golfCourse: (id: string) => request<GolfCourseDto>(`/courses?action=golfCourse&id=${encodeURIComponent(id)}`),
+
+  golfProfile: () => request<GolfProfileDto>('/courses?action=golfProfile'),
+
+  saveGolfProfile: (payload: Partial<GolfProfileDto>) =>
+    request<GolfProfileDto>('/courses?action=golfProfile', { method: 'POST', body: payload }),
+
+  golfRoundStart: (payload: { golfCourseId: string; teeId: string; gender: Gender; layout: Layout; format: Format; allowance: 0.95 | 1 }) =>
+    request<RoundDto>('/courses?action=golfRoundStart', { method: 'POST', body: payload }),
+
+  golfRound: (id: string) => request<RoundDto>(`/courses?action=golfRound&id=${encodeURIComponent(id)}`),
+
+  golfRoundSave: (id: string, entries: HoleEntry[]) =>
+    request<RoundDto>('/courses?action=golfRoundSave', { method: 'POST', body: { id, entries } }),
+
+  golfRoundFinish: (id: string, entries: HoleEntry[]) =>
+    request<RoundDto>('/courses?action=golfRoundFinish', { method: 'POST', body: { id, entries } }),
+
+  golfRoundDelete: (id: string) => request<{ ok: boolean }>('/courses?action=golfRoundDelete', { method: 'POST', body: { id } }),
+
+  golfStats: (period: StatsPeriod) => request<GolfStatsDto>(`/courses?action=golfStats&period=${period}`),
 };
 
 /** Downloads the member's own data export as a JSON file. On web this

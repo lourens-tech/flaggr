@@ -142,6 +142,31 @@ Use test receipts that trigger a flag: a very unclear photo (low OCR confidence)
 - [ ] The deleted member no longer appears in the club admin's member list.
 - [ ] The public delete-account page (`/delete-account.html`) loads and its instructions match the in-app flow.
 
+## 15a. Course and My Golf
+
+Needs migration `048` applied and at least one live course map.
+
+- [ ] The tab bar shows Home, Course, My Golf, Scan, Rewards, Activity, Profile and fits a 360-wide phone.
+- [ ] A member whose club has no live map sees **Coming soon** on the Course tab (and the away courses below it) and on My Golf until they finish a round.
+- [ ] Away courses: search by name and by town; a recently played course is listed first.
+- [ ] Start a round: men's / ladies' and tees change the lengths and ratings; the Course and Playing Handicap match the working shown (for example index 14.2, White men's 70.0 / 120, par 72: course 13, playing 12 at 95%). A plus index like +1.4 is accepted; 55 or 14.25 is refused.
+- [ ] Only full rounds are offered on a card without nine-hole ratings.
+- [ ] Starting a second round while one is in progress is refused with a Resume option.
+- [ ] Hole view: drag, pinch / scroll and the zoom buttons work; the frame button fits the hole; tapping sets a target and the card says when it's risky; dragging the ball moves the start; distance arcs and hazard numbers turn off under layers. The "GPS integration coming soon" label shows.
+- [ ] The tee distance on the green card matches the card length within 15 m from every tee.
+- [ ] Score bar: tap for par, − / +, press and hold to clear; Stableford points and net results are right on a hole with a shot; **Pick up** appears once a hole is worth 0 points.
+- [ ] Putts and fairways (when turned on): putts can't reach the score; fairway buttons only on par 4s and 5s.
+- [ ] Scorecard: Out / In / Total add up; Finish round only when every hole is in; Discard round deletes it.
+- [ ] Turn off the network, enter a score, see "Not saved yet · will retry", turn it back on and see it save; leave and resume the round and the scores are still there.
+- [ ] My Golf after a few rounds: the Month / Year / All toggle changes the numbers; tapping a chart column shows that round; Recent rounds opens the scorecard; Correct a score saves; Delete round removes it from the stats.
+- [ ] Export my data includes the golf profile and rounds.
+
+## 15b. Club admin: Course map panel
+
+- [ ] Dashboard shows the Course map panel with "Send your scorecard"; upload several photos at once; the stage changes to "Photos received" and the Flagrr team gets one email for the batch.
+- [ ] Tap a photo to view it; delete it; the 12-photo limit is enforced.
+- [ ] Super admin: Course Maps lists the club; its photos show and download (web); importing `course-maps/strand-golf-club.json` creates a draft with no blockers; a file with a bad stroke index is saved as a draft with the blocker listed and Publish disabled; Publish makes the club's Course tab show **Start a round**; Unpublish brings back Coming soon.
+
 ## 16. Cross-cutting
 
 - [ ] Every confirm/alert dialog in the app (redeem confirmation, change-club confirmation, error messages) uses the branded in-app modal — no native browser `alert()`/`confirm()` popups anywhere.

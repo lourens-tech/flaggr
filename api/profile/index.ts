@@ -159,7 +159,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
   // are left out (already viewable individually in-app) to keep this from
   // ballooning into a multi-megabyte response.
   if (action === 'exportMyData' && req.method === 'GET') {
-    const [profileRows, pointsRows, streakRows, statsRows, receiptRows, activityRows, voucherRows, notificationRows, enquiryRows, ticketRows] =
+    const [profileRows, pointsRows, streakRows, statsRows, receiptRows, activityRows, voucherRows, notificationRows, enquiryRows, ticketRows, golfProfileRows, golfRoundRows] =
       await Promise.all([
         sql`
           select first_name, last_name, email, phone, date_of_birth, tier, member_since, verified_member
@@ -191,6 +191,12 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
             (select jsonb_agg(jsonb_build_object('senderType', m.sender_type, 'body', m.body, 'createdAt', m.created_at) order by m.created_at)
              from support_ticket_messages m where m.ticket_id = t.id) as messages
           from support_tickets t where t.requester_user_id = ${authed.id} order by t.created_at desc
+        `,
+        sql`select handicap_index, rating_gender, format, allowance, bag, track_stats from golf_profiles where user_id = ${authed.id}`,
+        sql`
+          select course_name, tee_name, rating_gender, layout, format, allowance, handicap_index, course_rating, slope, par,
+            course_handicap, playing_handicap, holes, entries, status, total_points, total_gross, total_adjusted, started_at, completed_at
+          from golf_rounds where user_id = ${authed.id} order by started_at desc
         `,
       ]);
 
@@ -269,6 +275,38 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         createdAt: e.created_at,
         updatedAt: e.updated_at,
         messages: e.messages ?? [],
+      })),
+      golfProfile: golfProfileRows[0]
+        ? {
+            handicapIndex: golfProfileRows[0].handicap_index == null ? null : Number(golfProfileRows[0].handicap_index),
+            ratingGender: golfProfileRows[0].rating_gender,
+            format: golfProfileRows[0].format,
+            allowance: Number(golfProfileRows[0].allowance),
+            bag: golfProfileRows[0].bag,
+            trackStats: golfProfileRows[0].track_stats,
+          }
+        : null,
+      golfRounds: (golfRoundRows as Array<Record<string, unknown>>).map((r) => ({
+        courseName: r.course_name,
+        teeName: r.tee_name,
+        ratingGender: r.rating_gender,
+        layout: r.layout,
+        format: r.format,
+        allowance: Number(r.allowance),
+        handicapIndex: r.handicap_index == null ? null : Number(r.handicap_index),
+        courseRating: Number(r.course_rating),
+        slope: r.slope,
+        par: r.par,
+        courseHandicap: r.course_handicap,
+        playingHandicap: r.playing_handicap,
+        holes: r.holes,
+        scores: r.entries,
+        status: r.status,
+        stablefordPoints: r.total_points,
+        gross: r.total_gross,
+        adjustedGross: r.total_adjusted,
+        startedAt: r.started_at,
+        completedAt: r.completed_at,
       })),
       supportTickets: (ticketRows as Array<Record<string, unknown>>).map((t) => ({
         subject: t.subject,

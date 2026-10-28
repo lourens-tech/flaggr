@@ -20,6 +20,9 @@ import { TermsPrivacyScreen } from '../screens/profile/TermsPrivacyScreen';
 import { MyEnquiriesScreen } from '../screens/profile/MyEnquiriesScreen';
 import { EnquiryChatScreen } from '../screens/profile/EnquiryChatScreen';
 import { NotificationPreferencesScreen } from '../screens/profile/NotificationPreferencesScreen';
+import { RoundSetupScreen } from '../screens/golf/RoundSetupScreen';
+import { CourseGuideScreen } from '../screens/golf/CourseGuideScreen';
+import { RoundDetailScreen } from '../screens/golf/RoundDetailScreen';
 import { AdminNavigator } from './AdminNavigator';
 import { SuperAdminNavigator } from './SuperAdminNavigator';
 import { AdminForceChangePasswordScreen } from '../screens/admin/AdminForceChangePasswordScreen';
@@ -83,6 +86,10 @@ export function RootNavigator() {
           <Stack.Screen name="MyEnquiries" component={MyEnquiriesScreen} />
           <Stack.Screen name="EnquiryChat" component={EnquiryChatScreen} />
           <Stack.Screen name="NotificationPreferences" component={NotificationPreferencesScreen} />
+          <Stack.Screen name="RoundSetup" component={RoundSetupScreen} />
+          {/* Full screen during a round, like Scan Receipt, so the tab bar never covers the map or score bar. */}
+          <Stack.Screen name="CourseGuide" component={CourseGuideScreen} options={{ ...slideUpOptions, gestureEnabled: false }} />
+          <Stack.Screen name="RoundDetail" component={RoundDetailScreen} />
         </>
       ) : (
         <Stack.Screen name="Auth" component={AuthNavigator} />

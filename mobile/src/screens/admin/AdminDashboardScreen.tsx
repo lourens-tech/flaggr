@@ -17,6 +17,7 @@ import { useHover, hoverTransition } from '../../hooks/useHover';
 import { AdminDesktopFrame } from '../../components/admin/desktop/AdminDesktopFrame';
 import { DesktopStatCard } from '../../components/admin/desktop/DesktopStatCard';
 import { DesktopPanel } from '../../components/admin/desktop/DesktopPanel';
+import { ScorecardUploadPanel } from '../../components/admin/ScorecardUploadPanel';
 import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
 import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 import type { AdminMember } from '../../data/adminTypes';
@@ -159,6 +160,8 @@ export function AdminDashboardScreen({ navigation }: Props) {
           <Text style={styles.dPageTitle}>{greeting()}, {admin.firstName}</Text>
           <Text style={styles.dPageSubtitle}>Here's how {course.name || 'your club'} is tracking this {dashboardPeriod === 'all' ? 'period' : dashboardPeriod}.</Text>
         </View>
+
+        <ScorecardUploadPanel />
 
         {dashboardLoading && !dashboard ? (
           <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
@@ -346,6 +349,8 @@ export function AdminDashboardScreen({ navigation }: Props) {
         {course.coverImageUrl ? (
           <Image source={{ uri: course.coverImageUrl }} style={styles.coverImage} />
         ) : null}
+
+        <ScorecardUploadPanel />
 
         <View style={styles.statsHeaderRow}>
           <Text style={styles.sectionTitle}>Overview</Text>

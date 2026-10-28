@@ -25,6 +25,8 @@ import { SuperAdminCourseAdminCreateScreen } from '../screens/superadmin/SuperAd
 import { SuperAdminMemberStatsScreen } from '../screens/superadmin/SuperAdminMemberStatsScreen';
 import { SuperAdminAuditLogScreen } from '../screens/superadmin/SuperAdminAuditLogScreen';
 import { SuperAdminFraudOversightScreen } from '../screens/superadmin/SuperAdminFraudOversightScreen';
+import { SuperAdminCourseMapsScreen } from '../screens/superadmin/SuperAdminCourseMapsScreen';
+import { SuperAdminCourseMapScreen } from '../screens/superadmin/SuperAdminCourseMapScreen';
 import { TermsPrivacyScreen } from '../screens/profile/TermsPrivacyScreen';
 import { useIsDesktopNav } from '../hooks/useIsDesktopNav';
 import { stackScreenOptions, webScreenLayout } from './motionOptions';
@@ -45,6 +47,8 @@ export function SuperAdminNavigator() {
         screenLayout={isDesktop ? undefined : webScreenLayout}
       >
       <Stack.Screen name="SuperAdminTabs" component={SuperAdminTabNavigator} />
+      <Stack.Screen name="SuperAdminCourseMaps" component={SuperAdminCourseMapsScreen} />
+      <Stack.Screen name="SuperAdminCourseMap" component={SuperAdminCourseMapScreen} />
       <Stack.Screen name="SuperAdminCourseCreate" component={SuperAdminCourseCreateScreen} />
       <Stack.Screen name="SuperAdminCourseAds" component={SuperAdminCourseAdsScreen} />
       <Stack.Screen name="SuperAdminAdEdit" component={SuperAdminAdEditScreen} />

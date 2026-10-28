@@ -27,6 +27,43 @@ The member's dashboard, shown after login:
 - **Rewards preview** — the first 3 rewards, with a "View All" link into the full Rewards Shop.
 - A notification bell with an unread badge, and the member's avatar, in the header.
 
+## Course and My Golf
+
+The tab bar has three tabs either side of the Scan button: **Home, Course, My Golf** on the left and **Rewards, Activity, Profile** on the right.
+
+### Course tab
+
+- **Your club:** when the member's home club has a live course map, a card with **Start a round**. Until it does, a **Coming soon** card says the club's map is on its way (members of the "My Club Isn't Listed Yet" placeholder are told their club isn't on Flagrr yet).
+- **Away courses:** every other live course map, searchable by name or town, most recently played first. Only courses Flagrr has mapped are listed, so every card matches the club's official one. If no course is live at all, the section says maps are coming soon.
+- **Round in progress:** a card to resume it or discard it. A member can have one round in progress at a time.
+
+### Starting a round
+
+Choose the **rating** (men's or ladies', where the card rates both), the **tees** (length, Course Rating and Slope shown), and which **holes**: all holes, or the front or back nine when the card has separate nine-hole ratings. Enter the **Handicap Index** as it shows on GolfRSA (`+` for a plus handicap; empty means playing off scratch), the **format** (Stableford or stroke play), the **allowance** (95%, the default, or 100%) and whether to enter **putts and fairways**. The screen shows the Course Handicap and Playing Handicap with the working. Flagrr never calculates a handicap index itself.
+
+Handicaps follow the World Handicap System: Course Handicap = Index × Slope ÷ 113 + (Course Rating − Par); a nine-hole round uses Index ÷ 2 (to the nearest tenth) with the nine-hole ratings. Playing Handicap = the unrounded Course Handicap × the allowance, rounded. Everything is fixed when the round starts, and the round keeps its own copy of par, stroke index, lengths and ratings, so a later correction to the map never changes a round already played.
+
+### During a round
+
+The hole view opens full screen, without the tab bar:
+- The hole is drawn tee at the bottom, green at the top, from the member's tee. Drag to move around, pinch / scroll / + and − to zoom, and the frame button to see the whole hole.
+- **Green distances** (front, middle, back) along the line from the ball to the flag. Distance arcs every 50 m and **reach / carry** numbers for bunkers and water can be turned off under the layers button.
+- **Suggested shot:** the club from the member's **bag** (their carry distances, saved to their profile; sample distances until they change them), where to aim, what it leaves and the usual miss, with a warning when a hazard is inside that miss. Tap anywhere to aim there instead, and drag the white ball to play from somewhere other than the tee.
+- A small **GPS integration coming soon** label: the ball does not follow the member's position yet.
+- **Score bar:** tap the number for par, − and + for one under or over, press and hold to clear a hole. It shows the result, net result and Stableford points (or net score), the shots received on the hole, and **Pick up** once a hole is worth 0 points. With putts and fairways on, a row above it takes putts and fairway hit / missed left / missed right (par 4s and 5s).
+- **Scorecard** (the card button): every hole with par, stroke index, shots, score, putts and points or net, Out / In / Total, and the round's Stableford, net, gross and handicap score (adjusted gross, each hole capped at net double bogey; a pick-up counts as net double bogey). **Finish round** is enabled once every hole has a score or a pick-up; **Discard round** deletes it.
+- Scores save to the server as they are entered, with a copy on the device in case the signal drops ("Not saved yet · will retry" in the header until it goes through). Leaving the screen keeps the round in progress.
+
+### My Golf tab
+
+Built only from rounds the member has finished in the Course tab, at home or away, for the Month, Year or All:
+- **Stableford average**, rounds played to handicap (36+ points over 18 holes, 18+ over nine), best round, and the Handicap Index as entered. Round-level numbers use 18-hole rounds when there are any in the period, otherwise nine-hole rounds.
+- **Rounds, scoring average** (handicap score), **best score** (lowest gross with no pick-ups) and **doubles or worse per 18 holes**.
+- **Points per round** chart (the last 20 rounds; tap a column for that round), **average score by par**, **score mix** per 18 holes and what doubles cost, **toughest holes** at the home course (or the course played most, once played twice), and **front nine against back nine**.
+- **Putting and ball striking:** putts and three-putts per 18 holes, greens in regulation (on the green in par minus two or fewer) and fairways hit, from the holes where putts and fairways were entered. Until then the card explains how to turn them on.
+- **Recent rounds**, with the best marked; tapping one opens its scorecard, where a score can be corrected on the map or the round deleted.
+- Until the member has finished a round: **Coming soon** while their home club has no live map (with a link to play an away course if any is live), or **Play your first round** once it does.
+
 ## Earning Flagrr Cash
 
 ### Scanning a receipt
@@ -144,6 +181,7 @@ Tier is based on **Flagrr Cash earned in the current calendar quarter** (Jan–M
 - **Contact Your Club**: a form (name, phone, email, enquiry type, message) that opens an **enquiry** with the club. **My Enquiries** lists them, and each opens a chat thread where club admins reply.
 - **Give Feedback**: submit a bug, feedback, or improvement ticket to the Flagrr team.
 - **Terms & Privacy**: in-app legal text.
+- **Export my data** includes the member's golf settings and every round they have kept.
 - Public pages `privacy.html`, `support.html`, and `delete-account.html` are served with the web build for app-store listings.
 
 ## App-wide UX details

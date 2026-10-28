@@ -118,10 +118,15 @@ Known issues in `app.json`: it requests `android.permission.RECORD_AUDIO`, which
 ## Database
 
 - `db/schema.sql` is a **partial, older** snapshot. It does not include about 13 tables and many columns that later migrations added. Do not treat it as the current schema.
-- `db/migrations/001` to `047` are plain SQL files. There is **no migration runner and no tracking table**: apply them in numeric order by hand against Neon, and keep a record of which have been applied.
+- `db/migrations/001` to `048` are plain SQL files. There is **no migration runner and no tracking table**: apply them in numeric order by hand against Neon, and keep a record of which have been applied.
 - Migration `018_admin_broadcasts.sql` uses `create table` without `if not exists`, so it fails if the table already exists. Migrations `003` and `017` are destructive; read them before running on a database with data.
 - `db/seed.sql` no longer works as written: it inserts `golf_products` without `course_id`, which became `NOT NULL` in migration `042`, and uses `on conflict` on a table without a matching unique constraint.
 - Any new schema change needs a new numbered file in `db/migrations/`.
+- `048_course_guide_and_my_golf.sql` adds the Course Guide and My Golf tables. Until it is applied, the Course and My Golf tabs and the dashboard's Course map panel show load errors.
+
+## Course maps
+
+`npx tsx scripts/course-maps/build.ts <slug> [--refresh]` builds `course-maps/<slug>.json` from `course-maps/cards/<slug>.card.json` and OpenStreetMap (Overpass API, no key needed). Import the result in the super admin console. Full steps: [Course Maps](Course-Maps). No new environment variables; the GM upload email goes to `CONTACT_EMAIL`.
 
 ## Domains and DNS
 

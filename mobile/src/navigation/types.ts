@@ -1,3 +1,4 @@
+import type { NavigatorScreenParams } from '@react-navigation/native';
 import type { ScanResult } from '../data/types';
 import type { CourseReportKind, StatBreakdownMetric, SuperAdminReportKind } from '../data/adminTypes';
 
@@ -97,11 +98,16 @@ export type SuperAdminStackParamList = {
   SuperAdminMemberStats: { memberId: string };
   SuperAdminAuditLog: undefined;
   SuperAdminFraudOversight: undefined;
+  SuperAdminCourseMaps: undefined;
+  // A club's course map (clubId), or an away-only course map (golfCourseId).
+  SuperAdminCourseMap: { clubId?: string; clubName?: string; golfCourseId?: string };
   TermsPrivacy: undefined;
 };
 
 export type MainTabParamList = {
   Home: undefined;
+  Course: undefined;
+  MyGolf: undefined;
   Rewards: undefined;
   Activity: undefined;
   Profile: undefined;
@@ -109,7 +115,7 @@ export type MainTabParamList = {
 
 export type RootStackParamList = {
   Auth: undefined;
-  Main: undefined;
+  Main: NavigatorScreenParams<MainTabParamList> | undefined;
   AdminMain: undefined;
   SuperAdminMain: undefined;
   AdminForceChangePassword: undefined;
@@ -134,6 +140,9 @@ export type RootStackParamList = {
   MyEnquiries: undefined;
   EnquiryChat: { enquiryId: string };
   NotificationPreferences: undefined;
+  RoundSetup: { golfCourseId: string };
+  CourseGuide: { roundId: string };
+  RoundDetail: { roundId: string };
 };
 
 declare global {

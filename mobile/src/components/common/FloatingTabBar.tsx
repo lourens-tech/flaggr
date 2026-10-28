@@ -8,15 +8,21 @@ import { PressableScale } from '../motion';
 
 const ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   Home: 'home-outline',
+  Course: 'flag-outline',
+  MyGolf: 'stats-chart-outline',
   Rewards: 'gift-outline',
   Activity: 'time-outline',
   Profile: 'person-outline',
 };
 
+const LABELS: Record<string, string> = { MyGolf: 'My Golf' };
+
 // Filled variants for the selected tab, the way iOS tab bars swap outline
 // for filled glyphs.
 const ICONS_ACTIVE: Record<string, keyof typeof Ionicons.glyphMap> = {
   Home: 'home',
+  Course: 'flag',
+  MyGolf: 'stats-chart',
   Rewards: 'gift',
   Activity: 'time',
   Profile: 'person',
@@ -57,7 +63,7 @@ function TabIcon({
       style={styles.iconButton}
       pressedScale={0.88}
       hitSlop={10}
-      accessibilityLabel={name}
+      accessibilityLabel={LABELS[name] ?? name}
       accessibilityRole="tab"
       accessibilityState={{ selected: focused }}
     >
@@ -78,11 +84,14 @@ function TabIcon({
 
 // Custom floating pill nav with a raised center "Scan" button, matching the
 // Figma "Show QR Button Container" / scan bar seen on Home, Rewards Shop, etc.
+// Three tabs either side keeps Scan centred: your golf (Home, Course, My
+// Golf) on the left, your Flagrr Cash (Rewards, Activity, Profile) on the
+// right. Gap and padding are sized so all seven fit a 360-wide phone.
 export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const leftRoutes = state.routes.slice(0, 2);
-  const rightRoutes = state.routes.slice(2);
+  const leftRoutes = state.routes.slice(0, 3);
+  const rightRoutes = state.routes.slice(3);
 
   const renderIcon = (route: (typeof state.routes)[number], index: number) => (
     <TabIcon
@@ -108,7 +117,7 @@ export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
         >
           <Ionicons name="scan-outline" size={24} color={colors.white} />
         </PressableScale>
-        {rightRoutes.map((r, i) => renderIcon(r, i + 2))}
+        {rightRoutes.map((r, i) => renderIcon(r, i + 3))}
       </View>
     </View>
   );
@@ -122,9 +131,9 @@ function createStyles(colors: ThemeColors) {
     alignItems: 'center',
     backgroundColor: colors.mintBgAlt,
     borderRadius: 25,
-    paddingHorizontal: 22,
+    paddingHorizontal: 18,
     height: 64,
-    gap: 22,
+    gap: 16,
     shadowColor: colors.darkGreen,
     shadowOpacity: 0.15,
     shadowRadius: 10,
