@@ -153,3 +153,18 @@ Other findings from the check:
 - Vercel flags several Neon integration variables (for example `DATABASE_URL`, `POSTGRES_URL`, `PGPASSWORD`) as readable secrets. They can be converted to sensitive variables in the Vercel dashboard.
 - EAS shows finished store builds for both platforms (iOS build 6 and Android build 8, version 1.0.1, production profile). Whether the Apple and Android push credentials are uploaded cannot be seen through the API and still needs checking in the Expo dashboard.
 - Export My Data is implemented for phones (writes a JSON file and opens the share sheet, `mobile/src/api/client.ts`) but has not been run on a real device.
+
+## Shipping updates without a new store build (EAS Update)
+
+Checked 2026-10-28 against `mobile/app.json`, `mobile/eas.json`, `mobile/package.json` and Expo's EAS Update docs.
+
+**Configured:** `expo-updates` is installed, `updates.url` points at the EAS project, and the `production` build profile uses the `production` channel (EAS shows the store builds on that channel). JavaScript and asset changes can be published with `eas update --channel production --message "..." --environment production` and installed apps download them in the background on launch (apply after one or two restarts).
+
+**Not confirmed from here:** whether any update has actually been published, and which Expo plan the `ewo-solutions` account is on. EAS Update is available on every plan; paid plans allow more users, bandwidth and storage, so check the plan limits in the Expo dashboard.
+
+Rules and gotchas:
+
+- `runtimeVersion` uses the `appVersion` policy. An update only reaches builds with the **same app version** (currently 1.0.1). Bumping `version` in `app.json` creates a new runtime that existing installs will not receive updates for; they stay on the old runtime until the user installs the new store build.
+- Anything native needs a new build and store submission: a new native module or Expo plugin, permission changes, an Expo SDK upgrade, icon or splash changes.
+- **`EXPO_PUBLIC_STORE_BUILD` is set only in the `eas.json` build profiles.** From SDK 55, `eas update` ignores local `.env` files and uses variables stored on EAS servers for the chosen `--environment`. If `EXPO_PUBLIC_STORE_BUILD=1` is not also defined in the EAS `production` environment, an update would be bundled with it unset, which re-enables the admin-login links in the store apps (`mobile/src/config/buildConfig.ts`). Define it once in the EAS dashboard (Environment variables, production) before publishing the first update.
+- The web app on Vercel is separate: it updates on every Vercel deploy and needs no store step.
