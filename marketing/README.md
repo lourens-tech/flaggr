@@ -1,8 +1,12 @@
 # Marketing mailers
 
 Member-facing campaign emails, kept alongside the transactional templates in
-`api/_lib/` so they share one brand system (Flagrr Dark Green `#1F4234`,
-Club Green `#00805A`, Lime `#CDDE5C`, Georgia headings, Helvetica body).
+`api/_lib/` so they share one brand system (Fairway Green `#1F4234`, Flag
+Green `#00805A`, Lime `#CDDE5C`). The brand's own typefaces (Fraunces and
+Poppins) are not reliable in email clients, so mailers use Georgia headings
+and Helvetica body as the email-safe stand-ins. The full rules (colour use,
+voice, what may and may not be claimed) are in
+[`docs/Brand-Kit.md`](../docs/Brand-Kit.md); read it before writing a mailer.
 
 Unlike the transactional templates these are plain HTML, not TypeScript —
 they're pasted into whatever ESP sends the campaign rather than rendered by
