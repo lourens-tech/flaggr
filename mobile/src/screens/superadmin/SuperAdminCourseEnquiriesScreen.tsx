@@ -1,11 +1,10 @@
 import React, { useCallback, useState, useMemo } from 'react';
-import { ActivityIndicator, FlatList, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SuperAdminStackParamList } from '../../navigation/types';
-import { ScreenHeader } from '../../components/common/ScreenHeader';
+import { AdminMobileHeader } from '../../components/admin/AdminMobileHeader';
 import { useAdmin } from '../../context/AdminContext';
 import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
 import { SuperAdminDesktopFrame } from '../../components/admin/desktop/SuperAdminDesktopFrame';
@@ -70,16 +69,16 @@ export function SuperAdminCourseEnquiriesScreen({ route, navigation }: Props) {
     const badge = enquiryStatusBadges(colors)[item.status];
     return (
       <TouchableOpacity
-        style={styles.row}
+        style={[styles.row, !isDesktop && styles.rowPhone]}
         onPress={() => navigation.navigate('SuperAdminEnquiryChat', { courseId, enquiryId: item.id })}
         activeOpacity={0.8}
       >
-        <View style={{ flex: 1 }}>
+        <View style={{ flex: 1, minWidth: 0 }}>
           <View style={styles.rowTop}>
             <Text style={styles.memberName} numberOfLines={1}>{item.memberName}</Text>
           </View>
           <Text style={styles.lastMessage} numberOfLines={1}>{item.lastMessage ?? '—'}</Text>
-          <Text style={styles.meta}>{item.enquiryType} · {relativeTime(item.updatedAt)}</Text>
+          <Text style={styles.meta} numberOfLines={1}>{item.enquiryType} · {relativeTime(item.updatedAt)}</Text>
         </View>
         <View style={[styles.badge, { backgroundColor: badge.bg }]}>
           <Text style={[styles.badgeText, { color: badge.fg }]}>{badge.label}</Text>
@@ -127,10 +126,7 @@ export function SuperAdminCourseEnquiriesScreen({ route, navigation }: Props) {
 
   return (
     <View style={styles.screen}>
-      <StatusBar barStyle="light-content" />
-      <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
-        <ScreenHeader title={`${courseName} Enquiries`} onBack={() => navigation.goBack()} />
-      </SafeAreaView>
+      <AdminMobileHeader title="Enquiries" subtitle={courseName} />
 
       {filterRow}
 
@@ -152,7 +148,6 @@ export function SuperAdminCourseEnquiriesScreen({ route, navigation }: Props) {
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  headerSafeArea: { backgroundColor: colors.clubGreen },
   filterRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -176,11 +171,13 @@ function createStyles(colors: ThemeColors) {
     padding: spacing.sm,
     marginBottom: spacing.sm,
   },
+  // Phone-only row surface; `row` is shared with the desktop branch.
+  rowPhone: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: spacing.md },
   rowTop: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  memberName: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.textPrimary },
+  memberName: { flexShrink: 1, fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.textPrimary },
   lastMessage: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary, marginTop: 2 },
   meta: { fontFamily: fontFamily.body, fontSize: 10, color: colors.textSecondary, marginTop: 2 },
-  badge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: radius.pill },
+  badge: { flexShrink: 0, paddingHorizontal: 8, paddingVertical: 4, borderRadius: radius.pill },
   badgeText: { fontFamily: fontFamily.bodySemiBold, fontSize: 9 },
   emptyText: {
     fontFamily: fontFamily.body,

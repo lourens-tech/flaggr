@@ -1,16 +1,15 @@
 import React, { useState, useMemo } from 'react';
-import { ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { CompositeScreenProps } from '@react-navigation/native';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SuperAdminStackParamList, SuperAdminTabParamList } from '../../navigation/types';
-import { PillButton } from '../../components/common/PillButton';
 import { useAdmin } from '../../context/AdminContext';
 import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
 import { SuperAdminDesktopFrame } from '../../components/admin/desktop/SuperAdminDesktopFrame';
 import { DesktopPanel } from '../../components/admin/desktop/DesktopPanel';
+import { AdminMobileHeader } from '../../components/admin/AdminMobileHeader';
 import { QuickLinkButton } from '../../components/admin/desktop/DesktopQuickLink';
 import { AdminApiError } from '../../api/adminClient';
 import { showAlert } from '../../utils/alert';
@@ -60,66 +59,9 @@ export function SuperAdminProfileScreen({ navigation }: Props) {
     ]);
   };
 
-  const body = (
-    <>
-        <View style={styles.avatarWrap}>
-          <View style={styles.avatar}>
-            <Ionicons name="shield-checkmark-outline" size={28} color={colors.clubGreen} />
-          </View>
-          <Text style={styles.name}>{admin.firstName} {admin.lastName}</Text>
-          <Text style={styles.email}>{admin.email}</Text>
-          <View style={styles.roleBadge}>
-            <Text style={styles.roleBadgeText}>{ROLE_LABEL[admin.role] ?? admin.role}</Text>
-          </View>
-        </View>
-
-        {admin.role === 'super_admin' ? (
-          <>
-            <Text style={styles.sectionTitle}>Support Agents</Text>
-            <PillButton
-              label="Manage Support Agents"
-              icon="headset-outline"
-              variant="outline"
-              onPress={() => navigation.navigate('SuperAdminAgents')}
-            />
-
-            <Text style={styles.sectionTitle}>Accountability</Text>
-            <PillButton
-              label="View Audit Log"
-              icon="document-text-outline"
-              variant="outline"
-              onPress={() => navigation.navigate('SuperAdminAuditLog')}
-            />
-            <View style={{ marginTop: spacing.sm }}>
-              <PillButton
-                label="Fraud Oversight"
-                icon="shield-outline"
-                variant="outline"
-                onPress={() => navigation.navigate('SuperAdminFraudOversight')}
-              />
-            </View>
-          </>
-        ) : null}
-
-        <Text style={styles.sectionTitle}>Appearance</Text>
-        <ThemeToggleRow onChange={handleThemeChange} disabled={savingTheme} />
-
-        <Text style={styles.sectionTitle}>Legal</Text>
-        <PillButton
-          label="Terms and Privacy"
-          icon="shield-checkmark-outline"
-          variant="outline"
-          onPress={() => navigation.navigate('TermsPrivacy')}
-        />
-
-        <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
-          <Ionicons name="log-out-outline" size={18} color={colors.negative} />
-          <Text style={styles.logoutText}>Log Out</Text>
-        </TouchableOpacity>
-    </>
-  );
-
-  const desktopBody = (
+  // Shared by both layouts — the quick-link rows read as a settings list on a
+  // phone too, where the old stacked outline pills crowded their headings.
+  const profileBody = (
     <>
       <View style={styles.avatarWrap}>
         <View style={styles.avatar}>
@@ -163,7 +105,7 @@ export function SuperAdminProfileScreen({ navigation }: Props) {
       <SuperAdminDesktopFrame activeKey="SuperAdminProfile" breadcrumb="Profile" showRail={false}>
         <Text style={styles.dPageTitle}>My Profile</Text>
         <DesktopPanel title=" " style={{ maxWidth: 480 }}>
-          {desktopBody}
+          {profileBody}
         </DesktopPanel>
       </SuperAdminDesktopFrame>
     );
@@ -171,16 +113,10 @@ export function SuperAdminProfileScreen({ navigation }: Props) {
 
   return (
     <View style={styles.screen}>
-      <StatusBar barStyle="light-content" />
-      <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>My Profile</Text>
-          <Text style={styles.headerSubtitle}>Flagrr {ROLE_LABEL[admin.role] ?? admin.role}</Text>
-        </View>
-      </SafeAreaView>
+      <AdminMobileHeader title="My Profile" subtitle={`Flagrr ${ROLE_LABEL[admin.role] ?? admin.role}`} showBack={false} />
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {body}
+        <View style={styles.card}>{profileBody}</View>
       </ScrollView>
     </View>
   );
@@ -189,12 +125,9 @@ export function SuperAdminProfileScreen({ navigation }: Props) {
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  headerSafeArea: { backgroundColor: colors.clubGreen },
-  header: { paddingHorizontal: screenPadding, paddingVertical: spacing.md },
-  headerTitle: { fontFamily: fontFamily.headingDisplay, fontSize: fontSize.title, color: colors.white },
-  headerSubtitle: { fontFamily: fontFamily.body, fontSize: 12, color: 'rgba(255,255,255,0.75)' },
   content: { padding: screenPadding, paddingBottom: spacing.xl * 2 },
-  avatarWrap: { alignItems: 'center', gap: 4, marginBottom: spacing.lg },
+  card: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: spacing.md },
+  avatarWrap: { alignItems: 'center', gap: 4, marginBottom: spacing.xs },
   avatar: {
     width: 64,
     height: 64,
@@ -217,7 +150,8 @@ function createStyles(colors: ThemeColors) {
     fontFamily: fontFamily.heading,
     fontSize: fontSize.cardTitle,
     color: colors.textPrimary,
-    marginBottom: spacing.md,
+    marginTop: spacing.lg,
+    marginBottom: spacing.sm,
   },
   logoutButton: {
     flexDirection: 'row',

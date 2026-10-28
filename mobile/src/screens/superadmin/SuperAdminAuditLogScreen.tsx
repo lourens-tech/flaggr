@@ -1,10 +1,9 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SuperAdminStackParamList } from '../../navigation/types';
-import { ScreenHeader } from '../../components/common/ScreenHeader';
+import { AdminMobileHeader } from '../../components/admin/AdminMobileHeader';
 import { TextField } from '../../components/common/TextField';
 import { useAdmin } from '../../context/AdminContext';
 import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
@@ -55,7 +54,7 @@ function formatCreatedAt(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 }
 
-export function SuperAdminAuditLogScreen({ navigation }: Props) {
+export function SuperAdminAuditLogScreen(_props: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const isDesktop = useIsDesktopNav();
@@ -95,13 +94,13 @@ export function SuperAdminAuditLogScreen({ navigation }: Props) {
   );
 
   const renderItem = ({ item }: { item: AuditLogEntry }) => (
-    <View style={styles.card}>
+    <View style={[styles.card, !isDesktop && styles.mCard]}>
       <View style={styles.cardTopRow}>
         <Text style={styles.cardAction} numberOfLines={1}>{actionLabel(item.action)}</Text>
-        <Text style={styles.cardTime}>{formatCreatedAt(item.createdAt)}</Text>
+        <Text style={[styles.cardTime, { flexShrink: 0 }]}>{formatCreatedAt(item.createdAt)}</Text>
       </View>
       {item.targetLabel ? <Text style={styles.cardTarget} numberOfLines={1}>{item.targetLabel}</Text> : null}
-      <Text style={styles.cardAdmin}>{item.adminName}</Text>
+      <Text style={styles.cardAdmin} numberOfLines={1}>{item.adminName}</Text>
     </View>
   );
 
@@ -135,9 +134,7 @@ export function SuperAdminAuditLogScreen({ navigation }: Props) {
 
   return (
     <View style={styles.screen}>
-      <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
-        <ScreenHeader title="Audit Log" onBack={() => navigation.goBack()} />
-      </SafeAreaView>
+      <AdminMobileHeader title="Audit Log" />
 
       {searchArea}
 
@@ -163,7 +160,6 @@ export function SuperAdminAuditLogScreen({ navigation }: Props) {
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  headerSafeArea: { backgroundColor: colors.clubGreen },
   searchArea: { paddingHorizontal: screenPadding, paddingTop: spacing.md },
   listContent: { padding: screenPadding, gap: spacing.sm },
   card: {
@@ -175,8 +171,10 @@ function createStyles(colors: ThemeColors) {
     marginBottom: spacing.sm,
     gap: 4,
   },
+  // Phone-only card surface — `card` is also rendered inside the desktop panel.
+  mCard: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 16 },
   cardTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
-  cardAction: { flex: 1, fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.textPrimary },
+  cardAction: { flex: 1, minWidth: 0, fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.textPrimary },
   cardTime: { fontFamily: fontFamily.body, fontSize: 10, color: colors.textSecondary },
   cardTarget: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary },
   cardAdmin: { fontFamily: fontFamily.body, fontSize: 10, color: colors.textSecondary, fontStyle: 'italic' },

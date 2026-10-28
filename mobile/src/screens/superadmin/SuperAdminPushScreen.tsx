@@ -1,6 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import type { CompositeScreenProps } from '@react-navigation/native';
@@ -11,6 +10,7 @@ import { useAdmin } from '../../context/AdminContext';
 import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
 import { SuperAdminDesktopFrame } from '../../components/admin/desktop/SuperAdminDesktopFrame';
 import { DesktopPanel } from '../../components/admin/desktop/DesktopPanel';
+import { AdminMobileHeader } from '../../components/admin/AdminMobileHeader';
 import { AdminApiError } from '../../api/adminClient';
 import { TextField } from '../../components/common/TextField';
 import { showAlert } from '../../utils/alert';
@@ -134,7 +134,7 @@ export function SuperAdminPushScreen({ navigation }: Props) {
       <View style={styles.cardTopRow}>
         <Text style={styles.cardTitle} numberOfLines={1}>{item.title}</Text>
         <View style={styles.targetBadge}>
-          <Text style={styles.targetBadgeText}>{targetLabel(item.target, item.courseName)}</Text>
+          <Text style={styles.targetBadgeText} numberOfLines={1}>{targetLabel(item.target, item.courseName)}</Text>
         </View>
       </View>
       <Text style={styles.cardBody} numberOfLines={2}>{item.body}</Text>
@@ -215,19 +215,20 @@ export function SuperAdminPushScreen({ navigation }: Props) {
 
   return (
     <View style={styles.screen}>
-      <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Push Notifications</Text>
+      <AdminMobileHeader
+        title="Push Notifications"
+        showBack={false}
+        right={
           <TouchableOpacity
             onPress={() => navigation.navigate('SuperAdminBroadcastCompose', undefined)}
             hitSlop={8}
             accessibilityLabel="New Notification"
             accessibilityRole="button"
           >
-            <Ionicons name="add-circle" size={28} color={colors.white} />
+            <Ionicons name="add-circle" size={28} color={colors.clubGreen} />
           </TouchableOpacity>
-        </View>
-      </SafeAreaView>
+        }
+      />
 
       {searchAndFilters}
 
@@ -255,15 +256,6 @@ export function SuperAdminPushScreen({ navigation }: Props) {
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  headerSafeArea: { backgroundColor: colors.clubGreen },
-  header: {
-    paddingHorizontal: screenPadding,
-    paddingVertical: spacing.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  headerTitle: { fontFamily: fontFamily.headingDisplay, fontSize: fontSize.title, color: colors.white },
   searchArea: { paddingHorizontal: screenPadding, paddingTop: spacing.md, gap: spacing.sm },
   filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   filterPill: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: radius.pill, backgroundColor: colors.mintBgAlt },
@@ -272,18 +264,20 @@ function createStyles(colors: ThemeColors) {
   filterTextActive: { color: colors.white },
   listContent: { padding: screenPadding, gap: spacing.sm },
   card: {
-    backgroundColor: colors.mintBg,
-    borderWidth: 0.5,
-    borderColor: colors.clubGreen,
-    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 16,
     padding: spacing.md,
     marginBottom: spacing.sm,
     gap: 4,
   },
   cardTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
-  cardTitle: { flex: 1, fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.textPrimary },
-  targetBadge: { backgroundColor: colors.background, borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 3 },
-  targetBadgeText: { fontFamily: fontFamily.bodySemiBold, fontSize: 10, color: colors.textPrimary },
+  cardTitle: { flex: 1, minWidth: 0, fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.textPrimary },
+  // Shrinks and truncates so a club-scoped label ("Course Admins — {club}")
+  // can't push past the card edge on a phone.
+  targetBadge: { backgroundColor: colors.mintBgAlt, borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 3, flexShrink: 1, maxWidth: '45%' },
+  targetBadgeText: { fontFamily: fontFamily.bodySemiBold, fontSize: 10, color: colors.clubGreen },
   cardBody: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary },
   cardMeta: { fontFamily: fontFamily.body, fontSize: 10, color: colors.textSecondary, marginTop: 2 },
   cardActions: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.xs },

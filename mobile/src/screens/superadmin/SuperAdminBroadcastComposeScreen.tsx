@@ -1,10 +1,9 @@
 import React, { useCallback, useState, useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SuperAdminStackParamList } from '../../navigation/types';
-import { ScreenHeader } from '../../components/common/ScreenHeader';
+import { AdminMobileHeader } from '../../components/admin/AdminMobileHeader';
 import { TextField } from '../../components/common/TextField';
 import { SelectField } from '../../components/common/SelectField';
 import { PillButton } from '../../components/common/PillButton';
@@ -113,9 +112,7 @@ export function SuperAdminBroadcastComposeScreen({ navigation, route }: Props) {
 
   return (
     <View style={styles.screen}>
-      <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
-        <ScreenHeader title="New Notification" onBack={() => navigation.goBack()} />
-      </SafeAreaView>
+      <AdminMobileHeader title="New Notification" />
 
       <View style={styles.content}>{form}</View>
     </View>
@@ -125,7 +122,6 @@ export function SuperAdminBroadcastComposeScreen({ navigation, route }: Props) {
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  headerSafeArea: { backgroundColor: colors.clubGreen },
   content: { padding: screenPadding },
   helpText: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary, marginTop: 6, marginLeft: 4 },
   dPageTitle: { fontFamily: fontFamily.heading, fontSize: 26, color: colors.textPrimary },

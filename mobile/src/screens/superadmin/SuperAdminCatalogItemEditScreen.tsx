@@ -1,10 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, ScrollView, StatusBar, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ActivityIndicator, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SuperAdminStackParamList } from '../../navigation/types';
-import { ScreenHeader } from '../../components/common/ScreenHeader';
+import { AdminMobileHeader } from '../../components/admin/AdminMobileHeader';
 import { TextField } from '../../components/common/TextField';
 import { PillButton } from '../../components/common/PillButton';
 import { useAdmin } from '../../context/AdminContext';
@@ -225,7 +224,7 @@ export function SuperAdminCatalogItemEditScreen({ navigation, route }: Props) {
 
           {isProduct ? (
             <View style={styles.switchRow}>
-              <View style={{ flex: 1 }}>
+              <View style={{ flex: 1, minWidth: 0 }}>
                 <Text style={styles.switchLabel}>Points per unit</Text>
                 <Text style={styles.switchHint}>
                   On: multiplies by quantity (e.g. a dozen balls). Off: flat, regardless of quantity.
@@ -264,10 +263,7 @@ export function SuperAdminCatalogItemEditScreen({ navigation, route }: Props) {
 
   return (
     <View style={styles.screen}>
-      <StatusBar barStyle="light-content" />
-      <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
-        <ScreenHeader title={pageTitle} onBack={() => navigation.goBack()} />
-      </SafeAreaView>
+      <AdminMobileHeader title={pageTitle} subtitle={courseName} />
 
       {loading ? (
         <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
@@ -283,7 +279,6 @@ export function SuperAdminCatalogItemEditScreen({ navigation, route }: Props) {
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  headerSafeArea: { backgroundColor: colors.clubGreen },
   content: { padding: spacing.lg, paddingBottom: spacing.xl * 2 },
   computedCost: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary, marginTop: 6, marginLeft: 4 },
   switchRow: {
@@ -293,7 +288,7 @@ function createStyles(colors: ThemeColors) {
     gap: spacing.sm,
     marginTop: spacing.lg,
   },
-  switchLabel: { fontFamily: fontFamily.body, fontSize: fontSize.body, color: colors.textPrimary },
+  switchLabel: { flexShrink: 1, fontFamily: fontFamily.body, fontSize: fontSize.body, color: colors.textPrimary },
   switchHint: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary, marginTop: 2 },
   deleteButton: { alignItems: 'center', marginTop: spacing.lg },
   deleteText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.negative },

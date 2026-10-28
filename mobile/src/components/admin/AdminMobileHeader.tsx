@@ -29,7 +29,11 @@ export function AdminMobileHeader({ title, subtitle, onBack, showBack = true, ri
   const { colors, scheme } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const navigation = useNavigation();
-  const { course } = useAdmin();
+  const { admin, course } = useAdmin();
+  // Super-admin and support accounts aren't tied to one club, so their
+  // breadcrumb roots at the console instead (matching SuperAdminDesktopFrame).
+  const crumbRoot =
+    admin.role === 'super_admin' ? 'Super Admin' : admin.role === 'support_agent' ? 'Support' : course.name || 'Course Admin';
 
   return (
     <SafeAreaView edges={['top']} style={styles.safeArea}>
@@ -47,7 +51,7 @@ export function AdminMobileHeader({ title, subtitle, onBack, showBack = true, ri
           </TouchableOpacity>
         ) : null}
         <Text style={styles.crumb} numberOfLines={1}>
-          {course.name || 'Course Admin'} <Text style={styles.crumbActive}>/ {title}</Text>
+          {crumbRoot} <Text style={styles.crumbActive}>/ {title}</Text>
         </Text>
         <View style={{ flex: 1 }} />
         {right}

@@ -1,11 +1,10 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SuperAdminStackParamList } from '../../navigation/types';
-import { ScreenHeader } from '../../components/common/ScreenHeader';
+import { AdminMobileHeader } from '../../components/admin/AdminMobileHeader';
 import { useAdmin } from '../../context/AdminContext';
 import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
 import { SuperAdminDesktopFrame } from '../../components/admin/desktop/SuperAdminDesktopFrame';
@@ -121,7 +120,7 @@ const D_COLUMNS_BY_REPORT: Record<SuperAdminReportKind, DesktopTableColumn<Row>[
 // Cross-club counterpart of AdminReportDetailScreen — backs super_admin's
 // Tier Distribution ('crossClubMembers') and Top Redeemed Rewards
 // ('crossClubRedemptions') cards on SuperAdminReportsScreen.
-export function SuperAdminReportDetailScreen({ navigation, route }: Props) {
+export function SuperAdminReportDetailScreen({ route }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const isDesktop = useIsDesktopNav();
@@ -257,10 +256,7 @@ export function SuperAdminReportDetailScreen({ navigation, route }: Props) {
 
   return (
     <View style={styles.screen}>
-      <StatusBar barStyle="light-content" />
-      <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
-        <ScreenHeader title={label} onBack={() => navigation.goBack()} />
-      </SafeAreaView>
+      <AdminMobileHeader title={label} />
 
       {toolbar}
       {table}
@@ -271,7 +267,6 @@ export function SuperAdminReportDetailScreen({ navigation, route }: Props) {
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  headerSafeArea: { backgroundColor: colors.clubGreen },
   toolbar: {
     flexDirection: 'row',
     alignItems: 'center',

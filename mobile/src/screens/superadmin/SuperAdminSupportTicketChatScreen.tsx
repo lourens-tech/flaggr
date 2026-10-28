@@ -4,17 +4,15 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SuperAdminStackParamList } from '../../navigation/types';
-import { ScreenHeader } from '../../components/common/ScreenHeader';
+import { AdminMobileHeader } from '../../components/admin/AdminMobileHeader';
 import { TextField } from '../../components/common/TextField';
 import { useAdmin } from '../../context/AdminContext';
 import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
@@ -183,13 +181,13 @@ export function SuperAdminSupportTicketChatScreen({ route }: Props) {
   ) : (
     <>
           <View style={styles.requesterInfo}>
-            <Text style={styles.requesterName}>{thread.requesterName}</Text>
-            <Text style={styles.requesterEmail}>{thread.requesterEmail}</Text>
+            <Text style={styles.requesterName} numberOfLines={1}>{thread.requesterName}</Text>
+            <Text style={styles.requesterEmail} numberOfLines={1}>{thread.requesterEmail}</Text>
             <Text style={styles.requesterType}>{REQUESTER_LABEL[thread.requesterType] ?? thread.requesterType}</Text>
           </View>
 
           <View style={styles.assignmentRow}>
-            <Text style={styles.assignmentText}>
+            <Text style={styles.assignmentText} numberOfLines={1}>
               {thread.assignedAgentId === admin.id
                 ? 'Assigned to you'
                 : thread.assignedAgentName
@@ -285,10 +283,7 @@ export function SuperAdminSupportTicketChatScreen({ route }: Props) {
 
   return (
     <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <StatusBar barStyle="light-content" />
-      <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
-        <ScreenHeader title={thread?.subject ?? 'Ticket'} />
-      </SafeAreaView>
+      <AdminMobileHeader title={thread?.subject ?? 'Ticket'} />
 
       {body}
     </KeyboardAvoidingView>
@@ -298,7 +293,6 @@ export function SuperAdminSupportTicketChatScreen({ route }: Props) {
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  headerSafeArea: { backgroundColor: colors.clubGreen },
   requesterInfo: { paddingHorizontal: screenPadding, paddingTop: spacing.sm },
   requesterName: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.textPrimary },
   requesterEmail: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary, marginTop: 2 },
@@ -307,10 +301,11 @@ function createStyles(colors: ThemeColors) {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: spacing.sm,
     paddingHorizontal: screenPadding,
     paddingTop: spacing.xs,
   },
-  assignmentText: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary },
+  assignmentText: { flex: 1, minWidth: 0, fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary },
   assignmentAction: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.tiny, color: colors.clubGreen },
   priorityLabel: {
     fontFamily: fontFamily.bodySemiBold,

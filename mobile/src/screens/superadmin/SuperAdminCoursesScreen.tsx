@@ -1,6 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, Modal, Pressable, ScrollView, StatusBar, Text, TouchableOpacity, View, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ActivityIndicator, FlatList, Modal, Pressable, ScrollView, Text, TouchableOpacity, View, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, type CompositeScreenProps } from '@react-navigation/native';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
@@ -11,6 +10,7 @@ import { useAdmin } from '../../context/AdminContext';
 import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
 import { useHover, hoverTransition } from '../../hooks/useHover';
 import { SuperAdminDesktopFrame } from '../../components/admin/desktop/SuperAdminDesktopFrame';
+import { AdminMobileHeader } from '../../components/admin/AdminMobileHeader';
 import { AdminApiError } from '../../api/adminClient';
 import { showAlert } from '../../utils/alert';
 import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
@@ -105,6 +105,10 @@ function CourseCard({
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [hovered, hoverHandlers] = useHover();
   const [menuOpen, setMenuOpen] = useState(false);
+  // Desktop fits the four actions on one line; a phone card wraps them, so
+  // lay them out as an even 2x2 grid there instead of 3 + an orphan.
+  const isDesktop = useIsDesktopNav();
+  const pillStyle = isDesktop ? styles.pillButton : [styles.pillButton, styles.pillButtonGrid];
 
   const bucket = courseBucket(course);
   const badge = statusBadge(course, colors);
@@ -186,24 +190,24 @@ function CourseCard({
 
       <View style={styles.actionsRow}>
         {isPending ? (
-          <TouchableOpacity style={styles.pillButtonSolid} onPress={onManageAdmins}>
+          <TouchableOpacity style={isDesktop ? styles.pillButtonSolid : [styles.pillButtonSolid, styles.pillButtonFull]} onPress={onManageAdmins}>
             <Ionicons name="person-add-outline" size={14} color={colors.white} />
             <Text style={styles.pillButtonSolidText}>Invite Admin</Text>
           </TouchableOpacity>
         ) : null}
-        <TouchableOpacity style={styles.pillButton} onPress={onManageAds}>
+        <TouchableOpacity style={pillStyle} onPress={onManageAds}>
           <Ionicons name="megaphone-outline" size={14} color={colors.darkGreen} />
           <Text style={styles.pillButtonText}>Ads</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.pillButton} onPress={onManageRewards}>
+        <TouchableOpacity style={pillStyle} onPress={onManageRewards}>
           <Ionicons name="gift-outline" size={14} color={colors.darkGreen} />
           <Text style={styles.pillButtonText}>Rewards</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.pillButton} onPress={onCatalog}>
+        <TouchableOpacity style={pillStyle} onPress={onCatalog}>
           <Ionicons name="pricetags-outline" size={14} color={colors.darkGreen} />
           <Text style={styles.pillButtonText}>Catalog</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.pillButton} onPress={onMemberList}>
+        <TouchableOpacity style={pillStyle} onPress={onMemberList}>
           <Ionicons name="cloud-upload-outline" size={14} color={colors.darkGreen} />
           <Text style={styles.pillButtonText}>Members</Text>
         </TouchableOpacity>
@@ -466,23 +470,19 @@ export function SuperAdminCoursesScreen({ navigation }: Props) {
 
   return (
     <View style={styles.screen}>
-      <StatusBar barStyle="light-content" />
-      <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.headerTitle}>Courses</Text>
-            <Text style={styles.headerSubtitle}>
-              {superAdminCourses.length} club{superAdminCourses.length === 1 ? '' : 's'} on Flagrr
-            </Text>
-          </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+      <AdminMobileHeader
+        title="Courses"
+        subtitle={`${superAdminCourses.length} club${superAdminCourses.length === 1 ? '' : 's'} on Flagrr${counts.pending > 0 ? ` · ${counts.pending} awaiting setup` : ''}`}
+        showBack={false}
+        right={
+          <View style={styles.headerActions}>
             <TouchableOpacity
               onPress={() => navigation.navigate('SuperAdminCourseMaps')}
               hitSlop={8}
               accessibilityLabel="Course maps"
               accessibilityRole="button"
             >
-              <Ionicons name="map-outline" size={24} color={colors.white} />
+              <Ionicons name="map-outline" size={24} color={colors.clubGreen} />
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => navigation.navigate('SuperAdminCourseCreate')}
@@ -490,13 +490,13 @@ export function SuperAdminCoursesScreen({ navigation }: Props) {
               accessibilityLabel="Add Course"
               accessibilityRole="button"
             >
-              <Ionicons name="add-circle" size={26} color={colors.white} />
+              <Ionicons name="add-circle" size={28} color={colors.clubGreen} />
             </TouchableOpacity>
           </View>
-        </View>
-      </SafeAreaView>
+        }
+      />
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterTabsScroll} contentContainerStyle={{ paddingHorizontal: screenPadding }}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterTabsScroll} contentContainerStyle={styles.filterTabsScrollContent}>
         {filterTabs}
       </ScrollView>
       {searchArea}
@@ -528,18 +528,12 @@ export function SuperAdminCoursesScreen({ navigation }: Props) {
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  headerSafeArea: { backgroundColor: colors.clubGreen },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: screenPadding,
-    paddingVertical: spacing.md,
-  },
-  headerTitle: { fontFamily: fontFamily.headingDisplay, fontSize: fontSize.title, color: colors.white },
-  headerSubtitle: { fontFamily: fontFamily.body, fontSize: 12, color: 'rgba(255,255,255,0.75)' },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   searchArea: { paddingHorizontal: screenPadding, paddingTop: spacing.sm, gap: spacing.xs },
-  filterTabsScroll: { marginTop: spacing.md },
+  // flexGrow 0: react-native-web gives ScrollView flex-grow/shrink 1 by
+  // default, which squashed this row to a clipped sliver on phones.
+  filterTabsScroll: { marginTop: spacing.md, flexGrow: 0, flexShrink: 0 },
+  filterTabsScrollContent: { paddingHorizontal: screenPadding },
   filterTabs: { flexDirection: 'row', gap: 4, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.pill, padding: 4, alignSelf: 'flex-start' },
   filterTab: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: radius.pill },
   filterTabActive: { backgroundColor: colors.darkGreen },
@@ -590,6 +584,8 @@ function createStyles(colors: ThemeColors) {
   divider: { height: 1, backgroundColor: colors.border },
   actionsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   pillButton: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.mintBgAlt, borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 7 },
+  pillButtonGrid: { flexGrow: 1, flexBasis: '40%', justifyContent: 'center', paddingVertical: 9 },
+  pillButtonFull: { flexBasis: '100%', justifyContent: 'center', paddingVertical: 9 },
   pillButtonText: { fontFamily: fontFamily.bodyMedium, fontSize: 12, color: colors.darkGreen },
   pillButtonSolid: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.clubGreen, borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 7 },
   pillButtonSolidText: { fontFamily: fontFamily.bodySemiBold, fontSize: 12, color: colors.white },

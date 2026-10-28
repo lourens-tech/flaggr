@@ -108,9 +108,9 @@ export function AdminTabBar({ state, navigation }: BottomTabBarProps) {
             <Ionicons
               name={ICONS[route.name] ?? 'ellipse-outline'}
               size={22}
-              color={isFocused ? colors.clubGreen : 'rgba(31,66,52,0.4)'}
+              color={isFocused ? colors.clubGreen : colors.textMuted}
             />
-            <Text style={[styles.label, { color: isFocused ? colors.clubGreen : 'rgba(31,66,52,0.4)' }]}>
+            <Text style={[styles.label, { color: isFocused ? colors.clubGreen : colors.textMuted }]}>
               {LABELS[route.name] ?? route.name}
             </Text>
           </PressableScale>

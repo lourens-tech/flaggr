@@ -1,11 +1,10 @@
 import React, { useCallback, useState, useMemo } from 'react';
-import { ActivityIndicator, Image, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SuperAdminStackParamList } from '../../navigation/types';
-import { ScreenHeader } from '../../components/common/ScreenHeader';
+import { AdminMobileHeader } from '../../components/admin/AdminMobileHeader';
 import { useAdmin } from '../../context/AdminContext';
 import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
 import { SuperAdminDesktopFrame } from '../../components/admin/desktop/SuperAdminDesktopFrame';
@@ -77,7 +76,7 @@ export function SuperAdminCourseRewardsScreen({ navigation, route }: Props) {
   const rewardCard = (reward: AdminReward) => (
     <TouchableOpacity
       key={reward.id}
-      style={[styles.card, isDesktop && styles.dCard]}
+      style={[styles.card, isDesktop ? styles.dCard : styles.cardPhone]}
       activeOpacity={0.85}
       onPress={() => navigation.navigate('SuperAdminRewardEdit', { courseId, fbPerRand, rewardId: reward.id })}
     >
@@ -130,23 +129,20 @@ export function SuperAdminCourseRewardsScreen({ navigation, route }: Props) {
 
   return (
     <View style={styles.screen}>
-      <StatusBar barStyle="light-content" />
-      <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
-        <ScreenHeader
-          title={courseName}
-          onBack={() => navigation.goBack()}
-          right={
-            <TouchableOpacity
-              onPress={() => navigation.navigate('SuperAdminRewardEdit', { courseId, fbPerRand })}
-              hitSlop={8}
-              accessibilityLabel="Add Reward"
-              accessibilityRole="button"
-            >
-              <Ionicons name="add-circle" size={26} color={colors.white} />
-            </TouchableOpacity>
-          }
-        />
-      </SafeAreaView>
+      <AdminMobileHeader
+        title="Rewards"
+        subtitle={courseName}
+        right={
+          <TouchableOpacity
+            onPress={() => navigation.navigate('SuperAdminRewardEdit', { courseId, fbPerRand })}
+            hitSlop={8}
+            accessibilityLabel="Add Reward"
+            accessibilityRole="button"
+          >
+            <Ionicons name="add-circle" size={28} color={colors.clubGreen} />
+          </TouchableOpacity>
+        }
+      />
 
       {loading ? (
         <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
@@ -165,7 +161,6 @@ export function SuperAdminCourseRewardsScreen({ navigation, route }: Props) {
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  headerSafeArea: { backgroundColor: colors.clubGreen },
   content: { paddingHorizontal: screenPadding, paddingTop: spacing.lg },
   grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: spacing.md },
   card: {
@@ -176,6 +171,8 @@ function createStyles(colors: ThemeColors) {
     borderColor: colors.clubGreen,
     overflow: 'hidden',
   },
+  // Phone-only card surface; desktop layers dCard on the shared `card` instead.
+  cardPhone: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 16 },
   image: { width: '100%', height: 112, backgroundColor: colors.imagePlaceholder },
   imageFallback: { backgroundColor: colors.darkGreen, alignItems: 'center', justifyContent: 'center' },
   inactiveBadge: {

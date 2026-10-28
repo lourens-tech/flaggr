@@ -1,11 +1,10 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SuperAdminStackParamList } from '../../navigation/types';
-import { ScreenHeader } from '../../components/common/ScreenHeader';
+import { AdminMobileHeader } from '../../components/admin/AdminMobileHeader';
 import { TextField } from '../../components/common/TextField';
 import { useAdmin } from '../../context/AdminContext';
 import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
@@ -198,7 +197,7 @@ export function SuperAdminCourseCatalogScreen({ navigation, route }: Props) {
   };
 
   const renderProductRow = (item: CatalogProduct) => (
-    <View key={item.id} style={styles.row}>
+    <View key={item.id} style={[styles.row, !isDesktop && styles.rowPhone]}>
       <TouchableOpacity
         style={styles.rowContent}
         activeOpacity={0.85}
@@ -206,7 +205,7 @@ export function SuperAdminCourseCatalogScreen({ navigation, route }: Props) {
           navigation.navigate('SuperAdminCatalogItemEdit', { courseId, courseName, fbPerRand, kind: 'product', itemId: item.id })
         }
       >
-        <View style={{ flex: 1 }}>
+        <View style={{ flex: 1, minWidth: 0 }}>
           <Text style={styles.rowTitle} numberOfLines={1}>{item.name}</Text>
           <Text style={styles.rowSubtitle} numberOfLines={1}>
             R{item.randValue.toLocaleString()} {item.pointsPerUnit ? 'per unit' : 'flat'} = {fcFor(item.randValue).toLocaleString()} FC
@@ -245,7 +244,7 @@ export function SuperAdminCourseCatalogScreen({ navigation, route }: Props) {
   );
 
   const renderActivityRow = (item: CatalogActivity) => (
-    <View key={item.id} style={styles.row}>
+    <View key={item.id} style={[styles.row, !isDesktop && styles.rowPhone]}>
       <TouchableOpacity
         style={styles.rowContent}
         activeOpacity={0.85}
@@ -253,7 +252,7 @@ export function SuperAdminCourseCatalogScreen({ navigation, route }: Props) {
           navigation.navigate('SuperAdminCatalogItemEdit', { courseId, courseName, fbPerRand, kind: 'activity', itemId: item.id })
         }
       >
-        <View style={{ flex: 1 }}>
+        <View style={{ flex: 1, minWidth: 0 }}>
           <Text style={styles.rowTitle} numberOfLines={1}>{item.name}</Text>
           <Text style={styles.rowSubtitle} numberOfLines={1}>
             R{item.randValue.toLocaleString()} = {fcFor(item.randValue).toLocaleString()} FC
@@ -356,22 +355,22 @@ export function SuperAdminCourseCatalogScreen({ navigation, route }: Props) {
 
   return (
     <View style={styles.screen}>
-      <StatusBar barStyle="light-content" />
-      <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
-        <ScreenHeader title={courseName} onBack={() => navigation.goBack()} />
-      </SafeAreaView>
+      <AdminMobileHeader
+        title="Products and Activities"
+        subtitle={courseName}
+        right={
+          <TouchableOpacity
+            onPress={() => navigation.navigate('SuperAdminCatalogItemEdit', { courseId, courseName, fbPerRand, kind })}
+            hitSlop={8}
+            accessibilityLabel={kind === 'product' ? 'Add Product' : 'Add Activity'}
+            accessibilityRole="button"
+          >
+            <Ionicons name="add-circle" size={28} color={colors.clubGreen} />
+          </TouchableOpacity>
+        }
+      />
 
-      <View style={styles.toolbar}>
-        {toggle}
-        <TouchableOpacity
-          onPress={() => navigation.navigate('SuperAdminCatalogItemEdit', { courseId, courseName, fbPerRand, kind })}
-          hitSlop={8}
-          accessibilityLabel={kind === 'product' ? 'Add Product' : 'Add Activity'}
-          accessibilityRole="button"
-        >
-          <Ionicons name="add-circle" size={30} color={colors.clubGreen} />
-        </TouchableOpacity>
-      </View>
+      <View style={styles.toolbar}>{toggle}</View>
 
       <View style={styles.searchArea}>
         <TextField
@@ -405,11 +404,9 @@ export function SuperAdminCourseCatalogScreen({ navigation, route }: Props) {
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  headerSafeArea: { backgroundColor: colors.clubGreen },
   toolbar: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: screenPadding,
     paddingTop: spacing.md,
   },
@@ -426,6 +423,9 @@ function createStyles(colors: ThemeColors) {
     borderColor: colors.clubGreen,
     borderRadius: radius.md,
   },
+  // Phone-only row surface; `row` is shared with the desktop branch, which
+  // keeps its original look.
+  rowPhone: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 16 },
   rowContent: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -447,7 +447,7 @@ function createStyles(colors: ThemeColors) {
   rowActionText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.tiny, color: colors.textSecondary },
   rowTitle: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.textPrimary },
   rowSubtitle: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary, marginTop: 2 },
-  inactiveBadge: { backgroundColor: 'rgba(0,0,0,0.15)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: radius.pill },
+  inactiveBadge: { flexShrink: 0, backgroundColor: 'rgba(0,0,0,0.15)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: radius.pill },
   inactiveBadgeText: { fontFamily: fontFamily.body, fontSize: 10, color: colors.textSecondary },
   emptyText: {
     fontFamily: fontFamily.body,

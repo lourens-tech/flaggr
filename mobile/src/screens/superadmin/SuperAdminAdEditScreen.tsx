@@ -1,10 +1,9 @@
 import React, { useCallback, useEffect, useState, useMemo } from 'react';
-import { ActivityIndicator, ScrollView, StatusBar, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ActivityIndicator, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SuperAdminStackParamList } from '../../navigation/types';
-import { ScreenHeader } from '../../components/common/ScreenHeader';
+import { AdminMobileHeader } from '../../components/admin/AdminMobileHeader';
 import { TextField } from '../../components/common/TextField';
 import { SelectField } from '../../components/common/SelectField';
 import { DateField } from '../../components/common/DateField';
@@ -175,10 +174,7 @@ export function SuperAdminAdEditScreen({ navigation, route }: Props) {
     }
     return (
       <View style={styles.screen}>
-        <StatusBar barStyle="light-content" />
-        <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
-          <ScreenHeader title="Edit Ad" onBack={() => navigation.goBack()} />
-        </SafeAreaView>
+        <AdminMobileHeader title="Edit Ad" />
         <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
       </View>
     );
@@ -299,10 +295,7 @@ export function SuperAdminAdEditScreen({ navigation, route }: Props) {
 
   return (
     <View style={styles.screen}>
-      <StatusBar barStyle="light-content" />
-      <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
-        <ScreenHeader title={title2} onBack={() => navigation.goBack()} />
-      </SafeAreaView>
+      <AdminMobileHeader title={title2} />
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {form}
@@ -314,7 +307,6 @@ export function SuperAdminAdEditScreen({ navigation, route }: Props) {
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  headerSafeArea: { backgroundColor: colors.clubGreen },
   content: { padding: screenPadding, paddingBottom: spacing.xl * 2 },
   dateRow: { flexDirection: 'row', marginTop: spacing.md },
   activeRow: {

@@ -1,11 +1,10 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SuperAdminStackParamList } from '../../navigation/types';
-import { ScreenHeader } from '../../components/common/ScreenHeader';
+import { AdminMobileHeader } from '../../components/admin/AdminMobileHeader';
 import { TextField } from '../../components/common/TextField';
 import { useAdmin } from '../../context/AdminContext';
 import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
@@ -153,7 +152,7 @@ export function SuperAdminCourseAdminsScreen({ navigation, route }: Props) {
   };
 
   const renderItem = ({ item }: { item: CourseAdminAccount }) => (
-    <View style={styles.card}>
+    <View style={[styles.card, !isDesktop && styles.cardPhone]}>
       <View style={styles.cardTopRow}>
         <Text style={styles.cardTitle} numberOfLines={1}>{item.firstName} {item.lastName}</Text>
         <View style={[styles.statusBadge, item.revoked && styles.statusBadgeRevoked]}>
@@ -218,22 +217,20 @@ export function SuperAdminCourseAdminsScreen({ navigation, route }: Props) {
 
   return (
     <View style={styles.screen}>
-      <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
-        <ScreenHeader
-          title={courseName}
-          onBack={() => navigation.goBack()}
-          right={
-            <TouchableOpacity
-              onPress={() => navigation.navigate('SuperAdminCourseAdminCreate', { courseId, courseName })}
-              hitSlop={8}
-              accessibilityLabel="Add Admin"
-              accessibilityRole="button"
-            >
-              <Ionicons name="add-circle" size={26} color={colors.white} />
-            </TouchableOpacity>
-          }
-        />
-      </SafeAreaView>
+      <AdminMobileHeader
+        title="Course Admins"
+        subtitle={courseName}
+        right={
+          <TouchableOpacity
+            onPress={() => navigation.navigate('SuperAdminCourseAdminCreate', { courseId, courseName })}
+            hitSlop={8}
+            accessibilityLabel="Add Admin"
+            accessibilityRole="button"
+          >
+            <Ionicons name="add-circle" size={28} color={colors.clubGreen} />
+          </TouchableOpacity>
+        }
+      />
 
       <View style={styles.searchArea}>
         <TextField placeholder="Search admins" variant="onLight" icon="search" value={search} onChangeText={setSearch} />
@@ -261,7 +258,6 @@ export function SuperAdminCourseAdminsScreen({ navigation, route }: Props) {
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  headerSafeArea: { backgroundColor: colors.clubGreen },
   searchArea: { paddingHorizontal: screenPadding, paddingTop: spacing.md },
   listContent: { padding: screenPadding, gap: spacing.sm },
   card: {
@@ -273,9 +269,12 @@ function createStyles(colors: ThemeColors) {
     marginBottom: spacing.sm,
     gap: 4,
   },
+  // Phone-only card surface; the card is shared with the desktop branch,
+  // which keeps its original look.
+  cardPhone: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 16 },
   cardTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
-  cardTitle: { flex: 1, fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.textPrimary },
-  statusBadge: { backgroundColor: colors.background, borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 3 },
+  cardTitle: { flex: 1, minWidth: 0, fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.textPrimary },
+  statusBadge: { flexShrink: 0, backgroundColor: colors.background, borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 3 },
   statusBadgeRevoked: { backgroundColor: colors.dangerBg },
   statusBadgeText: { fontFamily: fontFamily.bodySemiBold, fontSize: 10, color: colors.textPrimary },
   statusBadgeTextRevoked: { color: colors.negative },

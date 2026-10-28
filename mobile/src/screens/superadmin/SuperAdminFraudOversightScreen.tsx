@@ -1,11 +1,10 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, Image, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SuperAdminStackParamList } from '../../navigation/types';
-import { ScreenHeader } from '../../components/common/ScreenHeader';
+import { AdminMobileHeader } from '../../components/admin/AdminMobileHeader';
 import { TextField } from '../../components/common/TextField';
 import { useAdmin } from '../../context/AdminContext';
 import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
@@ -29,7 +28,7 @@ const MATCH_TYPE_LABELS: Record<string, string> = {
   image_hash: 'Same receipt image',
 };
 
-export function SuperAdminFraudOversightScreen({ navigation }: Props) {
+export function SuperAdminFraudOversightScreen(_props: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const isDesktop = useIsDesktopNav();
@@ -153,10 +152,10 @@ export function SuperAdminFraudOversightScreen({ navigation }: Props) {
   };
 
   const renderFlagged = ({ item }: { item: FlaggedReceipt }) => (
-    <View style={styles.card}>
+    <View style={[styles.card, !isDesktop && styles.mCard]}>
       <View style={styles.cardTopRow}>
         <Text style={styles.cardTitle} numberOfLines={1}>{item.memberName}</Text>
-        <View style={{ flexDirection: 'row', gap: 4 }}>
+        <View style={styles.badgeGroup}>
           {item.fraudConfirmedCount > 0 ? (
             <View style={styles.dangerBadge}>
               <Text style={styles.dangerBadgeText}>Confirmed fraud {item.fraudConfirmedCount}×</Text>
@@ -208,7 +207,7 @@ export function SuperAdminFraudOversightScreen({ navigation }: Props) {
   );
 
   const renderDuplicate = ({ item }: { item: DuplicateReceiptAttempt }) => (
-    <View style={styles.card}>
+    <View style={[styles.card, !isDesktop && styles.mCard]}>
       <View style={styles.cardTopRow}>
         <Text style={styles.cardTitle} numberOfLines={1}>{item.memberName}</Text>
         {item.crossClub ? (
@@ -350,9 +349,7 @@ export function SuperAdminFraudOversightScreen({ navigation }: Props) {
 
   return (
     <View style={styles.screen}>
-      <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
-        <ScreenHeader title="Fraud Oversight" onBack={() => navigation.goBack()} />
-      </SafeAreaView>
+      <AdminMobileHeader title="Fraud Oversight" />
 
       {searchAndTabs}
 
@@ -437,12 +434,11 @@ export function SuperAdminFraudOversightScreen({ navigation }: Props) {
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  headerSafeArea: { backgroundColor: colors.clubGreen },
   searchArea: { paddingHorizontal: screenPadding, paddingTop: spacing.md, gap: spacing.sm },
   tabRow: { flexDirection: 'row', gap: spacing.sm },
-  tabButton: { flex: 1, paddingVertical: 8, borderRadius: radius.pill, backgroundColor: colors.mintBgAlt, alignItems: 'center' },
+  tabButton: { flex: 1, paddingVertical: 8, paddingHorizontal: spacing.sm, borderRadius: radius.pill, backgroundColor: colors.mintBgAlt, alignItems: 'center' },
   tabButtonActive: { backgroundColor: colors.darkGreen },
-  tabButtonText: { fontFamily: fontFamily.heading, fontSize: 11, color: colors.textPrimary },
+  tabButtonText: { fontFamily: fontFamily.heading, fontSize: 11, color: colors.textPrimary, textAlign: 'center' },
   tabButtonTextActive: { color: colors.white },
   listContent: { padding: screenPadding, gap: spacing.sm },
   card: {
@@ -454,16 +450,19 @@ function createStyles(colors: ThemeColors) {
     marginBottom: spacing.sm,
     gap: 4,
   },
+  // Phone-only card surface — `card` is also rendered inside the desktop panel.
+  mCard: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 16 },
   cardTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
-  cardTitle: { flex: 1, fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.textPrimary },
+  cardTitle: { flex: 1, minWidth: 0, fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.textPrimary },
   cardMeta: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary },
   cardBody: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textPrimary },
   cardBodyStrong: { fontFamily: fontFamily.bodySemiBold },
   reasonText: { fontFamily: fontFamily.body, fontSize: 10, color: colors.textSecondary, fontStyle: 'italic' },
   cardTime: { fontFamily: fontFamily.body, fontSize: 10, color: colors.textSecondary, marginTop: 2 },
+  badgeGroup: { flexDirection: 'row', gap: 4, flexShrink: 0 },
   warnBadge: { backgroundColor: colors.warningBg, borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 3 },
   warnBadgeText: { fontFamily: fontFamily.bodySemiBold, fontSize: 10, color: colors.warning },
-  dangerBadge: { backgroundColor: colors.dangerBg, borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 3 },
+  dangerBadge: { flexShrink: 0, backgroundColor: colors.dangerBg, borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 3 },
   dangerBadgeText: { fontFamily: fontFamily.bodySemiBold, fontSize: 10, color: colors.negative },
   actionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.xs, gap: spacing.sm },
   viewPhotoButton: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start' },
