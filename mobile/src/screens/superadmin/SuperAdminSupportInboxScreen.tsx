@@ -1,6 +1,5 @@
 import React, { useCallback, useState, useMemo } from 'react';
-import { ActivityIndicator, FlatList, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ActivityIndicator, FlatList, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, type CompositeScreenProps } from '@react-navigation/native';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
@@ -10,6 +9,7 @@ import { useAdmin } from '../../context/AdminContext';
 import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
 import { SuperAdminDesktopFrame } from '../../components/admin/desktop/SuperAdminDesktopFrame';
 import { DesktopPanel } from '../../components/admin/desktop/DesktopPanel';
+import { AdminMobileHeader } from '../../components/admin/AdminMobileHeader';
 import { fontFamily, fontSize, priorityBadges, radius, screenPadding, spacing, ticketStatusBadges } from '../../theme';
 import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 import type { SupportInboxTicket, SupportTicketPriority, SupportTicketStatus } from '../../data/adminTypes';
@@ -102,7 +102,7 @@ export function SuperAdminSupportInboxScreen({ navigation }: Props) {
         onPress={() => navigation.navigate('SuperAdminSupportTicketChat', { ticketId: item.id })}
         activeOpacity={0.8}
       >
-        <View style={{ flex: 1 }}>
+        <View style={styles.rowText}>
           <View style={styles.rowTop}>
             <Text style={styles.subject} numberOfLines={1}>{item.subject}</Text>
             {item.hasUnread ? <View style={styles.unreadDot} /> : null}
@@ -116,7 +116,7 @@ export function SuperAdminSupportInboxScreen({ navigation }: Props) {
             {item.assignedAgentId === admin.id ? 'Assigned to you' : item.assignedAgentName ? `Assigned to ${item.assignedAgentName}` : 'Unassigned'}
           </Text>
         </View>
-        <View style={{ gap: 4, alignItems: 'flex-end' }}>
+        <View style={styles.rowBadges}>
           {item.priority !== 'normal' ? (
             <View style={[styles.badge, { backgroundColor: priorityBadge.bg }]}>
               <Text style={[styles.badgeText, { color: priorityBadge.fg }]}>{priorityBadge.label}</Text>
@@ -131,10 +131,26 @@ export function SuperAdminSupportInboxScreen({ navigation }: Props) {
     );
   };
 
+  // Desktop wraps each filter group; on a phone three wrapping groups ate
+  // most of the first screen, so each becomes one swipeable line instead.
+  const filterGroup = (children: React.ReactNode) =>
+    isDesktop ? (
+      <View style={styles.filterRow}>{children}</View>
+    ) : (
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.filterScroll}
+        contentContainerStyle={styles.filterScrollContent}
+      >
+        {children}
+      </ScrollView>
+    );
+
   const filterRows = (
     <>
-      <View style={styles.filterRow}>
-        {FILTERS.map((f) => (
+      {filterGroup(
+        FILTERS.map((f) => (
           <TouchableOpacity
             key={f.value}
             onPress={() => setFilter(f.value)}
@@ -142,11 +158,11 @@ export function SuperAdminSupportInboxScreen({ navigation }: Props) {
           >
             <Text style={[styles.filterText, filter === f.value && styles.filterTextActive]}>{f.label}</Text>
           </TouchableOpacity>
-        ))}
-      </View>
+        )),
+      )}
 
-      <View style={styles.filterRow}>
-        {PRIORITY_FILTERS.map((f) => (
+      {filterGroup(
+        PRIORITY_FILTERS.map((f) => (
           <TouchableOpacity
             key={f.value}
             onPress={() => setPriorityFilter(f.value)}
@@ -154,11 +170,11 @@ export function SuperAdminSupportInboxScreen({ navigation }: Props) {
           >
             <Text style={[styles.filterText, priorityFilter === f.value && styles.filterTextActive]}>{f.label}</Text>
           </TouchableOpacity>
-        ))}
-      </View>
+        )),
+      )}
 
-      <View style={styles.filterRow}>
-        {ASSIGNED_FILTERS.map((f) => (
+      {filterGroup(
+        ASSIGNED_FILTERS.map((f) => (
           <TouchableOpacity
             key={f.value}
             onPress={() => setAssignedFilter(f.value)}
@@ -166,8 +182,8 @@ export function SuperAdminSupportInboxScreen({ navigation }: Props) {
           >
             <Text style={[styles.filterText, assignedFilter === f.value && styles.filterTextActive]}>{f.label}</Text>
           </TouchableOpacity>
-        ))}
-      </View>
+        )),
+      )}
     </>
   );
 
@@ -195,12 +211,7 @@ export function SuperAdminSupportInboxScreen({ navigation }: Props) {
 
   return (
     <View style={styles.screen}>
-      <StatusBar barStyle="light-content" />
-      <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Support Centre</Text>
-        </View>
-      </SafeAreaView>
+      <AdminMobileHeader title="Support Centre" showBack={false} />
 
       {filterRows}
 
@@ -222,9 +233,6 @@ export function SuperAdminSupportInboxScreen({ navigation }: Props) {
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  headerSafeArea: { backgroundColor: colors.clubGreen },
-  header: { paddingHorizontal: screenPadding, paddingVertical: spacing.md },
-  headerTitle: { fontFamily: fontFamily.headingDisplay, fontSize: fontSize.title, color: colors.white },
   filterRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -232,6 +240,8 @@ function createStyles(colors: ThemeColors) {
     paddingHorizontal: screenPadding,
     paddingTop: spacing.md,
   },
+  filterScroll: { flexGrow: 0, flexShrink: 0, marginTop: spacing.sm },
+  filterScrollContent: { gap: spacing.sm, paddingHorizontal: screenPadding },
   filterPill: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: radius.pill, backgroundColor: colors.mintBgAlt },
   filterPillActive: { backgroundColor: colors.darkGreen },
   filterText: { fontFamily: fontFamily.heading, fontSize: 11, color: colors.textPrimary },
@@ -241,13 +251,15 @@ function createStyles(colors: ThemeColors) {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    backgroundColor: colors.background,
-    borderWidth: 0.5,
-    borderColor: colors.clubGreen,
-    borderRadius: radius.md,
-    padding: spacing.sm,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 16,
+    padding: spacing.md,
     marginBottom: spacing.sm,
   },
+  rowText: { flex: 1, minWidth: 0 },
+  rowBadges: { gap: 4, alignItems: 'flex-end', flexShrink: 0 },
   rowTop: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   subject: { flex: 1, fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.textPrimary },
   unreadDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.negative },

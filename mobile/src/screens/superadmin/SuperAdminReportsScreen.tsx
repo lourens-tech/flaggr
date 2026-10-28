@@ -1,12 +1,12 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { type CompositeScreenProps, useFocusEffect } from '@react-navigation/native';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SuperAdminStackParamList, SuperAdminTabParamList } from '../../navigation/types';
 import { Ionicons } from '@expo/vector-icons';
-import { StatCard } from '../../components/common/StatCard';
+import { AdminStatCard } from '../../components/admin/AdminStatCard';
+import { AdminMobileHeader } from '../../components/admin/AdminMobileHeader';
 import { BarChart } from '../../components/common/BarChart';
 import { TextField } from '../../components/common/TextField';
 import { PillButton } from '../../components/common/PillButton';
@@ -42,7 +42,6 @@ type Props = CompositeScreenProps<
 type Period = 'month' | 'year' | 'all';
 const PERIOD_LABELS: Record<Period, string> = { month: 'Month', year: 'Year', all: 'All' };
 const PERIODS: Period[] = ['month', 'year', 'all'];
-const DELTA_LABELS: Record<Period, string> = { month: 'vs Last Month', year: 'vs Last Year', all: '' };
 const PLACEMENT_LABELS: Record<string, string> = { home: 'Home', home_top: 'Home (Top Banner)', rewards_shop: 'Rewards Shop' };
 
 type AdView = 'combined' | 'slot' | 'course' | 'ad';
@@ -460,13 +459,7 @@ export function SuperAdminReportsScreen({ navigation }: Props) {
 
   return (
     <View style={styles.screen}>
-      <StatusBar barStyle="light-content" />
-      <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Reports</Text>
-          <Text style={styles.headerSubtitle}>All Clubs</Text>
-        </View>
-      </SafeAreaView>
+      <AdminMobileHeader title="Reports" subtitle="All Clubs" showBack={false} />
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.statsHeaderRow}>
@@ -479,57 +472,52 @@ export function SuperAdminReportsScreen({ navigation }: Props) {
         ) : dashboard ? (
           <>
             <View style={styles.statsGrid}>
-              <StatCard label="Clubs" value={dashboard.totals.clubs} deltaPct={0} showDelta={false} width="100%" backgroundColor={colors.mintBg} />
+              <AdminStatCard label="Clubs" value={dashboard.totals.clubs} icon="business-outline" width="100%" />
               <View style={styles.statsRow}>
-                <StatCard
+                <AdminStatCard
                   label="Members"
+                  icon="people-outline"
                   value={dashboard.totals.members}
-                  deltaPct={0}
                   showDelta={false}
                   fill
-                  backgroundColor={colors.mintBg}
                   onPress={() => navigation.navigate('SuperAdminStatBreakdown', { metric: 'members', label: 'Members', period })}
                 />
-                <StatCard
+                <AdminStatCard
                   label="New Members"
+                  icon="person-add-outline"
                   value={dashboard.totals.newMembers}
-                  deltaPct={0}
                   showDelta={false}
                   fill
-                  backgroundColor={colors.mintBg}
                   onPress={() => navigation.navigate('SuperAdminStatBreakdown', { metric: 'newMembers', label: 'New Members', period })}
                 />
               </View>
               <View style={styles.statsRow}>
-                <StatCard
+                <AdminStatCard
                   label="Flagrr Cash Earned"
+                  icon="trending-up-outline"
                   value={dashboard.totals.fcEarned.toLocaleString()}
                   deltaPct={dashboard.totals.fcEarnedDeltaPct}
-                  deltaLabel={DELTA_LABELS[period]}
                   showDelta={period !== 'all'}
                   fill
-                  backgroundColor={colors.mintBg}
                   onPress={() => navigation.navigate('SuperAdminStatBreakdown', { metric: 'fcEarned', label: 'Flagrr Cash Earned', period })}
                 />
-                <StatCard
+                <AdminStatCard
                   label="Flagrr Cash Redeemed"
+                  icon="swap-horizontal-outline"
                   value={dashboard.totals.fcRedeemed.toLocaleString()}
                   deltaPct={dashboard.totals.fcRedeemedDeltaPct}
-                  deltaLabel={DELTA_LABELS[period]}
                   showDelta={period !== 'all'}
                   fill
-                  backgroundColor={colors.mintBg}
                   onPress={() => navigation.navigate('SuperAdminStatBreakdown', { metric: 'fcRedeemed', label: 'Flagrr Cash Redeemed', period })}
                 />
               </View>
-              <StatCard
+              <AdminStatCard
                 label="Receipts Scanned"
+                icon="receipt-outline"
                 value={dashboard.totals.receiptsScanned}
                 deltaPct={dashboard.totals.receiptsScannedDeltaPct}
-                deltaLabel={DELTA_LABELS[period]}
                 showDelta={period !== 'all'}
                 width="100%"
-                backgroundColor={colors.mintBg}
                 onPress={() => navigation.navigate('SuperAdminStatBreakdown', { metric: 'receiptsScanned', label: 'Receipts Scanned', period })}
               />
             </View>
@@ -646,10 +634,6 @@ export function SuperAdminReportsScreen({ navigation }: Props) {
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  headerSafeArea: { backgroundColor: colors.clubGreen },
-  header: { paddingHorizontal: screenPadding, paddingVertical: spacing.md },
-  headerTitle: { fontFamily: fontFamily.headingDisplay, fontSize: fontSize.title, color: colors.white },
-  headerSubtitle: { fontFamily: fontFamily.body, fontSize: 12, color: 'rgba(255,255,255,0.75)' },
   content: { padding: screenPadding, paddingBottom: spacing.xl * 2 },
   statsHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md },
   periodToggle: { flexDirection: 'row', backgroundColor: colors.mintBg, borderRadius: radius.pill, padding: 3 },
@@ -672,19 +656,19 @@ function createStyles(colors: ThemeColors) {
   },
   exportButtonText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.tiny, color: colors.white },
   chartCard: {
-    backgroundColor: colors.mintBg,
-    borderWidth: 0.5,
-    borderColor: colors.clubGreen,
-    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 16,
     padding: spacing.md,
     marginBottom: spacing.lg,
   },
   chartTitle: { fontFamily: fontFamily.heading, fontSize: fontSize.small, color: colors.textPrimary, marginBottom: spacing.md },
   card: {
-    backgroundColor: colors.mintBg,
-    borderWidth: 0.5,
-    borderColor: colors.clubGreen,
-    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 16,
     padding: spacing.md,
     marginBottom: spacing.lg,
     gap: spacing.sm,
@@ -713,10 +697,10 @@ function createStyles(colors: ThemeColors) {
   adSummaryTile: {
     flexGrow: 1,
     flexBasis: 120,
-    backgroundColor: colors.background,
-    borderWidth: 0.5,
-    borderColor: colors.clubGreen,
-    borderRadius: radius.md,
+    backgroundColor: colors.mintBgAlt,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 14,
     padding: spacing.sm,
     alignItems: 'center',
   },
@@ -727,7 +711,7 @@ function createStyles(colors: ThemeColors) {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    backgroundColor: colors.background,
+    backgroundColor: colors.mintBgAlt,
     borderRadius: radius.md,
     padding: spacing.sm,
   },

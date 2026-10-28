@@ -1,11 +1,10 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, Image, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ActivityIndicator, FlatList, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SuperAdminStackParamList } from '../../navigation/types';
-import { ScreenHeader } from '../../components/common/ScreenHeader';
+import { AdminMobileHeader } from '../../components/admin/AdminMobileHeader';
 import { useAdmin } from '../../context/AdminContext';
 import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
 import { SuperAdminDesktopFrame } from '../../components/admin/desktop/SuperAdminDesktopFrame';
@@ -87,7 +86,7 @@ export function SuperAdminCourseAdsScreen({ navigation, route }: Props) {
 
   const renderItem = ({ item }: { item: AdminAd }) => (
     <TouchableOpacity
-      style={styles.row}
+      style={[styles.row, !isDesktop && styles.cardPhone]}
       onPress={() => navigation.navigate('SuperAdminAdEdit', { courseId, adId: item.id })}
       activeOpacity={0.8}
     >
@@ -98,16 +97,16 @@ export function SuperAdminCourseAdsScreen({ navigation, route }: Props) {
           <Ionicons name="megaphone-outline" size={20} color={colors.clubGreen} />
         </View>
       )}
-      <View style={{ flex: 1 }}>
+      <View style={{ flex: 1, minWidth: 0 }}>
         <Text style={styles.title} numberOfLines={1}>{item.title || '(untitled ad)'}</Text>
-        <Text style={styles.subtitle}>{item.clicks} clicks{item.active ? '' : ' · inactive'}</Text>
+        <Text style={styles.subtitle} numberOfLines={1}>{item.clicks} clicks{item.active ? '' : ' · inactive'}</Text>
       </View>
       <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
     </TouchableOpacity>
   );
 
   const reportCard = (
-    <View style={styles.reportCard}>
+    <View style={[styles.reportCard, !isDesktop && styles.cardPhone]}>
       <View style={styles.reportStat}>
         <Text style={styles.reportValue}>{report.totalAds}</Text>
         <Text style={styles.reportLabel}>Total Ads</Text>
@@ -174,33 +173,30 @@ export function SuperAdminCourseAdsScreen({ navigation, route }: Props) {
 
   return (
     <View style={styles.screen}>
-      <StatusBar barStyle="light-content" />
-      <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
-        <ScreenHeader
-          title={courseName}
-          onBack={() => navigation.goBack()}
-          right={
-            <View style={styles.headerActions}>
-              <TouchableOpacity
-                onPress={handleExport}
-                hitSlop={8}
-                accessibilityLabel="Export Report"
-                accessibilityRole="button"
-              >
-                <Ionicons name="download-outline" size={24} color={colors.white} />
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => navigation.navigate('SuperAdminAdEdit', { courseId })}
-                hitSlop={8}
-                accessibilityLabel="Add Ad"
-                accessibilityRole="button"
-              >
-                <Ionicons name="add-circle" size={26} color={colors.white} />
-              </TouchableOpacity>
-            </View>
-          }
-        />
-      </SafeAreaView>
+      <AdminMobileHeader
+        title="Ads"
+        subtitle={courseName}
+        right={
+          <View style={styles.headerActions}>
+            <TouchableOpacity
+              onPress={handleExport}
+              hitSlop={8}
+              accessibilityLabel="Export Report"
+              accessibilityRole="button"
+            >
+              <Ionicons name="download-outline" size={24} color={colors.clubGreen} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => navigation.navigate('SuperAdminAdEdit', { courseId })}
+              hitSlop={8}
+              accessibilityLabel="Add Ad"
+              accessibilityRole="button"
+            >
+              <Ionicons name="add-circle" size={28} color={colors.clubGreen} />
+            </TouchableOpacity>
+          </View>
+        }
+      />
 
       {reportCard}
       {placementToggle}
@@ -223,7 +219,6 @@ export function SuperAdminCourseAdsScreen({ navigation, route }: Props) {
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  headerSafeArea: { backgroundColor: colors.clubGreen },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   reportCard: {
     flexDirection: 'row',
@@ -235,10 +230,13 @@ function createStyles(colors: ThemeColors) {
     marginTop: spacing.md,
     paddingVertical: spacing.sm,
   },
+  // Phone-only card surface for the report card and ad rows (both shared
+  // with the desktop branch, which keeps its original look).
+  cardPhone: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 16 },
   reportStat: { flex: 1, alignItems: 'center' },
   reportValue: { fontFamily: fontFamily.heading, fontSize: fontSize.title, color: colors.textPrimary },
   reportLabel: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary, marginTop: 2 },
-  placementToggle: { flexDirection: 'row', gap: spacing.sm, paddingHorizontal: screenPadding, paddingTop: spacing.md },
+  placementToggle: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, paddingHorizontal: screenPadding, paddingTop: spacing.md },
   placementPill: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: radius.pill, backgroundColor: colors.mintBgAlt },
   placementPillActive: { backgroundColor: colors.darkGreen },
   placementText: { fontFamily: fontFamily.heading, fontSize: 12, color: colors.textPrimary },

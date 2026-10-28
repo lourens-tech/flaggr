@@ -1,11 +1,10 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SuperAdminStackParamList } from '../../navigation/types';
-import { ScreenHeader } from '../../components/common/ScreenHeader';
+import { AdminMobileHeader } from '../../components/admin/AdminMobileHeader';
 import { useAdmin } from '../../context/AdminContext';
 import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
 import { SuperAdminDesktopFrame } from '../../components/admin/desktop/SuperAdminDesktopFrame';
@@ -107,7 +106,7 @@ export function SuperAdminStatBreakdownScreen({ navigation, route }: Props) {
   const rowItem = (item: StatBreakdownRow, index: number) => (
     <TouchableOpacity
       key={item.courseId}
-      style={styles.row}
+      style={[styles.row, !isDesktop && styles.mRow]}
       onPress={() => handleRowPress(item)}
       disabled={!isMemberMetric}
       activeOpacity={isMemberMetric ? 0.7 : 1}
@@ -168,10 +167,7 @@ export function SuperAdminStatBreakdownScreen({ navigation, route }: Props) {
 
   return (
     <View style={styles.screen}>
-      <StatusBar barStyle="light-content" />
-      <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
-        <ScreenHeader title={label} onBack={() => navigation.goBack()} />
-      </SafeAreaView>
+      <AdminMobileHeader title={label} />
 
       {toolbar}
 
@@ -193,7 +189,6 @@ export function SuperAdminStatBreakdownScreen({ navigation, route }: Props) {
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  headerSafeArea: { backgroundColor: colors.clubGreen },
   toolbar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -231,9 +226,11 @@ function createStyles(colors: ThemeColors) {
     borderRadius: radius.md,
     padding: spacing.md,
   },
+  // Phone-only row surface — `row` is also rendered inside the desktop card.
+  mRow: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 16 },
   rank: { fontFamily: fontFamily.heading, fontSize: fontSize.body, color: colors.textSecondary, width: 20 },
-  rowLabel: { flex: 1, fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.textPrimary },
-  rowValue: { fontFamily: fontFamily.heading, fontSize: fontSize.body, color: colors.textPrimary },
+  rowLabel: { flex: 1, minWidth: 0, fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.textPrimary },
+  rowValue: { flexShrink: 0, fontFamily: fontFamily.heading, fontSize: fontSize.body, color: colors.textPrimary },
   emptyText: {
     fontFamily: fontFamily.body,
     fontSize: fontSize.body,

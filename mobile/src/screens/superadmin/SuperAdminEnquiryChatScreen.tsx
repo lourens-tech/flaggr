@@ -1,9 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
-import { ActivityIndicator, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SuperAdminStackParamList } from '../../navigation/types';
-import { ScreenHeader } from '../../components/common/ScreenHeader';
+import { AdminMobileHeader } from '../../components/admin/AdminMobileHeader';
 import { useAdmin } from '../../context/AdminContext';
 import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
 import { useLiveThread } from '../../hooks/useLiveThread';
@@ -87,10 +86,7 @@ export function SuperAdminEnquiryChatScreen({ route }: Props) {
 
   return (
     <View style={styles.screen}>
-      <StatusBar barStyle="light-content" />
-      <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
-        <ScreenHeader title={thread?.memberName ?? 'Enquiry'} />
-      </SafeAreaView>
+      <AdminMobileHeader title={thread?.memberName ?? 'Enquiry'} />
 
       {body}
     </View>
@@ -100,7 +96,6 @@ export function SuperAdminEnquiryChatScreen({ route }: Props) {
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  headerSafeArea: { backgroundColor: colors.clubGreen },
   memberInfo: { paddingHorizontal: screenPadding, paddingTop: spacing.sm },
   memberEmail: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary },
   enquiryType: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.tiny, color: colors.clubGreen, marginTop: 2 },

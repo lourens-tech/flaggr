@@ -1,11 +1,10 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SuperAdminStackParamList } from '../../navigation/types';
-import { ScreenHeader } from '../../components/common/ScreenHeader';
+import { AdminMobileHeader } from '../../components/admin/AdminMobileHeader';
 import { BarChart } from '../../components/common/BarChart';
 import { useAdmin } from '../../context/AdminContext';
 import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
@@ -36,7 +35,7 @@ function computeCtr(clicks: number, impressions: number): number {
 // Ad Performance report. Impressions aren't itemized (see getAdClickLog
 // server-side) — only clicks get a per-event log; impressions stay a
 // count/trend line.
-export function SuperAdminAdDetailScreen({ navigation, route }: Props) {
+export function SuperAdminAdDetailScreen({ route }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const isDesktop = useIsDesktopNav();
@@ -166,10 +165,7 @@ export function SuperAdminAdDetailScreen({ navigation, route }: Props) {
 
   return (
     <View style={styles.screen}>
-      <StatusBar barStyle="light-content" />
-      <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
-        <ScreenHeader title={adTitle} onBack={() => navigation.goBack()} />
-      </SafeAreaView>
+      <AdminMobileHeader title={adTitle} />
 
       <View style={styles.toolbar}>{periodToggle}</View>
 
@@ -178,16 +174,16 @@ export function SuperAdminAdDetailScreen({ navigation, route }: Props) {
       ) : (
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           <View style={styles.summaryRow}>
-            <View style={styles.summaryTile}>
-              <Text style={styles.summaryValue}>{totalClicks.toLocaleString()}</Text>
+            <View style={[styles.summaryTile, styles.mSummaryTile]}>
+              <Text style={styles.summaryValue} numberOfLines={1} adjustsFontSizeToFit>{totalClicks.toLocaleString()}</Text>
               <Text style={styles.summaryLabel}>Clicks</Text>
             </View>
-            <View style={styles.summaryTile}>
-              <Text style={styles.summaryValue}>{totalImpressions.toLocaleString()}</Text>
+            <View style={[styles.summaryTile, styles.mSummaryTile]}>
+              <Text style={styles.summaryValue} numberOfLines={1} adjustsFontSizeToFit>{totalImpressions.toLocaleString()}</Text>
               <Text style={styles.summaryLabel}>Impressions</Text>
             </View>
-            <View style={styles.summaryTile}>
-              <Text style={styles.summaryValue}>{ctr}%</Text>
+            <View style={[styles.summaryTile, styles.mSummaryTile]}>
+              <Text style={styles.summaryValue} numberOfLines={1} adjustsFontSizeToFit>{ctr}%</Text>
               <Text style={styles.summaryLabel}>CTR</Text>
             </View>
           </View>
@@ -219,11 +215,11 @@ export function SuperAdminAdDetailScreen({ navigation, route }: Props) {
             ) : (
               clickLog.map((c) => (
                 <View key={c.id} style={styles.row}>
-                  <View style={{ flex: 1 }}>
+                  <View style={{ flex: 1, minWidth: 0 }}>
                     <Text style={styles.rowLabel} numberOfLines={1}>{c.memberName ?? 'Deleted member'}</Text>
-                    {c.memberEmail ? <Text style={styles.rowSubtext}>{c.memberEmail}</Text> : null}
+                    {c.memberEmail ? <Text style={styles.rowSubtext} numberOfLines={1}>{c.memberEmail}</Text> : null}
                   </View>
-                  <Text style={styles.rowValue}>{formatDate(c.clickedAt)}</Text>
+                  <Text style={[styles.rowValue, { flexShrink: 0 }]}>{formatDate(c.clickedAt)}</Text>
                 </View>
               ))
             )}
@@ -237,7 +233,6 @@ export function SuperAdminAdDetailScreen({ navigation, route }: Props) {
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  headerSafeArea: { backgroundColor: colors.clubGreen },
   content: { padding: screenPadding, paddingBottom: spacing.xl * 2 },
   toolbar: { paddingHorizontal: screenPadding, paddingTop: spacing.md, paddingBottom: spacing.sm },
   periodToggle: { flexDirection: 'row', backgroundColor: colors.mintBg, borderRadius: radius.pill, padding: 3, alignSelf: 'flex-start' },
@@ -256,12 +251,14 @@ function createStyles(colors: ThemeColors) {
     alignItems: 'center',
   },
   summaryValue: { fontFamily: fontFamily.heading, fontSize: fontSize.title, color: colors.textPrimary },
+  // Phone-only override — summaryTile itself is shared with the desktop branch.
+  mSummaryTile: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 16 },
   summaryLabel: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary, marginTop: 2 },
   chartCard: {
-    backgroundColor: colors.mintBg,
-    borderWidth: 0.5,
-    borderColor: colors.clubGreen,
-    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 16,
     padding: spacing.md,
     marginBottom: spacing.lg,
   },
@@ -279,10 +276,10 @@ function createStyles(colors: ThemeColors) {
   },
   exportButtonText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.tiny, color: colors.white },
   card: {
-    backgroundColor: colors.mintBg,
-    borderWidth: 0.5,
-    borderColor: colors.clubGreen,
-    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 16,
     padding: spacing.md,
     gap: spacing.sm,
   },

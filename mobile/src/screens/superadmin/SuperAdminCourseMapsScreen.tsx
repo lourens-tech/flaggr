@@ -1,11 +1,10 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SuperAdminStackParamList } from '../../navigation/types';
-import { ScreenHeader } from '../../components/common/ScreenHeader';
+import { AdminMobileHeader } from '../../components/admin/AdminMobileHeader';
 import { PillButton } from '../../components/common/PillButton';
 import { SuperAdminDesktopFrame } from '../../components/admin/desktop/SuperAdminDesktopFrame';
 import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
@@ -153,9 +152,7 @@ export function SuperAdminCourseMapsScreen({ navigation }: Props) {
   }
   return (
     <View style={styles.screen}>
-      <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
-        <ScreenHeader title="Course Maps" onBack={() => navigation.goBack()} />
-      </SafeAreaView>
+      <AdminMobileHeader title="Course Maps" />
       <ScrollView contentContainerStyle={styles.content}>{body}</ScrollView>
     </View>
   );
@@ -164,7 +161,6 @@ export function SuperAdminCourseMapsScreen({ navigation }: Props) {
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
     screen: { flex: 1, backgroundColor: colors.background },
-    headerSafeArea: { backgroundColor: colors.clubGreen },
     content: { padding: spacing.md, paddingBottom: spacing.xxl },
     dTitle: { fontFamily: fontFamily.heading, fontSize: 26, color: colors.textPrimary, marginBottom: spacing.sm },
     intro: { fontFamily: fontFamily.body, fontSize: 13, color: colors.textSecondary, lineHeight: 19 },
@@ -174,7 +170,7 @@ function createStyles(colors: ThemeColors) {
     row: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm + 2, padding: spacing.sm + 4, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
     name: { fontFamily: fontFamily.bodySemiBold, fontSize: 14, color: colors.textPrimary },
     meta: { fontFamily: fontFamily.body, fontSize: 11.5, color: colors.textMuted },
-    chip: { borderRadius: 20, paddingHorizontal: 10, paddingVertical: 3 },
+    chip: { flexShrink: 0, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 3 },
     chipText: { fontFamily: fontFamily.bodySemiBold, fontSize: 11 },
     chip_live: { backgroundColor: colors.mintBg },
     chipText_live: { color: colors.clubGreen },

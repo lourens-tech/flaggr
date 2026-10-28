@@ -173,6 +173,7 @@ Needs migration `048` applied and at least one live course map.
 - [ ] Refreshing the browser mid-session keeps the member logged in and on a sensible screen (not dumped back to login unnecessarily).
 - [ ] No console errors in the browser dev tools during a normal walkthrough of sections 1–15.
 - [ ] The public pages `/privacy.html` and `/support.html` load.
+- [ ] Super admin on a phone (or a browser window under 900px wide): every tab and pushed screen shows the plain "Super Admin / {screen}" header, not a solid green bar; on Courses the All/Active/Pending/Archived filter is fully visible and each card's Ads/Rewards/Catalog/Members buttons sit in a 2×2 grid; on Push a club-scoped notification's badge truncates instead of running off the card; nothing runs off the right edge of the screen.
 
 ## 17. Motion
 

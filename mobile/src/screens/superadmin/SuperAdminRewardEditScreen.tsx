@@ -1,10 +1,9 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { ActivityIndicator, Image, ScrollView, StatusBar, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ActivityIndicator, Image, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SuperAdminStackParamList } from '../../navigation/types';
-import { ScreenHeader } from '../../components/common/ScreenHeader';
+import { AdminMobileHeader } from '../../components/admin/AdminMobileHeader';
 import { TextField } from '../../components/common/TextField';
 import { SelectField } from '../../components/common/SelectField';
 import { PillButton } from '../../components/common/PillButton';
@@ -207,10 +206,7 @@ export function SuperAdminRewardEditScreen({ navigation, route }: Props) {
     }
     return (
       <View style={styles.screen}>
-        <StatusBar barStyle="light-content" />
-        <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
-          <ScreenHeader title="Edit Reward" onBack={() => navigation.goBack()} />
-        </SafeAreaView>
+        <AdminMobileHeader title="Edit Reward" />
         <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
       </View>
     );
@@ -246,7 +242,7 @@ export function SuperAdminRewardEditScreen({ navigation, route }: Props) {
           .map((v) => (
             <View key={v.key} style={styles.variantCard}>
               <View style={styles.variantRow}>
-                <View style={{ flex: 1 }}>
+                <View style={{ flex: 1, minWidth: 0 }}>
                   <TextField
                     placeholder="Label (e.g. R500 or Standard)"
                     variant="onLight"
@@ -309,10 +305,7 @@ export function SuperAdminRewardEditScreen({ navigation, route }: Props) {
 
   return (
     <View style={styles.screen}>
-      <StatusBar barStyle="light-content" />
-      <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
-        <ScreenHeader title={pageTitle} onBack={() => navigation.goBack()} />
-      </SafeAreaView>
+      <AdminMobileHeader title={pageTitle} />
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {form}
@@ -324,7 +317,6 @@ export function SuperAdminRewardEditScreen({ navigation, route }: Props) {
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  headerSafeArea: { backgroundColor: colors.clubGreen },
   content: { padding: screenPadding, paddingBottom: spacing.xl * 2 },
   imagePicker: { alignSelf: 'center', marginBottom: spacing.lg },
   imagePreview: { width: 120, height: 120, borderRadius: radius.md },
@@ -342,9 +334,10 @@ function createStyles(colors: ThemeColors) {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: spacing.sm,
     marginTop: spacing.md,
   },
-  activeLabel: { fontFamily: fontFamily.body, fontSize: fontSize.body, color: colors.textPrimary },
+  activeLabel: { flexShrink: 1, fontFamily: fontFamily.body, fontSize: fontSize.body, color: colors.textPrimary },
   sectionTitle: {
     fontFamily: fontFamily.heading,
     fontSize: fontSize.cardTitle,

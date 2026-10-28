@@ -1,10 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import { ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SuperAdminStackParamList } from '../../navigation/types';
-import { ScreenHeader } from '../../components/common/ScreenHeader';
+import { AdminMobileHeader } from '../../components/admin/AdminMobileHeader';
 import { TextField } from '../../components/common/TextField';
 import { PillButton } from '../../components/common/PillButton';
 import { useAdmin } from '../../context/AdminContext';
@@ -156,7 +155,7 @@ export function SuperAdminCourseCreateScreen({ navigation }: Props) {
           <>
             <Text style={styles.title}>Review and Send</Text>
             <View style={{ height: spacing.md }} />
-            <View style={styles.reviewCard}>
+            <View style={[styles.reviewCard, !isDesktop && styles.reviewCardPhone]}>
               <Text style={styles.reviewLabel}>Course</Text>
               <Text style={styles.reviewValue}>{courseName.trim()}</Text>
               {contactEmail.trim() ? (
@@ -212,10 +211,7 @@ export function SuperAdminCourseCreateScreen({ navigation }: Props) {
 
   return (
     <View style={styles.screen}>
-      <StatusBar barStyle="light-content" />
-      <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
-        <ScreenHeader title="New Course" onBack={() => navigation.goBack()} />
-      </SafeAreaView>
+      <AdminMobileHeader title="New Course" />
 
       {progressRow}
 
@@ -229,7 +225,6 @@ export function SuperAdminCourseCreateScreen({ navigation }: Props) {
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  headerSafeArea: { backgroundColor: colors.clubGreen },
   progressRow: { flexDirection: 'row', gap: 6, paddingHorizontal: screenPadding, paddingTop: spacing.md },
   progressDot: { flex: 1, height: 4, borderRadius: 2, backgroundColor: colors.inputBorder },
   progressDotActive: { backgroundColor: colors.clubGreen },
@@ -253,6 +248,8 @@ function createStyles(colors: ThemeColors) {
     borderRadius: radius.md,
     padding: spacing.md,
   },
+  // Phone-only surface; reviewCard is shared with the desktop branch.
+  reviewCardPhone: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 16 },
   reviewLabel: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary },
   reviewValue: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.textPrimary, marginTop: 2 },
   successIcon: { alignSelf: 'center', marginBottom: spacing.sm },

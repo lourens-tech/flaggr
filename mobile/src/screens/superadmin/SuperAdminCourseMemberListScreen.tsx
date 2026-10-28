@@ -1,11 +1,10 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SuperAdminStackParamList } from '../../navigation/types';
-import { ScreenHeader } from '../../components/common/ScreenHeader';
+import { AdminMobileHeader } from '../../components/admin/AdminMobileHeader';
 import { PillButton } from '../../components/common/PillButton';
 import { useAdmin } from '../../context/AdminContext';
 import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
@@ -23,7 +22,7 @@ type Props = NativeStackScreenProps<SuperAdminStackParamList, 'SuperAdminCourseM
 // Same feature as AdminMemberListScreen (the course_admin's own upload), just
 // with an explicit courseId so a super_admin can upload a club's list on its
 // behalf instead of relying on the club to do it themselves.
-export function SuperAdminCourseMemberListScreen({ navigation, route }: Props) {
+export function SuperAdminCourseMemberListScreen({ route }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const isDesktop = useIsDesktopNav();
@@ -103,9 +102,9 @@ export function SuperAdminCourseMemberListScreen({ navigation, route }: Props) {
       {loading ? (
         <ActivityIndicator color={colors.clubGreen} />
       ) : (
-        <View style={styles.statusCard}>
+        <View style={[styles.statusCard, !isDesktop && styles.statusCardPhone]}>
           <Ionicons name="people-outline" size={22} color={colors.clubGreen} />
-          <View style={{ flex: 1 }}>
+          <View style={{ flex: 1, minWidth: 0 }}>
             {status && status.count > 0 ? (
               <>
                 <Text style={styles.statusTitle}>{status.count.toLocaleString()} members on file</Text>
@@ -145,9 +144,7 @@ export function SuperAdminCourseMemberListScreen({ navigation, route }: Props) {
 
   return (
     <View style={styles.screen}>
-      <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
-        <ScreenHeader title={courseName} onBack={() => navigation.goBack()} />
-      </SafeAreaView>
+      <AdminMobileHeader title="Member List" subtitle={courseName} />
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {body}
@@ -159,7 +156,6 @@ export function SuperAdminCourseMemberListScreen({ navigation, route }: Props) {
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
     screen: { flex: 1, backgroundColor: colors.background },
-    headerSafeArea: { backgroundColor: colors.clubGreen },
     content: { padding: screenPadding, paddingBottom: spacing.xl * 2 },
     helpText: {
       fontFamily: fontFamily.body,
@@ -177,6 +173,8 @@ function createStyles(colors: ThemeColors) {
       borderRadius: radius.md,
       padding: spacing.md,
     },
+    // Phone-only surface; statusCard is shared with the desktop branch.
+    statusCardPhone: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 16 },
     statusTitle: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.textPrimary },
     statusSubtitle: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary, marginTop: 2 },
     dPageTitle: { fontFamily: fontFamily.heading, fontSize: 26, color: colors.textPrimary },

@@ -1,6 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, type CompositeScreenProps } from '@react-navigation/native';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
@@ -11,6 +10,7 @@ import { useAdmin } from '../../context/AdminContext';
 import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
 import { SuperAdminDesktopFrame } from '../../components/admin/desktop/SuperAdminDesktopFrame';
 import { DesktopPanel } from '../../components/admin/desktop/DesktopPanel';
+import { AdminMobileHeader } from '../../components/admin/AdminMobileHeader';
 import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
 import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 
@@ -76,7 +76,7 @@ export function SuperAdminAdsScreen({ navigation }: Props) {
   const courseRow = (item: (typeof filtered)[number]) => (
     <TouchableOpacity
       key={item.id}
-      style={styles.courseRow}
+      style={isDesktop ? styles.courseRow : [styles.courseRow, styles.courseRowPhone]}
       onPress={() => navigation.navigate('SuperAdminCourseAds', { courseId: item.id, courseName: item.name })}
       activeOpacity={0.85}
     >
@@ -115,23 +115,21 @@ export function SuperAdminAdsScreen({ navigation }: Props) {
 
   return (
     <View style={styles.screen}>
-      <StatusBar barStyle="light-content" />
-      <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
-        <View style={styles.header}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.headerTitle}>Ads</Text>
-            <Text style={styles.headerSubtitle}>Pick a club, or All Courses for a platform-wide ad</Text>
-          </View>
+      <AdminMobileHeader
+        title="Ads"
+        subtitle="Pick a club, or All Courses for a platform-wide ad"
+        showBack={false}
+        right={
           <TouchableOpacity
             onPress={() => navigation.navigate('SuperAdminAdEdit', {})}
             hitSlop={8}
             accessibilityLabel="New Ad"
             accessibilityRole="button"
           >
-            <Ionicons name="add-circle" size={28} color={colors.white} />
+            <Ionicons name="add-circle" size={28} color={colors.clubGreen} />
           </TouchableOpacity>
-        </View>
-      </SafeAreaView>
+        }
+      />
 
       {allCoursesRow}
 
@@ -162,10 +160,6 @@ export function SuperAdminAdsScreen({ navigation }: Props) {
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  headerSafeArea: { backgroundColor: colors.clubGreen },
-  header: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: screenPadding, paddingVertical: spacing.md },
-  headerTitle: { fontFamily: fontFamily.headingDisplay, fontSize: fontSize.title, color: colors.white },
-  headerSubtitle: { fontFamily: fontFamily.body, fontSize: 12, color: 'rgba(255,255,255,0.75)' },
   allCoursesRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -200,6 +194,7 @@ function createStyles(colors: ThemeColors) {
     padding: spacing.md,
     marginBottom: spacing.sm,
   },
+  courseRowPhone: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 16, marginBottom: 0 },
   courseTitle: { flex: 1, fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.textPrimary },
   emptyText: {
     fontFamily: fontFamily.body,

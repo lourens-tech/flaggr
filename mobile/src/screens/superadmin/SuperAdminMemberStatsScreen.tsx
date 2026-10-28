@@ -1,11 +1,11 @@
 import React, { useState, useMemo } from 'react';
-import { ActivityIndicator, Modal, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ActivityIndicator, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SuperAdminStackParamList } from '../../navigation/types';
-import { StatCard } from '../../components/common/StatCard';
+import { AdminStatCard } from '../../components/admin/AdminStatCard';
 import { BarChart } from '../../components/common/BarChart';
+import { AdminMobileHeader } from '../../components/admin/AdminMobileHeader';
 import { useAdmin } from '../../context/AdminContext';
 import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
 import { SuperAdminDesktopFrame } from '../../components/admin/desktop/SuperAdminDesktopFrame';
@@ -20,14 +20,13 @@ import type { SuperAdminMemberStats } from '../../data/adminTypes';
 type Period = 'month' | 'year' | 'all';
 const PERIOD_LABELS: Record<Period, string> = { month: 'Month', year: 'Year', all: 'All' };
 const PERIODS: Period[] = ['month', 'year', 'all'];
-const DELTA_LABELS: Record<Period, string> = { month: 'vs Last Month', year: 'vs Last Year', all: '' };
 
 type Props = NativeStackScreenProps<SuperAdminStackParamList, 'SuperAdminMemberStats'>;
 
 // Same shape/look as AdminMemberStatsScreen (a course_admin looking up one of
 // their own members), just reachable for any member platform-wide — see
 // SuperAdminReportsScreen's "Look Up a Member" section.
-export function SuperAdminMemberStatsScreen({ route, navigation }: Props) {
+export function SuperAdminMemberStatsScreen({ route }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const isDesktop = useIsDesktopNav();
@@ -204,22 +203,10 @@ export function SuperAdminMemberStatsScreen({ route, navigation }: Props) {
 
   return (
     <View style={styles.screen}>
-      <StatusBar barStyle="light-content" />
-      <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton} accessibilityLabel="Back">
-            <Ionicons name="chevron-back" size={22} color={colors.white} />
-          </TouchableOpacity>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.headerTitle} numberOfLines={1}>{nameTitle}</Text>
-            {data ? (
-              <Text style={styles.headerSubtitle} numberOfLines={1}>
-                {data.member.email} · {data.member.courseName}
-              </Text>
-            ) : null}
-          </View>
-        </View>
-      </SafeAreaView>
+      <AdminMobileHeader
+        title={nameTitle}
+        subtitle={data ? `${data.member.email} · ${data.member.courseName}` : undefined}
+      />
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.statsHeaderRow}>
@@ -246,53 +233,48 @@ export function SuperAdminMemberStatsScreen({ route, navigation }: Props) {
 
             <View style={styles.statsGrid}>
               <View style={styles.statsRow}>
-                <StatCard
+                <AdminStatCard
                   label="Rounds (9 Holes)"
                   value={data.stats.roundsPlayed9}
+                  icon="golf-outline"
                   deltaPct={data.stats.roundsPlayed9DeltaPct}
-                  deltaLabel={DELTA_LABELS[period]}
                   showDelta={period !== 'all'}
                   fill
-                  backgroundColor={colors.mintBg}
                 />
-                <StatCard
+                <AdminStatCard
                   label="Rounds (18 Holes)"
                   value={data.stats.roundsPlayed18}
+                  icon="golf-outline"
                   deltaPct={data.stats.roundsPlayed18DeltaPct}
-                  deltaLabel={DELTA_LABELS[period]}
                   showDelta={period !== 'all'}
                   fill
-                  backgroundColor={colors.mintBg}
                 />
               </View>
               <View style={styles.statsRow}>
-                <StatCard
+                <AdminStatCard
                   label="Flagrr Cash Earned"
                   value={data.stats.bucksEarned.toLocaleString()}
+                  icon="trending-up-outline"
                   deltaPct={data.stats.bucksEarnedDeltaPct}
-                  deltaLabel={DELTA_LABELS[period]}
                   showDelta={period !== 'all'}
                   fill
-                  backgroundColor={colors.mintBg}
                 />
-                <StatCard
+                <AdminStatCard
                   label="Flagrr Cash Redeemed"
                   value={data.stats.bucksRedeemed.toLocaleString()}
+                  icon="swap-horizontal-outline"
                   deltaPct={data.stats.bucksRedeemedDeltaPct}
-                  deltaLabel={DELTA_LABELS[period]}
                   showDelta={period !== 'all'}
                   fill
-                  backgroundColor={colors.mintBg}
                 />
               </View>
-              <StatCard
+              <AdminStatCard
                 label="Receipts Scanned"
                 value={data.stats.receiptsScanned}
+                icon="receipt-outline"
                 deltaPct={data.stats.receiptsScannedDeltaPct}
-                deltaLabel={DELTA_LABELS[period]}
                 showDelta={period !== 'all'}
                 width="100%"
-                backgroundColor={colors.mintBg}
               />
             </View>
 
@@ -312,17 +294,6 @@ export function SuperAdminMemberStatsScreen({ route, navigation }: Props) {
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  headerSafeArea: { backgroundColor: colors.clubGreen },
-  header: {
-    paddingHorizontal: screenPadding,
-    paddingVertical: spacing.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  backButton: { width: 28, height: 28, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontFamily: fontFamily.headingDisplay, fontSize: fontSize.title, color: colors.white },
-  headerSubtitle: { fontFamily: fontFamily.body, fontSize: 12, color: 'rgba(255,255,255,0.75)' },
   content: { padding: screenPadding, paddingBottom: spacing.xl * 2 },
   statsHeaderRow: {
     flexDirection: 'row',
@@ -420,10 +391,10 @@ function createStyles(colors: ThemeColors) {
   statsGrid: { gap: spacing.sm, marginBottom: spacing.lg },
   statsRow: { flexDirection: 'row', gap: 10 },
   chartCard: {
-    backgroundColor: colors.mintBg,
-    borderWidth: 0.5,
-    borderColor: colors.clubGreen,
-    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 16,
     padding: spacing.md,
     marginBottom: spacing.lg,
   },

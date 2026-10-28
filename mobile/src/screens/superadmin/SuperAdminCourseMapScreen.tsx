@@ -1,11 +1,10 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Image, Linking, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SuperAdminStackParamList } from '../../navigation/types';
-import { ScreenHeader } from '../../components/common/ScreenHeader';
+import { AdminMobileHeader } from '../../components/admin/AdminMobileHeader';
 import { PillButton } from '../../components/common/PillButton';
 import { SuperAdminDesktopFrame } from '../../components/admin/desktop/SuperAdminDesktopFrame';
 import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
@@ -202,7 +201,7 @@ export function SuperAdminCourseMapScreen({ navigation, route }: Props) {
                 <View key={t.id} style={styles.tr}>
                   <View style={[styles.td, { flexDirection: 'row', alignItems: 'center', gap: 6 }]}>
                     <View style={[styles.dot, { backgroundColor: t.color }]} />
-                    <Text style={styles.tdText}>{t.name}</Text>
+                    <Text style={[styles.tdText, { flexShrink: 1 }]}>{t.name}</Text>
                   </View>
                   <Text style={[styles.td, styles.tdText]}>{t.totalLength == null ? '–' : `${t.totalLength.toLocaleString('en-ZA')} m`}</Text>
                   {GENDERS.map((g) => (
@@ -279,11 +278,10 @@ export function SuperAdminCourseMapScreen({ navigation, route }: Props) {
   }
   return (
     <View style={styles.screen}>
-      <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
-        <ScreenHeader title="Course Map" onBack={() => navigation.goBack()} />
-      </SafeAreaView>
+      {/* The course/club name is the header's large title on phone, so the
+          in-body heading the old green bar needed is gone. */}
+      <AdminMobileHeader title={title} />
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={[styles.dTitle, { fontSize: 22 }]}>{title}</Text>
         {body}
       </ScrollView>
     </View>
@@ -293,7 +291,6 @@ export function SuperAdminCourseMapScreen({ navigation, route }: Props) {
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
     screen: { flex: 1, backgroundColor: colors.background },
-    headerSafeArea: { backgroundColor: colors.clubGreen },
     content: { padding: spacing.md, paddingBottom: spacing.xxl, gap: spacing.sm },
     dTitle: { fontFamily: fontFamily.heading, fontSize: 26, color: colors.textPrimary, marginBottom: spacing.sm },
     panel: { backgroundColor: colors.surface, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, padding: spacing.md, gap: spacing.sm + 2 },
@@ -307,7 +304,7 @@ function createStyles(colors: ThemeColors) {
     photo: { width: 150, gap: 4 },
     thumb: { width: 150, height: 112, borderRadius: 10, overflow: 'hidden', backgroundColor: colors.inputBg, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border },
     thumbImg: { width: '100%', height: '100%' },
-    chip: { borderRadius: 20, paddingHorizontal: 10, paddingVertical: 3 },
+    chip: { flexShrink: 0, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 3 },
     chipLive: { backgroundColor: colors.mintBg },
     chipDraft: { backgroundColor: colors.inputBg },
     chipText: { fontFamily: fontFamily.bodySemiBold, fontSize: 11 },
