@@ -25,6 +25,7 @@ import { AdminOnboardingWizard } from '../components/admin/AdminOnboardingWizard
 import { AdminStaffOnboardingWizard } from '../components/admin/AdminStaffOnboardingWizard';
 import { useAdmin } from '../context/AdminContext';
 import { useIsDesktopNav } from '../hooks/useIsDesktopNav';
+import { stackScreenOptions, webScreenLayout } from './motionOptions';
 
 const Stack = createNativeStackNavigator<AdminStackParamList>();
 
@@ -36,7 +37,10 @@ export function AdminNavigator() {
   // transition would otherwise visibly re-animate it on every navigation.
   return (
     <>
-      <Stack.Navigator screenOptions={{ headerShown: false, animation: isDesktop ? 'none' : 'default' }}>
+      <Stack.Navigator
+        screenOptions={isDesktop ? { headerShown: false, animation: 'none' } : stackScreenOptions}
+        screenLayout={isDesktop ? undefined : webScreenLayout}
+      >
         <Stack.Screen name="AdminTabs" component={AdminTabNavigator} />
         <Stack.Screen name="AdminRewardEdit" component={AdminRewardEditScreen} />
         <Stack.Screen name="AdminAdEdit" component={AdminAdEditScreen} />

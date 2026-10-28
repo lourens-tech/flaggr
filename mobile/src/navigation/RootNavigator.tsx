@@ -24,6 +24,7 @@ import { AdminNavigator } from './AdminNavigator';
 import { SuperAdminNavigator } from './SuperAdminNavigator';
 import { AdminForceChangePasswordScreen } from '../screens/admin/AdminForceChangePasswordScreen';
 import { AdminStaffWelcomeScreen } from '../screens/admin/AdminStaffWelcomeScreen';
+import { fadeUpOptions, slideUpOptions, stackScreenOptions, webScreenLayout } from './motionOptions';
 import { useApp } from '../context/AppContext';
 import { useAdmin } from '../context/AdminContext';
 import { useThemeColors, type ThemeColors } from '../context/ThemeContext';
@@ -47,7 +48,7 @@ export function RootNavigator() {
   }
 
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator screenOptions={stackScreenOptions} screenLayout={webScreenLayout}>
       {isAdminAuthenticated ? (
         // A course-admin/staff session takes priority — these are separate
         // identities (see api/_lib/auth.ts), but a device is realistically
@@ -66,10 +67,10 @@ export function RootNavigator() {
       ) : isAuthenticated ? (
         <>
           <Stack.Screen name="Main" component={MainTabNavigator} />
-          <Stack.Screen name="Voucher" component={VoucherScreen} />
-          <Stack.Screen name="ScanReceipt" component={ScanReceiptScreen} />
+          <Stack.Screen name="Voucher" component={VoucherScreen} options={fadeUpOptions} />
+          <Stack.Screen name="ScanReceipt" component={ScanReceiptScreen} options={slideUpOptions} />
           <Stack.Screen name="ReviewReceipt" component={ReviewReceiptScreen} />
-          <Stack.Screen name="ReceiptSuccess" component={ReceiptSuccessScreen} />
+          <Stack.Screen name="ReceiptSuccess" component={ReceiptSuccessScreen} options={fadeUpOptions} />
           <Stack.Screen name="ReceiptHistory" component={ReceiptHistoryScreen} />
           <Stack.Screen name="MemberTiers" component={MemberTiersScreen} />
           <Stack.Screen name="Notifications" component={NotificationsScreen} />

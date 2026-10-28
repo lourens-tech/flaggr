@@ -149,6 +149,17 @@ Use test receipts that trigger a flag: a very unclear photo (low OCR confidence)
 - [ ] No console errors in the browser dev tools during a normal walkthrough of sections 1–15.
 - [ ] The public pages `/privacy.html` and `/support.html` load.
 
+## 17. Motion
+
+- [ ] Home: the Flagrr Cash balance rolls up from 0, the tier bar fills from the left, and the cards rise in one after another. After a scan is approved, the balance rolls from the old value to the new one.
+- [ ] Tab bar: the selected tab's icon switches to its filled version, pops slightly and gets a dot underneath; switching tabs crossfades.
+- [ ] Buttons and reward cards shrink slightly under the finger and spring back on release (no dimming).
+- [ ] iPhone: pushed screens slide in and can be swiped back from anywhere on the screen. Android: pushed screens slide in from the right.
+- [ ] The scan camera slides up from the bottom; Voucher and Receipt Success fade up. On Voucher the QR code pops in; on Receipt Success the trophy pops and the Flagrr Cash amount rolls up.
+- [ ] Alerts and confirmations spring in over a fading backdrop.
+- [ ] With Reduce Motion turned on (iOS Settings > Accessibility > Motion, or Android remove animations), everything appears instantly with no movement.
+- [ ] Admin dashboard (desktop browser): stat cards and panels rise in, numbers roll up, chart bars grow, table rows cascade in; the sidebar stays still while the content fades, and the lime marker springs in beside the current section.
+
 ## Known-not-yet-testable
 
 These are real code paths but can't be fully exercised in UAT until the infrastructure behind them is confirmed — don't file these as bugs:

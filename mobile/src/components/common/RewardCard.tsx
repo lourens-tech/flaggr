@@ -4,6 +4,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { fontFamily, fontSize, radius, spacing } from '../../theme';
 import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 import type { Reward, RewardCategory } from '../../data/types';
+import { FadeIn, PressableScale } from '../motion';
 
 interface Props {
   reward: Reward;
@@ -113,30 +114,35 @@ export function RewardCard({ reward, width, style, onPress, onRedeem }: Props) {
         <Text style={styles.cost}>{variant.cost} Flagrr Cash</Text>
 
         {onRedeem ? (
-          <TouchableOpacity style={styles.redeemButton} onPress={() => onRedeem(variant.id)}>
+          <PressableScale style={styles.redeemButton} onPress={() => onRedeem(variant.id)} accessibilityRole="button">
             <Text style={styles.redeemButtonText}>Redeem Now</Text>
             <Ionicons name="arrow-forward" size={14} color={colors.darkGreen} />
-          </TouchableOpacity>
+          </PressableScale>
         ) : null}
       </View>
     </>
   );
 
-  const cardStyle = [styles.card, width ? { width } : null, style];
+  // Size/position styles go on the entrance wrapper; the card fills it.
+  const slotStyle = [width ? { width } : null, style];
 
-  if (onPress) {
-    return (
-      <TouchableOpacity activeOpacity={0.85} onPress={onPress} style={cardStyle}>
-        {body}
-      </TouchableOpacity>
-    );
-  }
-  return <View style={cardStyle}>{body}</View>;
+  return (
+    <FadeIn style={slotStyle}>
+      {onPress ? (
+        <PressableScale onPress={onPress} style={styles.card}>
+          {body}
+        </PressableScale>
+      ) : (
+        <View style={styles.card}>{body}</View>
+      )}
+    </FadeIn>
+  );
 }
 
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
   card: {
+    flexGrow: 1,
     backgroundColor: colors.surface,
     borderRadius: radius.md,
     borderWidth: 1,

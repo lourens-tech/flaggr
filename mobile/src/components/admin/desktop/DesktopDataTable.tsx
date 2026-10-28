@@ -3,6 +3,8 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { fontFamily, fontSize, radius, spacing } from '../../../theme';
 import { useThemeColors, type ThemeColors } from '../../../context/ThemeContext';
 import { useHover, hoverTransition } from '../../../hooks/useHover';
+import { duration } from '../../../theme/motion';
+import { FadeIn } from '../../motion';
 
 export interface DesktopTableColumn<T> {
   key: string;
@@ -54,7 +56,14 @@ export function DesktopDataTable<T>({ columns, rows, keyExtractor }: Props<T>) {
         </View>
         <ScrollView showsVerticalScrollIndicator style={styles.verticalScroll}>
           {rows.map((row, i) => (
-            <DataRow key={keyExtractor(row, i)} row={row} columns={columns} isLast={i === rows.length - 1} styles={styles} />
+            <DataRow
+              key={keyExtractor(row, i)}
+              row={row}
+              columns={columns}
+              isLast={i === rows.length - 1}
+              animate={i < ANIMATED_ROWS}
+              styles={styles}
+            />
           ))}
         </ScrollView>
       </View>
@@ -72,27 +81,35 @@ function DataRow<T>({
   row,
   columns,
   isLast,
+  animate,
   styles,
 }: {
   row: T;
   columns: DesktopTableColumn<T>[];
   isLast: boolean;
+  animate: boolean;
   styles: ReturnType<typeof createStyles>;
 }) {
   const [hovered, hoverHandlers] = useHover();
   return (
-    <View
-      style={[styles.dataRow, hoverTransition, hovered && styles.dataRowHover, isLast && styles.dataRowLast]}
-      {...hoverHandlers}
-    >
-      {columns.map((c) => (
-        <View key={c.key} style={[columnFlex(c), { paddingRight: spacing.sm }, c.align === 'right' && styles.cellAlignRight]}>
-          {c.render(row)}
-        </View>
-      ))}
-    </View>
+    <FadeIn distance={4} duration={duration.short} disabled={!animate}>
+      <View
+        style={[styles.dataRow, hoverTransition, hovered && styles.dataRowHover, isLast && styles.dataRowLast]}
+        {...hoverHandlers}
+      >
+        {columns.map((c) => (
+          <View key={c.key} style={[columnFlex(c), { paddingRight: spacing.sm }, c.align === 'right' && styles.cellAlignRight]}>
+            {c.render(row)}
+          </View>
+        ))}
+      </View>
+    </FadeIn>
   );
 }
+
+// Rows past this point appear without an entrance — the cascade only needs
+// to cover what's visible on first paint.
+const ANIMATED_ROWS = 20;
 
 function initials(a: string, b?: string): string {
   return `${a.charAt(0)}${b ? b.charAt(0) : ''}`.toUpperCase() || '?';

@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { fontFamily } from '../../../theme';
 import { useThemeColors, type ThemeColors } from '../../../context/ThemeContext';
 import { useHover, hoverTransition } from '../../../hooks/useHover';
+import { FadeIn } from '../../motion';
 
 interface Props {
   title: string;
@@ -21,7 +22,7 @@ export function DesktopPanel({ title, onViewAll, viewAllLabel = 'View all', chil
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [hovered, hoverHandlers] = useHover();
   return (
-    <View style={[styles.panel, style]}>
+    <FadeIn style={[styles.panel, style]}>
       <View style={styles.head}>
         <Text style={styles.title}>{title}</Text>
         {onViewAll ? (
@@ -37,7 +38,7 @@ export function DesktopPanel({ title, onViewAll, viewAllLabel = 'View all', chil
         ) : null}
       </View>
       {children}
-    </View>
+    </FadeIn>
   );
 }
 

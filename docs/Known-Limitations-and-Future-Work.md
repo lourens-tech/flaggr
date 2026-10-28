@@ -72,6 +72,15 @@ Still open:
 - `eas.json` has no Android `submit` configuration.
 - Comments that say "no EAS project exists yet" are out of date. `mobile/src/context/AppContext.tsx:159`, `mobile/src/utils/pushNotifications.ts:21,29`, `mobile/App.tsx:33`
 
+## Motion: deferred until the next store build
+
+These need native code, so they wait for a new App Store / Play Store build (everything else in the motion system ships over the air; see [Technical Architecture](Technical-Architecture)):
+
+- Haptic feedback on taps (`expo-haptics` is not installed).
+- Gesture-driven 120Hz motion such as swipe-to-dismiss sheets (`react-native-reanimated`).
+- Apple's real Liquid Glass material on iOS 26 (`expo-glass-effect`).
+- Skeleton loaders while lists load are not built yet; screens still show a spinner.
+
 ## Database and migrations
 
 - **`db/schema.sql` is stale.** It still has Stripe columns, an `admins` role check limited to `super_admin|course_admin`, `ads.placement` without `home_top`, `golf_products` without `course_id` and `rand_value`, and it is missing about 13 tables (roster, support, audit log, reset codes, pending signups, referrals, ad courses, ad impressions, scan cache, duplicate attempts, super-admin broadcasts) and many columns.

@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Modal, StyleSheet, Text, View } from 'react-native';
 import { fontFamily, fontSize, radius, spacing } from '../../theme';
 import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
+import { PopIn, PressableScale } from '../motion';
 import { dismissAlert, subscribeAlert, type AlertButtonConfig, type AlertConfig } from '../../utils/alertStore';
 
 // Mounted once near the app root. Replaces react-native-web's no-op Alert.alert
@@ -23,7 +24,8 @@ export function AppAlertHost() {
   return (
     <Modal visible={config.visible} transparent animationType="fade" onRequestClose={dismissAlert}>
       <View style={styles.backdrop}>
-        <View style={styles.card}>
+        {/* Springs up from 92% as the backdrop fades, like an iOS alert. */}
+        <PopIn style={styles.card} from={0.92}>
           <Text style={styles.title}>{config.title}</Text>
           {config.message ? <Text style={styles.message}>{config.message}</Text> : null}
 
@@ -32,9 +34,9 @@ export function AppAlertHost() {
               const isCancel = button.style === 'cancel';
               const isDestructive = button.style === 'destructive';
               return (
-                <TouchableOpacity
+                <PressableScale
                   key={i}
-                  activeOpacity={0.8}
+                  accessibilityRole="button"
                   onPress={() => handlePress(button)}
                   style={[
                     styles.button,
@@ -46,11 +48,11 @@ export function AppAlertHost() {
                   <Text style={[styles.buttonText, isCancel ? styles.buttonTextOutline : styles.buttonTextSolid]}>
                     {button.text ?? 'OK'}
                   </Text>
-                </TouchableOpacity>
+                </PressableScale>
               );
             })}
           </View>
-        </View>
+        </PopIn>
       </View>
     </Modal>
   );

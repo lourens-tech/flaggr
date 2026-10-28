@@ -1,8 +1,9 @@
 import React, { useMemo } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View, type DimensionValue } from 'react-native';
+import { StyleSheet, Text, View, type DimensionValue } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { fontFamily, fontSize, radius, spacing } from '../../theme';
 import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
+import { CountUpText, FadeIn, PressableScale } from '../motion';
 
 interface Props {
   label: string;
@@ -43,14 +44,11 @@ export function StatCard({
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const positive = deltaPct >= 0;
-  const Wrapper = onPress ? TouchableOpacity : View;
-  return (
-    <Wrapper
-      style={[styles.card, fill ? styles.fill : { width }, backgroundColor ? { backgroundColor } : null]}
-      {...(onPress ? { onPress, activeOpacity: 0.7 } : null)}
-    >
+  const cardStyle = [styles.card, backgroundColor ? { backgroundColor } : null];
+  const body = (
+    <>
       <Text style={styles.label}>{label}</Text>
-      <Text style={styles.value}>{value}</Text>
+      <CountUpText style={styles.value} value={value} />
       {showDelta ? (
         <View style={styles.deltaRow}>
           <Ionicons
@@ -63,13 +61,25 @@ export function StatCard({
           </Text>
         </View>
       ) : null}
-    </Wrapper>
+    </>
+  );
+  return (
+    <FadeIn style={fill ? styles.fill : { width }}>
+      {onPress ? (
+        <PressableScale style={cardStyle} onPress={onPress}>
+          {body}
+        </PressableScale>
+      ) : (
+        <View style={cardStyle}>{body}</View>
+      )}
+    </FadeIn>
   );
 }
 
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
   card: {
+    flexGrow: 1,
     backgroundColor: colors.background,
     borderWidth: 0.5,
     borderColor: colors.clubGreen,

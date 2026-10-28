@@ -1,8 +1,10 @@
-import React, { useMemo } from 'react';
-import { StyleSheet, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useMemo, useRef } from 'react';
+import { Animated, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
+import { prefersReducedMotion, spring, useNativeDriver } from '../../theme/motion';
+import { PressableScale } from '../motion';
 
 const ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   Home: 'home-outline',
@@ -10,6 +12,69 @@ const ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   Activity: 'time-outline',
   Profile: 'person-outline',
 };
+
+// Filled variants for the selected tab, the way iOS tab bars swap outline
+// for filled glyphs.
+const ICONS_ACTIVE: Record<string, keyof typeof Ionicons.glyphMap> = {
+  Home: 'home',
+  Rewards: 'gift',
+  Activity: 'time',
+  Profile: 'person',
+};
+
+function TabIcon({
+  name,
+  focused,
+  onPress,
+  colors,
+  styles,
+}: {
+  name: string;
+  focused: boolean;
+  onPress: () => void;
+  colors: ThemeColors;
+  styles: ReturnType<typeof createStyles>;
+}) {
+  // 0 = idle, 1 = selected. Springs so the icon pops slightly and the dot
+  // under it grows in when the tab is chosen.
+  const focus = useRef(new Animated.Value(focused ? 1 : 0)).current;
+
+  useEffect(() => {
+    if (prefersReducedMotion()) {
+      focus.setValue(focused ? 1 : 0);
+      return;
+    }
+    const anim = Animated.spring(focus, { toValue: focused ? 1 : 0, ...spring.snappy, useNativeDriver });
+    anim.start();
+    return () => anim.stop();
+  }, [focused, focus]);
+
+  const iconName = (focused ? ICONS_ACTIVE[name] : ICONS[name]) ?? 'ellipse-outline';
+
+  return (
+    <PressableScale
+      onPress={onPress}
+      style={styles.iconButton}
+      pressedScale={0.88}
+      hitSlop={10}
+      accessibilityLabel={name}
+      accessibilityRole="tab"
+      accessibilityState={{ selected: focused }}
+    >
+      <Animated.View
+        style={{
+          transform: [
+            { scale: focus.interpolate({ inputRange: [0, 1], outputRange: [1, 1.1] }) },
+            { translateY: focus.interpolate({ inputRange: [0, 1], outputRange: [0, -2] }) },
+          ],
+        }}
+      >
+        <Ionicons name={iconName} size={22} color={focused ? colors.clubGreen : 'rgba(31,66,52,0.4)'} />
+      </Animated.View>
+      <Animated.View style={[styles.dot, { opacity: focus, transform: [{ scale: focus }] }]} />
+    </PressableScale>
+  );
+}
 
 // Custom floating pill nav with a raised center "Scan" button, matching the
 // Figma "Show QR Button Container" / scan bar seen on Home, Rewards Shop, etc.
@@ -19,38 +84,30 @@ export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
   const leftRoutes = state.routes.slice(0, 2);
   const rightRoutes = state.routes.slice(2);
 
-  const renderIcon = (route: (typeof state.routes)[number], index: number) => {
-    const isFocused = state.index === index;
-    const iconName = ICONS[route.name] ?? 'ellipse-outline';
-    return (
-      <TouchableOpacity
-        key={route.key}
-        onPress={() => navigation.navigate(route.name)}
-        style={styles.iconButton}
-        hitSlop={8}
-        accessibilityLabel={route.name}
-        accessibilityRole="button"
-      >
-        <Ionicons
-          name={iconName}
-          size={22}
-          color={isFocused ? colors.clubGreen : 'rgba(31,66,52,0.4)'}
-        />
-      </TouchableOpacity>
-    );
-  };
+  const renderIcon = (route: (typeof state.routes)[number], index: number) => (
+    <TabIcon
+      key={route.key}
+      name={route.name}
+      focused={state.index === index}
+      onPress={() => navigation.navigate(route.name)}
+      colors={colors}
+      styles={styles}
+    />
+  );
 
   return (
     <View style={styles.wrapper} pointerEvents="box-none">
       <View style={styles.bar}>
         {leftRoutes.map((r, i) => renderIcon(r, i))}
-        <TouchableOpacity
+        <PressableScale
           onPress={() => navigation.navigate('ScanReceipt')}
           style={styles.scanButton}
-          activeOpacity={0.85}
+          pressedScale={0.9}
+          accessibilityLabel="Scan receipt"
+          accessibilityRole="button"
         >
           <Ionicons name="scan-outline" size={24} color={colors.white} />
-        </TouchableOpacity>
+        </PressableScale>
         {rightRoutes.map((r, i) => renderIcon(r, i + 2))}
       </View>
     </View>
@@ -75,6 +132,14 @@ function createStyles(colors: ThemeColors) {
     elevation: 6,
   },
   iconButton: { width: 24, alignItems: 'center', justifyContent: 'center' },
+  dot: {
+    position: 'absolute',
+    bottom: -9,
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.clubGreen,
+  },
   scanButton: {
     width: 40,
     height: 40,

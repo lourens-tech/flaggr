@@ -8,6 +8,7 @@ import { ScreenHeader } from '../../components/common/ScreenHeader';
 import { PillButton } from '../../components/common/PillButton';
 import { fontFamily, fontSize, screenPadding, spacing } from '../../theme';
 import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
+import { CountUpText, FadeIn, PopIn } from '../../components/motion';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ReceiptSuccess'>;
 
@@ -22,17 +23,22 @@ export function ReceiptSuccessScreen({ route, navigation }: Props) {
       </SafeAreaView>
 
       <View style={styles.content}>
-        <View style={styles.trophyCircle}>
+        <PopIn style={styles.trophyCircle} delay={150} from={0.4}>
           <Ionicons name="trophy" size={64} color={colors.lime} />
-        </View>
+        </PopIn>
 
-        <Text style={styles.title}>Receipt Scanned{'\n'}Successfully!</Text>
+        <FadeIn delay={300}>
+          <Text style={styles.title}>Receipt Scanned{'\n'}Successfully!</Text>
+        </FadeIn>
         {route.params.flagged ? (
           <Text style={styles.subtitle}>Your receipt is being reviewed</Text>
         ) : (
-          <Text style={styles.subtitle}>
-            +{route.params.pointsAwarded} Flagrr Cash have been added to your wallet!
-          </Text>
+          <FadeIn delay={380}>
+            <CountUpText
+              style={styles.subtitle}
+              value={`+${route.params.pointsAwarded} Flagrr Cash have been added to your wallet!`}
+            />
+          </FadeIn>
         )}
         <Text style={styles.body}>
           {route.params.flagged

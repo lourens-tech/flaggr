@@ -28,6 +28,7 @@ import { useApp } from '../../context/AppContext';
 import { showAlert } from '../../utils/alert';
 import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
 import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
+import { CountUpText, FadeIn, PressableScale } from '../../components/motion';
 import type { StatsPeriod } from '../../data/types';
 
 const NOT_LISTED_POPUP_TITLE = "You're Almost In the Family";
@@ -62,7 +63,7 @@ function HomeStatCard({
   const styles = useMemo(() => createStatCardStyles(colors), [colors]);
   const positive = deltaPct >= 0;
   return (
-    <View style={styles.card}>
+    <FadeIn style={styles.card}>
       <View style={styles.topRow}>
         <View style={styles.iconChip}>
           <Ionicons name={icon} size={14} color={colors.clubGreen} />
@@ -81,9 +82,9 @@ function HomeStatCard({
         ) : null}
       </View>
       <Text style={styles.label}>{label}</Text>
-      <Text style={styles.value}>{value}</Text>
+      <CountUpText style={styles.value} value={value} />
       {showDelta && deltaLabel ? <Text style={styles.deltaLabel}>{deltaLabel}</Text> : null}
-    </View>
+    </FadeIn>
   );
 }
 
@@ -174,14 +175,16 @@ export function HomeScreen({ navigation }: Props) {
       </SafeAreaView>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <Text style={styles.welcome}>Hello, {user.firstName} 👋</Text>
+        <FadeIn distance={8}>
+          <Text style={styles.welcome}>Hello, {user.firstName} 👋</Text>
+        </FadeIn>
 
-        <View style={styles.pointsCard}>
+        <FadeIn style={styles.pointsCard} distance={16}>
           <View style={styles.pointsHeaderRow}>
             <View style={styles.pointsSummary}>
               <MaterialCommunityIcons name="cards" size={20} color={colors.clubGreen} />
               <View>
-                <Text style={styles.pointsValue}>{points.balance.toLocaleString()}</Text>
+                <CountUpText style={styles.pointsValue} value={points.balance} />
                 <Text style={styles.pointsLabel}>Flagrr Cash</Text>
               </View>
             </View>
@@ -244,9 +247,10 @@ export function HomeScreen({ navigation }: Props) {
               </View>
             </View>
           </View>
-        </View>
+        </FadeIn>
 
-        <TouchableOpacity style={styles.clubCard} onPress={() => navigation.navigate('Profile')} activeOpacity={0.7}>
+        <FadeIn>
+        <PressableScale style={styles.clubCard} onPress={() => navigation.navigate('Profile')}>
           {user.courseLogoUrl ? (
             <Image source={{ uri: user.courseLogoUrl }} style={styles.clubLogo} />
           ) : (
@@ -259,7 +263,8 @@ export function HomeScreen({ navigation }: Props) {
             <Text style={styles.clubName} numberOfLines={1}>{user.homeClub || 'Not specified'}</Text>
           </View>
           <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
-        </TouchableOpacity>
+        </PressableScale>
+        </FadeIn>
 
         <AdSpace placement="homeTop" style={styles.adSpace} />
 
@@ -315,10 +320,10 @@ export function HomeScreen({ navigation }: Props) {
           />
         </View>
 
-        <View style={styles.chartCard}>
+        <FadeIn style={styles.chartCard}>
           <Text style={styles.chartTitle}>Points Earned Per Month</Text>
           <BarChart data={stats.monthly} />
-        </View>
+        </FadeIn>
 
         <AdSpace placement="home" style={styles.adSpace} />
 

@@ -23,6 +23,15 @@ _Last verified against code on 2026-10-28._
 - `crons`: one job, `GET /api/courses?action=payfastGracePeriodCheck` at `0 6 * * *` (06:00 UTC), protected by `CRON_SECRET`.
 - `copy-static-assets.sh` copies email images, reward images, store QR codes, the standalone `privacy.html`, `support.html` and `delete-account.html` pages, and the PWA manifest and service worker into `dist/`.
 
+## Motion and transitions
+
+All animation uses React Native's built-in `Animated` API plus native modules the store binary already ships (`react-native-screens` transitions), so motion changes can go out as an EAS Update with no new store build. No `react-native-reanimated`, `expo-haptics` or Lottie.
+
+- **Tokens**: `mobile/src/theme/motion.ts` holds every duration, easing curve and spring, the shared stagger (`nextStaggerDelay`: things that mount together cascade 40ms apart, max 8 steps) and the Reduce Motion check (`prefersReducedMotion`, from the OS accessibility setting or the browser's `prefers-reduced-motion`). With Reduce Motion on, every animation jumps to its end state.
+- **Components** (`mobile/src/components/motion/`): `FadeIn` (rise + fade on mount), `PopIn` (spring scale for success moments), `PressableScale` (press-in scale instead of opacity dimming, optional hover scale on web), `CountUpText` (numbers roll to their value and from old to new on change), `ScreenFade` (screen/content fade).
+- **Where they are used**: `PillButton`, `RewardCard`, `StatCard`, `AdminStatCard`, `DesktopStatCard`, `DesktopPanel`, `DesktopDataTable` (first 20 rows), `ProgressBar` (fills), `BarChart` (bars grow), `FloatingTabBar` (filled icon + dot spring on the selected tab), `AdminTabBar` (phone tabs), `AppAlertHost` (alert springs in), `DesktopShell` (content area fades, active sidebar marker springs in), Home (balance roll-up, section cascade), Voucher (QR pops in), Receipt Success (trophy pops, Flagrr Cash rolls up).
+- **Navigation** (`mobile/src/navigation/motionOptions.tsx`): stacks use the native iOS push with full-screen swipe-back, and the same iOS-style slide on Android (`ios_from_right`). The receipt camera slides up; Voucher and Receipt Success fade up. Tab navigators crossfade on phones. Native-stack doesn't animate on web, so web screens fade in through `screenLayout`; on desktop admin only the content area fades, so the sidebar never flickers.
+
 ## Multi-tenancy
 
 A **course** (golf club) is the tenant. A member belongs to one course (their home club, changeable from Profile). Rewards, ads (global or targeted), merchants, the roster and staff are scoped per course. Points, activity, vouchers, notifications, streaks and tier belong to the member.

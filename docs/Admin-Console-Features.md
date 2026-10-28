@@ -27,6 +27,7 @@ Access checks on every request (`api/_lib/auth.ts`): the account must be activat
 
 - On the web at widths of 900px or more, a desktop shell with a left sidebar is used (`useIsDesktopNav`, `DesktopShell`, `AdminDesktopFrame`, `SuperAdminDesktopFrame`, nav groups in `adminNavConfig.ts`), with an activity rail that refreshes every 30 seconds.
 - On native and narrow browser windows, a bottom tab bar is used.
+- Motion: on desktop the sidebar and top bar stay still while the content area fades in; stat cards and panels rise in, numbers roll up, charts grow and the first 20 table rows cascade in. On phones, tabs crossfade and pushed screens slide. Respects the browser or OS Reduce Motion setting.
 - The web build is installable as a PWA (manifest and service worker added by `mobile/scripts/copy-static-assets.sh`).
 
 ## Course admin

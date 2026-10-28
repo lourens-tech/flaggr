@@ -12,7 +12,8 @@ const Tab = createBottomTabNavigator<MainTabParamList>();
 export function MainTabNavigator() {
   return (
     <Tab.Navigator
-      screenOptions={{ headerShown: false }}
+      // Tabs crossfade instead of snapping (see theme/motion.ts).
+      screenOptions={{ headerShown: false, animation: 'fade' }}
       tabBar={(props) => <FloatingTabBar {...props} />}
     >
       <Tab.Screen name="Home" component={HomeScreen} />

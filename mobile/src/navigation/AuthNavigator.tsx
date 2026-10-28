@@ -9,12 +9,13 @@ import { AdminLoginScreen } from '../screens/admin/AdminLoginScreen';
 import { ForgotPasswordScreen } from '../screens/onboarding/ForgotPasswordScreen';
 import { AdminForgotPasswordScreen } from '../screens/admin/AdminForgotPasswordScreen';
 import { IS_STORE_BUILD } from '../config/buildConfig';
+import { stackScreenOptions, webScreenLayout } from './motionOptions';
 
 const Stack = createNativeStackNavigator<AuthStackParamList>();
 
 export function AuthNavigator() {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator screenOptions={stackScreenOptions} screenLayout={webScreenLayout}>
       <Stack.Screen name="Landing" component={LandingScreen} />
       <Stack.Screen name="Login" component={LoginScreen} />
       {IS_STORE_BUILD ? null : (

@@ -1,10 +1,12 @@
-import React, { useMemo, useState } from 'react';
-import { Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, useWindowDimensions, View } from 'react-native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Animated, Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { fontFamily, fontSize, radius, spacing } from '../../../theme';
 import { useThemeColors, type ThemeColors } from '../../../context/ThemeContext';
 import { useHover, hoverTransition } from '../../../hooks/useHover';
 import type { DesktopNavGroup, DesktopNavTarget } from '../../../navigation/adminNavConfig';
+import { ScreenFade } from '../../motion';
+import { prefersReducedMotion, spring, useNativeDriver } from '../../../theme/motion';
 
 const RAIL_BREAKPOINT = 1280;
 
@@ -24,6 +26,19 @@ function goTo(navigation: DesktopNavigator, target: DesktopNavTarget) {
 
 function initials(firstName: string, lastName: string) {
   return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase() || '?';
+}
+
+// The lime marker beside the current section springs in from its centre
+// each time a section opens (every screen mounts its own shell).
+function ActiveBar({ style }: { style: object }) {
+  const grow = useRef(new Animated.Value(prefersReducedMotion() ? 1 : 0)).current;
+  useEffect(() => {
+    if (prefersReducedMotion()) return;
+    const anim = Animated.spring(grow, { toValue: 1, ...spring.snappy, useNativeDriver });
+    anim.start();
+    return () => anim.stop();
+  }, [grow]);
+  return <Animated.View style={[style, { transform: [{ scaleY: grow }] }]} />;
 }
 
 interface NavItemButtonProps {
@@ -46,7 +61,7 @@ function NavItemButton({ item, isActive, navigation, colors, styles }: NavItemBu
       accessibilityLabel={item.label}
       {...hoverHandlers}
     >
-      {isActive ? <View style={styles.navItemActiveBar} /> : null}
+      {isActive ? <ActiveBar style={styles.navItemActiveBar} /> : null}
       <Ionicons name={item.icon} size={17} color={lit ? colors.white : 'rgba(255,255,255,0.78)'} />
       <Text style={[styles.navItemLabel, lit && styles.navItemLabelActive]} numberOfLines={1}>
         {item.label}
@@ -224,13 +239,17 @@ export function DesktopShell({
           </TouchableOpacity>
         </View>
 
-        {scrollable ? (
-          <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-            {children}
-          </ScrollView>
-        ) : (
-          <View style={[styles.content, styles.nonScrollContent]}>{children}</View>
-        )}
+        {/* The sidebar and topbar stay put; only the content area fades in,
+            so moving between sections reads as one persistent window. */}
+        <ScreenFade>
+          {scrollable ? (
+            <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+              {children}
+            </ScrollView>
+          ) : (
+            <View style={[styles.content, styles.nonScrollContent]}>{children}</View>
+          )}
+        </ScreenFade>
       </View>
 
       {showRail ? (

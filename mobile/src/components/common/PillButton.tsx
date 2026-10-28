@@ -4,13 +4,13 @@ import {
   GestureResponderEvent,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { fontFamily, fontSize, radius } from '../../theme';
 import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
-import { useHover, hoverTransition } from '../../hooks/useHover';
+import { useHover, hoverTransitionNoTransform } from '../../hooks/useHover';
+import { PressableScale } from '../motion';
 
 interface Props {
   label: string;
@@ -47,14 +47,16 @@ export function PillButton({
   const canHover = hovered && !disabled && !loading;
 
   return (
-    <TouchableOpacity
-      activeOpacity={0.8}
+    <PressableScale
       onPress={onPress}
       disabled={disabled || loading}
-      {...hoverHandlers}
+      accessibilityRole="button"
+      hoverScale={1.015}
+      onHoverIn={hoverHandlers.onMouseEnter}
+      onHoverOut={hoverHandlers.onMouseLeave}
       style={[
         styles.base,
-        hoverTransition,
+        hoverTransitionNoTransform,
         isPrimary && { backgroundColor: colors.lime },
         isDark && { backgroundColor: colors.darkGreen },
         (isOutline || isOutlineLight) && { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: outlineColor },
@@ -86,7 +88,7 @@ export function PillButton({
           ) : null}
         </View>
       )}
-    </TouchableOpacity>
+    </PressableScale>
   );
 }
 
@@ -107,8 +109,8 @@ function createStyles(colors: ThemeColors) {
     fontSize: fontSize.button,
     textTransform: 'capitalize',
   },
+  // The hover lift itself is PressableScale's hoverScale; this adds the shadow.
   hovered: {
-    transform: [{ translateY: -2 }, { scale: 1.015 }],
     shadowColor: colors.darkGreen,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.16,

@@ -10,6 +10,14 @@ export const hoverTransition = {
   transitionTimingFunction: 'ease-out',
 } as unknown as { opacity: number };
 
+// Same, minus `transform` — for elements whose scale is driven by Animated
+// (PressableScale), where a CSS transition would lag behind every frame.
+export const hoverTransitionNoTransform = {
+  transitionProperty: 'background-color, border-color, box-shadow, opacity',
+  transitionDuration: '150ms',
+  transitionTimingFunction: 'ease-out',
+} as unknown as { opacity: number };
+
 // Mouse hover only exists on web — these handlers are simply never invoked
 // on native, so it's safe to spread them onto any RN component's props.
 // Used by the desktop-web admin/super-admin chrome to give static

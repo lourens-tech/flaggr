@@ -17,7 +17,13 @@ const Tab = createBottomTabNavigator<AdminTabParamList>();
 export function AdminTabNavigator() {
   const { admin } = useAdmin();
   const isDesktop = useIsDesktopNav();
-  const screenOptions = { headerShown: false, tabBarPosition: isDesktop ? ('left' as const) : ('bottom' as const) };
+  // Tabs crossfade on phones; on desktop the per-screen DesktopShell fades
+  // its own content area instead, so the sidebar never flickers.
+  const screenOptions = {
+    headerShown: false,
+    tabBarPosition: isDesktop ? ('left' as const) : ('bottom' as const),
+    animation: isDesktop ? ('none' as const) : ('fade' as const),
+  };
   // On desktop web, each screen renders its own persistent sidebar/topbar via
   // AdminDesktopFrame (see components/admin/desktop) — this bar would just
   // duplicate it, so it renders nothing there instead of its old plain

@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { fontFamily } from '../../../theme';
 import { useThemeColors, type ThemeColors } from '../../../context/ThemeContext';
 import { useHover, hoverTransition } from '../../../hooks/useHover';
+import { CountUpText, FadeIn } from '../../motion';
 
 interface Props {
   label: string;
@@ -23,6 +24,7 @@ export function DesktopStatCard({ label, value, icon, deltaPct = 0, showDelta = 
   const positive = deltaPct >= 0;
   const [hovered, hoverHandlers] = useHover();
   return (
+    <FadeIn style={styles.slot}>
     <TouchableOpacity
       style={[styles.card, hoverTransition, onPress && hovered && styles.cardHover]}
       onPress={onPress}
@@ -49,16 +51,17 @@ export function DesktopStatCard({ label, value, icon, deltaPct = 0, showDelta = 
         ) : null}
       </View>
       <Text style={styles.label}>{label}</Text>
-      <Text style={styles.value} numberOfLines={1}>{value}</Text>
+      <CountUpText style={styles.value} numberOfLines={1} value={value} />
     </TouchableOpacity>
+    </FadeIn>
   );
 }
 
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
+  slot: { flex: 1, minWidth: 160 },
   card: {
-    flex: 1,
-    minWidth: 160,
+    flexGrow: 1,
     backgroundColor: colors.mintBgAlt,
     borderWidth: 1,
     borderColor: colors.border,

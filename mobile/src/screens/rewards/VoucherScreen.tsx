@@ -10,6 +10,7 @@ import { PillButton } from '../../components/common/PillButton';
 import { useApp } from '../../context/AppContext';
 import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
 import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
+import { FadeIn, PopIn } from '../../components/motion';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Voucher'>;
 
@@ -38,15 +39,16 @@ export function VoucherScreen({ route, navigation }: Props) {
       </SafeAreaView>
 
       <View style={styles.content}>
+        <FadeIn distance={24} duration={560}>
         <LinearGradient
           colors={[colors.clubGreen, colors.darkGreen]}
           start={{ x: 0.5, y: 0 }}
           end={{ x: 0.5, y: 1 }}
           style={styles.card}
         >
-          <View style={styles.qrWrapper}>
+          <PopIn style={styles.qrWrapper} delay={220} from={0.8}>
             <QRCode value={voucher.qrValue} size={180} backgroundColor={colors.white} color={colors.darkGreen} />
-          </View>
+          </PopIn>
           <Text style={styles.redeemedTitle}>Reward Redeemed</Text>
           <Text style={styles.redeemedSubtitle}>
             Your reward has been successfully redeemed. Present your QR code or voucher code at the club to claim.
@@ -60,6 +62,7 @@ export function VoucherScreen({ route, navigation }: Props) {
           <Text style={styles.codeLabel}>Voucher Code</Text>
           <Text style={styles.codeValue}>{voucher.code}</Text>
         </LinearGradient>
+        </FadeIn>
 
         <View style={{ height: spacing.xl }} />
         <PillButton label="Back to Rewards" variant="dark" onPress={() => navigation.navigate('Main')} />

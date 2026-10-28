@@ -27,6 +27,7 @@ import { SuperAdminAuditLogScreen } from '../screens/superadmin/SuperAdminAuditL
 import { SuperAdminFraudOversightScreen } from '../screens/superadmin/SuperAdminFraudOversightScreen';
 import { TermsPrivacyScreen } from '../screens/profile/TermsPrivacyScreen';
 import { useIsDesktopNav } from '../hooks/useIsDesktopNav';
+import { stackScreenOptions, webScreenLayout } from './motionOptions';
 
 const Stack = createNativeStackNavigator<SuperAdminStackParamList>();
 
@@ -39,7 +40,10 @@ export function SuperAdminNavigator() {
   // SuperAdminDesktopFrame) so it reads as persistent chrome — the default
   // slide transition would otherwise visibly re-animate it on every nav.
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false, animation: isDesktop ? 'none' : 'default' }}>
+    <Stack.Navigator
+        screenOptions={isDesktop ? { headerShown: false, animation: 'none' } : stackScreenOptions}
+        screenLayout={isDesktop ? undefined : webScreenLayout}
+      >
       <Stack.Screen name="SuperAdminTabs" component={SuperAdminTabNavigator} />
       <Stack.Screen name="SuperAdminCourseCreate" component={SuperAdminCourseCreateScreen} />
       <Stack.Screen name="SuperAdminCourseAds" component={SuperAdminCourseAdsScreen} />

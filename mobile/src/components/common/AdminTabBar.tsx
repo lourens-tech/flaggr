@@ -5,6 +5,7 @@ import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { fontFamily, fontSize } from '../../theme';
 import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
+import { PressableScale } from '../motion';
 
 const ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   AdminDashboard: 'bar-chart-outline',
@@ -96,10 +97,11 @@ export function AdminTabBar({ state, navigation }: BottomTabBarProps) {
       {state.routes.map((route, index) => {
         const isFocused = state.index === index;
         return (
-          <TouchableOpacity
+          <PressableScale
             key={route.key}
             onPress={() => navigation.navigate(route.name)}
             style={styles.tab}
+            pressedScale={0.9}
             accessibilityLabel={LABELS[route.name] ?? route.name}
             accessibilityRole="button"
           >
@@ -111,7 +113,7 @@ export function AdminTabBar({ state, navigation }: BottomTabBarProps) {
             <Text style={[styles.label, { color: isFocused ? colors.clubGreen : 'rgba(31,66,52,0.4)' }]}>
               {LABELS[route.name] ?? route.name}
             </Text>
-          </TouchableOpacity>
+          </PressableScale>
         );
       })}
     </View>

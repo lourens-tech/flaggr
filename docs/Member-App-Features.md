@@ -149,4 +149,5 @@ Tier is based on **Flagrr Cash earned in the current calendar quarter** (Jan–M
 ## App-wide UX details
 
 - A branded in-app alert/confirm modal is used everywhere instead of the browser's native `alert`/`confirm`, so every dialog matches the app's look and feel, including on the web build.
+- Motion follows one system (`mobile/src/theme/motion.ts`): screens slide in with native iOS-style pushes, the balance and stats roll up, cards and buttons scale under the finger, the selected tab pops, and success screens pop their QR code or trophy. Reduce Motion in the phone's accessibility settings turns all of it off.
 - The web build includes a PWA manifest and a minimal service worker (no offline caching).
