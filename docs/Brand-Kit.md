@@ -49,5 +49,5 @@ Contact: flagrr.com, @flagrrgolf.
 
 Keep this list current; fix items here or record why the exception stands.
 
-- The kit says never to equate Flagrr Cash with rands. The marketing site shows "R1 = 1" (`flagrr-marketing/src/content/home.ts:14`) and "1.7 Flagrr Cash on every rand" (line 26). The backend earns at 1 FC per rand internally (`api/_lib/pointsEngine.ts`); that is an earn rate, not a cash value, and the copy should be reworded to match the kit.
+- The marketing-site wording that equated Flagrr Cash with rands ("R1 = 1", "on every rand") was removed on 2026-10-28. The season calculator and the R100 / R200 bar voucher amounts still conflict with the kit; see `docs/Known-Limitations-and-Future-Work.md`.
 - The app theme (`mobile/src/theme/colors.ts`) uses the same hex values under older names: `darkGreen` = Fairway Green, `clubGreen` = Flag Green, `lime` = Lime. The emails and mailers use these older names too. Confirm against the values above when changing any of them.

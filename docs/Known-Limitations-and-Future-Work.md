@@ -50,12 +50,13 @@ Open issues found by reading the code, grouped by severity. Paths are relative t
 
 ## Marketing claims that conflict with the app or the brand kit
 
-- **Flagrr Cash must not be equated with rands.** The brand kit forbids it, but the marketing site shows "R1 = 1" and "Platinum earns 1.7 Flagrr Cash on every rand". `flagrr-marketing: src/content/home.ts:14, 26`. The backend itself earns at R1 = 1 FC when a receipt is away-club or has no tier rate, so the copy needs rewording rather than the rule changing.
-- **"Desktop app":** the console copy mentions a downloadable desktop app, but only a web app that can be installed as a PWA exists. `flagrr-marketing: ConsoleSection.tsx:20`, `home.ts:108`
-- **Bar voucher "paid automatically":** it is issued only if the club has a reward with a matching R100 or R200 variant. Otherwise the quarter is marked claimed and nothing is issued. `flagrr-marketing: TiersSection.tsx:34`, `api/_lib/tierRewards.ts:105-124`
-- **Tier climbing** needs the member to be verified against the club roster, which the tier copy does not say. `api/_lib/tiers.ts:56-69`
-- **The tier multiplier** applies only at the member's home club, so "on every rand" overstates it. `api/_lib/pointsEngine.ts:233-237`
-- **Advertiser page:** "all three placements" versus "4 ad placements", and illustrative prices and reach figures. `flagrr-marketing: src/content/advertisers.ts:9, 50-80`
+Fixed in `flagrr-marketing` on 2026-10-28 (commit `5f230aa`): the "R1 = 1" and "on every rand" wording, the desktop-app claim, the "paid automatically" bar voucher claim, the roster note for tier climbing, the claim that flagged receipts credit immediately (they are held until reviewed), "balance" wording, the invented partner club list, the invented advertiser reach figures, and the dead Terms/Privacy links on the club signup pages.
+
+Still open:
+
+- **The season calculator still converts rand spend to Flagrr Cash and then to "rounds of 18"** (`flagrr-marketing: src/components/home/CalculatorSection.tsx`, 900 FC per round). That is an FC-to-reward equivalence the brand kit says not to state, since reward values are set per club. Needs a product decision: reword, caveat, or remove.
+- **Bar voucher amounts (R100 / R200)** are still shown in the tier tables (`flagrr-marketing: PhoneScreen.tsx:29-30`, `golfers.ts:13-14`, `home.ts:95-96`). They are set per club, so these should be dropped or caveated.
+- **Placeholders and dead links that need a real value from you:** `[ SUPPORT@DOMAIN ]` (footer, terms, privacy), the footer "Club login" and "[ Contact ]" links (`home.ts:152, 161`), and "Web app" pointing at a section that has no web-app link.
 - **Pricing is duplicated by hand** in several places and must be kept in step: `flagrr-marketing: src/content/home.ts:111`, `clubs/signup/page.tsx:56-60`, `DemoSection.tsx:48-55`, and the constants in `api/courses/index.ts:27-28`.
 
 ## Push notifications and native builds
