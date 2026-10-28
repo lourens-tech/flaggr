@@ -129,3 +129,27 @@ Known issues in `app.json`: it requests `android.permission.RECORD_AUDIO`, which
 - Because of that, `mobile/src/api/client.ts` hard-codes `https://flagrr-loyalty.vercel.app` as the API base (overridable with `EXPO_PUBLIC_API_URL`), and the Strand pilot email loads its images from the same domain.
 - The pilot email's "Get Flagrr" button points at `https://flagrr.com`, which has not been confirmed to serve the marketing site.
 - Once DNS is set up, switch `APP_URL`, the mobile API base URL and the email links together.
+
+## Production settings check (Vercel project `flagrr-loyalty`, 2026-10-28)
+
+Checked by listing variable **names** only; no values were read. Sensitive variables show as present but their values are hidden, so whether `PAYFAST_MODE` is live or sandbox is **not** known.
+
+| Variable | Status |
+|---|---|
+| `PAYFAST_MODE`, `PAYFAST_MERCHANT_ID`, `PAYFAST_MERCHANT_KEY`, `PAYFAST_PASSPHRASE` | Set (production only). Live vs sandbox unconfirmed. |
+| `CRON_SECRET` | Set (production). |
+| `RESEND_API_KEY` | Set (production and preview). |
+| `RESEND_FROM_EMAIL` | Set (production). |
+| `DATABASE_URL` (and the other Postgres/Neon variables from the Vercel Neon integration) | Set (all environments). |
+| `RECEIPT_EXTRACTOR` | Set to `claude` (production and preview). |
+| `APP_URL` | **Not set.** The backend falls back to `https://app.flagrr.com`, which does not resolve, so the PayFast notification URL (`api/courses/index.ts:190`) is wrong and a paid club signup would never be provisioned. |
+| `ANTHROPIC_API_KEY` | **Not set.** With `RECEIPT_EXTRACTOR=claude` the Claude path cannot authenticate, so scans fall back to Tesseract silently. |
+| `EXPO_ACCESS_TOKEN` | Not set. Push sending still works without it; it is only used as an optional auth header (`api/_lib/pushNotifications.ts:46`). |
+| `CONTACT_EMAIL` | Not set. The hard-coded personal address fallback is in use. |
+| `RECEIPT_EXTRACTION_MODEL`, `RECEIPT_EXTRACTION_EFFORT` | Not set (code defaults apply). |
+
+Other findings from the check:
+
+- Vercel flags several Neon integration variables (for example `DATABASE_URL`, `POSTGRES_URL`, `PGPASSWORD`) as readable secrets. They can be converted to sensitive variables in the Vercel dashboard.
+- EAS shows finished store builds for both platforms (iOS build 6 and Android build 8, version 1.0.1, production profile). Whether the Apple and Android push credentials are uploaded cannot be seen through the API and still needs checking in the Expo dashboard.
+- Export My Data is implemented for phones (writes a JSON file and opens the share sheet, `mobile/src/api/client.ts`) but has not been run on a real device.

@@ -116,3 +116,14 @@ Still open:
 ## Not applicable to the audit, but still true
 
 Flagrr Cash has no cash value and is never convertible to rands. Rates and the rewards catalogue are set per club. Do not state member counts, club counts or pilot results in marketing.
+
+## Verified production settings gaps (2026-10-28)
+
+See the table in `docs/Environment-and-Setup.md`. Open items from that check:
+
+- **`APP_URL` is not set in Vercel**, so PayFast's notification URL points at `app.flagrr.com`, which does not resolve. A paid club signup would never be provisioned. Fix before taking any real club payment.
+- **`ANTHROPIC_API_KEY` is not set** while `RECEIPT_EXTRACTOR=claude`, so receipt scans silently use Tesseract instead of Claude.
+- **`PAYFAST_MODE` cannot be read** (sensitive variable), so confirm in the Vercel dashboard that it is live and that the merchant ID and key are the live ones.
+- **`CONTACT_EMAIL` is not set**; the hard-coded personal address fallback is in use.
+- **Push credentials** (Apple key, Android FCM v1) still need checking in the Expo dashboard; the API cannot show them.
+- **Export My Data** has not been run on a physical phone.
