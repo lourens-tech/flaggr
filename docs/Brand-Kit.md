@@ -13,6 +13,7 @@ The artifact is the source of truth and carries the artwork and specimens; this 
 - Slate #4B5563 (captions, disclaimers; only on cream/white)
 Key pairings: lime on fairway 7.52, lime on ink 11.14, white on fairway 11.13, fairway on cream 10.39, slate on cream 7.05, flag green on cream 4.63.
 No Pantone assigned yet. CMYK values are unprofiled sRGB conversions.
+Tier colours (approved 2026-10-29; used only to mark a tier, never as a ground or for text): Bronze #B9773E, Silver #AEB8BF, Gold #E2B93B, Platinum #E8ECEF.
 
 ## Type
 - Fraunces 800 for display (second line italic + lime, line-height .88-.92, tracking -0.02em); Fraunces 600 italic for handwritten captions; never below 20px on screen; never letterspace display.
@@ -22,6 +23,7 @@ No Pantone assigned yet. CMYK values are unprofiled sRGB conversions.
 ## Mark
 Script wordmark with LOYALTY beneath, one locked piece. Allowed: lime on fairway (primary), lime on ink (over scrim), fairway on cream, fairway on lime.
 Min size: 140px screen, 30mm print. Clear space 15% of wordmark width.
+The Flagrr icon mark on its own (`mobile/assets/images/flagrr-icon-lime.png`, used in the admin sidebar): minimum 24px on screen (approved 2026-10-29).
 Never: recolour, stroke/shadow/glow/box, stretch/skew/rotate/arch, busy photo without scrim, rebuild in a font. Vector masters (SVG/AI/EPS) not yet supplied.
 
 ## Photography
@@ -50,4 +52,9 @@ Contact: flagrr.com, @flagrrgolf.
 Keep this list current; fix items here or record why the exception stands.
 
 - The marketing-site wording that equated Flagrr Cash with rands ("R1 = 1", "on every rand") was removed on 2026-10-28. The season calculator and the R100 / R200 bar voucher amounts still conflict with the kit; see `docs/Known-Limitations-and-Future-Work.md`.
+- **Admin consoles ("Liquid Glass", 2026-10-29).** The course-admin, staff, super-admin and support-agent consoles use their own palette (`mobile/src/theme/admin.ts`), applied by `AdminThemeScope`; member screens are unchanged. The exceptions this kit allows there:
+  - Interface text and numbers use the system font (SF Pro, Segoe UI, Roboto) instead of Poppins, for dense tables and forms. Fraunces 800 stays for page titles.
+  - Dark mode uses near-black greens (window #0B1511, tiles #152019) and off-white text #F4F5F0; light mode uses a #ECEEE6 window and white tiles. Translucent glass appears only on navigation (sidebar, toolbar, tab bar, sheets), over a heavily blurred club cover photo, or the Flagrr photo for the Flagrr team and sign-in.
+  - Lime is the accent in dark mode; in light mode the accent is Flag Green (#00805A, text #00704F) because lime on light fails contrast. One accent idea per screen; selection is neutral.
+  - Status colours outside the six: red #C8322A (count badges), plus muted red, amber and green tints for status pills.
 - The app theme (`mobile/src/theme/colors.ts`) uses the same hex values under older names: `darkGreen` = Fairway Green, `clubGreen` = Flag Green, `lime` = Lime. The emails and mailers use these older names too. Confirm against the values above when changing any of them.

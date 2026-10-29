@@ -11,7 +11,8 @@ import {
 } from '../../utils/pickAdMedia';
 import { showAlert } from '../../utils/alert';
 import { fontFamily, fontSize, radius, spacing } from '../../theme';
-import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
+import { useOptionalAdminTheme, useThemeColors, type ThemeColors } from '../../context/ThemeContext';
+import { adminFont, adminRadius } from '../../theme/admin';
 import type { AdMediaType } from '../../data/types';
 
 interface Props {
@@ -30,6 +31,11 @@ export function AdMediaField({ mediaType, previewUrl, onPicked }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [uploading, setUploading] = useState(false);
+  // In the admin consoles: a neutral well for the preview and a neutral
+  // segmented control (selected = segOn). Outside them this is null and the
+  // original look is kept.
+  const admin = useOptionalAdminTheme();
+  const a = admin?.c;
 
   const videoSource = mediaType === 'video' && previewUrl ? previewUrl : '';
   const player = useVideoPlayer(videoSource, (p) => {
@@ -56,32 +62,43 @@ export function AdMediaField({ mediaType, previewUrl, onPicked }: Props) {
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity style={styles.preview} onPress={() => handlePick(mediaType)} disabled={uploading}>
+      <TouchableOpacity
+        style={a ? [styles.preview, styles.adminPreview, { backgroundColor: a.fill }] : styles.preview}
+        onPress={() => handlePick(mediaType)}
+        disabled={uploading}
+        {...(a ? { accessibilityRole: 'button' as const, accessibilityLabel: previewUrl ? 'Replace creative' : 'Add creative' } : {})}
+      >
         {uploading ? (
-          <ActivityIndicator color={colors.clubGreen} />
+          <ActivityIndicator color={a ? a.ink2 : colors.clubGreen} />
         ) : previewUrl && mediaType === 'video' ? (
-          <VideoView player={player} style={styles.previewMedia} contentFit="cover" nativeControls={false} />
+          <VideoView player={player} style={a ? [styles.previewMedia, styles.adminMedia] : styles.previewMedia} contentFit="cover" nativeControls={false} />
         ) : previewUrl ? (
-          <Image source={{ uri: previewUrl }} style={styles.previewMedia} />
+          <Image source={{ uri: previewUrl }} style={a ? [styles.previewMedia, styles.adminMedia] : styles.previewMedia} />
         ) : (
-          <View style={styles.placeholder}>
-            <Ionicons name="image-outline" size={24} color={colors.clubGreen} />
-            <Text style={styles.placeholderText}>Add creative</Text>
+          <View style={a ? [styles.placeholder, styles.adminMedia, { backgroundColor: a.fill }] : styles.placeholder}>
+            <Ionicons name="image-outline" size={24} color={a ? a.icon : colors.clubGreen} />
+            <Text style={a ? [styles.adminPlaceholderText, { color: a.ink2 }] : styles.placeholderText}>Add creative</Text>
           </View>
         )}
       </TouchableOpacity>
 
-      <View style={styles.segmentedRow}>
-        {OPTIONS.map((o) => (
-          <TouchableOpacity
-            key={o.value}
-            onPress={() => handlePick(o.value)}
-            disabled={uploading}
-            style={[styles.segment, mediaType === o.value && styles.segmentActive]}
-          >
-            <Text style={[styles.segmentText, mediaType === o.value && styles.segmentTextActive]}>{o.label}</Text>
-          </TouchableOpacity>
-        ))}
+      <View style={a ? [styles.segmentedRow, { backgroundColor: a.fill, borderRadius: adminRadius.pill }] : styles.segmentedRow}>
+        {OPTIONS.map((o) => {
+          const on = mediaType === o.value;
+          return (
+            <TouchableOpacity
+              key={o.value}
+              onPress={() => handlePick(o.value)}
+              disabled={uploading}
+              style={a ? [styles.adminSegment, on && { backgroundColor: a.segOn }] : [styles.segment, on && styles.segmentActive]}
+              {...(a ? { accessibilityRole: 'button' as const, accessibilityState: { selected: on, disabled: uploading } } : {})}
+            >
+              <Text style={a ? [styles.adminSegmentText, { color: on ? a.segOnFg : a.ink2 }] : [styles.segmentText, on && styles.segmentTextActive]}>
+                {o.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
     </View>
   );
@@ -107,5 +124,10 @@ function createStyles(colors: ThemeColors) {
     segmentActive: { backgroundColor: colors.darkGreen },
     segmentText: { fontFamily: fontFamily.heading, fontSize: 12, color: colors.textPrimary },
     segmentTextActive: { color: colors.white },
+    adminPreview: { borderRadius: adminRadius.md, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
+    adminMedia: { borderRadius: adminRadius.md },
+    adminPlaceholderText: { ...adminFont.bodyMedium, fontSize: 13 },
+    adminSegment: { height: 34, paddingHorizontal: 16, borderRadius: adminRadius.pill, alignItems: 'center', justifyContent: 'center' },
+    adminSegmentText: { ...adminFont.bodySemiBold, fontSize: 13.5 },
   });
 }

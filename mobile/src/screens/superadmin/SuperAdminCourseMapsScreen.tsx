@@ -1,45 +1,53 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SuperAdminStackParamList } from '../../navigation/types';
 import { AdminMobileHeader } from '../../components/admin/AdminMobileHeader';
-import { PillButton } from '../../components/common/PillButton';
+import { AdminButton, EmptyState, ErrorState, Muted, PageTitle, SkeletonRows, StatusPill, Tile, type StatusTone } from '../../components/admin/ui';
 import { SuperAdminDesktopFrame } from '../../components/admin/desktop/SuperAdminDesktopFrame';
 import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
+import { useHover, hoverTransition } from '../../hooks/useHover';
 import { adminApi, AdminApiError } from '../../api/adminClient';
 import { showAlert } from '../../utils/alert';
 import { pickCourseMapFile } from '../../utils/pickCourseMapFile';
-import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
-import { fontFamily, radius, spacing } from '../../theme';
+import { useAdminTheme } from '../../context/ThemeContext';
 import type { SuperAdminGolfCourseSummary, SuperAdminGolfCourses } from '../../golf/adminDto';
+import { adminFont, type AdminColors } from '../../theme/admin';
 
 type Props = NativeStackScreenProps<SuperAdminStackParamList, 'SuperAdminCourseMaps'>;
 
 type Row = SuperAdminGolfCourses['clubs'][number];
 
+// Stage → pill tone: live is good, photos waiting on us need attention.
+const STAGE_TONE: Record<'live' | 'draft' | 'todo' | 'none', StatusTone> = { live: 'pos', draft: 'neutral', todo: 'amber', none: 'neutral' };
+
 // Every club's course map at a glance: who has sent scorecard photos, which
 // maps are drafts and which are live, plus away-only courses (mapped courses
 // that aren't Flagrr clubs). Clubs waiting on a map are listed first.
 export function SuperAdminCourseMapsScreen({ navigation }: Props) {
-  const colors = useThemeColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { c } = useAdminTheme();
+  const styles = useMemo(() => createStyles(c), [c]);
   const isDesktop = useIsDesktopNav();
   const [data, setData] = useState<SuperAdminGolfCourses | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
 
+  const load = useCallback(() => {
+    adminApi
+      .superAdminGolfCourses()
+      .then((d) => {
+        setData(d);
+        setError(null);
+      })
+      .catch((e) => setError(e instanceof Error ? e.message : 'Could not load course maps.'));
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
-      adminApi
-        .superAdminGolfCourses()
-        .then((d) => {
-          setData(d);
-          setError(null);
-        })
-        .catch((e) => setError(e instanceof Error ? e.message : 'Could not load course maps.'));
-    }, []),
+      load();
+    }, [load]),
   );
 
   const importAway = async () => {
@@ -68,117 +76,185 @@ export function SuperAdminCourseMapsScreen({ navigation }: Props) {
           ? { label: `${r.photoCount} photo${r.photoCount === 1 ? '' : 's'} · map to build`, tone: 'todo' as const }
           : { label: 'Waiting for scorecard', tone: 'none' as const };
 
-  const body = (
-    <View style={{ gap: spacing.md }}>
-      <Text style={styles.intro}>
-        GMs upload scorecard photos from their dashboard. Build the map with scripts/course-maps/build.ts (see docs/Course-Maps.md), import the file on the club, check
-        nothing blocks it, then publish. Members see “coming soon” until it’s live.
-      </Text>
-      {error ? <Text style={styles.intro}>{error}</Text> : null}
-      {!data && !error ? <ActivityIndicator color={colors.clubGreen} /> : null}
-      {data ? (
-        <>
-          <Text style={styles.section}>Clubs</Text>
-          <View style={styles.list}>
-            {clubs.map((r) => {
-              const st = stage(r);
-              return (
-                <TouchableOpacity
-                  key={r.clubId}
-                  style={styles.row}
-                  onPress={() => navigation.navigate('SuperAdminCourseMap', { clubId: r.clubId, clubName: r.clubName })}
-                  accessibilityRole="button"
-                >
-                  <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text style={styles.name} numberOfLines={1}>
-                      {r.clubName}
-                      {r.archived ? ' (archived)' : ''}
-                    </Text>
-                    <Text style={styles.meta} numberOfLines={1}>
-                      {r.lastPhotoAt ? `Last photo ${new Date(r.lastPhotoAt).toLocaleDateString('en-ZA')}` : 'No photos yet'}
-                      {r.golfCourse ? ` · map imported ${new Date(r.golfCourse.importedAt).toLocaleDateString('en-ZA')}` : ''}
-                    </Text>
-                  </View>
-                  <View style={[styles.chip, styles[`chip_${st.tone}`]]}>
-                    <Text style={[styles.chipText, styles[`chipText_${st.tone}`]]}>{st.label}</Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
-                </TouchableOpacity>
-              );
-            })}
-          </View>
+  const intro = (
+    <Text style={styles.intro}>
+      Clubs send their scorecard photos from their dashboard. We build each club’s map from those photos, import the file on the
+      club’s page, check nothing is stopping it from going live, then publish it. Until then, members see “coming soon”.
+    </Text>
+  );
 
-          <View style={styles.sectionRow}>
-            <Text style={styles.section}>Away-only courses</Text>
-            <PillButton label="Import a course" icon="cloud-upload-outline" onPress={importAway} loading={importing} disabled={importing} variant="outline" />
-          </View>
-          <Text style={styles.intro}>Courses that aren’t Flagrr clubs but that members can play as away courses.</Text>
-          {data.awayCourses.length ? (
-            <View style={styles.list}>
-              {data.awayCourses.map((g: SuperAdminGolfCourseSummary) => (
-                <TouchableOpacity key={g.id} style={styles.row} onPress={() => navigation.navigate('SuperAdminCourseMap', { golfCourseId: g.id })} accessibilityRole="button">
-                  <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text style={styles.name} numberOfLines={1}>
-                      {g.name}
-                    </Text>
-                    <Text style={styles.meta} numberOfLines={1}>
-                      {[g.location, `${g.holeCount} holes`].filter(Boolean).join(' · ')}
-                    </Text>
-                  </View>
-                  <View style={[styles.chip, g.status === 'live' ? styles.chip_live : styles.chip_draft]}>
-                    <Text style={[styles.chipText, g.status === 'live' ? styles.chipText_live : styles.chipText_draft]}>
-                      {g.status === 'live' ? 'Live' : g.blockerCount ? `Draft · ${g.blockerCount} to fix` : 'Draft · ready'}
-                    </Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
-                </TouchableOpacity>
-              ))}
-            </View>
-          ) : (
-            <Text style={styles.meta}>None yet.</Text>
-          )}
-        </>
+  const clubsList = data ? (
+    clubs.length ? (
+      <Tile padded={false} style={styles.list}>
+        {clubs.map((r, i) => {
+          const st = stage(r);
+          return (
+            <MapRow
+              key={r.clubId}
+              isFirst={i === 0}
+              title={`${r.clubName}${r.archived ? ' (archived)' : ''}`}
+              meta={`${r.lastPhotoAt ? `Last photo ${new Date(r.lastPhotoAt).toLocaleDateString('en-ZA')}` : 'No photos yet'}${
+                r.golfCourse ? ` · map imported ${new Date(r.golfCourse.importedAt).toLocaleDateString('en-ZA')}` : ''
+              }`}
+              chip={<StatusPill label={st.label} tone={STAGE_TONE[st.tone]} style={styles.chip} />}
+              onPress={() => navigation.navigate('SuperAdminCourseMap', { clubId: r.clubId, clubName: r.clubName })}
+              styles={styles}
+            />
+          );
+        })}
+      </Tile>
+    ) : (
+      <Tile>
+        <EmptyState icon="map-outline" title="No clubs yet." />
+      </Tile>
+    )
+  ) : null;
+
+  const awaySection = data ? (
+    <Tile style={styles.awayTile}>
+      <Text style={styles.intro}>Courses that aren’t Flagrr clubs but that members can play as away courses.</Text>
+      <View style={styles.importRow}>
+        <AdminButton label="Import a course" icon="cloud-upload-outline" variant="accent" onPress={importAway} loading={importing} disabled={importing} />
+      </View>
+      {data.awayCourses.length ? (
+        <View style={styles.awayList}>
+          {data.awayCourses.map((g: SuperAdminGolfCourseSummary, i) => (
+            <MapRow
+              key={g.id}
+              isFirst={i === 0}
+              title={g.name}
+              meta={[g.location, `${g.holeCount} holes`].filter(Boolean).join(' · ')}
+              chip={
+                <StatusPill
+                  label={g.status === 'live' ? 'Live' : g.blockerCount ? `Draft · ${g.blockerCount} to fix` : 'Draft · ready'}
+                  tone={g.status === 'live' ? 'pos' : 'neutral'}
+                  style={styles.chip}
+                />
+              }
+              onPress={() => navigation.navigate('SuperAdminCourseMap', { golfCourseId: g.id })}
+              styles={styles}
+              flush
+            />
+          ))}
+        </View>
+      ) : (
+        <Muted style={styles.none}>None yet.</Muted>
+      )}
+    </Tile>
+  ) : null;
+
+  const status = (
+    <>
+      {error ? <ErrorState title="Couldn’t load course maps" body={error} onRetry={load} /> : null}
+      {!data && !error ? (
+        <Tile>
+          <SkeletonRows rows={5} />
+        </Tile>
       ) : null}
-    </View>
+    </>
   );
 
   if (isDesktop) {
     return (
       <SuperAdminDesktopFrame activeKey="SuperAdminCourseMaps" breadcrumb="Course Maps">
-        <Text style={styles.dTitle}>Course maps</Text>
-        {body}
+        <PageTitle>Course maps</PageTitle>
+        <View style={styles.dIntro}>{intro}</View>
+        <View style={styles.dStatus}>{status}</View>
+        {data ? (
+          <View style={styles.dCols}>
+            <View style={styles.dMain}>
+              <Text style={styles.cap} accessibilityRole="header">Clubs</Text>
+              {clubsList}
+            </View>
+            <View style={styles.dSide}>
+              <Text style={styles.cap} accessibilityRole="header">Away-only courses</Text>
+              {awaySection}
+            </View>
+          </View>
+        ) : null}
       </SuperAdminDesktopFrame>
     );
   }
   return (
     <View style={styles.screen}>
       <AdminMobileHeader title="Course Maps" />
-      <ScrollView contentContainerStyle={styles.content}>{body}</ScrollView>
+      <ScrollView contentContainerStyle={styles.content}>
+        {intro}
+        {status}
+        {data ? (
+          <>
+            <Text style={styles.cap} accessibilityRole="header">Clubs</Text>
+            {clubsList}
+            <Text style={styles.cap} accessibilityRole="header">Away-only courses</Text>
+            {awaySection}
+          </>
+        ) : null}
+      </ScrollView>
     </View>
   );
 }
 
-function createStyles(colors: ThemeColors) {
+function MapRow({
+  title,
+  meta,
+  chip,
+  isFirst,
+  onPress,
+  styles,
+  flush,
+}: {
+  title: string;
+  meta: string;
+  chip: React.ReactNode;
+  isFirst: boolean;
+  onPress: () => void;
+  styles: ReturnType<typeof createStyles>;
+  // Rows inside a padded tile sit flush with its content edge.
+  flush?: boolean;
+}) {
+  const { c } = useAdminTheme();
+  const [hovered, hoverHandlers] = useHover();
+  return (
+    <Pressable
+      style={({ pressed }) => [styles.row, flush && styles.rowFlush, hoverTransition, !isFirst && styles.rowDivider, (hovered || pressed) && styles.rowHover]}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={title}
+      onHoverIn={hoverHandlers.onMouseEnter}
+      onHoverOut={hoverHandlers.onMouseLeave}
+    >
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text style={styles.name} numberOfLines={1}>{title}</Text>
+        <Text style={styles.meta} numberOfLines={1}>{meta}</Text>
+      </View>
+      {chip}
+      <Ionicons name="chevron-forward" size={16} color={c.ink3} />
+    </Pressable>
+  );
+}
+
+function createStyles(c: AdminColors) {
   return StyleSheet.create({
-    screen: { flex: 1, backgroundColor: colors.background },
-    content: { padding: spacing.md, paddingBottom: spacing.xxl },
-    dTitle: { fontFamily: fontFamily.heading, fontSize: 26, color: colors.textPrimary, marginBottom: spacing.sm },
-    intro: { fontFamily: fontFamily.body, fontSize: 13, color: colors.textSecondary, lineHeight: 19 },
-    section: { fontFamily: fontFamily.heading, fontSize: 18, color: colors.textPrimary },
-    sectionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md, flexWrap: 'wrap' },
-    list: { gap: spacing.sm },
-    row: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm + 2, padding: spacing.sm + 4, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
-    name: { fontFamily: fontFamily.bodySemiBold, fontSize: 14, color: colors.textPrimary },
-    meta: { fontFamily: fontFamily.body, fontSize: 11.5, color: colors.textMuted },
-    chip: { flexShrink: 0, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 3 },
-    chipText: { fontFamily: fontFamily.bodySemiBold, fontSize: 11 },
-    chip_live: { backgroundColor: colors.mintBg },
-    chipText_live: { color: colors.clubGreen },
-    chip_draft: { backgroundColor: colors.inputBg },
-    chipText_draft: { color: colors.textSecondary },
-    chip_todo: { backgroundColor: colors.warningBg },
-    chipText_todo: { color: colors.warning },
-    chip_none: { backgroundColor: 'transparent', borderWidth: 1, borderColor: colors.border },
-    chipText_none: { color: colors.textMuted },
+    screen: { flex: 1, backgroundColor: 'transparent' },
+    content: { padding: 16, paddingBottom: 48, gap: 12 },
+    intro: { ...adminFont.body, fontSize: 14, color: c.ink2, lineHeight: 20 },
+    cap: { ...adminFont.bodyBold, fontSize: 12, letterSpacing: 1.2, textTransform: 'uppercase', color: c.ink3, marginTop: 12, marginLeft: 16 },
+    list: { overflow: 'hidden' },
+    row: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 56, paddingHorizontal: 16, paddingVertical: 10 },
+    rowFlush: { paddingHorizontal: 0 },
+    rowDivider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.edge },
+    rowHover: { backgroundColor: c.fill2 },
+    name: { ...adminFont.bodyBold, fontSize: 15, color: c.ink },
+    meta: { ...adminFont.body, fontSize: 12.5, color: c.ink2, marginTop: 2 },
+    chip: { flexShrink: 0, alignSelf: 'center' },
+    awayTile: { gap: 12 },
+    importRow: { flexDirection: 'row' },
+    awayList: { marginTop: 2 },
+    none: { marginTop: 2 },
+    dIntro: { marginTop: 8, maxWidth: 680 },
+    dStatus: { marginTop: 14, gap: 12 },
+    dCols: { flexDirection: 'row', gap: 14, alignItems: 'flex-start', flexWrap: 'wrap' },
+    dMain: { flex: 1.6, minWidth: 380, gap: 8 },
+    dSide: { flex: 1, minWidth: 300, gap: 8 },
   });
 }

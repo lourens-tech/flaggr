@@ -1,20 +1,20 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, Image, Linking, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Image, Linking, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SuperAdminStackParamList } from '../../navigation/types';
 import { AdminMobileHeader } from '../../components/admin/AdminMobileHeader';
-import { PillButton } from '../../components/common/PillButton';
+import { AdminButton, PageTitle, SkeletonRows, StatusPill, Tile } from '../../components/admin/ui';
 import { SuperAdminDesktopFrame } from '../../components/admin/desktop/SuperAdminDesktopFrame';
 import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
 import { adminApi, AdminApiError } from '../../api/adminClient';
 import { showAlert } from '../../utils/alert';
 import { pickCourseMapFile } from '../../utils/pickCourseMapFile';
-import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
-import { fontFamily, radius, spacing } from '../../theme';
+import { useAdminTheme } from '../../context/ThemeContext';
 import type { ScorecardPhoto, SuperAdminGolfCourseDetail } from '../../golf/adminDto';
 import { GENDERS } from '../../golf/courseMap';
+import { adminFont, adminRadius, tabularNums, type AdminColors } from '../../theme/admin';
 
 type Props = NativeStackScreenProps<SuperAdminStackParamList, 'SuperAdminCourseMap'>;
 
@@ -24,8 +24,8 @@ const problemText = (e: unknown) =>
 // One club's course map: the GM's scorecard photos (to hand to whoever builds
 // the map), the imported map with anything still blocking it, and publishing.
 export function SuperAdminCourseMapScreen({ navigation, route }: Props) {
-  const colors = useThemeColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { c } = useAdminTheme();
+  const styles = useMemo(() => createStyles(c), [c]);
   const isDesktop = useIsDesktopNav();
   const { clubId, clubName } = route.params;
   const [golfCourseId, setGolfCourseId] = useState<string | null>(route.params.golfCourseId ?? null);
@@ -97,6 +97,7 @@ export function SuperAdminCourseMapScreen({ navigation, route }: Props) {
   const remove = () => {
     if (!detail) return;
     showAlert('Delete this draft map?', 'Rounds already played on it keep their own copy of the card.', [
+      { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete map',
         style: 'destructive',
@@ -112,7 +113,6 @@ export function SuperAdminCourseMapScreen({ navigation, route }: Props) {
           }
         },
       },
-      { text: 'Cancel', style: 'cancel' },
     ]);
   };
 
@@ -132,63 +132,72 @@ export function SuperAdminCourseMapScreen({ navigation, route }: Props) {
   };
 
   const title = detail?.name ?? clubName ?? 'Course map';
-  const body = (
-    <View style={{ gap: spacing.md }}>
-      {loading && !detail ? <ActivityIndicator color={colors.clubGreen} /> : null}
+  const statusPill = detail ? (
+    <StatusPill label={detail.status === 'live' ? 'Live' : 'Draft'} tone={detail.status === 'live' ? 'pos' : 'neutral'} style={styles.chip} />
+  ) : null;
 
-      {clubId ? (
-        <View style={styles.panel}>
-          <Text style={styles.panelTitle}>Scorecard photos from the club</Text>
-          {photos.length ? (
-            <>
-              <Text style={styles.body}>Download these and hand them over with the club’s name to build the map (docs/Course-Maps.md).</Text>
-              <View style={styles.grid}>
-                {photos.map((p, i) => (
-                  <View key={p.id} style={styles.photo}>
-                    <TouchableOpacity style={styles.thumb} onPress={() => setViewing(p.id)} accessibilityLabel={`View photo ${i + 1}`}>
-                      {images[p.id] ? <Image source={{ uri: images[p.id] }} style={styles.thumbImg} resizeMode="cover" /> : <ActivityIndicator color={colors.clubGreen} />}
-                    </TouchableOpacity>
-                    <Text style={styles.small}>
-                      {new Date(p.createdAt).toLocaleDateString('en-ZA')}
-                      {p.uploadedBy ? ` · ${p.uploadedBy}` : ''}
-                    </Text>
-                    {Platform.OS === 'web' ? (
-                      <TouchableOpacity onPress={() => download(p.id, i)} disabled={!images[p.id]}>
-                        <Text style={styles.link}>Download</Text>
-                      </TouchableOpacity>
-                    ) : null}
-                  </View>
-                ))}
+  const photosPanel = clubId ? (
+    <Tile style={[styles.panel, isDesktop && styles.dPhotos]}>
+      <Text style={styles.panelTitle} accessibilityRole="header">Scorecard photos from the club</Text>
+      {photos.length ? (
+        <>
+          <Text style={styles.body}>Download these and hand them over with the club’s name to build the map (docs/Course-Maps.md).</Text>
+          <View style={styles.grid}>
+            {photos.map((p, i) => (
+              <View key={p.id} style={styles.photo}>
+                <Pressable
+                  style={({ pressed }) => [styles.thumb, pressed && styles.pressed]}
+                  onPress={() => setViewing(p.id)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`View photo ${i + 1}`}
+                >
+                  {images[p.id] ? <Image source={{ uri: images[p.id] }} style={styles.thumbImg} resizeMode="cover" /> : <ActivityIndicator color={c.ink3} />}
+                </Pressable>
+                <Text style={styles.small}>
+                  {new Date(p.createdAt).toLocaleDateString('en-ZA')}
+                  {p.uploadedBy ? ` · ${p.uploadedBy}` : ''}
+                </Text>
+                {Platform.OS === 'web' ? (
+                  <AdminButton
+                    label="Download"
+                    icon="download-outline"
+                    variant="plain"
+                    onPress={() => download(p.id, i)}
+                    disabled={!images[p.id]}
+                    accessibilityLabel={`Download photo ${i + 1}`}
+                    style={styles.downloadBtn}
+                  />
+                ) : null}
               </View>
-            </>
-          ) : (
-            <Text style={styles.body}>The club hasn’t uploaded any yet. Their GM can do it from the Course map panel on their dashboard.</Text>
-          )}
-        </View>
-      ) : null}
+            ))}
+          </View>
+        </>
+      ) : (
+        <Text style={styles.body}>The club hasn’t uploaded any yet. Their GM can do it from the Course map panel on their dashboard.</Text>
+      )}
+    </Tile>
+  ) : null;
 
-      <View style={styles.panel}>
-        <View style={styles.panelHead}>
-          <Text style={[styles.panelTitle, { flex: 1 }]}>Course map</Text>
-          {detail ? (
-            <View style={[styles.chip, detail.status === 'live' ? styles.chipLive : styles.chipDraft]}>
-              <Text style={[styles.chipText, detail.status === 'live' ? styles.chipTextLive : styles.chipTextDraft]}>{detail.status === 'live' ? 'Live' : 'Draft'}</Text>
-            </View>
-          ) : null}
-        </View>
-        {!detail && !loading ? <Text style={styles.body}>No map imported yet.</Text> : null}
-        {detail ? (
-          <>
-            <Text style={styles.body}>
-              <Text style={styles.strong}>{detail.name}</Text>
-              {detail.location ? ` · ${detail.location}` : ''} · {detail.holeCount} holes
-              {detail.par.men != null ? ` · par ${detail.par.men}` : ''}
-              {detail.par.ladies != null && detail.par.ladies !== detail.par.men ? ` (ladies ${detail.par.ladies})` : ''}
-            </Text>
-            <Text style={styles.small}>
-              Imported {new Date(detail.importedAt).toLocaleString('en-ZA')}
-              {detail.publishedAt ? ` · first published ${new Date(detail.publishedAt).toLocaleDateString('en-ZA')}` : ''} · {detail.rounds} round{detail.rounds === 1 ? '' : 's'} played
-            </Text>
+  const mapPanel = (
+    <Tile style={[styles.panel, isDesktop && styles.dMap]}>
+      <View style={styles.panelHead}>
+        <Text style={[styles.panelTitle, { flex: 1 }]} accessibilityRole="header">Course map</Text>
+        {statusPill}
+      </View>
+      {!detail && !loading ? <Text style={styles.body}>No map imported yet.</Text> : null}
+      {detail ? (
+        <>
+          <Text style={styles.body}>
+            <Text style={styles.strong}>{detail.name}</Text>
+            {detail.location ? ` · ${detail.location}` : ''} · {detail.holeCount} holes
+            {detail.par.men != null ? ` · par ${detail.par.men}` : ''}
+            {detail.par.ladies != null && detail.par.ladies !== detail.par.men ? ` (ladies ${detail.par.ladies})` : ''}
+          </Text>
+          <Text style={styles.small}>
+            Imported {new Date(detail.importedAt).toLocaleString('en-ZA')}
+            {detail.publishedAt ? ` · first published ${new Date(detail.publishedAt).toLocaleDateString('en-ZA')}` : ''} · {detail.rounds} round{detail.rounds === 1 ? '' : 's'} played
+          </Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tableScroll}>
             <View style={styles.table}>
               <View style={[styles.tr, styles.thead]}>
                 {['Tee', 'Length', "Men's CR / Slope", "Ladies' CR / Slope", '9-hole'].map((h) => (
@@ -213,56 +222,86 @@ export function SuperAdminCourseMapScreen({ navigation, route }: Props) {
                 </View>
               ))}
             </View>
+          </ScrollView>
 
-            {detail.blockers.length ? (
-              <View style={styles.blockers}>
+          {detail.blockers.length ? (
+            <View style={styles.blockers} accessibilityRole="alert">
+              <View style={styles.blockersHead}>
+                <Ionicons name="warning-outline" size={18} color={c.amber} />
                 <Text style={styles.blockersTitle}>Can’t go live yet</Text>
-                {detail.blockers.map((b) => (
-                  <Text key={b} style={styles.blocker}>
-                    • {b}
-                  </Text>
-                ))}
               </View>
-            ) : (
-              <View style={styles.ready}>
-                <Ionicons name="checkmark-circle" size={16} color={colors.clubGreen} />
-                <Text style={styles.readyText}>Card complete: par, stroke index, lengths and ratings all check out.</Text>
-              </View>
-            )}
-            {detail.notes.length ? (
-              <View style={{ gap: 4 }}>
-                <Text style={styles.strong}>Notes from the build</Text>
-                {detail.notes.map((n) => (
-                  <Text key={n} style={styles.small}>
-                    • {n}
-                  </Text>
-                ))}
-              </View>
-            ) : null}
-          </>
+              {detail.blockers.map((b) => (
+                <Text key={b} style={styles.blocker}>
+                  • {b}
+                </Text>
+              ))}
+            </View>
+          ) : (
+            <View style={styles.ready}>
+              <Ionicons name="checkmark-circle" size={18} color={c.pos} />
+              <Text style={styles.readyText}>Card complete: par, stroke index, lengths and ratings all check out.</Text>
+            </View>
+          )}
+          {detail.notes.length ? (
+            <View style={{ gap: 4 }}>
+              <Text style={styles.strong}>Notes from the build</Text>
+              {detail.notes.map((n) => (
+                <Text key={n} style={styles.small}>
+                  • {n}
+                </Text>
+              ))}
+            </View>
+          ) : null}
+        </>
+      ) : null}
+      <View style={styles.actions}>
+        {detail?.status === 'live' ? (
+          <AdminButton label="Unpublish" variant="glass" onPress={() => publish(false)} loading={busy === 'publish'} disabled={!!busy} />
+        ) : detail ? (
+          <AdminButton
+            label="Publish to members"
+            icon="checkmark-outline"
+            variant="accent"
+            onPress={() => publish(true)}
+            loading={busy === 'publish'}
+            disabled={!!busy || detail.blockers.length > 0}
+          />
         ) : null}
-        <View style={styles.actions}>
-          {detail?.status === 'live' ? (
-            <PillButton label="Unpublish" onPress={() => publish(false)} loading={busy === 'publish'} disabled={!!busy} variant="outline" />
-          ) : detail ? (
-            <PillButton label="Publish to members" icon="checkmark-outline" onPress={() => publish(true)} loading={busy === 'publish'} disabled={!!busy || detail.blockers.length > 0} />
-          ) : null}
-          <PillButton label={detail ? 'Replace map file' : 'Import map file'} icon="cloud-upload-outline" onPress={importFile} loading={busy === 'import'} disabled={!!busy} variant={detail ? 'outline' : 'primary'} />
-          {detail && detail.status === 'draft' ? (
-            <TouchableOpacity onPress={remove} style={{ padding: 8 }}>
-              <Text style={styles.delete}>Delete draft</Text>
-            </TouchableOpacity>
-          ) : null}
-        </View>
+        <AdminButton
+          label={detail ? 'Replace map file' : 'Import map file'}
+          icon="cloud-upload-outline"
+          variant={detail ? 'glass' : 'accent'}
+          onPress={importFile}
+          loading={busy === 'import'}
+          disabled={!!busy}
+        />
+        {detail && detail.status === 'draft' ? <AdminButton label="Delete draft" icon="trash-outline" variant="danger" onPress={remove} /> : null}
+      </View>
+    </Tile>
+  );
+
+  const body = (
+    <View style={styles.bodyWrap}>
+      {loading && !detail ? (
+        <Tile>
+          <SkeletonRows rows={4} />
+        </Tile>
+      ) : null}
+
+      <View style={isDesktop && clubId ? styles.dCols : styles.stack}>
+        {photosPanel}
+        {mapPanel}
       </View>
 
       <Modal visible={viewing != null} transparent animationType="fade" onRequestClose={() => setViewing(null)}>
         <View style={styles.viewer}>
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setViewing(null)} accessibilityLabel="Close" />
-          {viewing && images[viewing] ? <Image source={{ uri: images[viewing] }} style={styles.viewerImg} resizeMode="contain" /> : null}
-          <TouchableOpacity onPress={() => setViewing(null)} style={styles.viewerBtn}>
-            <Text style={styles.viewerBtnText}>Close</Text>
-          </TouchableOpacity>
+          <View style={styles.viewerSheet} accessibilityViewIsModal>
+            {viewing && images[viewing] ? <Image source={{ uri: images[viewing] }} style={styles.viewerImg} resizeMode="contain" /> : null}
+            <View style={styles.viewerActions}>
+              <AdminButton label="Close" variant="accent" onPress={() => setViewing(null)} />
+            </View>
+          </View>
         </View>
       </Modal>
     </View>
@@ -271,7 +310,10 @@ export function SuperAdminCourseMapScreen({ navigation, route }: Props) {
   if (isDesktop) {
     return (
       <SuperAdminDesktopFrame activeKey="SuperAdminCourseMaps" breadcrumb={`Course Maps / ${title}`}>
-        <Text style={styles.dTitle}>{title}</Text>
+        <View style={styles.dTitleRow}>
+          <PageTitle style={{ flexShrink: 1 }}>{title}</PageTitle>
+          {statusPill}
+        </View>
         {body}
       </SuperAdminDesktopFrame>
     );
@@ -288,45 +330,67 @@ export function SuperAdminCourseMapScreen({ navigation, route }: Props) {
   );
 }
 
-function createStyles(colors: ThemeColors) {
+function createStyles(c: AdminColors) {
   return StyleSheet.create({
-    screen: { flex: 1, backgroundColor: colors.background },
-    content: { padding: spacing.md, paddingBottom: spacing.xxl, gap: spacing.sm },
-    dTitle: { fontFamily: fontFamily.heading, fontSize: 26, color: colors.textPrimary, marginBottom: spacing.sm },
-    panel: { backgroundColor: colors.surface, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, padding: spacing.md, gap: spacing.sm + 2 },
-    panelHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-    panelTitle: { fontFamily: fontFamily.heading, fontSize: 18, color: colors.textPrimary },
-    body: { fontFamily: fontFamily.body, fontSize: 13, color: colors.textSecondary, lineHeight: 19 },
-    strong: { fontFamily: fontFamily.bodySemiBold, fontSize: 13, color: colors.textPrimary },
-    small: { fontFamily: fontFamily.body, fontSize: 11.5, color: colors.textMuted, lineHeight: 16 },
-    link: { fontFamily: fontFamily.bodySemiBold, fontSize: 12, color: colors.clubGreen, textDecorationLine: 'underline' },
-    grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
+    screen: { flex: 1, backgroundColor: 'transparent' },
+    content: { padding: 16, paddingBottom: 48, gap: 8 },
+    bodyWrap: { gap: 14 },
+    stack: { gap: 14 },
+    dTitleRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 14, marginBottom: 16 },
+    dCols: { flexDirection: 'row', gap: 14, alignItems: 'flex-start', flexWrap: 'wrap' },
+    dPhotos: { flex: 1, minWidth: 320 },
+    dMap: { flex: 1.5, minWidth: 420 },
+    panel: { gap: 12 },
+    panelHead: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+    panelTitle: { ...adminFont.bodyBold, fontSize: 17, color: c.ink },
+    body: { ...adminFont.body, fontSize: 14, color: c.ink2, lineHeight: 20 },
+    strong: { ...adminFont.bodySemiBold, fontSize: 14, color: c.ink },
+    small: { ...adminFont.body, fontSize: 12.5, color: c.ink3, lineHeight: 18 },
+    grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 14 },
     photo: { width: 150, gap: 4 },
-    thumb: { width: 150, height: 112, borderRadius: 10, overflow: 'hidden', backgroundColor: colors.inputBg, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border },
+    thumb: {
+      width: 150,
+      height: 112,
+      borderRadius: adminRadius.sm,
+      overflow: 'hidden',
+      backgroundColor: c.fill2,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: c.edge,
+    },
+    pressed: { opacity: 0.8 },
     thumbImg: { width: '100%', height: '100%' },
-    chip: { flexShrink: 0, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 3 },
-    chipLive: { backgroundColor: colors.mintBg },
-    chipDraft: { backgroundColor: colors.inputBg },
-    chipText: { fontFamily: fontFamily.bodySemiBold, fontSize: 11 },
-    chipTextLive: { color: colors.clubGreen },
-    chipTextDraft: { color: colors.textSecondary },
-    table: { borderWidth: 1, borderColor: colors.border, borderRadius: 10, overflow: 'hidden' },
-    tr: { flexDirection: 'row', alignItems: 'center', borderTopWidth: 1, borderTopColor: colors.border, minHeight: 34 },
-    thead: { borderTopWidth: 0, backgroundColor: colors.inputBg },
-    th: { flex: 1, paddingHorizontal: 8, paddingVertical: 6, fontFamily: fontFamily.bodySemiBold, fontSize: 10, letterSpacing: 0.5, textTransform: 'uppercase', color: colors.textMuted },
-    td: { flex: 1, paddingHorizontal: 8, paddingVertical: 6 },
-    tdText: { fontFamily: fontFamily.body, fontSize: 12.5, color: colors.textPrimary },
-    dot: { width: 11, height: 11, borderRadius: 6, borderWidth: 1, borderColor: 'rgba(0,0,0,0.25)' },
-    blockers: { backgroundColor: colors.warningBg, borderRadius: 10, padding: spacing.sm + 4, gap: 4 },
-    blockersTitle: { fontFamily: fontFamily.bodySemiBold, fontSize: 13, color: colors.warning },
-    blocker: { fontFamily: fontFamily.body, fontSize: 12.5, color: colors.textPrimary, lineHeight: 18 },
-    ready: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.mintBg, borderRadius: 10, padding: spacing.sm + 2 },
-    readyText: { fontFamily: fontFamily.body, fontSize: 12.5, color: colors.textPrimary, flexShrink: 1 },
-    actions: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm + 2, flexWrap: 'wrap' },
-    delete: { fontFamily: fontFamily.bodySemiBold, fontSize: 13, color: colors.negative },
-    viewer: { flex: 1, backgroundColor: 'rgba(0,0,0,0.88)', alignItems: 'center', justifyContent: 'center', padding: spacing.md },
-    viewerImg: { width: '100%', height: '82%' },
-    viewerBtn: { marginTop: spacing.md, paddingVertical: 8, paddingHorizontal: 16, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.15)' },
-    viewerBtnText: { fontFamily: fontFamily.bodySemiBold, fontSize: 13, color: colors.white },
+    downloadBtn: { alignSelf: 'flex-start', height: 32 },
+    chip: { flexShrink: 0, alignSelf: 'center' },
+    tableScroll: { flexGrow: 1 },
+    table: { flex: 1, minWidth: 520, borderWidth: StyleSheet.hairlineWidth, borderColor: c.edge, borderRadius: adminRadius.sm, overflow: 'hidden' },
+    tr: { flexDirection: 'row', alignItems: 'center', borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.edge, minHeight: 40 },
+    thead: { borderTopWidth: 0, backgroundColor: c.fill2 },
+    th: { flex: 1, paddingHorizontal: 10, paddingVertical: 8, ...adminFont.bodyBold, fontSize: 11.5, letterSpacing: 1.1, textTransform: 'uppercase', color: c.ink3 },
+    td: { flex: 1, paddingHorizontal: 10, paddingVertical: 8 },
+    tdText: { ...adminFont.body, ...tabularNums, fontSize: 13.5, color: c.ink },
+    dot: { width: 11, height: 11, borderRadius: 6, borderWidth: 1, borderColor: c.bar },
+    blockers: { backgroundColor: c.amberBg, borderRadius: adminRadius.sm, padding: 14, gap: 4 },
+    blockersHead: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 2 },
+    blockersTitle: { ...adminFont.bodyBold, fontSize: 14.5, color: c.ink },
+    blocker: { ...adminFont.body, fontSize: 13.5, color: c.ink, lineHeight: 19 },
+    ready: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: c.posBg, borderRadius: adminRadius.sm, padding: 12 },
+    readyText: { ...adminFont.body, fontSize: 13.5, color: c.ink, flexShrink: 1 },
+    actions: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 4 },
+    viewer: { flex: 1, backgroundColor: c.scrim, alignItems: 'center', justifyContent: 'center', padding: 16 },
+    viewerSheet: {
+      width: '100%',
+      maxWidth: 900,
+      height: '88%',
+      backgroundColor: c.sheet,
+      borderRadius: adminRadius.lg,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: c.edge,
+      padding: 16,
+      gap: 12,
+    },
+    viewerImg: { flex: 1, width: '100%', borderRadius: adminRadius.sm },
+    viewerActions: { flexDirection: 'row', justifyContent: 'flex-end' },
   });
 }

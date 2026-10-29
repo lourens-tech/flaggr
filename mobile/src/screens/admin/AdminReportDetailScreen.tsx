@@ -1,6 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AdminStackParamList } from '../../navigation/types';
@@ -11,9 +10,10 @@ import { AdminDesktopFrame } from '../../components/admin/desktop/AdminDesktopFr
 import { DesktopDataTable, TableAvatarCell, TableTag, TableText, statusTone, type DesktopTableColumn } from '../../components/admin/desktop/DesktopDataTable';
 import { downloadReport, AdminApiError } from '../../api/adminClient';
 import { showAlert } from '../../utils/alert';
-import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
-import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
+import { useAdminTheme } from '../../context/ThemeContext';
 import type { CourseReportKind, MemberReportRow, RedemptionReportRow, ReceiptReportRow } from '../../data/adminTypes';
+import { adminFont, tabularNums, type AdminColors } from '../../theme/admin';
+import { AdminButton, EmptyState, Muted, PageTitle, Segmented, SkeletonRows, Tile } from '../../components/admin/ui';
 
 type Props = NativeStackScreenProps<AdminStackParamList, 'AdminReportDetail'>;
 
@@ -94,45 +94,49 @@ const COLUMNS_BY_REPORT: Record<CourseReportKind, Column[]> = {
 // member/status columns render as an avatar cell / colored tag instead of
 // plain text (see DesktopDataTable). Mobile keeps the plain-text table above.
 const D_REDEMPTION_COLUMNS: DesktopTableColumn<RedemptionReportRow>[] = [
-  { key: 'code', label: 'Code', width: 110, render: (r) => <TableText>{r.code}</TableText> },
+  { key: 'code', label: 'Code', width: 110, sortValue: (r) => r.code, render: (r) => <TableText>{r.code}</TableText> },
   {
     key: 'member',
     label: 'Member',
     width: 220,
+    sortValue: (r) => r.memberName,
     render: (r) => <TableAvatarCell name={r.memberName} subtitle={r.memberEmail} />,
   },
-  { key: 'reward', label: 'Reward', width: 170, render: (r) => <TableText>{r.rewardTitle}</TableText> },
+  { key: 'reward', label: 'Reward', width: 170, sortValue: (r) => r.rewardTitle, render: (r) => <TableText>{r.rewardTitle}</TableText> },
   { key: 'variant', label: 'Variant', width: 130, render: (r) => <TableText>{r.variantLabel}</TableText> },
-  { key: 'cost', label: 'Flagrr Cash', width: 100, align: 'right', render: (r) => <TableText>{r.cost.toLocaleString()}</TableText> },
-  { key: 'status', label: 'Status', width: 110, render: (r) => <TableTag label={r.status} tone={statusTone(r.status)} /> },
-  { key: 'issuedAt', label: 'Issued At', width: 160, render: (r) => <TableText muted>{formatDate(r.issuedAt)}</TableText> },
+  { key: 'cost', label: 'Flagrr Cash', width: 100, align: 'right', sortValue: (r) => r.cost, render: (r) => <TableText>{r.cost.toLocaleString()}</TableText> },
+  { key: 'status', label: 'Status', width: 110, sortValue: (r) => r.status, render: (r) => <TableTag label={r.status} tone={statusTone(r.status)} /> },
+  { key: 'issuedAt', label: 'Issued At', width: 160, sortValue: (r) => new Date(r.issuedAt).getTime(), render: (r) => <TableText muted>{formatDate(r.issuedAt)}</TableText> },
   {
     key: 'redeemedAt',
     label: 'Redeemed At',
     width: 160,
+    sortValue: (r) => (r.redeemedAt ? new Date(r.redeemedAt).getTime() : 0),
     render: (r) => <TableText muted>{r.redeemedAt ? formatDate(r.redeemedAt) : '—'}</TableText>,
   },
 ];
 
 const D_RECEIPT_COLUMNS: DesktopTableColumn<ReceiptReportRow>[] = [
-  { key: 'receiptNumber', label: 'Receipt #', width: 130, render: (r) => <TableText>{r.receiptNumber ?? '—'}</TableText> },
+  { key: 'receiptNumber', label: 'Receipt #', width: 130, sortValue: (r) => r.receiptNumber ?? '', render: (r) => <TableText>{r.receiptNumber ?? '—'}</TableText> },
   {
     key: 'member',
     label: 'Member',
     width: 220,
+    sortValue: (r) => r.memberName,
     render: (r) => <TableAvatarCell name={r.memberName} subtitle={r.memberEmail} />,
   },
   { key: 'whereScanned', label: 'Where Scanned', width: 170, render: (r) => <TableText>{r.whereScanned || '—'}</TableText> },
-  { key: 'total', label: 'Total (R)', width: 100, align: 'right', render: (r) => <TableText>{r.total.toFixed(2)}</TableText> },
+  { key: 'total', label: 'Total (R)', width: 100, align: 'right', sortValue: (r) => r.total, render: (r) => <TableText>{r.total.toFixed(2)}</TableText> },
   {
     key: 'pointsAwarded',
     label: 'Flagrr Cash',
     width: 110,
     align: 'right',
+    sortValue: (r) => r.pointsAwarded ?? -1,
     render: (r) => <TableText>{r.pointsAwarded === null ? '—' : r.pointsAwarded.toLocaleString()}</TableText>,
   },
-  { key: 'status', label: 'Status', width: 110, render: (r) => <TableTag label={r.status} tone={statusTone(r.status)} /> },
-  { key: 'submittedAt', label: 'Submitted At', width: 160, render: (r) => <TableText muted>{formatDate(r.submittedAt)}</TableText> },
+  { key: 'status', label: 'Status', width: 110, sortValue: (r) => r.status, render: (r) => <TableTag label={r.status} tone={statusTone(r.status)} /> },
+  { key: 'submittedAt', label: 'Submitted At', width: 160, sortValue: (r) => new Date(r.submittedAt).getTime(), render: (r) => <TableText muted>{formatDate(r.submittedAt)}</TableText> },
 ];
 
 const D_MEMBER_COLUMNS: DesktopTableColumn<MemberReportRow>[] = [
@@ -140,13 +144,14 @@ const D_MEMBER_COLUMNS: DesktopTableColumn<MemberReportRow>[] = [
     key: 'member',
     label: 'Member',
     width: 220,
+    sortValue: (r) => `${r.firstName} ${r.lastName}`,
     render: (r) => <TableAvatarCell name={`${r.firstName} ${r.lastName}`} subtitle={r.email} />,
   },
-  { key: 'tier', label: 'Tier', width: 100, render: (r) => <TableTag label={r.tier} /> },
-  { key: 'memberSince', label: 'Member Since', width: 160, render: (r) => <TableText muted>{formatDate(r.memberSince)}</TableText> },
-  { key: 'balance', label: 'FC Balance', width: 100, align: 'right', render: (r) => <TableText>{r.balance.toLocaleString()}</TableText> },
-  { key: 'totalEarned', label: 'FC Earned', width: 100, align: 'right', render: (r) => <TableText>{r.totalEarned.toLocaleString()}</TableText> },
-  { key: 'totalRedeemed', label: 'FC Redeemed', width: 110, align: 'right', render: (r) => <TableText>{r.totalRedeemed.toLocaleString()}</TableText> },
+  { key: 'tier', label: 'Tier', width: 100, sortValue: (r) => r.tier, render: (r) => <TableTag label={r.tier} tone="gray" /> },
+  { key: 'memberSince', label: 'Member Since', width: 160, sortValue: (r) => new Date(r.memberSince).getTime(), render: (r) => <TableText muted>{formatDate(r.memberSince)}</TableText> },
+  { key: 'balance', label: 'FC Balance', width: 100, align: 'right', sortValue: (r) => r.balance, render: (r) => <TableText>{r.balance.toLocaleString()}</TableText> },
+  { key: 'totalEarned', label: 'FC Earned', width: 100, align: 'right', sortValue: (r) => r.totalEarned, render: (r) => <TableText>{r.totalEarned.toLocaleString()}</TableText> },
+  { key: 'totalRedeemed', label: 'FC Redeemed', width: 110, align: 'right', sortValue: (r) => r.totalRedeemed, render: (r) => <TableText>{r.totalRedeemed.toLocaleString()}</TableText> },
 ];
 
 const D_COLUMNS_BY_REPORT: Record<CourseReportKind, DesktopTableColumn<Row>[]> = {
@@ -162,8 +167,8 @@ const D_COLUMNS_BY_REPORT: Record<CourseReportKind, DesktopTableColumn<Row>[]> =
 // Shows the exact same rows the Excel download produces, so the on-screen
 // table and the file always agree.
 export function AdminReportDetailScreen({ navigation, route }: Props) {
-  const colors = useThemeColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { c } = useAdminTheme();
+  const styles = useMemo(() => createStyles(c), [c]);
   const isDesktop = useIsDesktopNav();
   const { report, label } = route.params;
   const { getReportRows } = useAdmin();
@@ -217,55 +222,44 @@ export function AdminReportDetailScreen({ navigation, route }: Props) {
     }
   };
 
-  const toolbar = (
-    <View style={styles.toolbar}>
-      <Text style={styles.totalText}>{rows.length.toLocaleString()} row{rows.length === 1 ? '' : 's'}</Text>
-      <View style={styles.toolbarRight}>
-        <View style={styles.periodToggle}>
-          {PERIODS.map((p) => (
-            <TouchableOpacity
-              key={p}
-              onPress={() => handlePeriodChange(p)}
-              style={[styles.periodPill, period === p && styles.periodPillActive]}
-            >
-              <Text style={[styles.periodText, period === p && styles.periodTextActive]}>{PERIOD_LABELS[p]}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-        <TouchableOpacity style={styles.exportButton} onPress={handleExport} disabled={exporting}>
-          {exporting ? (
-            <ActivityIndicator color={colors.white} size="small" />
-          ) : (
-            <>
-              <Ionicons name="download-outline" size={16} color={colors.white} />
-              <Text style={styles.exportButtonText}>Excel</Text>
-            </>
-          )}
-        </TouchableOpacity>
-      </View>
-    </View>
+  const rowCount = `${rows.length.toLocaleString()} row${rows.length === 1 ? '' : 's'}`;
+
+  const periodControl = (fullWidth: boolean) => (
+    <Segmented
+      accessibilityLabel="Period"
+      fullWidth={fullWidth}
+      value={period}
+      onChange={handlePeriodChange}
+      options={PERIODS.map((p) => ({ key: p, label: PERIOD_LABELS[p] }))}
+    />
   );
 
+  const exportButton = <AdminButton label="Excel" variant="accent" icon="download-outline" onPress={handleExport} loading={exporting} />;
+
+  const emptyState = <EmptyState icon="document-text-outline" title="No data for this period." />;
+
   const table = loading ? (
-    <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
+    <View style={{ padding: 18 }}>
+      <SkeletonRows rows={6} />
+    </View>
   ) : rows.length === 0 ? (
-    <Text style={styles.emptyText}>No data for this period.</Text>
+    emptyState
   ) : (
     <ScrollView horizontal showsHorizontalScrollIndicator style={styles.tableScroll}>
       <View>
         <View style={styles.headerRow}>
-          {columns.map((c) => (
-            <Text key={c.key} style={[styles.headerCell, { width: c.width }]} numberOfLines={1}>
-              {c.label}
+          {columns.map((col) => (
+            <Text key={col.key} style={[styles.headerCell, { width: col.width }]} numberOfLines={1}>
+              {col.label}
             </Text>
           ))}
         </View>
         <ScrollView showsVerticalScrollIndicator style={styles.verticalScroll}>
           {rows.map((row, i) => (
-            <View key={i} style={[styles.dataRow, i % 2 === 1 && styles.dataRowAlt]}>
-              {columns.map((c) => (
-                <Text key={c.key} style={[styles.dataCell, { width: c.width }]} numberOfLines={1}>
-                  {c.render(row)}
+            <View key={i} style={[styles.dataRow, i === rows.length - 1 && styles.dataRowLast]}>
+              {columns.map((col) => (
+                <Text key={col.key} style={[styles.dataCell, { width: col.width }]} numberOfLines={1}>
+                  {col.render(row)}
                 </Text>
               ))}
             </View>
@@ -276,21 +270,32 @@ export function AdminReportDetailScreen({ navigation, route }: Props) {
   );
 
   const desktopTable = loading ? (
-    <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
+    <SkeletonRows rows={8} />
   ) : rows.length === 0 ? (
-    <Text style={styles.emptyText}>No data for this period.</Text>
+    emptyState
   ) : (
     <DesktopDataTable columns={D_COLUMNS_BY_REPORT[report]} rows={rows} keyExtractor={(_, i) => String(i)} />
   );
 
   if (isDesktop) {
     return (
-      <AdminDesktopFrame activeKey="" breadcrumb={label} showRail={false} scrollable={false}>
-        <Text style={styles.dPageTitle}>{label}</Text>
-        <View style={styles.dTableCard}>
-          {toolbar}
-          {desktopTable}
+      <AdminDesktopFrame
+        activeKey="AdminDashboard"
+        breadcrumb={`Home › ${label}`}
+        showRail={false}
+        scrollable={false}
+        headerRight={
+          <View style={styles.dHeaderRight}>
+            {periodControl(false)}
+            {exportButton}
+          </View>
+        }
+      >
+        <View>
+          <PageTitle>{label}</PageTitle>
+          <Muted style={styles.dLede}>{rowCount}</Muted>
         </View>
+        <Tile style={styles.dTableCard}>{desktopTable}</Tile>
       </AdminDesktopFrame>
     );
   }
@@ -299,75 +304,56 @@ export function AdminReportDetailScreen({ navigation, route }: Props) {
     <View style={styles.screen}>
       <AdminMobileHeader title={label} />
 
-      {toolbar}
-      {table}
+      <View style={styles.toolbar}>
+        <View style={styles.toolbarTop}>
+          <Text style={styles.totalText}>{rowCount}</Text>
+          {exportButton}
+        </View>
+        {periodControl(true)}
+      </View>
+      <Tile padded={false} style={styles.tableCard}>
+        {table}
+      </Tile>
     </View>
   );
 }
 
-function createStyles(colors: ThemeColors) {
+function createStyles(c: AdminColors) {
   return StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.background },
-  toolbar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: screenPadding,
-    paddingTop: spacing.md,
-    paddingBottom: spacing.sm,
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-  },
-  totalText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.textPrimary },
-  toolbarRight: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  periodToggle: { flexDirection: 'row', backgroundColor: colors.mintBg, borderRadius: radius.pill, padding: 3 },
-  periodPill: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: radius.pill },
-  periodPillActive: { backgroundColor: colors.darkGreen },
-  periodText: { fontFamily: fontFamily.heading, fontSize: 12, color: colors.textPrimary },
-  periodTextActive: { color: colors.white },
-  exportButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: colors.clubGreen,
-    borderRadius: radius.pill,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-  },
-  exportButtonText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.tiny, color: colors.white },
-  tableScroll: { flex: 1 },
-  verticalScroll: { flex: 1 },
-  headerRow: {
-    flexDirection: 'row',
-    backgroundColor: colors.darkGreen,
-    paddingHorizontal: screenPadding,
-    paddingVertical: spacing.sm,
-  },
-  headerCell: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.tiny, color: colors.white, paddingRight: spacing.sm },
-  dataRow: {
-    flexDirection: 'row',
-    paddingHorizontal: screenPadding,
-    paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(31,66,52,0.08)',
-  },
-  dataRowAlt: { backgroundColor: colors.mintBg },
-  dataCell: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textPrimary, paddingRight: spacing.sm },
-  emptyText: {
-    fontFamily: fontFamily.body,
-    fontSize: fontSize.body,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginTop: spacing.xl,
-  },
-  dPageTitle: { fontFamily: fontFamily.heading, fontSize: 26, color: colors.textPrimary },
-  dTableCard: {
-    flex: 1,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 16,
-    overflow: 'hidden',
-  },
-});
+    screen: { flex: 1, backgroundColor: 'transparent' },
+    toolbar: { paddingHorizontal: 16, paddingBottom: 12, gap: 12 },
+    toolbarTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+    totalText: { ...adminFont.bodySemiBold, ...tabularNums, fontSize: 15, color: c.ink },
+    tableCard: { flex: 1, marginHorizontal: 16, marginBottom: 16, overflow: 'hidden' },
+    tableScroll: { flex: 1 },
+    verticalScroll: { flex: 1 },
+    headerRow: {
+      flexDirection: 'row',
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: c.edge,
+    },
+    headerCell: {
+      ...adminFont.bodyBold,
+      fontSize: 11.5,
+      letterSpacing: 1.1,
+      textTransform: 'uppercase',
+      color: c.ink3,
+      paddingRight: 8,
+    },
+    dataRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      minHeight: 48,
+      paddingHorizontal: 16,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: c.edge,
+    },
+    dataRowLast: { borderBottomWidth: 0 },
+    dataCell: { ...adminFont.body, ...tabularNums, fontSize: 13.5, color: c.ink, paddingRight: 8 },
+    dHeaderRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+    dLede: { marginTop: 4 },
+    dTableCard: { flex: 1, paddingVertical: 8, paddingHorizontal: 10, overflow: 'hidden' },
+  });
 }

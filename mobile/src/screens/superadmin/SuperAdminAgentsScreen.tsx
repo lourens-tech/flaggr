@@ -1,6 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { FlatList, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SuperAdminStackParamList } from '../../navigation/types';
@@ -9,23 +8,26 @@ import { TextField } from '../../components/common/TextField';
 import { useAdmin } from '../../context/AdminContext';
 import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
 import { SuperAdminDesktopFrame } from '../../components/admin/desktop/SuperAdminDesktopFrame';
-import { DesktopPanel } from '../../components/admin/desktop/DesktopPanel';
+import { DesktopDataTable, TableAvatarCell, type DesktopTableColumn } from '../../components/admin/desktop/DesktopDataTable';
+import { AdminButton, CircleButton, EmptyState, ErrorState, PageTitle, SkeletonRows, StatusPill, Tile } from '../../components/admin/ui';
 import { AdminApiError } from '../../api/adminClient';
 import { showAlert } from '../../utils/alert';
-import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
-import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
+import { useAdminTheme } from '../../context/ThemeContext';
 import type { SupportAgent } from '../../data/adminTypes';
+import { adminFont, adminRadius, type AdminColors } from '../../theme/admin';
 
 type Props = NativeStackScreenProps<SuperAdminStackParamList, 'SuperAdminAgents'>;
 
 export function SuperAdminAgentsScreen({ navigation }: Props) {
-  const colors = useThemeColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { c } = useAdminTheme();
+  const styles = useMemo(() => createStyles(c), [c]);
   const isDesktop = useIsDesktopNav();
   const { supportAgents, loadSupportAgents, resetSupportAgentPassword, revokeSupportAgent, reactivateSupportAgent, deleteSupportAgent } = useAdmin();
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  // Set when loading the agents fails (it used to fail silently); cleared on retry.
+  const [error, setError] = useState(false);
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -35,22 +37,30 @@ export function SuperAdminAgentsScreen({ navigation }: Props) {
     );
   }, [supportAgents, search]);
 
+  const load = useCallback(
+    async (isCancelled: () => boolean = () => false) => {
+      setLoading(true);
+      setError(false);
+      try {
+        await loadSupportAgents();
+      } catch {
+        if (!isCancelled()) setError(true);
+      } finally {
+        if (!isCancelled()) setLoading(false);
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
+
   useFocusEffect(
     useCallback(() => {
       let cancelled = false;
-      (async () => {
-        setLoading(true);
-        try {
-          await loadSupportAgents();
-        } finally {
-          if (!cancelled) setLoading(false);
-        }
-      })();
+      load(() => cancelled);
       return () => {
         cancelled = true;
       };
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []),
+    }, [load]),
   );
 
   const handleResetPassword = (item: SupportAgent) => {
@@ -128,66 +138,83 @@ export function SuperAdminAgentsScreen({ navigation }: Props) {
     ]);
   };
 
-  const renderItem = ({ item }: { item: SupportAgent }) => (
-    <View style={[styles.card, !isDesktop && styles.mCard]}>
-      <View style={styles.cardTopRow}>
-        <Text style={styles.cardTitle} numberOfLines={1}>{item.firstName} {item.lastName}</Text>
-        <View style={[styles.statusBadge, item.revoked && styles.statusBadgeRevoked]}>
-          <Text style={[styles.statusBadgeText, item.revoked && styles.statusBadgeTextRevoked]}>
-            {item.revoked ? 'Revoked' : 'Active'}
-          </Text>
-        </View>
-      </View>
-      <Text style={styles.cardEmail} numberOfLines={1}>{item.email}</Text>
-      {item.mustChangePassword ? <Text style={styles.pendingText}>Hasn't logged in yet</Text> : null}
-
-      <View style={styles.cardActions}>
-        <TouchableOpacity style={styles.actionButton} onPress={() => handleResetPassword(item)} disabled={busyId === item.id}>
-          <Ionicons name="key-outline" size={15} color={colors.clubGreen} />
-          <Text style={styles.actionButtonText}>Reset Password</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.actionButton} onPress={() => handleToggleAccess(item)} disabled={busyId === item.id}>
-          {busyId === item.id ? (
-            <ActivityIndicator color={colors.clubGreen} size="small" />
-          ) : (
-            <>
-              <Ionicons name={item.revoked ? 'lock-open-outline' : 'lock-closed-outline'} size={15} color={colors.clubGreen} />
-              <Text style={styles.actionButtonText}>{item.revoked ? 'Reactivate' : 'Revoke'}</Text>
-            </>
-          )}
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.actionButton} onPress={() => handleDelete(item)} disabled={busyId === item.id}>
-          <Ionicons name="trash-outline" size={15} color={colors.negative} />
-          <Text style={[styles.actionButtonText, { color: colors.negative }]}>Delete</Text>
-        </TouchableOpacity>
-      </View>
+  const statusPills = (item: SupportAgent) => (
+    <View style={styles.pillRow}>
+      <StatusPill label={item.revoked ? 'Revoked' : 'Active'} tone={item.revoked ? 'neg' : 'pos'} />
+      {item.mustChangePassword ? <StatusPill label="Hasn't logged in yet" tone="amber" /> : null}
     </View>
   );
 
+  const actions = (item: SupportAgent) => (
+    <View style={styles.cardActions}>
+      <AdminButton label="Reset Password" icon="key-outline" variant="glass" onPress={() => handleResetPassword(item)} disabled={busyId === item.id} />
+      <AdminButton
+        label={item.revoked ? 'Reactivate' : 'Revoke'}
+        icon={item.revoked ? 'lock-open-outline' : 'lock-closed-outline'}
+        variant="glass"
+        onPress={() => handleToggleAccess(item)}
+        loading={busyId === item.id}
+      />
+      <AdminButton label="Delete" icon="trash-outline" variant="danger" onPress={() => handleDelete(item)} disabled={busyId === item.id} />
+    </View>
+  );
+
+  const renderItem = ({ item }: { item: SupportAgent }) => (
+    <Tile style={styles.card}>
+      <View style={styles.cardTopRow}>
+        <Text style={styles.cardTitle} numberOfLines={1}>{item.firstName} {item.lastName}</Text>
+      </View>
+      <Text style={styles.cardEmail} numberOfLines={1}>{item.email}</Text>
+      {statusPills(item)}
+      {actions(item)}
+    </Tile>
+  );
+
+  const columns: DesktopTableColumn<SupportAgent>[] = [
+    {
+      key: 'agent',
+      label: 'Agent',
+      width: 260,
+      render: (a) => <TableAvatarCell name={`${a.firstName} ${a.lastName}`} subtitle={a.email} />,
+      sortValue: (a) => `${a.firstName} ${a.lastName}`.toLowerCase(),
+    },
+    { key: 'status', label: 'Status', width: 220, render: statusPills, sortValue: (a) => (a.revoked ? 1 : 0) },
+    { key: 'actions', label: 'Actions', width: 420, align: 'right', render: actions },
+  ];
+
+  const searchField = <TextField placeholder="Search agents" variant="onLight" icon="search" value={search} onChangeText={setSearch} />;
+  const errorState = <ErrorState onRetry={() => load()} />;
+
   if (isDesktop) {
     return (
-      <SuperAdminDesktopFrame activeKey="SuperAdminAgents" breadcrumb="Support Agents">
-        <View style={styles.dHeadRow}>
-          <Text style={styles.dPageTitle}>Support Agents</Text>
-          <TouchableOpacity style={styles.dAddButton} onPress={() => navigation.navigate('SuperAdminAgentCreate')}>
-            <Ionicons name="add" size={16} color={colors.darkGreen} />
-            <Text style={styles.dAddButtonText}>Add Agent</Text>
-          </TouchableOpacity>
+      <SuperAdminDesktopFrame
+        activeKey="SuperAdminAgents"
+        breadcrumb="Support Agents"
+        headerRight={<AdminButton label="Add Agent" icon="add" variant="accent" onPress={() => navigation.navigate('SuperAdminAgentCreate')} />}
+      >
+        <PageTitle>Support Agents</PageTitle>
+        <View style={styles.dToolbar}>
+          <Text style={styles.dSectionTitle} accessibilityRole="header">All Agents</Text>
+          <View style={styles.dSearch}>{searchField}</View>
         </View>
-        <DesktopPanel title="All Agents">
-          <TextField placeholder="Search agents" variant="onLight" icon="search" value={search} onChangeText={setSearch} />
-          {loading ? (
-            <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.md }} />
-          ) : filtered.length === 0 ? (
-            <Text style={styles.emptyText}>{supportAgents.length === 0 ? 'No support agents yet.' : 'No agents match your search.'}</Text>
-          ) : (
-            <View style={{ gap: spacing.sm, marginTop: spacing.sm }}>
-              {filtered.map((item) => (
-                <React.Fragment key={item.id}>{renderItem({ item })}</React.Fragment>
-              ))}
-            </View>
-          )}
-        </DesktopPanel>
+        {loading ? (
+          <Tile style={styles.dList}>
+            <SkeletonRows rows={4} />
+          </Tile>
+        ) : error ? (
+          <View style={styles.dList}>{errorState}</View>
+        ) : filtered.length === 0 ? (
+          <Tile style={styles.dList}>
+            <EmptyState
+              icon={supportAgents.length === 0 ? 'people-outline' : 'search-outline'}
+              title={supportAgents.length === 0 ? 'No support agents yet.' : 'No agents match your search.'}
+            />
+          </Tile>
+        ) : (
+          <Tile style={[styles.dList, styles.dTable]} padded={false}>
+            <DesktopDataTable columns={columns} rows={filtered} keyExtractor={(a) => a.id} />
+          </Tile>
+        )}
       </SuperAdminDesktopFrame>
     );
   }
@@ -197,23 +224,20 @@ export function SuperAdminAgentsScreen({ navigation }: Props) {
       <AdminMobileHeader
         title="Support Agents"
         right={
-          <TouchableOpacity
-            onPress={() => navigation.navigate('SuperAdminAgentCreate')}
-            hitSlop={8}
-            accessibilityLabel="Add Support Agent"
-            accessibilityRole="button"
-          >
-            <Ionicons name="add-circle" size={26} color={colors.clubGreen} />
-          </TouchableOpacity>
+          <CircleButton icon="add" onPress={() => navigation.navigate('SuperAdminAgentCreate')} accessibilityLabel="Add Support Agent" />
         }
       />
 
-      <View style={styles.searchArea}>
-        <TextField placeholder="Search agents" variant="onLight" icon="search" value={search} onChangeText={setSearch} />
-      </View>
+      <View style={styles.searchArea}>{searchField}</View>
 
       {loading ? (
-        <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
+        <View style={styles.listContent}>
+          <Tile>
+            <SkeletonRows rows={4} />
+          </Tile>
+        </View>
+      ) : error ? (
+        <View style={styles.listContent}>{errorState}</View>
       ) : (
         <FlatList
           data={filtered}
@@ -221,9 +245,12 @@ export function SuperAdminAgentsScreen({ navigation }: Props) {
           renderItem={renderItem}
           contentContainerStyle={styles.listContent}
           ListEmptyComponent={
-            <Text style={styles.emptyText}>
-              {supportAgents.length === 0 ? 'No support agents yet — tap + to add one.' : 'No agents match your search.'}
-            </Text>
+            <Tile>
+              <EmptyState
+                icon={supportAgents.length === 0 ? 'people-outline' : 'search-outline'}
+                title={supportAgents.length === 0 ? 'No support agents yet — tap + to add one.' : 'No agents match your search.'}
+              />
+            </Tile>
           }
         />
       )}
@@ -231,51 +258,21 @@ export function SuperAdminAgentsScreen({ navigation }: Props) {
   );
 }
 
-function createStyles(colors: ThemeColors) {
+function createStyles(c: AdminColors) {
   return StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.background },
-  searchArea: { paddingHorizontal: screenPadding, paddingTop: spacing.md },
-  listContent: { padding: screenPadding, gap: spacing.sm },
-  card: {
-    backgroundColor: colors.mintBg,
-    borderWidth: 0.5,
-    borderColor: colors.clubGreen,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
-    gap: 4,
-  },
-  // Phone-only card surface — `card` is also rendered inside the desktop panel.
-  mCard: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 16 },
-  cardTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
-  cardTitle: { flex: 1, minWidth: 0, fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.textPrimary },
-  statusBadge: { flexShrink: 0, backgroundColor: colors.background, borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 3 },
-  statusBadgeRevoked: { backgroundColor: colors.dangerBg },
-  statusBadgeText: { fontFamily: fontFamily.bodySemiBold, fontSize: 10, color: colors.textPrimary },
-  statusBadgeTextRevoked: { color: colors.negative },
-  cardEmail: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary },
-  pendingText: { fontFamily: fontFamily.body, fontSize: 10, color: colors.textSecondary, fontStyle: 'italic' },
-  cardActions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md, rowGap: spacing.xs, marginTop: spacing.xs },
-  actionButton: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 4 },
-  actionButtonText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.tiny, color: colors.clubGreen },
-  emptyText: {
-    fontFamily: fontFamily.body,
-    fontSize: fontSize.body,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginTop: spacing.xl,
-  },
-  dHeadRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  dPageTitle: { fontFamily: fontFamily.heading, fontSize: 26, color: colors.textPrimary },
-  dAddButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: colors.lime,
-    borderRadius: radius.pill,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-  },
-  dAddButtonText: { fontFamily: fontFamily.bodySemiBold, fontSize: 13, color: colors.darkGreen },
+  screen: { flex: 1, backgroundColor: 'transparent' },
+  searchArea: { paddingHorizontal: 16, paddingTop: 12 },
+  listContent: { padding: 16, paddingBottom: 32, gap: 10 },
+  card: { gap: 6 },
+  cardTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  cardTitle: { flex: 1, minWidth: 0, ...adminFont.bodyBold, fontSize: 15.5, color: c.ink },
+  cardEmail: { ...adminFont.body, fontSize: 13.5, color: c.ink2 },
+  pillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  cardActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 6 },
+  dToolbar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginTop: 18 },
+  dSectionTitle: { ...adminFont.bodyBold, fontSize: 17, color: c.ink },
+  dSearch: { width: 300 },
+  dList: { marginTop: 12 },
+  dTable: { paddingHorizontal: 8, paddingVertical: 6, overflow: 'hidden', borderRadius: adminRadius.md },
 });
 }

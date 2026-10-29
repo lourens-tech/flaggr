@@ -1,6 +1,7 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, Modal, Pressable, ScrollView, Text, TouchableOpacity, View, StyleSheet } from 'react-native';
+import { ActivityIndicator, FlatList, Image, Modal, Pressable, ScrollView, Text, TouchableOpacity, View, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, type CompositeScreenProps } from '@react-navigation/native';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -10,12 +11,26 @@ import { useAdmin } from '../../context/AdminContext';
 import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
 import { useHover, hoverTransition } from '../../hooks/useHover';
 import { SuperAdminDesktopFrame } from '../../components/admin/desktop/SuperAdminDesktopFrame';
+import { DesktopDataTable, TableText, type DesktopTableColumn } from '../../components/admin/desktop/DesktopDataTable';
+import { DesktopStatCard } from '../../components/admin/desktop/DesktopStatCard';
 import { AdminMobileHeader } from '../../components/admin/AdminMobileHeader';
+import {
+  AdminButton,
+  CircleButton,
+  EmptyState,
+  ErrorState,
+  FLAGRR_BACKDROP,
+  Segmented,
+  SkeletonRows,
+  StatusPill,
+  Tile,
+  type StatusTone,
+} from '../../components/admin/ui';
 import { AdminApiError } from '../../api/adminClient';
 import { showAlert } from '../../utils/alert';
-import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
-import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
+import { useAdminTheme } from '../../context/ThemeContext';
 import type { SuperAdminCourseSummary } from '../../data/adminTypes';
+import { adminFont, adminRadius, tabularNums, type AdminColors } from '../../theme/admin';
 
 type Props = CompositeScreenProps<
   BottomTabScreenProps<SuperAdminTabParamList, 'SuperAdminCourses'>,
@@ -25,6 +40,11 @@ type Props = CompositeScreenProps<
 type StatusFilter = 'all' | 'active' | 'pending' | 'archived';
 const STATUS_FILTERS: StatusFilter[] = ['all', 'active', 'pending', 'archived'];
 const STATUS_FILTER_LABELS: Record<StatusFilter, string> = { all: 'All', active: 'Active', pending: 'Pending', archived: 'Archived' };
+
+// The photo header's scrim: darkest behind the text, fading towards the
+// right so the course photo still reads (same treatment as the mockup).
+const HERO_SCRIM = ['rgba(6,14,10,0.78)', 'rgba(6,14,10,0.45)', 'rgba(6,14,10,0.2)'] as const;
+const ON_PHOTO = '#FFFFFF';
 
 // A club's lifecycle bucket — distinct from its billing subscriptionStatus
 // (badge()) below, which still varies within the "active" bucket
@@ -43,25 +63,57 @@ function initials(name: string): string {
   return (parts[0][0] + parts[1][0]).toUpperCase();
 }
 
-interface Badge {
-  label: string;
-  bg: string;
-  fg: string;
+function greeting(): string {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Good morning';
+  if (hour < 18) return 'Good afternoon';
+  return 'Good evening';
 }
 
-function statusBadge(c: SuperAdminCourseSummary, colors: ThemeColors): Badge {
-  if (c.archivedAt) return { label: 'Archived', bg: colors.border, fg: colors.textSecondary };
-  if (c.onboardingCompletedAt === null) return { label: 'Setup Pending', bg: colors.warningBg, fg: colors.warning };
+interface Badge {
+  label: string;
+  tone: StatusTone;
+}
+
+function statusBadge(c: SuperAdminCourseSummary): Badge {
+  if (c.archivedAt) return { label: 'Archived', tone: 'neutral' };
+  if (c.onboardingCompletedAt === null) return { label: 'Setup Pending', tone: 'amber' };
   switch (c.subscriptionStatus) {
     case 'past_due':
-      return { label: 'Past Due', bg: colors.dangerBg, fg: colors.negative };
+      return { label: 'Past Due', tone: 'neg' };
     case 'canceled':
-      return { label: 'Canceled', bg: colors.border, fg: colors.textSecondary };
+      return { label: 'Canceled', tone: 'neutral' };
     case 'trialing':
-      return { label: 'Trialing', bg: colors.lime, fg: colors.darkGreen };
+      return { label: 'Trialing', tone: 'amber' };
     default:
-      return { label: 'Active', bg: colors.mintBg, fg: colors.clubGreen };
+      return { label: 'Active', tone: 'pos' };
   }
+}
+
+// A live club gets the Fairway crest with lime initials; anything archived,
+// mid-setup, canceled or past due gets a neutral one.
+function isLive(course: SuperAdminCourseSummary): boolean {
+  return courseBucket(course) === 'active' && course.subscriptionStatus !== 'canceled' && course.subscriptionStatus !== 'past_due';
+}
+
+function ClubCrest({ course, size = 44 }: { course: SuperAdminCourseSummary; size?: number }) {
+  const { c } = useAdminTheme();
+  const live = isLive(course);
+  return (
+    <View
+      style={{
+        width: size,
+        height: size,
+        borderRadius: adminRadius.sm,
+        backgroundColor: live ? '#1F4234' : c.fill,
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexShrink: 0,
+      }}
+    >
+      <Text style={{ ...adminFont.bodyBold, fontSize: size >= 44 ? 14 : 13, color: live ? '#CDDE5C' : c.ink2 }}>{initials(course.name)}</Text>
+    </View>
+  );
 }
 
 interface MenuAction {
@@ -72,9 +124,7 @@ interface MenuAction {
   danger?: boolean;
 }
 
-interface CourseCardProps {
-  course: SuperAdminCourseSummary;
-  pending: boolean;
+interface CourseActions {
   onManageAds: () => void;
   onManageRewards: () => void;
   onCatalog: () => void;
@@ -87,91 +137,119 @@ interface CourseCardProps {
   onUnarchive: () => void;
 }
 
-function CourseCard({
-  course,
-  pending,
-  onManageAds,
-  onManageRewards,
-  onCatalog,
-  onMemberList,
-  onEnquiries,
-  onManageAdmins,
-  onCancelSubscription,
-  onReactivateSubscription,
-  onArchive,
-  onUnarchive,
-}: CourseCardProps) {
-  const colors = useThemeColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
-  const [hovered, hoverHandlers] = useHover();
-  const [menuOpen, setMenuOpen] = useState(false);
-  // Desktop fits the four actions on one line; a phone card wraps them, so
-  // lay them out as an even 2x2 grid there instead of 3 + an orphan.
-  const isDesktop = useIsDesktopNav();
-  const pillStyle = isDesktop ? styles.pillButton : [styles.pillButton, styles.pillButtonGrid];
+interface CourseCardProps extends CourseActions {
+  course: SuperAdminCourseSummary;
+  pending: boolean;
+}
 
-  const bucket = courseBucket(course);
-  const badge = statusBadge(course, colors);
-  const isPending = bucket === 'pending';
-  const isArchived = bucket === 'archived';
+// The ⋯ button and its action sheet (a bottom sheet on phones, a centred
+// sheet on desktop). While an action is in flight it shows a spinner instead.
+function CourseMenu({ course, pending, actions }: { course: SuperAdminCourseSummary; pending: boolean; actions: CourseActions }) {
+  const { c } = useAdminTheme();
+  const styles = useMemo(() => createStyles(c), [c]);
+  const isDesktop = useIsDesktopNav();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const isArchived = courseBucket(course) === 'archived';
 
   const menuActions: MenuAction[] = [
-    { key: 'enquiries', label: 'Enquiries', icon: 'chatbubbles-outline', onPress: onEnquiries },
-    { key: 'admins', label: 'Manage Admins', icon: 'person-add-outline', onPress: onManageAdmins },
+    { key: 'enquiries', label: 'Enquiries', icon: 'chatbubbles-outline', onPress: actions.onEnquiries },
+    { key: 'admins', label: 'Manage Admins', icon: 'person-add-outline', onPress: actions.onManageAdmins },
     course.subscriptionStatus === 'canceled'
-      ? { key: 'reactivate', label: 'Reactivate Subscription', icon: 'refresh-outline', onPress: onReactivateSubscription }
-      : { key: 'cancel', label: 'Cancel Subscription', icon: 'close-circle-outline', onPress: onCancelSubscription, danger: true },
+      ? { key: 'reactivate', label: 'Reactivate Subscription', icon: 'refresh-outline', onPress: actions.onReactivateSubscription }
+      : { key: 'cancel', label: 'Cancel Subscription', icon: 'close-circle-outline', onPress: actions.onCancelSubscription, danger: true },
     isArchived
-      ? { key: 'unarchive', label: 'Unarchive Club', icon: 'archive-outline', onPress: onUnarchive }
-      : { key: 'archive', label: 'Archive Club', icon: 'archive-outline', onPress: onArchive },
+      ? { key: 'unarchive', label: 'Unarchive Club', icon: 'archive-outline', onPress: actions.onUnarchive }
+      : { key: 'archive', label: 'Archive Club', icon: 'archive-outline', onPress: actions.onArchive },
   ];
 
   return (
-    <View style={[styles.card, hoverTransition, hovered && styles.cardHover]} {...hoverHandlers}>
+    <>
+      {pending ? (
+        <ActivityIndicator size="small" color={c.ink2} style={{ width: 36, height: 36 }} />
+      ) : (
+        <CircleButton
+          icon="ellipsis-horizontal"
+          size={36}
+          onPress={() => setMenuOpen(true)}
+          accessibilityLabel={`More actions for ${course.name}`}
+        />
+      )}
+
+      <Modal visible={menuOpen} transparent animationType="fade" onRequestClose={() => setMenuOpen(false)}>
+        <TouchableOpacity
+          style={[styles.menuBackdrop, { backgroundColor: c.scrim }, isDesktop && styles.menuBackdropDesktop]}
+          activeOpacity={1}
+          onPress={() => setMenuOpen(false)}
+          accessibilityRole="button"
+          accessibilityLabel="Close menu"
+        >
+          <Pressable style={[styles.menuSheet, isDesktop && styles.menuSheetDesktop]} onPress={() => {}} accessibilityRole="menu">
+            <Text style={styles.menuSheetTitle} numberOfLines={1}>{course.name}</Text>
+            {menuActions.map((action, i) => (
+              <React.Fragment key={action.key}>
+                {i === menuActions.length - 2 ? <View style={styles.menuDivider} /> : null}
+                <Pressable
+                  style={({ pressed }) => [styles.menuRow, pressed && { backgroundColor: c.fill2 }]}
+                  accessibilityRole="menuitem"
+                  onPress={() => {
+                    setMenuOpen(false);
+                    action.onPress();
+                  }}
+                >
+                  <Ionicons name={action.icon} size={18} color={action.danger ? c.neg : c.ink2} />
+                  <Text style={[styles.menuRowText, action.danger && { color: c.neg }]}>{action.label}</Text>
+                </Pressable>
+              </React.Fragment>
+            ))}
+          </Pressable>
+        </TouchableOpacity>
+      </Modal>
+    </>
+  );
+}
+
+// Phone: one club per card — identity and status, the two counts, the
+// pending hint, then its four manage links.
+function CourseCard({ course, pending, ...actions }: CourseCardProps) {
+  const { c } = useAdminTheme();
+  const styles = useMemo(() => createStyles(c), [c]);
+
+  const bucket = courseBucket(course);
+  const badge = statusBadge(course);
+  const isPending = bucket === 'pending';
+  const isArchived = bucket === 'archived';
+  const iconColor = isArchived ? c.ink3 : c.icon;
+
+  const link = (icon: keyof typeof Ionicons.glyphMap, label: string, onPress: () => void) => (
+    <AdminButton label={label} icon={icon} variant="glass" onPress={onPress} style={styles.cardLink} />
+  );
+
+  return (
+    <Tile style={styles.card}>
       <View style={styles.cardTopRow}>
         <View style={styles.cardIdentity}>
-          <View style={[styles.avatar, { backgroundColor: bucket === 'active' && course.subscriptionStatus !== 'canceled' && course.subscriptionStatus !== 'past_due' ? colors.clubGreen : colors.textMuted }]}>
-            <Text style={styles.avatarText}>{initials(course.name)}</Text>
-          </View>
+          <ClubCrest course={course} />
           <View style={styles.cardIdentityText}>
             <Text style={styles.cardTitle} numberOfLines={1}>{course.name}</Text>
             <Text style={styles.cardSlug} numberOfLines={1}>flagrr.com/{course.slug}</Text>
           </View>
         </View>
         <View style={styles.cardTopRight}>
-          <View style={[styles.badge, { backgroundColor: badge.bg }]}>
-            <Text style={[styles.badgeText, { color: badge.fg }]}>{badge.label}</Text>
-          </View>
-          {pending ? (
-            <ActivityIndicator size="small" color={colors.clubGreen} style={{ width: 32, height: 32 }} />
-          ) : (
-            <TouchableOpacity
-              style={styles.moreButton}
-              onPress={() => setMenuOpen(true)}
-              accessibilityRole="button"
-              accessibilityLabel={`More actions for ${course.name}`}
-              hitSlop={6}
-            >
-              <Ionicons name="ellipsis-vertical" size={17} color={colors.textSecondary} />
-            </TouchableOpacity>
-          )}
+          <StatusPill label={badge.label} tone={badge.tone} />
+          <CourseMenu course={course} pending={pending} actions={actions} />
         </View>
       </View>
 
       <View style={styles.statsRow}>
         <View style={styles.statChip}>
-          <View style={[styles.statIcon, isArchived && styles.statIconMuted]}>
-            <Ionicons name="people-outline" size={14} color={isArchived ? colors.textSecondary : colors.clubGreen} />
-          </View>
+          <Ionicons name="people-outline" size={16} color={iconColor} />
           <View>
             <Text style={styles.statValue}>{course.memberCount}</Text>
             <Text style={styles.statLabel}>Members</Text>
           </View>
         </View>
         <View style={styles.statChip}>
-          <View style={[styles.statIcon, isArchived && styles.statIconMuted]}>
-            <Ionicons name="person-outline" size={14} color={isArchived ? colors.textSecondary : colors.clubGreen} />
-          </View>
+          <Ionicons name="person-outline" size={16} color={iconColor} />
           <View>
             <Text style={styles.statValue}>{course.adminCount}</Text>
             <Text style={styles.statLabel}>Admins</Text>
@@ -181,7 +259,7 @@ function CourseCard({
 
       {isPending ? (
         <View style={styles.hintRow}>
-          <Ionicons name="information-circle-outline" size={15} color={colors.warning} />
+          <Ionicons name="information-circle-outline" size={16} color={c.amber} />
           <Text style={styles.hintText}>Awaiting its first admin invite before it can go live</Text>
         </View>
       ) : null}
@@ -190,58 +268,40 @@ function CourseCard({
 
       <View style={styles.actionsRow}>
         {isPending ? (
-          <TouchableOpacity style={isDesktop ? styles.pillButtonSolid : [styles.pillButtonSolid, styles.pillButtonFull]} onPress={onManageAdmins}>
-            <Ionicons name="person-add-outline" size={14} color={colors.white} />
-            <Text style={styles.pillButtonSolidText}>Invite Admin</Text>
-          </TouchableOpacity>
+          <AdminButton label="Invite Admin" icon="person-add-outline" variant="glass" onPress={actions.onManageAdmins} style={styles.cardLinkFull} />
         ) : null}
-        <TouchableOpacity style={pillStyle} onPress={onManageAds}>
-          <Ionicons name="megaphone-outline" size={14} color={colors.darkGreen} />
-          <Text style={styles.pillButtonText}>Ads</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={pillStyle} onPress={onManageRewards}>
-          <Ionicons name="gift-outline" size={14} color={colors.darkGreen} />
-          <Text style={styles.pillButtonText}>Rewards</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={pillStyle} onPress={onCatalog}>
-          <Ionicons name="pricetags-outline" size={14} color={colors.darkGreen} />
-          <Text style={styles.pillButtonText}>Catalog</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={pillStyle} onPress={onMemberList}>
-          <Ionicons name="cloud-upload-outline" size={14} color={colors.darkGreen} />
-          <Text style={styles.pillButtonText}>Members</Text>
-        </TouchableOpacity>
+        {link('megaphone-outline', 'Ads', actions.onManageAds)}
+        {link('gift-outline', 'Rewards', actions.onManageRewards)}
+        {link('pricetags-outline', 'Catalog', actions.onCatalog)}
+        {link('cloud-upload-outline', 'Members', actions.onMemberList)}
       </View>
+    </Tile>
+  );
+}
 
-      <Modal visible={menuOpen} transparent animationType="fade" onRequestClose={() => setMenuOpen(false)}>
-        <TouchableOpacity style={styles.menuBackdrop} activeOpacity={1} onPress={() => setMenuOpen(false)}>
-          <Pressable style={styles.menuSheet} onPress={() => {}}>
-            <Text style={styles.menuSheetTitle} numberOfLines={1}>{course.name}</Text>
-            {menuActions.map((action, i) => (
-              <React.Fragment key={action.key}>
-                {i === menuActions.length - 2 ? <View style={styles.menuDivider} /> : null}
-                <TouchableOpacity
-                  style={styles.menuRow}
-                  onPress={() => {
-                    setMenuOpen(false);
-                    action.onPress();
-                  }}
-                >
-                  <Ionicons name={action.icon} size={17} color={action.danger ? colors.negative : colors.textPrimary} />
-                  <Text style={[styles.menuRowText, action.danger && { color: colors.negative }]}>{action.label}</Text>
-                </TouchableOpacity>
-              </React.Fragment>
-            ))}
-          </Pressable>
-        </TouchableOpacity>
-      </Modal>
-    </View>
+// Small neutral link used in the desktop table's Manage column.
+function ManageChip({ icon, label, onPress, accessibilityLabel }: { icon: keyof typeof Ionicons.glyphMap; label: string; onPress: () => void; accessibilityLabel: string }) {
+  const { c } = useAdminTheme();
+  const styles = useMemo(() => createStyles(c), [c]);
+  const [hovered, hoverHandlers] = useHover();
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      onHoverIn={hoverHandlers.onMouseEnter}
+      onHoverOut={hoverHandlers.onMouseLeave}
+      style={[styles.chip, hoverTransition, hovered && { backgroundColor: c.sel }]}
+    >
+      <Ionicons name={icon} size={14} color={c.icon} />
+      <Text style={styles.chipText}>{label}</Text>
+    </Pressable>
   );
 }
 
 function AddCourseCard({ onPress, style }: { onPress: () => void; style?: object }) {
-  const colors = useThemeColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { c } = useAdminTheme();
+  const styles = useMemo(() => createStyles(c), [c]);
   const [hovered, hoverHandlers] = useHover();
 
   return (
@@ -254,17 +314,36 @@ function AddCourseCard({ onPress, style }: { onPress: () => void; style?: object
       {...hoverHandlers}
     >
       <View style={styles.ghostIcon}>
-        <Ionicons name="add" size={20} color={colors.white} />
+        <Ionicons name="add" size={20} color={c.ink} />
       </View>
-      <Text style={styles.ghostTitle}>Add a new club</Text>
-      <Text style={styles.ghostSubtitle}>Onboard a course and invite its first admin</Text>
+      <View style={{ flexShrink: 1 }}>
+        <Text style={styles.ghostTitle}>Add a new club</Text>
+        <Text style={styles.ghostSubtitle}>Onboard a course and invite its first admin</Text>
+      </View>
     </TouchableOpacity>
   );
 }
 
+// "Good afternoon." over Flagrr's own course photo, with the club summary.
+function CoursesHero({ summary, compact }: { summary: string; compact?: boolean }) {
+  const { c } = useAdminTheme();
+  const styles = useMemo(() => createStyles(c), [c]);
+  return (
+    <View style={[styles.hero, compact && styles.heroCompact]}>
+      <Image source={FLAGRR_BACKDROP} resizeMode="cover" style={StyleSheet.absoluteFill} accessible={false} accessibilityIgnoresInvertColors />
+      <LinearGradient colors={HERO_SCRIM} locations={[0, 0.55, 1]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} />
+      <View style={[styles.heroContent, compact && styles.heroContentCompact]}>
+        <Text style={styles.heroEyebrow}>Courses</Text>
+        <Text accessibilityRole="header" style={[styles.heroTitle, compact && styles.heroTitleCompact]}>{greeting()}.</Text>
+        <Text style={styles.heroSubtitle} numberOfLines={2}>{summary}</Text>
+      </View>
+    </View>
+  );
+}
+
 export function SuperAdminCoursesScreen({ navigation }: Props) {
-  const colors = useThemeColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { c } = useAdminTheme();
+  const styles = useMemo(() => createStyles(c), [c]);
   const isDesktop = useIsDesktopNav();
   const {
     superAdminCourses,
@@ -275,6 +354,7 @@ export function SuperAdminCoursesScreen({ navigation }: Props) {
     unarchiveSuperAdminCourse,
   } = useAdmin();
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [pendingCourseId, setPendingCourseId] = useState<string | null>(null);
@@ -299,8 +379,11 @@ export function SuperAdminCoursesScreen({ navigation }: Props) {
       let cancelled = false;
       (async () => {
         setLoading(true);
+        setLoadError(false);
         try {
           await loadSuperAdminCourses();
+        } catch {
+          if (!cancelled) setLoadError(true);
         } finally {
           if (!cancelled) setLoading(false);
         }
@@ -311,6 +394,19 @@ export function SuperAdminCoursesScreen({ navigation }: Props) {
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []),
   );
+
+  // Retry after a failed load (same call as on focus).
+  const retryLoad = async () => {
+    setLoading(true);
+    setLoadError(false);
+    try {
+      await loadSuperAdminCourses();
+    } catch {
+      setLoadError(true);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleCancelSubscription = (course: SuperAdminCourseSummary) => {
     showAlert(
@@ -337,16 +433,28 @@ export function SuperAdminCoursesScreen({ navigation }: Props) {
     );
   };
 
-  const handleReactivateSubscription = async (course: SuperAdminCourseSummary) => {
-    setPendingCourseId(course.id);
-    try {
-      await reactivateSuperAdminCourseSubscription(course.id);
-    } catch (err) {
-      const message = err instanceof AdminApiError ? err.message : 'Something went wrong. Please try again.';
-      showAlert('Couldn’t reactivate subscription', message);
-    } finally {
-      setPendingCourseId(null);
-    }
+  const handleReactivateSubscription = (course: SuperAdminCourseSummary) => {
+    showAlert(
+      'Reactivate this subscription?',
+      `${course.name}'s course admin and staff accounts will be able to log in again.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reactivate',
+          onPress: async () => {
+            setPendingCourseId(course.id);
+            try {
+              await reactivateSuperAdminCourseSubscription(course.id);
+            } catch (err) {
+              const message = err instanceof AdminApiError ? err.message : 'Something went wrong. Please try again.';
+              showAlert('Couldn’t reactivate subscription', message);
+            } finally {
+              setPendingCourseId(null);
+            }
+          },
+        },
+      ],
+    );
   };
 
   const handleArchive = (course: SuperAdminCourseSummary) => {
@@ -373,96 +481,181 @@ export function SuperAdminCoursesScreen({ navigation }: Props) {
     );
   };
 
-  const handleUnarchive = async (course: SuperAdminCourseSummary) => {
-    setPendingCourseId(course.id);
-    try {
-      await unarchiveSuperAdminCourse(course.id);
-    } catch (err) {
-      const message = err instanceof AdminApiError ? err.message : 'Something went wrong. Please try again.';
-      showAlert('Couldn’t unarchive club', message);
-    } finally {
-      setPendingCourseId(null);
-    }
+  const handleUnarchive = (course: SuperAdminCourseSummary) => {
+    showAlert('Unarchive this club?', `${course.name} will show in the club list again.`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Unarchive',
+        onPress: async () => {
+          setPendingCourseId(course.id);
+          try {
+            await unarchiveSuperAdminCourse(course.id);
+          } catch (err) {
+            const message = err instanceof AdminApiError ? err.message : 'Something went wrong. Please try again.';
+            showAlert('Couldn’t unarchive club', message);
+          } finally {
+            setPendingCourseId(null);
+          }
+        },
+      },
+    ]);
   };
 
-  const renderCard = (item: SuperAdminCourseSummary, style?: object) => (
-    <View key={item.id} style={style}>
-      <CourseCard
-        course={item}
-        pending={pendingCourseId === item.id}
-        onManageAds={() => navigation.navigate('SuperAdminCourseAds', { courseId: item.id, courseName: item.name })}
-        onManageRewards={() =>
-          navigation.navigate('SuperAdminCourseRewards', { courseId: item.id, courseName: item.name, fbPerRand: item.fbPerRand })
-        }
-        onCatalog={() =>
-          navigation.navigate('SuperAdminCourseCatalog', { courseId: item.id, courseName: item.name, fbPerRand: item.fbPerRand })
-        }
-        onMemberList={() => navigation.navigate('SuperAdminCourseMemberList', { courseId: item.id, courseName: item.name })}
-        onEnquiries={() => navigation.navigate('SuperAdminCourseEnquiries', { courseId: item.id, courseName: item.name })}
-        onManageAdmins={() => navigation.navigate('SuperAdminCourseAdmins', { courseId: item.id, courseName: item.name })}
-        onCancelSubscription={() => handleCancelSubscription(item)}
-        onReactivateSubscription={() => handleReactivateSubscription(item)}
-        onArchive={() => handleArchive(item)}
-        onUnarchive={() => handleUnarchive(item)}
-      />
-    </View>
+  const actionsFor = (item: SuperAdminCourseSummary): CourseActions => ({
+    onManageAds: () => navigation.navigate('SuperAdminCourseAds', { courseId: item.id, courseName: item.name }),
+    onManageRewards: () =>
+      navigation.navigate('SuperAdminCourseRewards', { courseId: item.id, courseName: item.name, fbPerRand: item.fbPerRand }),
+    onCatalog: () =>
+      navigation.navigate('SuperAdminCourseCatalog', { courseId: item.id, courseName: item.name, fbPerRand: item.fbPerRand }),
+    onMemberList: () => navigation.navigate('SuperAdminCourseMemberList', { courseId: item.id, courseName: item.name }),
+    onEnquiries: () => navigation.navigate('SuperAdminCourseEnquiries', { courseId: item.id, courseName: item.name }),
+    onManageAdmins: () => navigation.navigate('SuperAdminCourseAdmins', { courseId: item.id, courseName: item.name }),
+    onCancelSubscription: () => handleCancelSubscription(item),
+    onReactivateSubscription: () => handleReactivateSubscription(item),
+    onArchive: () => handleArchive(item),
+    onUnarchive: () => handleUnarchive(item),
+  });
+
+  const renderCard = (item: SuperAdminCourseSummary) => (
+    <CourseCard key={item.id} course={item} pending={pendingCourseId === item.id} {...actionsFor(item)} />
   );
 
   const filterTabs = (
-    <View style={styles.filterTabs}>
-      {STATUS_FILTERS.map((f) => (
-        <TouchableOpacity
-          key={f}
-          style={[styles.filterTab, statusFilter === f && styles.filterTabActive]}
-          onPress={() => setStatusFilter(f)}
-        >
-          <Text style={[styles.filterTabText, statusFilter === f && styles.filterTabTextActive]}>
-            {STATUS_FILTER_LABELS[f]} <Text style={styles.filterTabCount}>{counts[f]}</Text>
-          </Text>
-        </TouchableOpacity>
-      ))}
-    </View>
+    <Segmented
+      accessibilityLabel="Filter clubs"
+      options={STATUS_FILTERS.map((f) => ({ key: f, label: STATUS_FILTER_LABELS[f], count: counts[f] }))}
+      value={statusFilter}
+      onChange={setStatusFilter}
+    />
   );
 
-  const searchArea = (
-    <View style={styles.searchArea}>
-      <TextField placeholder="Search courses or clubs" variant="onLight" icon="search" value={search} onChangeText={setSearch} />
-    </View>
-  );
+  const searchField = <TextField placeholder="Search courses or clubs" variant="onLight" icon="search" value={search} onChangeText={setSearch} />;
+
+  const summary = `${superAdminCourses.length} club${superAdminCourses.length === 1 ? '' : 's'} on Flagrr${counts.pending > 0 ? ` · ${counts.pending} awaiting setup` : ''}`;
+  const showAddCard = statusFilter === 'all' || statusFilter === 'active';
 
   if (isDesktop) {
+    const memberTotal = superAdminCourses.reduce((sum, course) => sum + course.memberCount, 0);
+    const pastDue = superAdminCourses.filter((course) => course.subscriptionStatus === 'past_due').length;
+
+    const columns: DesktopTableColumn<SuperAdminCourseSummary>[] = [
+      {
+        key: 'club',
+        label: 'Club',
+        width: 260,
+        sortValue: (row) => row.name.toLowerCase(),
+        render: (row) => (
+          <View style={styles.clubCell}>
+            <ClubCrest course={row} size={38} />
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={styles.cardTitle} numberOfLines={1}>{row.name}</Text>
+              <Text style={styles.cardSlug} numberOfLines={1}>flagrr.com/{row.slug}</Text>
+            </View>
+          </View>
+        ),
+      },
+      {
+        key: 'status',
+        label: 'Status',
+        width: 200,
+        sortValue: (row) => statusBadge(row).label,
+        render: (row) => {
+          const badge = statusBadge(row);
+          return (
+            <View style={{ gap: 4 }}>
+              <StatusPill label={badge.label} tone={badge.tone} />
+              {courseBucket(row) === 'pending' ? (
+                <Text style={styles.tableHint} numberOfLines={2}>Awaiting its first admin invite before it can go live</Text>
+              ) : null}
+            </View>
+          );
+        },
+      },
+      {
+        key: 'members',
+        label: 'Members',
+        width: 96,
+        align: 'right',
+        sortValue: (row) => row.memberCount,
+        render: (row) => <TableText>{row.memberCount}</TableText>,
+      },
+      {
+        key: 'admins',
+        label: 'Admins',
+        width: 86,
+        align: 'right',
+        sortValue: (row) => row.adminCount,
+        render: (row) => <TableText>{row.adminCount}</TableText>,
+      },
+      {
+        key: 'manage',
+        label: 'Manage',
+        width: 380,
+        render: (row) => {
+          const actions = actionsFor(row);
+          return (
+            <View style={styles.chipRow}>
+              {courseBucket(row) === 'pending' ? (
+                <ManageChip icon="person-add-outline" label="Invite Admin" onPress={actions.onManageAdmins} accessibilityLabel={`Invite Admin for ${row.name}`} />
+              ) : null}
+              <ManageChip icon="megaphone-outline" label="Ads" onPress={actions.onManageAds} accessibilityLabel={`Ads for ${row.name}`} />
+              <ManageChip icon="gift-outline" label="Rewards" onPress={actions.onManageRewards} accessibilityLabel={`Rewards for ${row.name}`} />
+              <ManageChip icon="pricetags-outline" label="Catalog" onPress={actions.onCatalog} accessibilityLabel={`Catalog for ${row.name}`} />
+              <ManageChip icon="cloud-upload-outline" label="Members" onPress={actions.onMemberList} accessibilityLabel={`Members for ${row.name}`} />
+            </View>
+          );
+        },
+      },
+      {
+        key: 'more',
+        label: '',
+        width: 56,
+        align: 'right',
+        render: (row) => <CourseMenu course={row} pending={pendingCourseId === row.id} actions={actionsFor(row)} />,
+      },
+    ];
+
     return (
       <SuperAdminDesktopFrame activeKey="SuperAdminCourses" breadcrumb="Courses">
-        <View style={styles.dHeadRow}>
-          <View>
-            <Text style={styles.dPageTitle}>Courses</Text>
-            <Text style={styles.dPageSubtitle}>
-              {superAdminCourses.length} club{superAdminCourses.length === 1 ? '' : 's'} on Flagrr
-              {counts.pending > 0 ? ` · ${counts.pending} awaiting setup` : ''}
-            </Text>
-          </View>
-          <TouchableOpacity style={styles.dAddButton} onPress={() => navigation.navigate('SuperAdminCourseCreate')}>
-            <Ionicons name="add" size={16} color={colors.darkGreen} />
-            <Text style={styles.dAddButtonText}>New Course</Text>
-          </TouchableOpacity>
+        <CoursesHero summary={summary} />
+
+        <View style={styles.dStrip}>
+          <DesktopStatCard label="Clubs on Flagrr" value={superAdminCourses.length} icon="business-outline" />
+          <DesktopStatCard label="Members" value={memberTotal} icon="people-outline" />
+          <DesktopStatCard label="Awaiting setup" value={counts.pending} icon="hourglass-outline" />
+          <DesktopStatCard label="Past due" value={pastDue} icon="alert-circle-outline" />
         </View>
+
         <View style={styles.dToolbar}>
           {filterTabs}
-          <View style={styles.dSearchWrap}>{searchArea}</View>
+          <View style={{ flex: 1 }} />
+          <View style={styles.dSearchWrap}>{searchField}</View>
+          <AdminButton label="New Course" icon="add" variant="accent" onPress={() => navigation.navigate('SuperAdminCourseCreate')} />
         </View>
-        {loading ? (
-          <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
+
+        {loadError ? (
+          <ErrorState onRetry={retryLoad} />
+        ) : loading ? (
+          <Tile>
+            <SkeletonRows rows={5} />
+          </Tile>
         ) : filtered.length === 0 ? (
-          <Text style={styles.emptyText}>
-            {superAdminCourses.length === 0 ? 'No courses yet — add one.' : 'No courses match your search.'}
-          </Text>
+          <Tile>
+            {superAdminCourses.length === 0 ? (
+              <EmptyState icon="business-outline" title="No courses yet — add one." />
+            ) : (
+              <EmptyState icon="search-outline" title="No courses match your search." />
+            )}
+          </Tile>
         ) : (
-          <View style={styles.grid}>
-            {filtered.map((item) => renderCard(item, styles.gridCell))}
-            {statusFilter === 'all' || statusFilter === 'active' ? (
-              <AddCourseCard style={styles.gridCell} onPress={() => navigation.navigate('SuperAdminCourseCreate')} />
+          <Tile padded={false} style={styles.dTableTile}>
+            <DesktopDataTable columns={columns} rows={filtered} keyExtractor={(row) => row.id} />
+            {showAddCard ? (
+              <View style={styles.dAddRow}>
+                <AddCourseCard onPress={() => navigation.navigate('SuperAdminCourseCreate')} />
+              </View>
             ) : null}
-          </View>
+          </Tile>
         )}
       </SuperAdminDesktopFrame>
     );
@@ -472,163 +665,137 @@ export function SuperAdminCoursesScreen({ navigation }: Props) {
     <View style={styles.screen}>
       <AdminMobileHeader
         title="Courses"
-        subtitle={`${superAdminCourses.length} club${superAdminCourses.length === 1 ? '' : 's'} on Flagrr${counts.pending > 0 ? ` · ${counts.pending} awaiting setup` : ''}`}
         showBack={false}
         right={
           <View style={styles.headerActions}>
-            <TouchableOpacity
-              onPress={() => navigation.navigate('SuperAdminCourseMaps')}
-              hitSlop={8}
-              accessibilityLabel="Course maps"
-              accessibilityRole="button"
-            >
-              <Ionicons name="map-outline" size={24} color={colors.clubGreen} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => navigation.navigate('SuperAdminCourseCreate')}
-              hitSlop={8}
-              accessibilityLabel="Add Course"
-              accessibilityRole="button"
-            >
-              <Ionicons name="add-circle" size={28} color={colors.clubGreen} />
-            </TouchableOpacity>
+            <CircleButton icon="map-outline" onPress={() => navigation.navigate('SuperAdminCourseMaps')} accessibilityLabel="Course maps" size={44} />
+            <CircleButton icon="add" onPress={() => navigation.navigate('SuperAdminCourseCreate')} accessibilityLabel="Add Course" size={44} />
           </View>
         }
       />
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterTabsScroll} contentContainerStyle={styles.filterTabsScrollContent}>
-        {filterTabs}
-      </ScrollView>
-      {searchArea}
-
-      {loading ? (
-        <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
-      ) : (
-        <FlatList
-          data={filtered}
-          keyExtractor={(c) => c.id}
-          renderItem={({ item }) => renderCard(item)}
-          contentContainerStyle={styles.listContent}
-          ListEmptyComponent={
-            <Text style={styles.emptyText}>
-              {superAdminCourses.length === 0 ? 'No courses yet — tap + to add one.' : 'No courses match your search.'}
-            </Text>
-          }
-          ListFooterComponent={
-            filtered.length > 0 && (statusFilter === 'all' || statusFilter === 'active') ? (
-              <AddCourseCard onPress={() => navigation.navigate('SuperAdminCourseCreate')} />
-            ) : null
-          }
-        />
-      )}
+      <FlatList
+        data={loading || loadError ? [] : filtered}
+        keyExtractor={(c) => c.id}
+        renderItem={({ item }) => renderCard(item)}
+        contentContainerStyle={styles.listContent}
+        ListHeaderComponent={
+          <View style={styles.mHeader}>
+            <CoursesHero summary={summary} compact />
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterTabsScroll}>
+              {filterTabs}
+            </ScrollView>
+            {searchField}
+          </View>
+        }
+        ListEmptyComponent={
+          loadError ? (
+            <ErrorState onRetry={retryLoad} />
+          ) : loading ? (
+            <Tile>
+              <SkeletonRows rows={4} />
+            </Tile>
+          ) : (
+            <Tile padded={false}>
+              {superAdminCourses.length === 0 ? (
+                <EmptyState icon="business-outline" title="No courses yet — tap + to add one." />
+              ) : (
+                <EmptyState icon="search-outline" title="No courses match your search." />
+              )}
+            </Tile>
+          )
+        }
+        ListFooterComponent={
+          !loading && !loadError && filtered.length > 0 && showAddCard ? (
+            <AddCourseCard onPress={() => navigation.navigate('SuperAdminCourseCreate')} />
+          ) : null
+        }
+      />
     </View>
   );
 }
 
-function createStyles(colors: ThemeColors) {
+function createStyles(c: AdminColors) {
   return StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.background },
-  headerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  searchArea: { paddingHorizontal: screenPadding, paddingTop: spacing.sm, gap: spacing.xs },
-  // flexGrow 0: react-native-web gives ScrollView flex-grow/shrink 1 by
-  // default, which squashed this row to a clipped sliver on phones.
-  filterTabsScroll: { marginTop: spacing.md, flexGrow: 0, flexShrink: 0 },
-  filterTabsScrollContent: { paddingHorizontal: screenPadding },
-  filterTabs: { flexDirection: 'row', gap: 4, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.pill, padding: 4, alignSelf: 'flex-start' },
-  filterTab: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: radius.pill },
-  filterTabActive: { backgroundColor: colors.darkGreen },
-  filterTabText: { fontFamily: fontFamily.bodyMedium, fontSize: 12.5, color: colors.textSecondary },
-  filterTabTextActive: { color: colors.white },
-  filterTabCount: { opacity: 0.65 },
-  listContent: { padding: screenPadding, gap: spacing.md },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md, marginTop: spacing.lg },
-  gridCell: { flexGrow: 1, flexBasis: 360, maxWidth: 460 },
-  dToolbar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.lg },
-  dSearchWrap: { minWidth: 260 },
-  card: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 20,
-    padding: spacing.md,
-    gap: spacing.sm,
-  },
-  cardHover: {
-    borderColor: colors.clubGreen,
-    transform: [{ translateY: -2 }],
-    shadowColor: colors.clubGreen,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.12,
-    shadowRadius: 16,
-    elevation: 3,
-  },
-  cardTopRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: spacing.sm },
-  cardIdentity: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flex: 1, minWidth: 0 },
-  cardIdentityText: { flex: 1, minWidth: 0, gap: 1 },
-  avatar: { width: 44, height: 44, borderRadius: 13, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  avatarText: { fontFamily: fontFamily.headingBold, fontSize: 14, color: colors.white },
-  cardTitle: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.textPrimary },
-  cardSlug: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textMuted },
-  cardTopRight: { flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 0 },
-  badge: { borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 4 },
-  badgeText: { fontFamily: fontFamily.bodySemiBold, fontSize: 10.5 },
-  moreButton: { width: 30, height: 30, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center' },
-  statsRow: { flexDirection: 'row', gap: spacing.sm },
-  statChip: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.mintBgAlt, borderRadius: radius.sm, paddingHorizontal: 10, paddingVertical: 8, flex: 1 },
-  statIcon: { width: 26, height: 26, borderRadius: radius.pill, backgroundColor: colors.mintBg, alignItems: 'center', justifyContent: 'center' },
-  statIconMuted: { backgroundColor: colors.border },
-  statValue: { fontFamily: fontFamily.bodySemiBold, fontSize: 13, color: colors.textPrimary },
-  statLabel: { fontFamily: fontFamily.body, fontSize: 10.5, color: colors.textSecondary },
-  hintRow: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.warningBg, borderRadius: radius.sm, paddingHorizontal: 10, paddingVertical: 8 },
-  hintText: { flex: 1, fontFamily: fontFamily.body, fontSize: 11.5, color: colors.warning },
-  divider: { height: 1, backgroundColor: colors.border },
-  actionsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  pillButton: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.mintBgAlt, borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 7 },
-  pillButtonGrid: { flexGrow: 1, flexBasis: '40%', justifyContent: 'center', paddingVertical: 9 },
-  pillButtonFull: { flexBasis: '100%', justifyContent: 'center', paddingVertical: 9 },
-  pillButtonText: { fontFamily: fontFamily.bodyMedium, fontSize: 12, color: colors.darkGreen },
-  pillButtonSolid: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.clubGreen, borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 7 },
-  pillButtonSolidText: { fontFamily: fontFamily.bodySemiBold, fontSize: 12, color: colors.white },
-  menuBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
-  menuSheet: { backgroundColor: colors.background, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, padding: spacing.lg, gap: 2 },
-  menuSheetTitle: { fontFamily: fontFamily.heading, fontSize: fontSize.cardTitle, color: colors.textPrimary, marginBottom: spacing.sm },
-  menuRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.sm },
-  menuRowText: { fontFamily: fontFamily.body, fontSize: fontSize.body, color: colors.textPrimary },
-  menuDivider: { height: 1, backgroundColor: colors.border, marginVertical: spacing.xs },
-  ghostCard: {
-    borderWidth: 2,
-    borderStyle: 'dashed',
-    borderColor: colors.inputBorder,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    padding: spacing.lg,
-    minHeight: 170,
-  },
-  ghostCardHover: { borderColor: colors.clubGreen, backgroundColor: colors.mintBgAlt },
-  ghostIcon: { width: 38, height: 38, borderRadius: radius.pill, backgroundColor: colors.clubGreen, alignItems: 'center', justifyContent: 'center' },
-  ghostTitle: { fontFamily: fontFamily.bodySemiBold, fontSize: 13, color: colors.textPrimary },
-  ghostSubtitle: { fontFamily: fontFamily.body, fontSize: 11.5, color: colors.textMuted, textAlign: 'center', maxWidth: 220 },
-  emptyText: {
-    fontFamily: fontFamily.body,
-    fontSize: fontSize.body,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginTop: spacing.xl,
-  },
-  dHeadRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  dPageTitle: { fontFamily: fontFamily.heading, fontSize: 26, color: colors.textPrimary },
-  dPageSubtitle: { fontFamily: fontFamily.body, fontSize: 13, color: colors.textSecondary, marginTop: 2 },
-  dAddButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: colors.lime,
-    borderRadius: radius.pill,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-  },
-  dAddButtonText: { fontFamily: fontFamily.bodySemiBold, fontSize: 13, color: colors.darkGreen },
-});
+    screen: { flex: 1, backgroundColor: 'transparent' },
+    headerActions: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+    // flexGrow 0: react-native-web gives ScrollView flex-grow/shrink 1 by
+    // default, which squashed this row to a clipped sliver on phones.
+    filterTabsScroll: { flexGrow: 0, flexShrink: 0 },
+    mHeader: { gap: 12, marginBottom: 2 },
+    listContent: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 40, gap: 12 },
+
+    hero: { height: 170, borderRadius: adminRadius.lg, overflow: 'hidden', justifyContent: 'flex-end' },
+    heroCompact: { height: 132, borderRadius: adminRadius.md },
+    heroContent: { paddingHorizontal: 30, paddingBottom: 22 },
+    heroContentCompact: { paddingHorizontal: 18, paddingBottom: 16 },
+    heroEyebrow: { ...adminFont.bodyBold, fontSize: 11.5, letterSpacing: 1.3, textTransform: 'uppercase', color: ON_PHOTO, opacity: 0.8 },
+    heroTitle: { ...adminFont.title, fontSize: 44, letterSpacing: -0.8, lineHeight: 48, color: ON_PHOTO, marginTop: 6 },
+    heroTitleCompact: { fontSize: 30, lineHeight: 34, marginTop: 4 },
+    heroSubtitle: { ...adminFont.body, ...tabularNums, fontSize: 15, color: ON_PHOTO, opacity: 0.86, marginTop: 6 },
+
+    card: { gap: 12 },
+    cardTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+    cardIdentity: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1, minWidth: 0 },
+    cardIdentityText: { flex: 1, minWidth: 0, gap: 1 },
+    cardTitle: { ...adminFont.bodySemiBold, fontSize: 15.5, color: c.ink },
+    cardSlug: { ...adminFont.body, fontSize: 12.5, color: c.ink2 },
+    cardTopRight: { flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 0 },
+    statsRow: { flexDirection: 'row', gap: 8 },
+    statChip: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: c.fill, borderRadius: adminRadius.sm, paddingHorizontal: 12, paddingVertical: 9 },
+    statValue: { ...adminFont.bodyBold, ...tabularNums, fontSize: 15, color: c.ink },
+    statLabel: { ...adminFont.body, fontSize: 12.5, color: c.ink2 },
+    hintRow: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: c.amberBg, borderRadius: adminRadius.sm, paddingHorizontal: 12, paddingVertical: 9 },
+    hintText: { flex: 1, ...adminFont.body, fontSize: 13, color: c.ink },
+    divider: { height: StyleSheet.hairlineWidth, backgroundColor: c.edge },
+    actionsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    cardLink: { height: 44, flexGrow: 1, flexBasis: '40%' },
+    cardLinkFull: { height: 44, flexBasis: '100%' },
+
+    menuBackdrop: { flex: 1, justifyContent: 'flex-end' },
+    menuBackdropDesktop: { justifyContent: 'center', alignItems: 'center' },
+    menuSheet: {
+      backgroundColor: c.sheet,
+      borderTopLeftRadius: adminRadius.lg,
+      borderTopRightRadius: adminRadius.lg,
+      paddingHorizontal: 12,
+      paddingTop: 18,
+      paddingBottom: 28,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: c.edge,
+    },
+    menuSheetDesktop: { width: 360, borderRadius: adminRadius.lg, paddingBottom: 12 },
+    menuSheetTitle: { ...adminFont.bodyBold, fontSize: 17, color: c.ink, marginBottom: 6, marginHorizontal: 12 },
+    menuRow: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 52, paddingHorizontal: 12, borderRadius: adminRadius.sm },
+    menuRowText: { ...adminFont.body, fontSize: 15.5, color: c.ink },
+    menuDivider: { height: StyleSheet.hairlineWidth, backgroundColor: c.edge, marginVertical: 4, marginHorizontal: 12 },
+
+    ghostCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      minHeight: 58,
+      borderWidth: 1.5,
+      borderStyle: 'dashed',
+      borderColor: c.edge,
+      borderRadius: adminRadius.md,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+    },
+    ghostCardHover: { backgroundColor: c.fill2 },
+    ghostIcon: { width: 34, height: 34, borderRadius: 17, backgroundColor: c.fill, alignItems: 'center', justifyContent: 'center' },
+    ghostTitle: { ...adminFont.bodySemiBold, fontSize: 14.5, color: c.ink },
+    ghostSubtitle: { ...adminFont.body, fontSize: 12.5, color: c.ink2, marginTop: 1 },
+
+    dStrip: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 16 },
+    dToolbar: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginTop: 18, marginBottom: 12 },
+    dSearchWrap: { width: 280 },
+    dTableTile: { overflow: 'hidden', paddingVertical: 4 },
+    dAddRow: { paddingHorizontal: 18, paddingTop: 8, paddingBottom: 14 },
+    clubCell: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+    tableHint: { ...adminFont.body, fontSize: 12.5, color: c.amber },
+    chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+    chip: { flexDirection: 'row', alignItems: 'center', gap: 5, height: 32, paddingHorizontal: 11, borderRadius: adminRadius.pill, backgroundColor: c.fill },
+    chipText: { ...adminFont.bodySemiBold, fontSize: 13, color: c.ink },
+  });
 }

@@ -1,6 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { FlatList, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import type { CompositeScreenProps } from '@react-navigation/native';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
@@ -9,14 +8,24 @@ import type { AdminStackParamList, AdminTabParamList } from '../../navigation/ty
 import { useAdmin } from '../../context/AdminContext';
 import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
 import { AdminDesktopFrame } from '../../components/admin/desktop/AdminDesktopFrame';
-import { DesktopPanel } from '../../components/admin/desktop/DesktopPanel';
+import {
+  AdminButton,
+  CircleButton,
+  EmptyState,
+  ErrorState,
+  PageTitle,
+  Segmented,
+  SkeletonRows,
+  StatusPill,
+  Tile,
+} from '../../components/admin/ui';
 import { AdminApiError } from '../../api/adminClient';
 import { TextField } from '../../components/common/TextField';
 import { AdminMobileHeader } from '../../components/admin/AdminMobileHeader';
 import { showAlert } from '../../utils/alert';
-import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
-import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
+import { useAdminTheme } from '../../context/ThemeContext';
 import type { AdminBroadcast } from '../../data/adminTypes';
+import { adminFont } from '../../theme/admin';
 
 type Props = CompositeScreenProps<
   BottomTabScreenProps<AdminTabParamList, 'AdminPush'>,
@@ -49,14 +58,16 @@ function targetLabel(target: string): string {
 }
 
 export function AdminPushScreen({ navigation }: Props) {
-  const colors = useThemeColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { c } = useAdminTheme();
   const isDesktop = useIsDesktopNav();
   const { broadcasts, loadBroadcasts, sendBroadcast, deleteBroadcast } = useAdmin();
   const [loading, setLoading] = useState(true);
   const [resendingId, setResendingId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<TargetFilter>('all');
+  // Load failures used to be swallowed silently; surface them with a retry.
+  const [error, setError] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -72,8 +83,11 @@ export function AdminPushScreen({ navigation }: Props) {
       let cancelled = false;
       (async () => {
         setLoading(true);
+        setError(false);
         try {
           await loadBroadcasts();
+        } catch {
+          if (!cancelled) setError(true);
         } finally {
           if (!cancelled) setLoading(false);
         }
@@ -82,8 +96,10 @@ export function AdminPushScreen({ navigation }: Props) {
         cancelled = true;
       };
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []),
+    }, [reloadKey]),
   );
+
+  const retry = () => setReloadKey((k) => k + 1);
 
   const handleSendAgain = (item: AdminBroadcast) => {
     showAlert(
@@ -128,85 +144,81 @@ export function AdminPushScreen({ navigation }: Props) {
   };
 
   const renderItem = ({ item }: { item: AdminBroadcast }) => (
-    <View style={styles.card}>
-      <View style={styles.cardTopRow}>
-        <Text style={styles.cardTitle} numberOfLines={1}>{item.title}</Text>
-        <View style={styles.targetBadge}>
-          <Text style={styles.targetBadgeText}>{targetLabel(item.target)}</Text>
-        </View>
-      </View>
-      <Text style={styles.cardBody} numberOfLines={2}>{item.body}</Text>
-      <Text style={styles.cardMeta}>
+    <Tile style={[styles.card, isDesktop && styles.dCard]}>
+      <Text style={[styles.cardTitle, { color: c.ink }]} numberOfLines={1}>{item.title}</Text>
+      <StatusPill label={targetLabel(item.target)} tone="neutral" style={styles.targetPill} />
+      <Text style={[styles.cardBody, { color: c.ink2 }]} numberOfLines={2}>{item.body}</Text>
+      <Text style={[styles.cardMeta, { color: c.ink3 }]}>
         {formatSentAt(item.sentAt)} · {item.recipientCount} recipient{item.recipientCount === 1 ? '' : 's'}
       </Text>
       <View style={styles.cardActions}>
-        <TouchableOpacity
-          style={styles.actionButton}
+        <AdminButton
+          variant="glass"
+          icon="send-outline"
+          label="Send Again"
           onPress={() => handleSendAgain(item)}
           disabled={resendingId === item.id}
-        >
-          {resendingId === item.id ? (
-            <ActivityIndicator color={colors.clubGreen} size="small" />
-          ) : (
-            <>
-              <Ionicons name="send-outline" size={15} color={colors.clubGreen} />
-              <Text style={styles.actionButtonText}>Send Again</Text>
-            </>
-          )}
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.actionButton} onPress={() => handleDelete(item)}>
-          <Ionicons name="trash-outline" size={15} color={colors.negative} />
-          <Text style={[styles.actionButtonText, { color: colors.negative }]}>Delete</Text>
-        </TouchableOpacity>
+          loading={resendingId === item.id}
+          style={!isDesktop && styles.mAction}
+        />
+        <AdminButton
+          variant="danger"
+          icon="trash-outline"
+          label="Delete"
+          onPress={() => handleDelete(item)}
+          style={!isDesktop && styles.mAction}
+        />
       </View>
-    </View>
+    </Tile>
   );
 
   const searchAndFilters = (
-    <View style={styles.searchArea}>
-      <TextField placeholder="Search notifications" variant="onLight" icon="search" value={search} onChangeText={setSearch} />
-      <View style={styles.filterRow}>
-        {FILTERS.map((f) => (
-          <TouchableOpacity
-            key={f.value}
-            onPress={() => setFilter(f.value)}
-            style={[styles.filterPill, filter === f.value && styles.filterPillActive]}
-            accessibilityLabel={`Filter ${f.label}`}
-            accessibilityRole="button"
-          >
-            <Text style={[styles.filterText, filter === f.value && styles.filterTextActive]}>{f.label}</Text>
-          </TouchableOpacity>
-        ))}
+    <View style={[styles.searchArea, isDesktop && styles.dSearchArea]}>
+      <View style={isDesktop ? styles.dSearch : undefined}>
+        <TextField placeholder="Search notifications" variant="onLight" icon="search" value={search} onChangeText={setSearch} />
       </View>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterBar}>
+        <Segmented<TargetFilter>
+          options={FILTERS.map((f) => ({ key: f.value, label: f.label }))}
+          value={filter}
+          onChange={setFilter}
+          accessibilityLabel="Filter by audience"
+        />
+      </ScrollView>
     </View>
   );
+
+  const emptyOrError = (emptyTitle: string) =>
+    error ? (
+      <ErrorState onRetry={retry} />
+    ) : (
+      <Tile>
+        <EmptyState icon="megaphone-outline" title={emptyTitle} />
+      </Tile>
+    );
 
   if (isDesktop) {
     return (
       <AdminDesktopFrame activeKey="AdminPush" breadcrumb="Push Notifications">
         <View style={styles.dHeadRow}>
-          <Text style={styles.dPageTitle}>Push Notifications</Text>
-          <TouchableOpacity style={styles.dAddButton} onPress={() => navigation.navigate('AdminBroadcastCompose', undefined)}>
-            <Ionicons name="add" size={16} color={colors.darkGreen} />
-            <Text style={styles.dAddButtonText}>New Notification</Text>
-          </TouchableOpacity>
+          <PageTitle>Push Notifications</PageTitle>
+          <AdminButton variant="accent" icon="add" label="New Notification" onPress={() => navigation.navigate('AdminBroadcastCompose', undefined)} />
         </View>
-        <DesktopPanel title="Sent Notifications">
-          {searchAndFilters}
-          {loading ? (
-            <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.md }} />
-          ) : filtered.length === 0 ? (
-            <Text style={styles.emptyText}>
-              {broadcasts.length === 0 ? 'No notifications sent yet.' : 'No notifications match your search.'}
-            </Text>
-          ) : (
-            <View style={{ gap: spacing.sm, marginTop: spacing.sm }}>
-              {filtered.map((item) => (
-                <React.Fragment key={item.id}>{renderItem({ item })}</React.Fragment>
-              ))}
-            </View>
-          )}
-        </DesktopPanel>
+        {searchAndFilters}
+        <Text accessibilityRole="header" style={[styles.sectionTitle, { color: c.ink }]}>Sent Notifications</Text>
+        {loading ? (
+          <Tile>
+            <SkeletonRows rows={4} />
+          </Tile>
+        ) : error || filtered.length === 0 ? (
+          emptyOrError(broadcasts.length === 0 ? 'No notifications sent yet.' : 'No notifications match your search.')
+        ) : (
+          <View style={styles.dGrid}>
+            {filtered.map((item) => (
+              <React.Fragment key={item.id}>{renderItem({ item })}</React.Fragment>
+            ))}
+          </View>
+        )}
       </AdminDesktopFrame>
     );
   }
@@ -217,86 +229,60 @@ export function AdminPushScreen({ navigation }: Props) {
         title="Push Notifications"
         showBack={false}
         right={
-          <TouchableOpacity
+          <CircleButton
+            icon="add"
+            size={44}
             onPress={() => navigation.navigate('AdminBroadcastCompose', undefined)}
-            hitSlop={8}
             accessibilityLabel="New Notification"
-            accessibilityRole="button"
-          >
-            <Ionicons name="add-circle" size={28} color={colors.clubGreen} />
-          </TouchableOpacity>
+          />
         }
       />
 
       {searchAndFilters}
 
       {loading ? (
-        <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
+        <View style={styles.listContent}>
+          <Tile>
+            <SkeletonRows rows={4} />
+          </Tile>
+        </View>
+      ) : error ? (
+        <View style={styles.listContent}>
+          <ErrorState onRetry={retry} />
+        </View>
       ) : (
         <FlatList
           data={filtered}
           keyExtractor={(b) => b.id}
           renderItem={renderItem}
           contentContainerStyle={styles.listContent}
-          ListEmptyComponent={
-            <Text style={styles.emptyText}>
-              {broadcasts.length === 0
-                ? 'No notifications sent yet — tap + to send your first one.'
-                : 'No notifications match your search.'}
-            </Text>
-          }
+          ListEmptyComponent={emptyOrError(
+            broadcasts.length === 0
+              ? 'No notifications sent yet — tap + to send your first one.'
+              : 'No notifications match your search.',
+          )}
         />
       )}
     </View>
   );
 }
 
-function createStyles(colors: ThemeColors) {
-  return StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.background },
-  searchArea: { paddingHorizontal: screenPadding, paddingTop: spacing.md, gap: spacing.sm },
-  filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  filterPill: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: radius.pill, backgroundColor: colors.mintBgAlt },
-  filterPillActive: { backgroundColor: colors.darkGreen },
-  filterText: { fontFamily: fontFamily.heading, fontSize: 11, color: colors.textPrimary },
-  filterTextActive: { color: colors.white },
-  listContent: { padding: screenPadding, gap: spacing.sm },
-  card: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 16,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
-    gap: 4,
-  },
-  cardTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
-  cardTitle: { flex: 1, fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.textPrimary },
-  targetBadge: { backgroundColor: colors.background, borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 3 },
-  targetBadgeText: { fontFamily: fontFamily.bodySemiBold, fontSize: 10, color: colors.textPrimary },
-  cardBody: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary },
-  cardMeta: { fontFamily: fontFamily.body, fontSize: 10, color: colors.textSecondary, marginTop: 2 },
-  cardActions: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.xs },
-  actionButton: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 4 },
-  actionButtonText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.tiny, color: colors.clubGreen },
-  emptyText: {
-    fontFamily: fontFamily.body,
-    fontSize: fontSize.body,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginTop: spacing.xl,
-  },
-  dHeadRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  dPageTitle: { fontFamily: fontFamily.heading, fontSize: 26, color: colors.textPrimary },
-  dAddButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: colors.lime,
-    borderRadius: radius.pill,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-  },
-  dAddButtonText: { fontFamily: fontFamily.bodySemiBold, fontSize: 13, color: colors.darkGreen },
+const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: 'transparent' },
+  searchArea: { paddingHorizontal: 16, paddingTop: 4, gap: 10 },
+  dSearchArea: { paddingHorizontal: 0, paddingTop: 16, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 12 },
+  dSearch: { flex: 1, minWidth: 220, maxWidth: 360 },
+  filterBar: { flexGrow: 0 },
+  listContent: { padding: 16, paddingBottom: 48, gap: 12 },
+  card: { gap: 6 },
+  dCard: { flexGrow: 1, flexBasis: 360, maxWidth: 620 },
+  cardTitle: { ...adminFont.bodyBold, fontSize: 15.5 },
+  targetPill: { marginTop: 2 },
+  cardBody: { ...adminFont.body, fontSize: 13.5, lineHeight: 19, marginTop: 2 },
+  cardMeta: { ...adminFont.body, fontSize: 12.5, marginTop: 4 },
+  cardActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 },
+  mAction: { height: 44 },
+  sectionTitle: { ...adminFont.bodyBold, fontSize: 17, marginTop: 22, marginBottom: 12 },
+  dHeadRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' },
+  dGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 14 },
 });
-}

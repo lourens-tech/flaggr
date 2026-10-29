@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AdminStackParamList } from '../../navigation/types';
 import { AdminStatCard } from '../../components/admin/AdminStatCard';
@@ -13,9 +12,14 @@ import { DesktopStatCard } from '../../components/admin/desktop/DesktopStatCard'
 import { DesktopPanel } from '../../components/admin/desktop/DesktopPanel';
 import { downloadReport, AdminApiError } from '../../api/adminClient';
 import { showAlert } from '../../utils/alert';
-import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
-import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
+import { useAdminTheme } from '../../context/ThemeContext';
 import type { MemberStats } from '../../data/adminTypes';
+import { adminFont, adminRadius, type AdminColors } from '../../theme/admin';
+import { AdminButton, Muted, PageTitle, Segmented, SkeletonRows, StatusPill, Tile } from '../../components/admin/ui';
+
+// Brand constants for member avatars: Fairway ground, lime initials.
+const FAIRWAY = '#1F4234';
+const LIME = '#CDDE5C';
 
 type Period = 'month' | 'year' | 'all';
 const PERIOD_LABELS: Record<Period, string> = { month: 'Month', year: 'Year', all: 'All' };
@@ -24,8 +28,8 @@ const PERIODS: Period[] = ['month', 'year', 'all'];
 type Props = NativeStackScreenProps<AdminStackParamList, 'AdminMemberStats'>;
 
 export function AdminMemberStatsScreen({ route, navigation }: Props) {
-  const colors = useThemeColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { c } = useAdminTheme();
+  const styles = useMemo(() => createStyles(c), [c]);
   const isDesktop = useIsDesktopNav();
   const { memberId } = route.params;
   const { getMemberStats } = useAdmin();
@@ -74,42 +78,64 @@ export function AdminMemberStatsScreen({ route, navigation }: Props) {
     }
   };
 
-  const periodToggle = (
-    <View style={styles.periodToggle}>
-      {PERIODS.map((p) => (
-        <TouchableOpacity
-          key={p}
-          onPress={() => handlePeriodChange(p)}
-          style={[styles.periodPill, period === p && styles.periodPillActive]}
-        >
-          <Text style={[styles.periodText, period === p && styles.periodTextActive]}>{PERIOD_LABELS[p]}</Text>
-        </TouchableOpacity>
-      ))}
+  const periodToggle = (fullWidth: boolean) => (
+    <Segmented
+      accessibilityLabel="Period"
+      fullWidth={fullWidth}
+      value={period}
+      onChange={handlePeriodChange}
+      options={PERIODS.map((p) => ({ key: p, label: PERIOD_LABELS[p] }))}
+    />
+  );
+
+  const memberName = data ? `${data.member.firstName} ${data.member.lastName}` : 'Member Stats';
+
+  const tierRow = data ? (
+    <View style={styles.tierRow}>
+      <StatusPill label={`${data.member.tier} Member`} />
+      <StatusPill label={`${data.member.balance.toLocaleString()} FC Balance`} />
     </View>
+  ) : null;
+
+  const downloadButton = (fullWidth: boolean) => (
+    <AdminButton
+      label="Download Member Excel Report"
+      icon="download-outline"
+      onPress={handleExport}
+      loading={exporting}
+      size={fullWidth ? 'lg' : 'md'}
+      fullWidth={fullWidth}
+      style={fullWidth ? undefined : { alignSelf: 'flex-start' }}
+    />
   );
 
   if (isDesktop) {
     return (
       <AdminDesktopFrame
-        activeKey=""
-        breadcrumb={data ? `${data.member.firstName} ${data.member.lastName}` : 'Member Stats'}
-        headerRight={periodToggle}
+        activeKey="AdminDashboard"
+        breadcrumb={`Home › ${memberName}`}
+        headerRight={periodToggle(false)}
         showRail={false}
       >
-        <Text style={styles.dPageTitle}>{data ? `${data.member.firstName} ${data.member.lastName}` : 'Member Stats'}</Text>
-        {data ? <Text style={styles.dPageSubtitle}>{data.member.email}</Text> : null}
+        <View style={styles.dHead}>
+          {data ? (
+            <View style={styles.dAvatar} accessible={false}>
+              <Text style={styles.dAvatarText}>{`${data.member.firstName.charAt(0)}${data.member.lastName.charAt(0)}`.toUpperCase()}</Text>
+            </View>
+          ) : null}
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <PageTitle>{memberName}</PageTitle>
+            {data ? <Muted style={styles.dPageSubtitle}>{data.member.email}</Muted> : null}
+          </View>
+        </View>
 
         {loading && !data ? (
-          <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
+          <Tile>
+            <SkeletonRows rows={3} />
+          </Tile>
         ) : data ? (
           <>
-            <View style={styles.tierRow}>
-              <View style={styles.tierPill}>
-                <Ionicons name="trophy-outline" size={14} color={colors.textPrimary} />
-                <Text style={styles.tierPillText}>{data.member.tier} Member</Text>
-              </View>
-              <Text style={styles.balanceText}>{data.member.balance.toLocaleString()} FC Balance</Text>
-            </View>
+            {tierRow}
 
             <View style={styles.dStatRow}>
               <DesktopStatCard label="Rounds (9 Holes)" value={data.stats.roundsPlayed9} icon="golf-outline" deltaPct={data.stats.roundsPlayed9DeltaPct} showDelta={period !== 'all'} />
@@ -120,14 +146,10 @@ export function AdminMemberStatsScreen({ route, navigation }: Props) {
             </View>
 
             <DesktopPanel title="Flagrr Cash Earned Per Month">
-              <BarChart data={data.stats.monthly} height={130} />
+              <BarChart data={data.stats.monthly} height={150} />
             </DesktopPanel>
 
-            <TouchableOpacity style={styles.dDownloadRow} onPress={handleExport} disabled={exporting}>
-              <Ionicons name="download-outline" size={18} color={colors.clubGreen} />
-              <Text style={styles.dDownloadLabel}>Download Member Excel Report</Text>
-              {exporting ? <ActivityIndicator color={colors.clubGreen} size="small" /> : null}
-            </TouchableOpacity>
+            {downloadButton(false)}
           </>
         ) : null}
       </AdminDesktopFrame>
@@ -136,28 +158,19 @@ export function AdminMemberStatsScreen({ route, navigation }: Props) {
 
   return (
     <View style={styles.screen}>
-      <AdminMobileHeader
-        title={data ? `${data.member.firstName} ${data.member.lastName}` : 'Member Stats'}
-        subtitle={data ? data.member.email : undefined}
-      />
+      <AdminMobileHeader title={memberName} subtitle={data ? data.member.email : undefined} />
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.statsHeaderRow}>
-          <Text style={styles.sectionTitle}>Overview</Text>
-          {periodToggle}
-        </View>
+        <Text accessibilityRole="header" style={styles.sectionTitle}>Overview</Text>
+        {periodToggle(true)}
 
         {loading && !data ? (
-          <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
+          <Tile style={{ marginTop: 14 }}>
+            <SkeletonRows rows={3} />
+          </Tile>
         ) : data ? (
           <>
-            <View style={styles.tierRow}>
-              <View style={styles.tierPill}>
-                <Ionicons name="trophy-outline" size={14} color={colors.textPrimary} />
-                <Text style={styles.tierPillText}>{data.member.tier} Member</Text>
-              </View>
-              <Text style={styles.balanceText}>{data.member.balance.toLocaleString()} FC Balance</Text>
-            </View>
+            <View style={{ marginTop: 14 }}>{tierRow}</View>
 
             <View style={styles.statsGrid}>
               <View style={styles.statsRow}>
@@ -206,18 +219,12 @@ export function AdminMemberStatsScreen({ route, navigation }: Props) {
               />
             </View>
 
-            <View style={styles.chartCard}>
-              <Text style={styles.chartTitle}>Flagrr Cash Earned Per Month</Text>
-              <BarChart data={data.stats.monthly} />
-            </View>
+            <Tile style={styles.chartCard}>
+              <Text accessibilityRole="header" style={styles.chartTitle}>Flagrr Cash Earned Per Month</Text>
+              <BarChart data={data.stats.monthly} height={120} />
+            </Tile>
 
-            <View style={styles.card}>
-              <TouchableOpacity style={styles.downloadRow} onPress={handleExport} disabled={exporting}>
-                <Ionicons name="download-outline" size={20} color={colors.clubGreen} />
-                <Text style={styles.downloadLabel}>Download Member Excel Report</Text>
-                {exporting ? <ActivityIndicator color={colors.clubGreen} size="small" /> : null}
-              </TouchableOpacity>
-            </View>
+            {downloadButton(true)}
           </>
         ) : null}
       </ScrollView>
@@ -225,80 +232,27 @@ export function AdminMemberStatsScreen({ route, navigation }: Props) {
   );
 }
 
-function createStyles(colors: ThemeColors) {
+function createStyles(c: AdminColors) {
   return StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.background },
-  content: { padding: screenPadding, paddingBottom: spacing.xl * 2 },
-  statsHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.md,
-  },
-  periodToggle: {
-    flexDirection: 'row',
-    backgroundColor: colors.mintBg,
-    borderRadius: radius.pill,
-    padding: 3,
-  },
-  periodPill: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: radius.pill },
-  periodPillActive: { backgroundColor: colors.darkGreen },
-  periodText: { fontFamily: fontFamily.heading, fontSize: 12, color: colors.textPrimary },
-  periodTextActive: { color: colors.white },
-  sectionTitle: { fontFamily: fontFamily.heading, fontSize: fontSize.title, color: colors.textPrimary, marginBottom: spacing.sm },
-  tierRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.md,
-  },
-  tierPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: colors.mintBg,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 6,
-    borderRadius: radius.pill,
-  },
-  tierPillText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.tiny, color: colors.textPrimary },
-  balanceText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.textPrimary },
-  statsGrid: { gap: spacing.sm, marginBottom: spacing.lg },
-  statsRow: { flexDirection: 'row', gap: 10 },
-  chartCard: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 16,
-    padding: spacing.md,
-    marginBottom: spacing.lg,
-  },
-  chartTitle: { fontFamily: fontFamily.heading, fontSize: fontSize.small, color: colors.textPrimary, marginBottom: spacing.md },
-  card: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 16,
-    padding: spacing.md,
-    marginBottom: spacing.lg,
-    gap: spacing.sm,
-  },
-  downloadRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  downloadLabel: { flex: 1, fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.textPrimary },
-  dPageTitle: { fontFamily: fontFamily.heading, fontSize: 26, color: colors.textPrimary },
-  dPageSubtitle: { fontFamily: fontFamily.body, fontSize: 13, color: colors.textSecondary, marginTop: 2 },
-  dStatRow: { flexDirection: 'row', gap: 14, flexWrap: 'wrap' },
-  dDownloadRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    backgroundColor: colors.mintBgAlt,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 14,
-    padding: spacing.md,
-    alignSelf: 'flex-start',
-  },
-  dDownloadLabel: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.textPrimary },
-});
+    screen: { flex: 1, backgroundColor: 'transparent' },
+    content: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 48 },
+    sectionTitle: { ...adminFont.bodyBold, fontSize: 17, color: c.ink, marginBottom: 10 },
+    tierRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
+    statsGrid: { gap: 10, marginTop: 14, marginBottom: 14 },
+    statsRow: { flexDirection: 'row', gap: 10 },
+    chartCard: { marginBottom: 16, gap: 14 },
+    chartTitle: { ...adminFont.bodyBold, fontSize: 17, color: c.ink },
+    dHead: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+    dAvatar: {
+      width: 56,
+      height: 56,
+      borderRadius: adminRadius.pill,
+      backgroundColor: FAIRWAY,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    dAvatarText: { ...adminFont.bodyBold, fontSize: 19, color: LIME },
+    dPageSubtitle: { marginTop: 4 },
+    dStatRow: { flexDirection: 'row', gap: 14, flexWrap: 'wrap' },
+  });
 }

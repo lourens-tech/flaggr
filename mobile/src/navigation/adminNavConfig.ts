@@ -32,52 +32,56 @@ function stack(screen: string): DesktopNavTarget {
   return { screen };
 }
 
-// Mirrors exactly what's reachable today via AdminTabNavigator + AdminNavigator
-// for a course_admin — regrouped for a sidebar instead of a flat tab bar.
-// Detail/edit screens (AdminRewardEdit, AdminEnquiryChat, AdminStaffEdit,
-// AdminCatalogItemEdit, AdminReportDetail, etc.) are reached from inside
-// their parent screen, same as before, so they aren't top-level nav items.
+// Every section a course_admin can reach, grouped for the desktop sidebar,
+// the phone More tab and ⌘K search. Detail/edit screens (AdminRewardEdit,
+// AdminEnquiryChat, AdminStaffEdit, AdminCatalogItemEdit, AdminReportDetail,
+// etc.) are reached from inside their parent screen, so they aren't items
+// here; they pass their parent's key as activeKey so it stays highlighted.
 export const ADMIN_NAV_GROUPS: DesktopNavGroup[] = [
   {
-    label: 'Overview',
-    items: [{ key: 'AdminDashboard', label: 'Dashboard', icon: 'grid-outline', target: tab('AdminTabs', 'AdminDashboard') }],
+    label: '',
+    items: [{ key: 'AdminDashboard', label: 'Home', icon: 'home-outline', target: tab('AdminTabs', 'AdminDashboard') }],
   },
   {
-    label: 'Engagement',
+    label: 'Members',
     items: [
-      { key: 'AdminEnquiries', label: 'Enquiries', icon: 'chatbubbles-outline', target: tab('AdminTabs', 'AdminEnquiries') },
-      { key: 'AdminPush', label: 'Push Notifications', icon: 'megaphone-outline', target: tab('AdminTabs', 'AdminPush') },
-      { key: 'AdminRewards', label: 'Rewards', icon: 'gift-outline', target: tab('AdminTabs', 'AdminRewards') },
-      { key: 'AdminCatalog', label: 'Products and Activities', icon: 'pricetags-outline', target: stack('AdminCatalog') },
-    ],
-  },
-  {
-    label: 'Operations',
-    items: [
-      { key: 'AdminVouchers', label: 'Voucher Redemption', icon: 'qr-code-outline', target: tab('AdminTabs', 'AdminVouchers') },
+      { key: 'AdminEnquiries', label: 'Enquiries', icon: 'chatbubble-outline', target: tab('AdminTabs', 'AdminEnquiries') },
       { key: 'AdminFraudOversight', label: 'Fraud Review', icon: 'flag-outline', target: stack('AdminFraudOversight') },
-      { key: 'AdminMemberList', label: 'Member List', icon: 'people-outline', target: stack('AdminMemberList') },
+      { key: 'AdminMemberList', label: 'Member Roster', icon: 'people-outline', target: stack('AdminMemberList') },
     ],
   },
   {
-    label: 'Settings',
+    label: 'Rewards',
     items: [
-      { key: 'AdminStaffList', label: 'Staff and Club Admins', icon: 'people-circle-outline', target: stack('AdminStaffList') },
-      { key: 'AdminCourseProfile', label: 'Course Profile', icon: 'business-outline', target: tab('AdminTabs', 'AdminCourseProfile') },
+      { key: 'AdminRewards', label: 'Rewards', icon: 'gift-outline', target: tab('AdminTabs', 'AdminRewards') },
+      { key: 'AdminCatalog', label: 'Products and Activities', icon: 'pricetag-outline', target: stack('AdminCatalog') },
+      { key: 'AdminVouchers', label: 'Vouchers', icon: 'qr-code-outline', target: tab('AdminTabs', 'AdminVouchers') },
+    ],
+  },
+  {
+    label: 'Messaging',
+    items: [{ key: 'AdminPush', label: 'Push Notifications', icon: 'megaphone-outline', target: tab('AdminTabs', 'AdminPush') }],
+  },
+  {
+    label: 'Club',
+    items: [
+      { key: 'AdminStaffList', label: 'Staff and Admins', icon: 'person-outline', target: stack('AdminStaffList') },
+      { key: 'AdminCourseProfile', label: 'Club Settings', icon: 'business-outline', target: tab('AdminTabs', 'AdminCourseProfile') },
+      { key: 'AdminSupportTickets', label: 'Flagrr Support', icon: 'headset-outline', target: stack('AdminSupportTickets') },
     ],
   },
 ];
 
-// A `staff` account only ever sees Vouchers + its own profile (see
-// AdminTabNavigator) — mirror that restriction in the sidebar.
+// A `staff` account only sees Vouchers, Flagrr Support and its own profile
+// (see AdminTabNavigator; enforced server-side by STAFF_ALLOWED_ACTIONS).
 export const ADMIN_STAFF_NAV_GROUPS: DesktopNavGroup[] = [
   {
-    label: 'Operations',
-    items: [{ key: 'AdminVouchers', label: 'Voucher Redemption', icon: 'qr-code-outline', target: tab('AdminTabs', 'AdminVouchers') }],
-  },
-  {
-    label: 'Settings',
-    items: [{ key: 'AdminStaffProfile', label: 'Profile', icon: 'person-circle-outline', target: tab('AdminTabs', 'AdminStaffProfile') }],
+    label: '',
+    items: [
+      { key: 'AdminVouchers', label: 'Vouchers', icon: 'qr-code-outline', target: tab('AdminTabs', 'AdminVouchers') },
+      { key: 'AdminSupportTickets', label: 'Flagrr Support', icon: 'headset-outline', target: stack('AdminSupportTickets') },
+      { key: 'AdminStaffProfile', label: 'Profile', icon: 'person-circle-outline', target: tab('AdminTabs', 'AdminStaffProfile') },
+    ],
   },
 ];
 
@@ -85,50 +89,51 @@ export function getAdminNavGroups(role: AdminRole): DesktopNavGroup[] {
   return role === 'staff' ? ADMIN_STAFF_NAV_GROUPS : ADMIN_NAV_GROUPS;
 }
 
-// Mirrors SuperAdminTabNavigator + SuperAdminNavigator for a super_admin.
+// Every super_admin section. Profile lives on the account button.
 export const SUPER_ADMIN_NAV_GROUPS: DesktopNavGroup[] = [
   {
-    label: 'Overview',
+    label: 'Clubs',
     items: [
       { key: 'SuperAdminCourses', label: 'Courses', icon: 'business-outline', target: tab('SuperAdminTabs', 'SuperAdminCourses') },
       { key: 'SuperAdminCourseMaps', label: 'Course Maps', icon: 'map-outline', target: stack('SuperAdminCourseMaps') },
     ],
   },
   {
+    label: 'Insights',
+    items: [{ key: 'SuperAdminReports', label: 'Reports', icon: 'bar-chart-outline', target: tab('SuperAdminTabs', 'SuperAdminReports') }],
+  },
+  {
     label: 'Engagement',
     items: [
-      { key: 'SuperAdminAds', label: 'Ads', icon: 'megaphone-outline', target: tab('SuperAdminTabs', 'SuperAdminAds') },
-      { key: 'SuperAdminPush', label: 'Push Notifications', icon: 'notifications-outline', target: tab('SuperAdminTabs', 'SuperAdminPush') },
+      { key: 'SuperAdminAds', label: 'Ads', icon: 'albums-outline', target: tab('SuperAdminTabs', 'SuperAdminAds') },
+      { key: 'SuperAdminPush', label: 'Push Notifications', icon: 'megaphone-outline', target: tab('SuperAdminTabs', 'SuperAdminPush') },
     ],
   },
   {
-    label: 'Operations',
+    label: 'Trust and support',
     items: [
-      { key: 'SuperAdminReports', label: 'Reports', icon: 'bar-chart-outline', target: tab('SuperAdminTabs', 'SuperAdminReports') },
       { key: 'SuperAdminFraudOversight', label: 'Fraud Review', icon: 'flag-outline', target: stack('SuperAdminFraudOversight') },
       { key: 'SuperAdminSupport', label: 'Support Inbox', icon: 'headset-outline', target: tab('SuperAdminTabs', 'SuperAdminSupport') },
     ],
   },
   {
-    label: 'Settings',
+    label: 'Admin',
     items: [
       { key: 'SuperAdminAgents', label: 'Support Agents', icon: 'people-outline', target: stack('SuperAdminAgents') },
       { key: 'SuperAdminAuditLog', label: 'Audit Log', icon: 'time-outline', target: stack('SuperAdminAuditLog') },
-      { key: 'SuperAdminProfile', label: 'Profile', icon: 'person-circle-outline', target: tab('SuperAdminTabs', 'SuperAdminProfile') },
     ],
   },
 ];
 
-// A `support_agent` account only sees Support + its own profile (see
-// SuperAdminTabNavigator).
+// A `support_agent` account only sees the Support inbox and its own profile
+// (see SuperAdminTabNavigator; enforced server-side).
 export const SUPER_ADMIN_SUPPORT_AGENT_NAV_GROUPS: DesktopNavGroup[] = [
   {
-    label: 'Operations',
-    items: [{ key: 'SuperAdminSupport', label: 'Support Inbox', icon: 'headset-outline', target: tab('SuperAdminTabs', 'SuperAdminSupport') }],
-  },
-  {
-    label: 'Settings',
-    items: [{ key: 'SuperAdminProfile', label: 'Profile', icon: 'person-circle-outline', target: tab('SuperAdminTabs', 'SuperAdminProfile') }],
+    label: '',
+    items: [
+      { key: 'SuperAdminSupport', label: 'Inbox', icon: 'headset-outline', target: tab('SuperAdminTabs', 'SuperAdminSupport') },
+      { key: 'SuperAdminProfile', label: 'Profile', icon: 'person-circle-outline', target: tab('SuperAdminTabs', 'SuperAdminProfile') },
+    ],
   },
 ];
 

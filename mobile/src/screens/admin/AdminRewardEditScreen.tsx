@@ -1,10 +1,12 @@
-import React, { useEffect, useState, useMemo } from 'react';
-import { Image, ScrollView, StatusBar, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import React, { useEffect, useState } from 'react';
+import { Image, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AdminStackParamList } from '../../navigation/types';
-import { ScreenHeader } from '../../components/common/ScreenHeader';
+import { AdminMobileHeader } from '../../components/admin/AdminMobileHeader';
+import { AdminDesktopFrame } from '../../components/admin/desktop/AdminDesktopFrame';
+import { AdminButton, PageTitle, Tile } from '../../components/admin/ui';
+import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
 import { TextField } from '../../components/common/TextField';
 import { SelectField } from '../../components/common/SelectField';
 import { PillButton } from '../../components/common/PillButton';
@@ -12,8 +14,8 @@ import { useAdmin } from '../../context/AdminContext';
 import { AdminApiError, type RewardVariantPayload } from '../../api/adminClient';
 import { pickAndResizeAvatar, AvatarPermissionError } from '../../utils/pickAvatar';
 import { showAlert } from '../../utils/alert';
-import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
-import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
+import { useAdminTheme } from '../../context/ThemeContext';
+import { adminFont, adminRadius, tabularNums } from '../../theme/admin';
 
 type Props = NativeStackScreenProps<AdminStackParamList, 'AdminRewardEdit'>;
 
@@ -36,8 +38,8 @@ function newVariant(sortOrder: number): LocalVariant {
 }
 
 export function AdminRewardEditScreen({ navigation, route }: Props) {
-  const colors = useThemeColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { c } = useAdminTheme();
+  const isDesktop = useIsDesktopNav();
   const { rewards, course, saveReward, deleteReward } = useAdmin();
   const existing = rewards.find((r) => r.id === route.params.rewardId);
 
@@ -160,136 +162,149 @@ export function AdminRewardEditScreen({ navigation, route }: Props) {
     ]);
   };
 
+  const pageTitle = existing ? 'Edit Reward' : 'New Reward';
+
+  const form = (
+    <View style={styles.form}>
+      <Pressable
+        onPress={handlePickImage}
+        disabled={uploadingImage}
+        accessibilityRole="button"
+        accessibilityLabel={previewUrl ? 'Change photo' : 'Add photo'}
+        style={({ pressed }) => [styles.imagePicker, { backgroundColor: c.fill, borderColor: c.edge }, pressed && { opacity: 0.85 }]}
+      >
+        {previewUrl ? (
+          <Image source={{ uri: previewUrl }} style={styles.imagePreview} resizeMode="cover" />
+        ) : (
+          <View style={styles.imagePlaceholder}>
+            <Ionicons name="image-outline" size={26} color={c.icon} />
+            <Text style={[styles.imagePlaceholderText, { color: c.ink2 }]}>Add photo</Text>
+          </View>
+        )}
+      </Pressable>
+
+      <Tile style={styles.fields}>
+        <TextField placeholder="Title" variant="onLight" value={title} onChangeText={setTitle} />
+        <TextField placeholder="Description" variant="onLight" value={description} onChangeText={setDescription} multiline />
+        <SelectField placeholder="Category" variant="onLight" options={CATEGORY_OPTIONS} value={category} onChange={setCategory} />
+        <View style={[styles.activeRow, { borderTopColor: c.edge }]}>
+          <Text style={[styles.activeLabel, { color: c.ink }]}>Visible in Rewards Shop</Text>
+          <Switch value={active} onValueChange={setActive} trackColor={{ true: c.accent }} />
+        </View>
+      </Tile>
+
+      <Text accessibilityRole="header" style={[styles.sectionTitle, { color: c.ink }]}>Options</Text>
+      {variants
+        .filter((v) => v.active !== false)
+        .map((v) => (
+          <Tile key={v.key} style={styles.variantCard}>
+            <View style={styles.variantRow}>
+              <View style={{ flex: 1 }}>
+                <TextField
+                  placeholder="Label (e.g. R500 or Standard)"
+                  variant="onLight"
+                  value={v.label}
+                  onChangeText={(text) => updateVariant(v.key, { label: text })}
+                />
+              </View>
+              <Pressable
+                onPress={() => removeVariant(v.key)}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="Remove option"
+                style={({ pressed }) => [styles.removeButton, { backgroundColor: c.negBg }, pressed && { opacity: 0.7 }]}
+              >
+                <Ionicons name="remove" size={18} color={c.neg} />
+              </Pressable>
+            </View>
+            <TextField
+              placeholder={`Rand value (auto-prices at ${course.fbPerRand} FC per R1)`}
+              variant="onLight"
+              keyboardType="numeric"
+              value={v.randValue != null ? String(v.randValue) : ''}
+              onChangeText={(text) => {
+                const n = text.trim() === '' ? null : Number(text);
+                updateVariant(v.key, { randValue: Number.isFinite(n) ? n : null });
+              }}
+            />
+            {v.randValue != null ? (
+              <Text style={[styles.computedCost, { color: c.ink2 }]}>
+                = {Math.round(v.randValue * course.fbPerRand).toLocaleString()} Flagrr Cash
+              </Text>
+            ) : null}
+          </Tile>
+        ))}
+
+      <AdminButton
+        variant="plain"
+        icon="add"
+        label="Add another option"
+        onPress={() => setVariants((prev) => [...prev, newVariant(prev.length)])}
+        style={styles.addVariantButton}
+      />
+
+      <View style={styles.actions}>
+        <PillButton label="Save Reward" onPress={handleSave} loading={saving} />
+        {existing ? (
+          <AdminButton variant="danger" label="Remove Reward" onPress={handleDelete} disabled={saving} size="lg" fullWidth />
+        ) : null}
+      </View>
+    </View>
+  );
+
+  if (isDesktop) {
+    return (
+      <AdminDesktopFrame
+        activeKey="AdminRewards"
+        breadcrumb={`Rewards › ${existing ? existing.title : 'New reward'}`}
+        showRail={false}
+      >
+        <PageTitle>{pageTitle}</PageTitle>
+        {form}
+      </AdminDesktopFrame>
+    );
+  }
+
   return (
     <View style={styles.screen}>
-      <StatusBar barStyle="light-content" />
-      <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
-        <ScreenHeader title={existing ? 'Edit Reward' : 'New Reward'} onBack={() => navigation.goBack()} />
-      </SafeAreaView>
+      <AdminMobileHeader title={pageTitle} onBack={() => navigation.goBack()} />
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <TouchableOpacity style={styles.imagePicker} onPress={handlePickImage} disabled={uploadingImage}>
-          {previewUrl ? (
-            <Image source={{ uri: previewUrl }} style={styles.imagePreview} />
-          ) : (
-            <View style={styles.imagePlaceholder}>
-              <Ionicons name="image-outline" size={24} color={colors.clubGreen} />
-              <Text style={styles.imagePlaceholderText}>Add photo</Text>
-            </View>
-          )}
-        </TouchableOpacity>
-
-        <TextField placeholder="Title" variant="onLight" value={title} onChangeText={setTitle} />
-        <View style={{ height: spacing.md }} />
-        <TextField placeholder="Description" variant="onLight" value={description} onChangeText={setDescription} multiline />
-        <View style={{ height: spacing.md }} />
-        <SelectField placeholder="Category" variant="onLight" options={CATEGORY_OPTIONS} value={category} onChange={setCategory} />
-
-        <View style={styles.activeRow}>
-          <Text style={styles.activeLabel}>Visible in Rewards Shop</Text>
-          <Switch value={active} onValueChange={setActive} trackColor={{ true: colors.clubGreen }} />
-        </View>
-
-        <Text style={styles.sectionTitle}>Options</Text>
-        {variants
-          .filter((v) => v.active !== false)
-          .map((v) => (
-            <View key={v.key} style={styles.variantCard}>
-              <View style={styles.variantRow}>
-                <View style={{ flex: 1 }}>
-                  <TextField
-                    placeholder="Label (e.g. R500 or Standard)"
-                    variant="onLight"
-                    value={v.label}
-                    onChangeText={(text) => updateVariant(v.key, { label: text })}
-                  />
-                </View>
-                <TouchableOpacity onPress={() => removeVariant(v.key)} hitSlop={8} style={{ marginLeft: spacing.sm }}>
-                  <Ionicons name="close-circle-outline" size={22} color={colors.negative} />
-                </TouchableOpacity>
-              </View>
-              <View style={{ height: spacing.sm }} />
-              <TextField
-                placeholder={`Rand value (auto-prices at ${course.fbPerRand} FC per R1)`}
-                variant="onLight"
-                keyboardType="numeric"
-                value={v.randValue != null ? String(v.randValue) : ''}
-                onChangeText={(text) => {
-                  const n = text.trim() === '' ? null : Number(text);
-                  updateVariant(v.key, { randValue: Number.isFinite(n) ? n : null });
-                }}
-              />
-              {v.randValue != null ? (
-                <Text style={styles.computedCost}>
-                  = {Math.round(v.randValue * course.fbPerRand).toLocaleString()} Flagrr Cash
-                </Text>
-              ) : null}
-            </View>
-          ))}
-
-        <TouchableOpacity
-          style={styles.addVariantButton}
-          onPress={() => setVariants((prev) => [...prev, newVariant(prev.length)])}
-        >
-          <Ionicons name="add" size={18} color={colors.clubGreen} />
-          <Text style={styles.addVariantText}>Add another option</Text>
-        </TouchableOpacity>
-
-        <View style={{ height: spacing.lg }} />
-        <PillButton label="Save Reward" onPress={handleSave} loading={saving} />
-
-        {existing ? (
-          <TouchableOpacity onPress={handleDelete} style={styles.deleteButton} disabled={saving}>
-            <Text style={styles.deleteText}>Remove Reward</Text>
-          </TouchableOpacity>
-        ) : null}
+        {form}
       </ScrollView>
     </View>
   );
 }
 
-function createStyles(colors: ThemeColors) {
-  return StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.background },
-  headerSafeArea: { backgroundColor: colors.clubGreen },
-  content: { padding: screenPadding, paddingBottom: spacing.xl * 2 },
-  imagePicker: { alignSelf: 'center', marginBottom: spacing.lg },
-  imagePreview: { width: 120, height: 120, borderRadius: radius.md },
-  imagePlaceholder: {
-    width: 120,
-    height: 120,
-    borderRadius: radius.md,
-    backgroundColor: colors.imagePlaceholder,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
+const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: 'transparent' },
+  content: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 64 },
+  form: { width: '100%', maxWidth: 640, gap: 14 },
+  imagePicker: {
+    height: 150,
+    borderRadius: adminRadius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    overflow: 'hidden',
   },
-  imagePlaceholderText: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.clubGreen },
+  imagePreview: { width: '100%', height: '100%' },
+  imagePlaceholder: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 6 },
+  imagePlaceholderText: { ...adminFont.bodySemiBold, fontSize: 14 },
+  fields: { gap: 12 },
   activeRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: spacing.md,
+    gap: 12,
+    minHeight: 52,
+    paddingTop: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
-  activeLabel: { fontFamily: fontFamily.body, fontSize: fontSize.body, color: colors.textPrimary },
-  sectionTitle: {
-    fontFamily: fontFamily.heading,
-    fontSize: fontSize.cardTitle,
-    color: colors.textPrimary,
-    marginTop: spacing.lg,
-    marginBottom: spacing.sm,
-  },
-  variantCard: {
-    backgroundColor: colors.inputBg,
-    borderRadius: radius.md,
-    padding: spacing.sm,
-    marginBottom: spacing.sm,
-  },
-  variantRow: { flexDirection: 'row', alignItems: 'center' },
-  computedCost: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary, marginTop: 4, marginLeft: 4 },
-  addVariantButton: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: spacing.sm },
-  addVariantText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.clubGreen },
-  deleteButton: { alignItems: 'center', marginTop: spacing.lg },
-  deleteText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.negative },
+  activeLabel: { ...adminFont.body, fontSize: 15, flex: 1 },
+  sectionTitle: { ...adminFont.bodyBold, fontSize: 17, marginTop: 10 },
+  variantCard: { gap: 10 },
+  variantRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  removeButton: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  computedCost: { ...adminFont.body, ...tabularNums, fontSize: 13, marginLeft: 4 },
+  addVariantButton: { alignSelf: 'flex-start' },
+  actions: { gap: 12, marginTop: 10 },
 });
-}

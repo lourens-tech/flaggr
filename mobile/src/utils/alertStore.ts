@@ -38,6 +38,31 @@ export function dismissAlert() {
   emit();
 }
 
+// The admin consoles draw alerts in their own style (AdminAlertHost, mounted
+// inside AdminThemeScope). While one is mounted, the app-wide AppAlertHost
+// stands aside; if several are (a screen transition), only the newest draws.
+let adminHosts: number[] = [];
+let nextHostId = 1;
+
+export function registerAdminAlertHost(): { id: number; unregister: () => void } {
+  const id = nextHostId++;
+  adminHosts = [...adminHosts, id];
+  state = { ...state };
+  emit();
+  return {
+    id,
+    unregister: () => {
+      adminHosts = adminHosts.filter((h) => h !== id);
+      state = { ...state };
+      emit();
+    },
+  };
+}
+
+export function activeAdminAlertHost(): number | null {
+  return adminHosts.length ? adminHosts[adminHosts.length - 1] : null;
+}
+
 export function subscribeAlert(listener: (s: AlertConfig) => void): () => void {
   listeners.push(listener);
   listener(state);

@@ -2,12 +2,14 @@ import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react'
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
+  Modal,
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
+  useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -18,11 +20,13 @@ import { useAdmin } from '../../context/AdminContext';
 import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
 import { useLiveThread } from '../../hooks/useLiveThread';
 import { SuperAdminDesktopFrame } from '../../components/admin/desktop/SuperAdminDesktopFrame';
+import { useHover, hoverTransition } from '../../hooks/useHover';
+import { AdminButton, SkeletonRows, Tile } from '../../components/admin/ui';
 import { AdminApiError } from '../../api/adminClient';
 import { showAlert } from '../../utils/alert';
-import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
-import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
+import { useAdminTheme } from '../../context/ThemeContext';
 import type { SupportInboxTicketThread, SupportTicketPriority, SupportTicketStatus } from '../../data/adminTypes';
+import { adminFont, adminRadius, type AdminColors } from '../../theme/admin';
 
 type Props = NativeStackScreenProps<SuperAdminStackParamList, 'SuperAdminSupportTicketChat'>;
 
@@ -39,6 +43,9 @@ const PRIORITY_OPTIONS: Array<{ label: string; value: SupportTicketPriority }> =
   { label: 'Urgent', value: 'urgent' },
 ];
 
+const STATUS_MENU = STATUS_OPTIONS.map((o) => ({ key: o.value, label: o.label }));
+const PRIORITY_MENU = PRIORITY_OPTIONS.map((o) => ({ key: o.value, label: o.label }));
+
 const REQUESTER_LABEL: Record<string, string> = {
   member: 'Member',
   course_admin: 'Course Admin',
@@ -50,8 +57,8 @@ function formatTime(iso: string): string {
 }
 
 export function SuperAdminSupportTicketChatScreen({ route }: Props) {
-  const colors = useThemeColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { c } = useAdminTheme();
+  const styles = useMemo(() => createStyles(c), [c]);
   const isDesktop = useIsDesktopNav();
   const { ticketId } = route.params;
   const {
@@ -177,65 +184,59 @@ export function SuperAdminSupportTicketChatScreen({ route }: Props) {
   };
 
   const body = loading || !thread ? (
-    <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
+    <View style={styles.loadingPad}>
+      <SkeletonRows rows={4} />
+    </View>
   ) : (
     <>
           <View style={styles.requesterInfo}>
+            {isDesktop ? <Text style={styles.dSubject} accessibilityRole="header" numberOfLines={2}>{thread.subject}</Text> : null}
             <Text style={styles.requesterName} numberOfLines={1}>{thread.requesterName}</Text>
-            <Text style={styles.requesterEmail} numberOfLines={1}>{thread.requesterEmail}</Text>
-            <Text style={styles.requesterType}>{REQUESTER_LABEL[thread.requesterType] ?? thread.requesterType}</Text>
-          </View>
-
-          <View style={styles.assignmentRow}>
-            <Text style={styles.assignmentText} numberOfLines={1}>
-              {thread.assignedAgentId === admin.id
-                ? 'Assigned to you'
-                : thread.assignedAgentName
-                  ? `Assigned to ${thread.assignedAgentName}`
-                  : 'Unassigned'}
+            <Text style={styles.requesterEmail} numberOfLines={1}>
+              {thread.requesterEmail} · {REQUESTER_LABEL[thread.requesterType] ?? thread.requesterType}
             </Text>
-            {updatingAssignment ? (
-              <ActivityIndicator color={colors.clubGreen} size="small" />
-            ) : thread.assignedAgentId === null ? (
-              <TouchableOpacity onPress={handleClaim}>
-                <Text style={styles.assignmentAction}>Claim</Text>
-              </TouchableOpacity>
-            ) : thread.assignedAgentId === admin.id ? (
-              <TouchableOpacity onPress={handleUnassign}>
-                <Text style={styles.assignmentAction}>Release</Text>
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity onPress={handleTakeOver}>
-                <Text style={styles.assignmentAction}>Take Over</Text>
-              </TouchableOpacity>
-            )}
           </View>
 
-          <View style={styles.statusRow}>
-            {STATUS_OPTIONS.map((s) => (
-              <TouchableOpacity
-                key={s.value}
-                onPress={() => handleStatusChange(s.value)}
+          {/* Toolbar above the thread: assignment, status and priority. */}
+          <View style={styles.toolbar}>
+            <View style={styles.assignment}>
+              <Text style={styles.assignmentText} numberOfLines={1}>
+                {thread.assignedAgentId === admin.id
+                  ? 'Assigned to you'
+                  : thread.assignedAgentName
+                    ? `Assigned to ${thread.assignedAgentName}`
+                    : 'Unassigned'}
+              </Text>
+              {updatingAssignment ? (
+                <ActivityIndicator color={c.ink3} size="small" />
+              ) : thread.assignedAgentId === null ? (
+                <AdminButton label="Claim" variant="glass" onPress={handleClaim} />
+              ) : thread.assignedAgentId === admin.id ? (
+                <AdminButton label="Release" variant="glass" onPress={handleUnassign} />
+              ) : (
+                <AdminButton label="Take Over" variant="glass" onPress={handleTakeOver} />
+              )}
+            </View>
+            <View style={styles.toolbarMenus}>
+              <MenuPill
+                label={`Status: ${STATUS_MENU.find((o) => o.key === thread.status)?.label ?? thread.status}`}
+                options={STATUS_MENU}
+                value={thread.status}
+                onChange={handleStatusChange}
+                accessibilityLabel="Status"
                 disabled={updatingStatus}
-                style={[styles.statusPill, thread.status === s.value && styles.statusPillActive]}
-              >
-                <Text style={[styles.statusText, thread.status === s.value && styles.statusTextActive]}>{s.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          <Text style={styles.priorityLabel}>Priority</Text>
-          <View style={styles.statusRow}>
-            {PRIORITY_OPTIONS.map((p) => (
-              <TouchableOpacity
-                key={p.value}
-                onPress={() => handlePriorityChange(p.value)}
+                busy={updatingStatus}
+              />
+              <MenuPill
+                label={`Priority: ${PRIORITY_MENU.find((o) => o.key === thread.priority)?.label ?? thread.priority}`}
+                options={PRIORITY_MENU}
+                value={thread.priority}
+                onChange={handlePriorityChange}
+                accessibilityLabel="Priority"
                 disabled={updatingPriority}
-                style={[styles.statusPill, thread.priority === p.value && styles.statusPillActive]}
-              >
-                <Text style={[styles.statusText, thread.priority === p.value && styles.statusTextActive]}>{p.label}</Text>
-              </TouchableOpacity>
-            ))}
+                busy={updatingPriority}
+              />
+            </View>
           </View>
 
           <ScrollView ref={scrollRef} contentContainerStyle={styles.messages} showsVerticalScrollIndicator={false}>
@@ -247,7 +248,9 @@ export function SuperAdminSupportTicketChatScreen({ route }: Props) {
                 <View style={[styles.bubble, m.senderType === 'agent' ? styles.bubbleAgent : styles.bubbleRequester]}>
                   <Text style={[styles.bubbleText, m.senderType === 'agent' && styles.bubbleTextAgent]}>{m.body}</Text>
                 </View>
-                <Text style={styles.bubbleTime}>{formatTime(m.createdAt)}</Text>
+                <Text style={[styles.bubbleTime, m.senderType === 'agent' ? styles.bubbleTimeRight : styles.bubbleTimeLeft]}>
+                  {formatTime(m.createdAt)}
+                </Text>
               </View>
             ))}
           </ScrollView>
@@ -256,19 +259,20 @@ export function SuperAdminSupportTicketChatScreen({ route }: Props) {
             <View style={{ flex: 1 }}>
               <TextField placeholder="Type a reply…" variant="onLight" value={draft} onChangeText={setDraft} multiline />
             </View>
-            <TouchableOpacity
+            <Pressable
               onPress={handleSend}
               disabled={sending || !draft.trim()}
-              style={styles.sendButton}
+              style={[styles.sendButton, (sending || !draft.trim()) && styles.sendButtonIdle]}
               accessibilityLabel="Send reply"
               accessibilityRole="button"
+              accessibilityState={{ disabled: sending || !draft.trim(), busy: sending }}
             >
               {sending ? (
-                <ActivityIndicator color={colors.white} size="small" />
+                <ActivityIndicator color={c.onAccent} size="small" />
               ) : (
-                <Ionicons name="send" size={18} color={colors.white} />
+                <Ionicons name="send" size={18} color={c.onAccent} />
               )}
-            </TouchableOpacity>
+            </Pressable>
           </View>
     </>
   );
@@ -276,7 +280,7 @@ export function SuperAdminSupportTicketChatScreen({ route }: Props) {
   if (isDesktop) {
     return (
       <SuperAdminDesktopFrame activeKey="SuperAdminSupport" breadcrumb={thread?.subject ?? 'Ticket'} showRail={false} scrollable={false}>
-        <View style={styles.dChatCard}>{body}</View>
+        <Tile style={styles.dChatCard} padded={false}>{body}</Tile>
       </SuperAdminDesktopFrame>
     );
   }
@@ -285,72 +289,180 @@ export function SuperAdminSupportTicketChatScreen({ route }: Props) {
     <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <AdminMobileHeader title={thread?.subject ?? 'Ticket'} />
 
-      {body}
+      <Tile style={styles.mChatCard} padded={false}>{body}</Tile>
     </KeyboardAvoidingView>
   );
 }
 
-function createStyles(colors: ThemeColors) {
+// A compact pill that opens a small pop-up menu of choices, anchored under
+// the pill (the kit has no menu yet, so it lives here).
+function MenuPill<K extends string>({
+  label,
+  options,
+  value,
+  onChange,
+  accessibilityLabel,
+  disabled,
+  busy,
+}: {
+  label: string;
+  options: Array<{ key: K; label: string }>;
+  value: K;
+  onChange: (key: K) => void;
+  accessibilityLabel: string;
+  disabled?: boolean;
+  busy?: boolean;
+}) {
+  const { c } = useAdminTheme();
+  const anchorRef = useRef<View>(null);
+  const [anchor, setAnchor] = useState<{ x: number; y: number; h: number } | null>(null);
+  const [hovered, hoverHandlers] = useHover();
+  const win = useWindowDimensions();
+  const open = () => {
+    anchorRef.current?.measureInWindow((x, y, _w, h) => setAnchor({ x, y, h }));
+  };
+  const close = () => setAnchor(null);
+  const pick = (key: K) => {
+    setAnchor(null);
+    onChange(key);
+  };
+  const left = anchor ? Math.max(8, Math.min(anchor.x, win.width - MENU_WIDTH - 8)) : 0;
+  return (
+    <>
+      <View ref={anchorRef} collapsable={false}>
+        <Pressable
+          onPress={open}
+          disabled={disabled}
+          accessibilityRole="button"
+          accessibilityLabel={`${accessibilityLabel}: ${label}`}
+          accessibilityState={{ expanded: anchor !== null, disabled: !!disabled, busy: !!busy }}
+          onHoverIn={hoverHandlers.onMouseEnter}
+          onHoverOut={hoverHandlers.onMouseLeave}
+          style={[
+            menuStyles.pill,
+            hoverTransition,
+            { backgroundColor: hovered && !disabled ? c.sel : c.fill },
+            disabled && { opacity: 0.5 },
+          ]}
+        >
+          <Text style={[menuStyles.pillText, { color: c.ink }]} numberOfLines={1}>{label}</Text>
+          {busy ? <ActivityIndicator size="small" color={c.ink3} /> : <Ionicons name="chevron-down" size={13} color={c.ink3} />}
+        </Pressable>
+      </View>
+      <Modal visible={anchor !== null} transparent statusBarTranslucent animationType="fade" onRequestClose={close}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={close} accessibilityRole="button" accessibilityLabel="Close menu" />
+        {anchor ? (
+          <View
+            accessibilityRole="menu"
+            accessibilityLabel={accessibilityLabel}
+            style={[
+              menuStyles.menu,
+              { top: anchor.y + anchor.h + 6, left, backgroundColor: c.sheet, borderColor: c.edge },
+            ]}
+          >
+            {options.map((o) => (
+              <MenuItem key={o.key} label={o.label} selected={o.key === value} onPress={() => pick(o.key)} />
+            ))}
+          </View>
+        ) : null}
+      </Modal>
+    </>
+  );
+}
+
+function MenuItem({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) {
+  const { c } = useAdminTheme();
+  const [hovered, hoverHandlers] = useHover();
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="menuitem"
+      accessibilityState={{ selected }}
+      onHoverIn={hoverHandlers.onMouseEnter}
+      onHoverOut={hoverHandlers.onMouseLeave}
+      style={({ pressed }) => [menuStyles.item, (hovered || pressed || selected) && { backgroundColor: selected ? c.sel : c.fill2 }]}
+    >
+      <Text style={[menuStyles.itemText, { color: c.ink }]} numberOfLines={1}>{label}</Text>
+      {selected ? <Ionicons name="checkmark" size={16} color={c.icon} /> : null}
+    </Pressable>
+  );
+}
+
+const MENU_WIDTH = 220;
+
+const menuStyles = StyleSheet.create({
+  pill: { height: 38, minWidth: 44, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, borderRadius: adminRadius.pill },
+  pillText: { ...adminFont.bodySemiBold, fontSize: 13.5, flexShrink: 1 },
+  menu: {
+    position: 'absolute',
+    width: MENU_WIDTH,
+    padding: 6,
+    borderRadius: adminRadius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.2,
+    shadowRadius: 28,
+    elevation: 8,
+  },
+  item: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 44, paddingHorizontal: 12, borderRadius: adminRadius.sm },
+  itemText: { ...adminFont.body, fontSize: 14.5, flex: 1 },
+});
+
+function createStyles(c: AdminColors) {
   return StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.background },
-  requesterInfo: { paddingHorizontal: screenPadding, paddingTop: spacing.sm },
-  requesterName: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.textPrimary },
-  requesterEmail: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary, marginTop: 2 },
-  requesterType: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.tiny, color: colors.clubGreen, marginTop: 2 },
-  assignmentRow: {
+  screen: { flex: 1, backgroundColor: 'transparent' },
+  loadingPad: { padding: 20 },
+  requesterInfo: { paddingHorizontal: 20, paddingTop: 16 },
+  dSubject: { ...adminFont.bodyBold, fontSize: 18, color: c.ink, marginBottom: 4 },
+  requesterName: { ...adminFont.bodySemiBold, fontSize: 15, color: c.ink },
+  requesterEmail: { ...adminFont.body, fontSize: 13, color: c.ink2, marginTop: 2 },
+  toolbar: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.sm,
-    paddingHorizontal: screenPadding,
-    paddingTop: spacing.xs,
+    gap: 10,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: c.edge,
   },
-  assignmentText: { flex: 1, minWidth: 0, fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary },
-  assignmentAction: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.tiny, color: colors.clubGreen },
-  priorityLabel: {
-    fontFamily: fontFamily.bodySemiBold,
-    fontSize: fontSize.tiny,
-    color: colors.textSecondary,
-    paddingHorizontal: screenPadding,
-  },
-  statusRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, padding: screenPadding, paddingBottom: spacing.sm },
-  statusPill: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: radius.pill, backgroundColor: colors.mintBgAlt },
-  statusPillActive: { backgroundColor: colors.darkGreen },
-  statusText: { fontFamily: fontFamily.heading, fontSize: 11, color: colors.textPrimary },
-  statusTextActive: { color: colors.white },
-  messages: { padding: screenPadding, gap: spacing.sm, flexGrow: 1 },
+  assignment: { flexDirection: 'row', alignItems: 'center', gap: 10, flexGrow: 1, flexShrink: 1, minWidth: 180 },
+  assignmentText: { flexShrink: 1, ...adminFont.bodySemiBold, fontSize: 13.5, color: c.ink2 },
+  toolbarMenus: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  messages: { paddingHorizontal: 20, paddingVertical: 18, gap: 6, flexGrow: 1 },
   bubbleRow: { maxWidth: '80%' },
   bubbleRowLeft: { alignSelf: 'flex-start' },
   bubbleRowRight: { alignSelf: 'flex-end' },
-  bubble: { borderRadius: radius.md, padding: spacing.sm },
-  bubbleRequester: { backgroundColor: colors.inputBg },
-  bubbleAgent: { backgroundColor: colors.clubGreen },
-  bubbleText: { fontFamily: fontFamily.body, fontSize: fontSize.body, color: colors.textPrimary },
-  bubbleTextAgent: { color: colors.white },
-  bubbleTime: { fontFamily: fontFamily.body, fontSize: 9, color: colors.textSecondary, marginTop: 2, alignSelf: 'flex-end' },
+  bubble: { borderRadius: adminRadius.md, paddingHorizontal: 14, paddingVertical: 10 },
+  bubbleRequester: { backgroundColor: c.fill, borderBottomLeftRadius: 6 },
+  // Fairway bubble with white text for the team's own replies (as in the mockup).
+  bubbleAgent: { backgroundColor: '#1F4234', borderBottomRightRadius: 6 },
+  bubbleText: { ...adminFont.body, fontSize: 14.5, lineHeight: 21, color: c.ink },
+  bubbleTextAgent: { color: '#FFFFFF' },
+  bubbleTime: { ...adminFont.body, fontSize: 11.5, color: c.ink3, marginTop: 3, marginBottom: 6, marginHorizontal: 6 },
+  bubbleTimeLeft: { alignSelf: 'flex-start' },
+  bubbleTimeRight: { alignSelf: 'flex-end' },
   composer: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    gap: spacing.sm,
-    padding: screenPadding,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: c.edge,
   },
   sendButton: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: colors.clubGreen,
+    backgroundColor: c.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  dChatCard: {
-    flex: 1,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 16,
-    overflow: 'hidden',
-  },
+  sendButtonIdle: { opacity: 0.45 },
+  mChatCard: { flex: 1, marginHorizontal: 12, marginBottom: 12, overflow: 'hidden', borderRadius: adminRadius.lg },
+  dChatCard: { flex: 1, overflow: 'hidden', borderRadius: adminRadius.lg },
 });
 }

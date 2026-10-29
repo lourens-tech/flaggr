@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useState } from 'react';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SuperAdminStackParamList } from '../../navigation/types';
 import { AdminMobileHeader } from '../../components/admin/AdminMobileHeader';
@@ -8,19 +8,16 @@ import { PillButton } from '../../components/common/PillButton';
 import { useAdmin } from '../../context/AdminContext';
 import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
 import { SuperAdminDesktopFrame } from '../../components/admin/desktop/SuperAdminDesktopFrame';
-import { DesktopPanel } from '../../components/admin/desktop/DesktopPanel';
+import { PageTitle, Tile } from '../../components/admin/ui';
 import { AdminApiError } from '../../api/adminClient';
 import { showAlert } from '../../utils/alert';
-import { fontFamily, screenPadding, spacing } from '../../theme';
-import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
+import { spacing } from '../../theme';
 
 type Props = NativeStackScreenProps<SuperAdminStackParamList, 'SuperAdminCourseAdminCreate'>;
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function SuperAdminCourseAdminCreateScreen({ navigation, route }: Props) {
-  const colors = useThemeColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
   const isDesktop = useIsDesktopNav();
   const { courseId, courseName } = route.params;
   const { createSuperAdminCourseAdmin } = useAdmin();
@@ -73,11 +70,9 @@ export function SuperAdminCourseAdminCreateScreen({ navigation, route }: Props) 
 
   if (isDesktop) {
     return (
-      <SuperAdminDesktopFrame activeKey="SuperAdminCourses" breadcrumb={pageTitle} showRail={false}>
-        <Text style={styles.dPageTitle}>{pageTitle}</Text>
-        <DesktopPanel title=" " style={{ maxWidth: 480 }}>
-          {form}
-        </DesktopPanel>
+      <SuperAdminDesktopFrame activeKey="SuperAdminCourses" breadcrumb={`Courses › ${courseName} › Course Admins`} showRail={false}>
+        <PageTitle>{pageTitle}</PageTitle>
+        <Tile style={styles.dCard}>{form}</Tile>
       </SuperAdminDesktopFrame>
     );
   }
@@ -87,16 +82,14 @@ export function SuperAdminCourseAdminCreateScreen({ navigation, route }: Props) 
       <AdminMobileHeader title="New Admin" subtitle={courseName} />
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {form}
+        <Tile>{form}</Tile>
       </ScrollView>
     </View>
   );
 }
 
-function createStyles(colors: ThemeColors) {
-  return StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.background },
-  content: { padding: screenPadding, paddingBottom: spacing.xl * 2 },
-  dPageTitle: { fontFamily: fontFamily.heading, fontSize: 26, color: colors.textPrimary },
+const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: 'transparent' },
+  content: { padding: 16, paddingBottom: spacing.xl * 2 },
+  dCard: { maxWidth: 520, marginTop: 16, padding: 24 },
 });
-}

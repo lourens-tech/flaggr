@@ -1,27 +1,26 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AdminStackParamList } from '../../navigation/types';
 import { AdminMobileHeader } from '../../components/admin/AdminMobileHeader';
-import { PillButton } from '../../components/common/PillButton';
+import { AdminButton, PageTitle, SkeletonRows, Tile } from '../../components/admin/ui';
 import { useAdmin } from '../../context/AdminContext';
 import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
 import { AdminDesktopFrame } from '../../components/admin/desktop/AdminDesktopFrame';
-import { DesktopPanel } from '../../components/admin/desktop/DesktopPanel';
 import { AdminApiError } from '../../api/adminClient';
 import { pickMemberRosterFile, MemberRosterFileError } from '../../utils/pickMemberRosterFile';
 import { showAlert } from '../../utils/alert';
-import { fontFamily, fontSize, screenPadding, spacing } from '../../theme';
-import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
+import { useAdminTheme } from '../../context/ThemeContext';
 import type { MemberRosterStatus } from '../../data/adminTypes';
+import { adminFont, adminRadius, tabularNums, type AdminColors } from '../../theme/admin';
 
 type Props = NativeStackScreenProps<AdminStackParamList, 'AdminMemberList'>;
 
 export function AdminMemberListScreen({ navigation }: Props) {
-  const colors = useThemeColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { c } = useAdminTheme();
+  const styles = useMemo(() => createStyles(c), [c]);
   const isDesktop = useIsDesktopNav();
   const { getMemberRosterStatus, uploadMemberRoster } = useAdmin();
   const [status, setStatus] = useState<MemberRosterStatus | null>(null);
@@ -81,29 +80,24 @@ export function AdminMemberListScreen({ navigation }: Props) {
     }
   };
 
-  const body = (
-    <>
-      <Text style={styles.helpText}>
-        Upload your club's membership list so Flagrr can confirm that new signups are actual members. CSV and Excel
-        (.xlsx) files are supported — First Name, Last Name, and Email columns are needed (Member Number optional).
-        Re-uploading replaces the previous list entirely.
-      </Text>
-      <Text style={styles.helpText}>
-        A member who doesn't match your list can still use the app fully, but stays capped at Bronze tier until
-        they're verified.
-      </Text>
+  const hasList = !!status && status.count > 0;
 
-      <View style={{ height: spacing.lg }} />
-
+  const statusTile = (
+    <Tile style={isDesktop ? styles.dStatusTile : undefined}>
       {loading ? (
-        <ActivityIndicator color={colors.clubGreen} />
+        <SkeletonRows rows={2} />
       ) : (
-        <View style={styles.statusCard}>
-          <Ionicons name="people-outline" size={22} color={colors.clubGreen} />
-          <View style={{ flex: 1 }}>
+        <View style={styles.statusRow}>
+          <View style={styles.iconWell}>
+            <Ionicons name="people-outline" size={24} color={c.icon} />
+          </View>
+          <View style={{ flex: 1, minWidth: 0 }}>
             {status && status.count > 0 ? (
               <>
-                <Text style={styles.statusTitle}>{status.count.toLocaleString()} members on file</Text>
+                <View accessible accessibilityLabel={`${status.count.toLocaleString()} members on file`}>
+                  <Text style={styles.bigCount}>{status.count.toLocaleString()}</Text>
+                  <Text style={styles.statusTitle}>members on file</Text>
+                </View>
                 {status.lastUploadedAt ? (
                   <Text style={styles.statusSubtitle}>
                     Last uploaded {new Date(status.lastUploadedAt).toLocaleDateString()}
@@ -117,23 +111,51 @@ export function AdminMemberListScreen({ navigation }: Props) {
         </View>
       )}
 
-      <View style={{ height: spacing.lg }} />
-      <PillButton
-        label={status && status.count > 0 ? 'Upload New Member List' : 'Upload Member List'}
+      <AdminButton
+        label={hasList ? 'Upload New Member List' : 'Upload Member List'}
         icon="cloud-upload-outline"
+        variant="accent"
+        size="lg"
         onPress={handleUpload}
         loading={uploading}
+        fullWidth={!isDesktop}
+        style={[styles.uploadButton, isDesktop && styles.uploadButtonDesktop]}
       />
-    </>
+    </Tile>
+  );
+
+  const rulesTile = (
+    <Tile style={isDesktop ? styles.dRulesTile : undefined}>
+      <View style={styles.rule}>
+        <View style={styles.ruleIcon}>
+          <Ionicons name="document-text-outline" size={15} color={c.icon} />
+        </View>
+        <Text style={styles.ruleText}>
+          Upload your club's membership list so Flagrr can confirm that new signups are actual members. CSV and Excel
+          (.xlsx) files are supported — First Name, Last Name, and Email columns are needed (Member Number optional).
+          Re-uploading replaces the previous list entirely.
+        </Text>
+      </View>
+      <View style={[styles.rule, styles.ruleDivider]}>
+        <View style={styles.ruleIcon}>
+          <Ionicons name="ribbon-outline" size={15} color={c.icon} />
+        </View>
+        <Text style={styles.ruleText}>
+          A member who doesn't match your list can still use the app fully, but stays capped at Bronze tier until
+          they're verified.
+        </Text>
+      </View>
+    </Tile>
   );
 
   if (isDesktop) {
     return (
       <AdminDesktopFrame activeKey="AdminMemberList" breadcrumb="Member List" showRail={false}>
-        <Text style={styles.dPageTitle}>Member List</Text>
-        <DesktopPanel title=" " style={{ maxWidth: 560 }}>
-          {body}
-        </DesktopPanel>
+        <PageTitle>Member List</PageTitle>
+        <View style={styles.dCols}>
+          {statusTile}
+          {rulesTile}
+        </View>
       </AdminDesktopFrame>
     );
   }
@@ -143,34 +165,44 @@ export function AdminMemberListScreen({ navigation }: Props) {
       <AdminMobileHeader title="Member List" />
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {body}
+        {statusTile}
+        {rulesTile}
       </ScrollView>
     </View>
   );
 }
 
-function createStyles(colors: ThemeColors) {
+function createStyles(c: AdminColors) {
   return StyleSheet.create({
-    screen: { flex: 1, backgroundColor: colors.background },
-    content: { padding: screenPadding, paddingBottom: spacing.xl * 2 },
-    helpText: {
-      fontFamily: fontFamily.body,
-      fontSize: fontSize.tiny,
-      color: colors.textSecondary,
-      marginBottom: spacing.sm,
-    },
-    statusCard: {
-      flexDirection: 'row',
+    screen: { flex: 1, backgroundColor: 'transparent' },
+    content: { padding: 16, paddingBottom: 48, gap: 16 },
+    dCols: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start', gap: 16 },
+    dStatusTile: { flexGrow: 1.25, flexBasis: 360 },
+    dRulesTile: { flexGrow: 1, flexBasis: 320 },
+    statusRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+    iconWell: {
+      width: 48,
+      height: 48,
+      borderRadius: adminRadius.sm,
+      backgroundColor: c.fill,
       alignItems: 'center',
-      gap: spacing.sm,
-      backgroundColor: colors.surface,
-      borderWidth: 1,
-      borderColor: colors.border,
-      borderRadius: 16,
-      padding: spacing.md,
+      justifyContent: 'center',
     },
-    statusTitle: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.textPrimary },
-    statusSubtitle: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary, marginTop: 2 },
-    dPageTitle: { fontFamily: fontFamily.heading, fontSize: 26, color: colors.textPrimary },
+    bigCount: { ...adminFont.bodyBold, ...tabularNums, fontSize: 44, lineHeight: 48, letterSpacing: -1.2, color: c.ink },
+    statusTitle: { ...adminFont.bodySemiBold, fontSize: 15.5, color: c.ink },
+    statusSubtitle: { ...adminFont.body, fontSize: 13, color: c.ink2, marginTop: 4 },
+    uploadButton: { marginTop: 18 },
+    uploadButtonDesktop: { alignSelf: 'flex-start' },
+    rule: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingVertical: 12 },
+    ruleDivider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.edge },
+    ruleIcon: {
+      width: 28,
+      height: 28,
+      borderRadius: adminRadius.sm,
+      backgroundColor: c.fill,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    ruleText: { flex: 1, ...adminFont.body, fontSize: 14, lineHeight: 21, color: c.ink2 },
   });
 }

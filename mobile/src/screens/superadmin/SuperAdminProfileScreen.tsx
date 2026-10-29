@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { CompositeScreenProps } from '@react-navigation/native';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
@@ -8,15 +8,15 @@ import type { SuperAdminStackParamList, SuperAdminTabParamList } from '../../nav
 import { useAdmin } from '../../context/AdminContext';
 import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
 import { SuperAdminDesktopFrame } from '../../components/admin/desktop/SuperAdminDesktopFrame';
-import { DesktopPanel } from '../../components/admin/desktop/DesktopPanel';
+import { useHover, hoverTransition } from '../../hooks/useHover';
 import { AdminMobileHeader } from '../../components/admin/AdminMobileHeader';
-import { QuickLinkButton } from '../../components/admin/desktop/DesktopQuickLink';
+import { PageTitle, StatusPill, Tile } from '../../components/admin/ui';
 import { AdminApiError } from '../../api/adminClient';
 import { showAlert } from '../../utils/alert';
 import { ThemeToggleRow } from '../../components/common/ThemeToggleRow';
 import type { ThemePreference } from '../../context/ThemeContext';
-import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
-import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
+import { useAdminTheme } from '../../context/ThemeContext';
+import { adminFont, adminRadius, type AdminColors } from '../../theme/admin';
 
 type Props = CompositeScreenProps<
   BottomTabScreenProps<SuperAdminTabParamList, 'SuperAdminProfile'>,
@@ -29,12 +29,13 @@ const ROLE_LABEL: Record<string, string> = {
 };
 
 // The basic profile tab for a `super_admin` or `support_agent` account —
-// name, appearance, and logout. Neither role is scoped to any single club,
+// name, appearance, terms and logout (Support Agents, Audit Log and Fraud
+// Oversight live in the sidebar and the More tab). Neither role is scoped to any single club,
 // so there's no course logo to show here (unlike AdminStaffProfileScreen);
 // a generic shield icon stands in for the platform-level identity instead.
 export function SuperAdminProfileScreen({ navigation }: Props) {
-  const colors = useThemeColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { c } = useAdminTheme();
+  const styles = useMemo(() => createStyles(c), [c]);
   const isDesktop = useIsDesktopNav();
   const { admin, updateThemePreference, logout } = useAdmin();
 
@@ -59,54 +60,45 @@ export function SuperAdminProfileScreen({ navigation }: Props) {
     ]);
   };
 
-  // Shared by both layouts — the quick-link rows read as a settings list on a
-  // phone too, where the old stacked outline pills crowded their headings.
+  // Shared by both layouts: identity, then grouped settings rows.
   const profileBody = (
     <>
-      <View style={styles.avatarWrap}>
+      <View style={[styles.identity, isDesktop && styles.identityDesktop]}>
         <View style={styles.avatar}>
-          <Ionicons name="shield-checkmark-outline" size={28} color={colors.clubGreen} />
+          <Ionicons name="shield-checkmark-outline" size={28} color={c.icon} />
         </View>
-        <Text style={styles.name}>{admin.firstName} {admin.lastName}</Text>
-        <Text style={styles.email}>{admin.email}</Text>
-        <View style={styles.roleBadge}>
-          <Text style={styles.roleBadgeText}>{ROLE_LABEL[admin.role] ?? admin.role}</Text>
+        <View style={[styles.identityText, isDesktop && styles.identityTextDesktop]}>
+          {isDesktop ? (
+            <PageTitle>{admin.firstName} {admin.lastName}</PageTitle>
+          ) : (
+            <Text style={styles.name}>{admin.firstName} {admin.lastName}</Text>
+          )}
+          <Text style={[styles.email, !isDesktop && styles.centerText]}>{admin.email}</Text>
         </View>
+        <StatusPill label={ROLE_LABEL[admin.role] ?? admin.role} tone="neutral" style={styles.rolePill} />
       </View>
 
-      {admin.role === 'super_admin' ? (
-        <>
-          <Text style={styles.sectionTitle}>Support Agents</Text>
-          <QuickLinkButton label="Manage Support Agents" icon="headset-outline" tone="green" onPress={() => navigation.navigate('SuperAdminAgents')} />
+      <Text style={styles.cap} accessibilityRole="header">Appearance</Text>
+      <Tile style={styles.groupTile}>
+        <ThemeToggleRow onChange={handleThemeChange} disabled={savingTheme} />
+      </Tile>
 
-          <Text style={styles.sectionTitle}>Accountability</Text>
-          <QuickLinkButton label="View Audit Log" icon="document-text-outline" tone="darkGreen" onPress={() => navigation.navigate('SuperAdminAuditLog')} />
-          <View style={{ marginTop: spacing.sm }}>
-            <QuickLinkButton label="Fraud Oversight" icon="shield-outline" tone="amber" onPress={() => navigation.navigate('SuperAdminFraudOversight')} />
-          </View>
-        </>
-      ) : null}
+      <Text style={styles.cap} accessibilityRole="header">Legal</Text>
+      <Tile style={styles.list} padded={false}>
+        <SettingsRow label="Terms and Privacy" icon="document-text-outline" onPress={() => navigation.navigate('TermsPrivacy')} styles={styles} />
+      </Tile>
 
-      <Text style={styles.sectionTitle}>Appearance</Text>
-      <ThemeToggleRow onChange={handleThemeChange} disabled={savingTheme} />
-
-      <Text style={styles.sectionTitle}>Legal</Text>
-      <QuickLinkButton label="Terms and Privacy" icon="shield-checkmark-outline" tone="lime" onPress={() => navigation.navigate('TermsPrivacy')} />
-
-      <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
-        <Ionicons name="log-out-outline" size={18} color={colors.negative} />
-        <Text style={styles.logoutText}>Log Out</Text>
-      </TouchableOpacity>
+      <Tile style={[styles.list, styles.logoutTile]} padded={false}>
+        <SettingsRow label="Log Out" icon="log-out-outline" destructive onPress={handleLogout} styles={styles} />
+      </Tile>
     </>
   );
 
   if (isDesktop) {
     return (
       <SuperAdminDesktopFrame activeKey="SuperAdminProfile" breadcrumb="Profile" showRail={false}>
-        <Text style={styles.dPageTitle}>My Profile</Text>
-        <DesktopPanel title=" " style={{ maxWidth: 480 }}>
-          {profileBody}
-        </DesktopPanel>
+        <Text style={styles.dEyebrow}>My Profile</Text>
+        <View style={styles.dBody}>{profileBody}</View>
       </SuperAdminDesktopFrame>
     );
   }
@@ -116,52 +108,85 @@ export function SuperAdminProfileScreen({ navigation }: Props) {
       <AdminMobileHeader title="My Profile" subtitle={`Flagrr ${ROLE_LABEL[admin.role] ?? admin.role}`} showBack={false} />
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.card}>{profileBody}</View>
+        {profileBody}
       </ScrollView>
     </View>
   );
 }
 
-function createStyles(colors: ThemeColors) {
+function SettingsRow({
+  label,
+  icon,
+  destructive,
+  onPress,
+  styles,
+}: {
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  destructive?: boolean;
+  onPress: () => void;
+  styles: ReturnType<typeof createStyles>;
+}) {
+  const { c } = useAdminTheme();
+  const [hovered, hoverHandlers] = useHover();
+  const fg = destructive ? c.neg : c.ink;
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      onHoverIn={hoverHandlers.onMouseEnter}
+      onHoverOut={hoverHandlers.onMouseLeave}
+      style={({ pressed }) => [styles.row, hoverTransition, (hovered || pressed) && styles.rowHover]}
+    >
+      <View style={[styles.rowIcon, destructive && styles.rowIconNeg]}>
+        <Ionicons name={icon} size={18} color={destructive ? c.neg : c.icon} />
+      </View>
+      <Text style={[styles.rowText, { color: fg }]} numberOfLines={1}>{label}</Text>
+      {destructive ? null : <Ionicons name="chevron-forward" size={15} color={c.ink3} />}
+    </Pressable>
+  );
+}
+
+function createStyles(c: AdminColors) {
   return StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.background },
-  content: { padding: screenPadding, paddingBottom: spacing.xl * 2 },
-  card: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: spacing.md },
-  avatarWrap: { alignItems: 'center', gap: 4, marginBottom: spacing.xs },
+  screen: { flex: 1, backgroundColor: 'transparent' },
+  content: { padding: 16, paddingBottom: 64 },
+  identity: { alignItems: 'center', gap: 8, paddingTop: 8 },
+  identityDesktop: { flexDirection: 'row', gap: 16, paddingTop: 0 },
+  identityText: { alignItems: 'center', gap: 2 },
+  identityTextDesktop: { flex: 1, alignItems: 'flex-start', gap: 4 },
   avatar: {
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: colors.mintBg,
+    backgroundColor: c.fill,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  name: { fontFamily: fontFamily.heading, fontSize: fontSize.cardTitle, color: colors.textPrimary },
-  email: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary },
-  roleBadge: {
-    backgroundColor: colors.mintBg,
-    borderRadius: radius.pill,
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    marginTop: 4,
+  name: { ...adminFont.bodyBold, fontSize: 20, color: c.ink, textAlign: 'center' },
+  email: { ...adminFont.body, fontSize: 14, color: c.ink2 },
+  centerText: { textAlign: 'center' },
+  rolePill: { alignSelf: 'center' },
+  cap: {
+    ...adminFont.bodyBold,
+    fontSize: 12,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    color: c.ink3,
+    marginTop: 24,
+    marginBottom: 8,
+    marginLeft: 16,
   },
-  roleBadgeText: { fontFamily: fontFamily.bodySemiBold, fontSize: 10, color: colors.textPrimary },
-  sectionTitle: {
-    fontFamily: fontFamily.heading,
-    fontSize: fontSize.cardTitle,
-    color: colors.textPrimary,
-    marginTop: spacing.lg,
-    marginBottom: spacing.sm,
-  },
-  logoutButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    marginTop: spacing.xl,
-    paddingVertical: spacing.sm,
-  },
-  logoutText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.negative },
-  dPageTitle: { fontFamily: fontFamily.heading, fontSize: 26, color: colors.textPrimary },
+  groupTile: { padding: 14 },
+  list: { overflow: 'hidden' },
+  logoutTile: { marginTop: 24 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 52, paddingHorizontal: 14 },
+  rowHover: { backgroundColor: c.fill2 },
+  rowIcon: { width: 32, height: 32, borderRadius: adminRadius.sm, backgroundColor: c.fill, alignItems: 'center', justifyContent: 'center' },
+  rowIconNeg: { backgroundColor: c.negBg },
+  rowText: { ...adminFont.body, fontSize: 16, flex: 1 },
+  dEyebrow: { ...adminFont.bodySemiBold, fontSize: 13.5, color: c.ink3, marginBottom: 10 },
+  dBody: { maxWidth: 560 },
 });
 }

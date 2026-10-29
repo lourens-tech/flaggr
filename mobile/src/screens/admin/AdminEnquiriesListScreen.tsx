@@ -1,5 +1,5 @@
-import React, { useCallback, useState, useMemo } from 'react';
-import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useState } from 'react';
+import { FlatList, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import type { CompositeScreenProps } from '@react-navigation/native';
@@ -9,11 +9,13 @@ import type { AdminStackParamList, AdminTabParamList } from '../../navigation/ty
 import { AdminMobileHeader } from '../../components/admin/AdminMobileHeader';
 import { useAdmin } from '../../context/AdminContext';
 import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
+import { useHover, hoverTransitionNoTransform } from '../../hooks/useHover';
 import { AdminDesktopFrame } from '../../components/admin/desktop/AdminDesktopFrame';
 import { DesktopPanel } from '../../components/admin/desktop/DesktopPanel';
-import { enquiryStatusBadges, fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
-import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
+import { EmptyState, ErrorState, PageTitle, Segmented, SkeletonRows, StatusPill, Tile, type StatusTone } from '../../components/admin/ui';
+import { useAdminTheme } from '../../context/ThemeContext';
 import type { AdminEnquirySummary, EnquiryStatus } from '../../data/adminTypes';
+import { adminFont, adminRadius } from '../../theme/admin';
 
 type Props = CompositeScreenProps<
   BottomTabScreenProps<AdminTabParamList, 'AdminEnquiries'>,
@@ -27,8 +29,14 @@ const FILTERS: Array<{ label: string; value: EnquiryStatus | 'all' }> = [
   { label: 'Resolved', value: 'resolved' },
 ];
 
-// A fixed, theme-invariant palette — these are small self-contained status
-// chips (own bg + fg pair), not surfaces that should flip with dark mode.
+// Status pill per enquiry status: waiting is amber, an active chat is
+// positive, a resolved one is neutral.
+const STATUS_PILL: Record<EnquiryStatus, { label: string; tone: StatusTone }> = {
+  pending: { label: 'Pending', tone: 'amber' },
+  in_progress: { label: 'Chat in Progress', tone: 'pos' },
+  resolved: { label: 'Resolved', tone: 'neutral' },
+};
+
 function relativeTime(iso: string): string {
   const diffMs = Date.now() - new Date(iso).getTime();
   const mins = Math.floor(diffMs / 60000);
@@ -41,13 +49,13 @@ function relativeTime(iso: string): string {
 }
 
 export function AdminEnquiriesListScreen({ navigation }: Props) {
-  const colors = useThemeColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
   const isDesktop = useIsDesktopNav();
   const { listEnquiries } = useAdmin();
   const [filter, setFilter] = useState<EnquiryStatus | 'all'>('all');
   const [enquiries, setEnquiries] = useState<AdminEnquirySummary[]>([]);
   const [loading, setLoading] = useState(true);
+  // Load failures used to be swallowed silently; surface them with a retry.
+  const [error, setError] = useState(false);
 
   const load = useCallback(
     async (f: EnquiryStatus | 'all') => {
@@ -63,63 +71,48 @@ export function AdminEnquiriesListScreen({ navigation }: Props) {
 
   useFocusEffect(
     useCallback(() => {
-      load(filter).catch(() => {});
+      setError(false);
+      load(filter).catch(() => setError(true));
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [filter]),
   );
 
-  const renderItem = ({ item }: { item: AdminEnquirySummary }) => {
-    const badge = enquiryStatusBadges(colors)[item.status];
-    return (
-      <TouchableOpacity
-        style={styles.row}
-        onPress={() => navigation.navigate('AdminEnquiryChat', { enquiryId: item.id })}
-        activeOpacity={0.8}
-      >
-        <View style={{ flex: 1 }}>
-          <View style={styles.rowTop}>
-            <Text style={styles.memberName} numberOfLines={1}>{item.memberName}</Text>
-            {item.hasUnread ? <View style={styles.unreadDot} /> : null}
-          </View>
-          <Text style={styles.lastMessage} numberOfLines={1}>{item.lastMessage ?? '—'}</Text>
-          <Text style={styles.meta}>{item.enquiryType} · {relativeTime(item.updatedAt)}</Text>
-        </View>
-        <View style={[styles.badge, { backgroundColor: badge.bg }]}>
-          <Text style={[styles.badgeText, { color: badge.fg }]}>{badge.label}</Text>
-        </View>
-        <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
-      </TouchableOpacity>
-    );
+  const retry = () => {
+    setError(false);
+    load(filter).catch(() => setError(true));
   };
 
+  const open = (item: AdminEnquirySummary) => navigation.navigate('AdminEnquiryChat', { enquiryId: item.id });
+
   const filterRow = (
-    <View style={styles.filterRow}>
-      {FILTERS.map((f) => (
-        <TouchableOpacity
-          key={f.value}
-          onPress={() => setFilter(f.value)}
-          style={[styles.filterPill, filter === f.value && styles.filterPillActive]}
-        >
-          <Text style={[styles.filterText, filter === f.value && styles.filterTextActive]}>{f.label}</Text>
-        </TouchableOpacity>
-      ))}
-    </View>
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterBar} contentContainerStyle={isDesktop ? undefined : styles.filterScroll}>
+      <Segmented
+        options={FILTERS.map((f) => ({ key: f.value, label: f.label }))}
+        value={filter}
+        onChange={setFilter}
+        accessibilityLabel="Status filter"
+      />
+    </ScrollView>
   );
+
+  const emptyState = <EmptyState icon="chatbubble-outline" title="No enquiries here yet." />;
 
   if (isDesktop) {
     return (
       <AdminDesktopFrame activeKey="AdminEnquiries" breadcrumb="Enquiries">
-        <Text style={styles.dPageTitle}>Enquiries</Text>
-        <DesktopPanel title="All Enquiries">
+        <PageTitle>Enquiries</PageTitle>
+        <DesktopPanel title="All Enquiries" style={styles.dPane}>
           {filterRow}
-          {loading ? (
-            <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.md }} />
+          {error ? (
+            <ErrorState onRetry={retry} />
+          ) : loading ? (
+            <SkeletonRows rows={5} />
           ) : enquiries.length === 0 ? (
-            <Text style={styles.emptyText}>No enquiries here yet.</Text>
+            emptyState
           ) : (
-            <View style={{ gap: spacing.sm, marginTop: spacing.sm }}>
+            <View style={styles.dList}>
               {enquiries.map((item) => (
-                <React.Fragment key={item.id}>{renderItem({ item })}</React.Fragment>
+                <EnquiryRow key={item.id} item={item} onPress={() => open(item)} desktop />
               ))}
             </View>
           )}
@@ -134,61 +127,100 @@ export function AdminEnquiriesListScreen({ navigation }: Props) {
 
       {filterRow}
 
-      {loading ? (
-        <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
+      {error ? (
+        <View style={styles.listContent}>
+          <ErrorState onRetry={retry} />
+        </View>
+      ) : loading ? (
+        <View style={styles.listContent}>
+          <Tile>
+            <SkeletonRows rows={5} />
+          </Tile>
+        </View>
       ) : (
         <FlatList
           data={enquiries}
           keyExtractor={(e) => e.id}
-          renderItem={renderItem}
+          renderItem={({ item, index }) => (
+            <EnquiryRow item={item} onPress={() => open(item)} first={index === 0} last={index === enquiries.length - 1} />
+          )}
           contentContainerStyle={styles.listContent}
-          ListEmptyComponent={<Text style={styles.emptyText}>No enquiries here yet.</Text>}
+          ListEmptyComponent={<Tile>{emptyState}</Tile>}
         />
       )}
     </View>
   );
 }
 
-function createStyles(colors: ThemeColors) {
-  return StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.background },
-  filterRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-    paddingHorizontal: screenPadding,
-    paddingTop: spacing.md,
-  },
-  filterPill: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: radius.pill, backgroundColor: colors.mintBgAlt },
-  filterPillActive: { backgroundColor: colors.darkGreen },
-  filterText: { fontFamily: fontFamily.heading, fontSize: 11, color: colors.textPrimary },
-  filterTextActive: { color: colors.white },
-  listContent: { padding: screenPadding, gap: spacing.sm },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 16,
-    padding: spacing.sm,
-    marginBottom: spacing.sm,
-  },
-  rowTop: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  memberName: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.textPrimary },
-  unreadDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.negative },
-  lastMessage: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary, marginTop: 2 },
-  meta: { fontFamily: fontFamily.body, fontSize: 10, color: colors.textSecondary, marginTop: 2 },
-  badge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: radius.pill },
-  badgeText: { fontFamily: fontFamily.bodySemiBold, fontSize: 9 },
-  emptyText: {
-    fontFamily: fontFamily.body,
-    fontSize: fontSize.body,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginTop: spacing.xl,
-  },
-  dPageTitle: { fontFamily: fontFamily.heading, fontSize: 26, color: colors.textPrimary },
-});
+function EnquiryRow({
+  item,
+  onPress,
+  desktop,
+  first,
+  last,
+}: {
+  item: AdminEnquirySummary;
+  onPress: () => void;
+  desktop?: boolean;
+  first?: boolean;
+  last?: boolean;
+}) {
+  const { c } = useAdminTheme();
+  const [hovered, hoverHandlers] = useHover();
+  const status = STATUS_PILL[item.status];
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${item.memberName}, ${status.label}${item.hasUnread ? ', unread' : ''}`}
+      onHoverIn={hoverHandlers.onMouseEnter}
+      onHoverOut={hoverHandlers.onMouseLeave}
+      style={({ pressed }) => [
+        desktop
+          ? [styles.dRow, hoverTransitionNoTransform, (hovered || pressed) && { backgroundColor: c.fill2 }]
+          : [
+              styles.mRow,
+              { backgroundColor: pressed ? c.surface2 : c.surface, borderColor: c.edge },
+              first && styles.mRowFirst,
+              last && styles.mRowLast,
+            ],
+      ]}
+    >
+      <View style={styles.dotCol}>{item.hasUnread ? <View style={[styles.unreadDot, { backgroundColor: c.accent }]} /> : null}</View>
+      <View style={[styles.rowMain, !desktop && !first && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.edge }]}>
+        <View style={styles.rowTop}>
+          <Text style={[styles.memberName, { color: c.ink }]} numberOfLines={1}>{item.memberName}</Text>
+          <Text style={[styles.time, { color: c.ink3 }]}>{relativeTime(item.updatedAt)}</Text>
+        </View>
+        <Text style={[styles.lastMessage, { color: c.ink2 }]} numberOfLines={1}>{item.lastMessage ?? '—'}</Text>
+        <View style={styles.rowBottom}>
+          <Text style={[styles.meta, { color: c.ink3 }]} numberOfLines={1}>{item.enquiryType}</Text>
+          <StatusPill label={status.label} tone={status.tone} />
+          {desktop ? null : <Ionicons name="chevron-forward" size={15} color={c.ink3} />}
+        </View>
+      </View>
+    </Pressable>
+  );
 }
+
+const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: 'transparent' },
+  filterBar: { flexGrow: 0 },
+  filterScroll: { paddingHorizontal: 16 },
+  listContent: { padding: 16, paddingBottom: 32 },
+  dPane: { borderRadius: adminRadius.lg },
+  dList: { gap: 2 },
+  dRow: { flexDirection: 'row', borderRadius: adminRadius.md, minHeight: 52 },
+  mRow: { flexDirection: 'row', borderLeftWidth: StyleSheet.hairlineWidth, borderRightWidth: StyleSheet.hairlineWidth, minHeight: 52 },
+  mRowFirst: { borderTopWidth: StyleSheet.hairlineWidth, borderTopLeftRadius: adminRadius.md, borderTopRightRadius: adminRadius.md },
+  mRowLast: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomLeftRadius: adminRadius.md, borderBottomRightRadius: adminRadius.md },
+  dotCol: { width: 28, alignItems: 'center', paddingTop: 19 },
+  unreadDot: { width: 8, height: 8, borderRadius: 4 },
+  rowMain: { flex: 1, minWidth: 0, paddingVertical: 12, paddingRight: 14 },
+  rowTop: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  memberName: { ...adminFont.bodyBold, fontSize: 15, flex: 1 },
+  time: { ...adminFont.bodyMedium, fontSize: 12 },
+  lastMessage: { ...adminFont.body, fontSize: 13.5, marginTop: 3 },
+  rowBottom: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 },
+  meta: { ...adminFont.bodyMedium, fontSize: 12, flex: 1 },
+});

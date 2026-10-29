@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState, useMemo } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SuperAdminStackParamList } from '../../navigation/types';
@@ -12,13 +12,14 @@ import { AdMediaField } from '../../components/common/AdMediaField';
 import { useAdmin } from '../../context/AdminContext';
 import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
 import { SuperAdminDesktopFrame } from '../../components/admin/desktop/SuperAdminDesktopFrame';
-import { DesktopPanel } from '../../components/admin/desktop/DesktopPanel';
+import { AdminButton, Eyebrow, PageTitle, SkeletonRows, Tile } from '../../components/admin/ui';
 import { AdminApiError } from '../../api/adminClient';
 import { showAlert } from '../../utils/alert';
-import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
-import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
+import { spacing } from '../../theme';
+import { useAdminTheme } from '../../context/ThemeContext';
 import type { AdminAd } from '../../data/adminTypes';
 import type { AdMediaType } from '../../data/types';
+import { adminFont, adminRadius, tabularNums, type AdminColors } from '../../theme/admin';
 
 type Props = NativeStackScreenProps<SuperAdminStackParamList, 'SuperAdminAdEdit'>;
 
@@ -29,8 +30,11 @@ const PLACEMENT_OPTIONS = [
 ];
 
 export function SuperAdminAdEditScreen({ navigation, route }: Props) {
-  const colors = useThemeColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { c } = useAdminTheme();
+  // The course picker below maps over courses as `c`, so the palette is also
+  // reachable as `theme` there.
+  const theme = c;
+  const styles = useMemo(() => createStyles(c), [c]);
   const isDesktop = useIsDesktopNav();
   const { courseId: launchCourseId, adId } = route.params;
   const { getSuperAdminAds, saveSuperAdminAd, deleteSuperAdminAd, superAdminCourses, loadSuperAdminCourses } = useAdmin();
@@ -167,15 +171,22 @@ export function SuperAdminAdEditScreen({ navigation, route }: Props) {
   if (loadingExisting) {
     if (isDesktop) {
       return (
-        <SuperAdminDesktopFrame activeKey="SuperAdminCourses" breadcrumb="Edit Ad" showRail={false}>
-          <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
+        <SuperAdminDesktopFrame activeKey="SuperAdminAds" breadcrumb="Ads › Edit Ad" showRail={false}>
+          <PageTitle>Edit Ad</PageTitle>
+          <Tile style={styles.dCard}>
+            <SkeletonRows rows={4} />
+          </Tile>
         </SuperAdminDesktopFrame>
       );
     }
     return (
       <View style={styles.screen}>
         <AdminMobileHeader title="Edit Ad" />
-        <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
+        <View style={styles.content}>
+          <Tile>
+            <SkeletonRows rows={4} />
+          </Tile>
+        </View>
       </View>
     );
   }
@@ -198,10 +209,10 @@ export function SuperAdminAdEditScreen({ navigation, route }: Props) {
       <SelectField placeholder="Placement" variant="onLight" options={PLACEMENT_OPTIONS} value={placement} onChange={setPlacement} />
       <View style={{ height: spacing.lg }} />
 
-      <Text style={styles.sectionLabel}>Show To</Text>
+      <Eyebrow style={styles.sectionLabel}>Show To</Eyebrow>
       <View style={styles.activeRow}>
         <Text style={styles.activeLabel}>All Courses</Text>
-        <Switch value={isGlobal} onValueChange={setIsGlobal} trackColor={{ true: colors.clubGreen }} />
+        <Switch value={isGlobal} onValueChange={setIsGlobal} trackColor={{ true: c.accent }} accessibilityLabel="All Courses" />
       </View>
 
       {!isGlobal ? (
@@ -229,8 +240,11 @@ export function SuperAdminAdEditScreen({ navigation, route }: Props) {
                       style={styles.courseRow}
                       onPress={() => toggleCourse(c.id)}
                       activeOpacity={0.7}
+                      accessibilityRole="checkbox"
+                      accessibilityLabel={c.name}
+                      accessibilityState={{ checked: selected }}
                     >
-                      <Ionicons name={selected ? 'checkbox' : 'square-outline'} size={18} color={colors.clubGreen} />
+                      <Ionicons name={selected ? 'checkbox' : 'square-outline'} size={20} color={selected ? theme.ink : theme.ink3} />
                       <Text style={styles.courseRowText} numberOfLines={1}>{c.name}</Text>
                     </TouchableOpacity>
                   );
@@ -268,27 +282,23 @@ export function SuperAdminAdEditScreen({ navigation, route }: Props) {
 
       <View style={styles.activeRow}>
         <Text style={styles.activeLabel}>Active</Text>
-        <Switch value={active} onValueChange={setActive} trackColor={{ true: colors.clubGreen }} />
+        <Switch value={active} onValueChange={setActive} trackColor={{ true: c.accent }} accessibilityLabel="Active" />
       </View>
 
       <View style={{ height: spacing.lg }} />
       <PillButton label="Save Ad" onPress={handleSave} loading={saving} />
 
       {existing ? (
-        <TouchableOpacity onPress={handleDelete} style={styles.deleteButton} disabled={saving}>
-          <Text style={styles.deleteText}>Remove Ad</Text>
-        </TouchableOpacity>
+        <AdminButton label="Remove Ad" variant="danger" onPress={handleDelete} disabled={saving} style={styles.deleteButton} />
       ) : null}
     </>
   );
 
   if (isDesktop) {
     return (
-      <SuperAdminDesktopFrame activeKey="SuperAdminCourses" breadcrumb={title2} showRail={false}>
-        <Text style={styles.dPageTitle}>{title2}</Text>
-        <DesktopPanel title=" " style={{ maxWidth: 520 }}>
-          {form}
-        </DesktopPanel>
+      <SuperAdminDesktopFrame activeKey="SuperAdminAds" breadcrumb={`Ads › ${title2}`} showRail={false}>
+        <PageTitle>{title2}</PageTitle>
+        <Tile style={styles.dCard}>{form}</Tile>
       </SuperAdminDesktopFrame>
     );
   }
@@ -298,39 +308,40 @@ export function SuperAdminAdEditScreen({ navigation, route }: Props) {
       <AdminMobileHeader title={title2} />
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {form}
+        <Tile>{form}</Tile>
       </ScrollView>
     </View>
   );
 }
 
-function createStyles(colors: ThemeColors) {
+function createStyles(c: AdminColors) {
   return StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.background },
-  content: { padding: screenPadding, paddingBottom: spacing.xl * 2 },
+  screen: { flex: 1, backgroundColor: 'transparent' },
+  content: { padding: 16, paddingBottom: spacing.xl * 2 },
   dateRow: { flexDirection: 'row', marginTop: spacing.md },
   activeRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: spacing.md,
+    minHeight: 52,
+    marginTop: spacing.xs,
   },
-  activeLabel: { fontFamily: fontFamily.body, fontSize: fontSize.body, color: colors.textPrimary },
-  sectionLabel: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.small, color: colors.textSecondary, marginBottom: spacing.xs },
-  courseTargeting: { marginTop: spacing.md },
+  activeLabel: { ...adminFont.body, fontSize: 15, color: c.ink },
+  sectionLabel: { marginBottom: 2 },
+  courseTargeting: { marginTop: spacing.sm },
   courseList: {
     maxHeight: 220,
-    borderWidth: 0.5,
-    borderColor: colors.border,
-    borderRadius: radius.md,
+    backgroundColor: c.fill2,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: c.edge,
+    borderRadius: adminRadius.sm,
     padding: spacing.xs,
   },
-  courseRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: 8, paddingHorizontal: spacing.sm },
-  courseRowText: { flex: 1, fontFamily: fontFamily.body, fontSize: fontSize.body, color: colors.textPrimary },
-  emptyCoursesText: { fontFamily: fontFamily.body, fontSize: fontSize.small, color: colors.textSecondary, padding: spacing.sm },
-  selectedCountText: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary, marginTop: spacing.xs },
-  deleteButton: { alignItems: 'center', marginTop: spacing.lg },
-  deleteText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.negative },
-  dPageTitle: { fontFamily: fontFamily.heading, fontSize: 26, color: colors.textPrimary },
+  courseRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, minHeight: 44, paddingHorizontal: spacing.sm },
+  courseRowText: { flex: 1, ...adminFont.body, fontSize: 15, color: c.ink },
+  emptyCoursesText: { ...adminFont.body, fontSize: 13.5, color: c.ink2, padding: spacing.sm },
+  selectedCountText: { ...adminFont.body, ...tabularNums, fontSize: 12.5, color: c.ink2, marginTop: 6, marginLeft: 4 },
+  deleteButton: { alignSelf: 'center', marginTop: spacing.md, height: 44 },
+  dCard: { maxWidth: 600, marginTop: 16, padding: 24 },
 });
 }

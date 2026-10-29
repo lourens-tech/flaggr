@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -6,7 +6,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -20,9 +19,11 @@ import { useLiveThread } from '../../hooks/useLiveThread';
 import { AdminDesktopFrame } from '../../components/admin/desktop/AdminDesktopFrame';
 import { AdminApiError } from '../../api/adminClient';
 import { showAlert } from '../../utils/alert';
-import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
-import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
+import { useAdminTheme } from '../../context/ThemeContext';
+import { Segmented, SkeletonRows } from '../../components/admin/ui';
+import { PressableScale } from '../../components/motion';
 import type { AdminEnquiryThread, EnquiryStatus } from '../../data/adminTypes';
+import { adminFont, adminRadius, tabularNums } from '../../theme/admin';
 
 type Props = NativeStackScreenProps<AdminStackParamList, 'AdminEnquiryChat'>;
 
@@ -37,8 +38,7 @@ function formatTime(iso: string): string {
 }
 
 export function AdminEnquiryChatScreen({ route }: Props) {
-  const colors = useThemeColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { c } = useAdminTheme();
   const isDesktop = useIsDesktopNav();
   const { enquiryId } = route.params;
   const { getEnquiryThread, replyToEnquiry, setEnquiryStatus } = useAdmin();
@@ -99,27 +99,48 @@ export function AdminEnquiryChatScreen({ route }: Props) {
     }
   };
 
+  const statusControl = thread ? (
+    <View pointerEvents={updatingStatus ? 'none' : 'auto'} style={updatingStatus ? styles.statusBusy : undefined}>
+      <Segmented
+        options={STATUS_OPTIONS.map((s) => ({ key: s.value, label: s.label }))}
+        value={thread.status}
+        onChange={(status) => {
+          if (!updatingStatus) handleStatusChange(status);
+        }}
+        accessibilityLabel="Enquiry status"
+      />
+    </View>
+  ) : null;
+
   const body = loading || !thread ? (
-    <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
+    <View style={styles.loading}>
+      <SkeletonRows rows={4} />
+    </View>
   ) : (
     <>
-      <View style={styles.memberInfo}>
-        <Text style={styles.memberEmail}>{thread.memberEmail}</Text>
-        <Text style={styles.enquiryType}>{thread.enquiryType}</Text>
-      </View>
-
-      <View style={styles.statusRow}>
-        {STATUS_OPTIONS.map((s) => (
-          <TouchableOpacity
-            key={s.value}
-            onPress={() => handleStatusChange(s.value)}
-            disabled={updatingStatus}
-            style={[styles.statusPill, thread.status === s.value && styles.statusPillActive]}
-          >
-            <Text style={[styles.statusText, thread.status === s.value && styles.statusTextActive]}>{s.label}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+      {isDesktop ? (
+        <View style={[styles.dHead, { borderBottomColor: c.edge }]}>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>{initials(thread.memberName)}</Text>
+          </View>
+          <View style={styles.dHeadText}>
+            <Text style={[styles.dName, { color: c.ink }]} numberOfLines={1}>{thread.memberName}</Text>
+            <Text style={[styles.memberEmail, { color: c.ink2 }]} numberOfLines={1}>{thread.memberEmail}</Text>
+            <Text style={[styles.enquiryType, { color: c.ink3 }]} numberOfLines={1}>{thread.enquiryType}</Text>
+          </View>
+          {statusControl}
+        </View>
+      ) : (
+        <View style={[styles.mHead, { borderBottomColor: c.edge }]}>
+          <View style={styles.memberInfo}>
+            <Text style={[styles.memberEmail, { color: c.ink2 }]} numberOfLines={1}>{thread.memberEmail}</Text>
+            <Text style={[styles.enquiryType, { color: c.ink3 }]} numberOfLines={1}>{thread.enquiryType}</Text>
+          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.statusBar} contentContainerStyle={styles.statusScroll}>
+            {statusControl}
+          </ScrollView>
+        </View>
+      )}
 
       <ScrollView ref={scrollRef} contentContainerStyle={styles.messages} showsVerticalScrollIndicator={false}>
         {thread.messages.map((m) => (
@@ -127,15 +148,17 @@ export function AdminEnquiryChatScreen({ route }: Props) {
             key={m.id}
             style={[styles.bubbleRow, m.senderType === 'admin' ? styles.bubbleRowRight : styles.bubbleRowLeft]}
           >
-            <View style={[styles.bubble, m.senderType === 'admin' ? styles.bubbleAdmin : styles.bubbleMember]}>
-              <Text style={[styles.bubbleText, m.senderType === 'admin' && styles.bubbleTextAdmin]}>{m.body}</Text>
+            <View style={[styles.bubble, m.senderType === 'admin' ? styles.bubbleAdmin : [styles.bubbleMember, { backgroundColor: c.fill }]]}>
+              <Text style={[styles.bubbleText, { color: c.ink }, m.senderType === 'admin' && styles.bubbleTextAdmin]}>{m.body}</Text>
             </View>
-            <Text style={styles.bubbleTime}>{formatTime(m.createdAt)}</Text>
+            <Text style={[styles.bubbleTime, { color: c.ink3 }, m.senderType === 'admin' ? styles.bubbleTimeRight : styles.bubbleTimeLeft]}>
+              {formatTime(m.createdAt)}
+            </Text>
           </View>
         ))}
       </ScrollView>
 
-      <View style={styles.composer}>
+      <View style={[styles.composer, { borderTopColor: c.edge }]}>
         <View style={{ flex: 1 }}>
           <TextField
             placeholder="Type a reply…"
@@ -145,19 +168,20 @@ export function AdminEnquiryChatScreen({ route }: Props) {
             multiline
           />
         </View>
-        <TouchableOpacity
+        <PressableScale
           onPress={handleSend}
           disabled={sending || !draft.trim()}
-          style={styles.sendButton}
+          style={[styles.sendButton, { backgroundColor: c.accent }, (sending || !draft.trim()) && styles.sendDisabled]}
           accessibilityLabel="Send reply"
           accessibilityRole="button"
+          accessibilityState={{ disabled: sending || !draft.trim(), busy: sending }}
         >
           {sending ? (
-            <ActivityIndicator color={colors.white} size="small" />
+            <ActivityIndicator color={c.onAccent} size="small" />
           ) : (
-            <Ionicons name="send" size={18} color={colors.white} />
+            <Ionicons name="arrow-up" size={20} color={c.onAccent} />
           )}
-        </TouchableOpacity>
+        </PressableScale>
       </View>
     </>
   );
@@ -170,7 +194,7 @@ export function AdminEnquiryChatScreen({ route }: Props) {
         showRail={false}
         scrollable={false}
       >
-        <View style={styles.dChatCard}>{body}</View>
+        <View style={[styles.dChatCard, { backgroundColor: c.surface, borderColor: c.edge }]}>{body}</View>
       </AdminDesktopFrame>
     );
   }
@@ -179,55 +203,92 @@ export function AdminEnquiryChatScreen({ route }: Props) {
     <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <AdminMobileHeader title={thread?.memberName ?? 'Enquiry'} />
 
-      {body}
+      <View style={[styles.mThread, { backgroundColor: c.surface, borderColor: c.edge }]}>{body}</View>
     </KeyboardAvoidingView>
   );
 }
 
-function createStyles(colors: ThemeColors) {
-  return StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.background },
-  memberInfo: { paddingHorizontal: screenPadding, paddingTop: spacing.sm },
-  memberEmail: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary },
-  enquiryType: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.tiny, color: colors.clubGreen, marginTop: 2 },
-  statusRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, padding: screenPadding, paddingBottom: spacing.sm },
-  statusPill: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: radius.pill, backgroundColor: colors.mintBgAlt },
-  statusPillActive: { backgroundColor: colors.darkGreen },
-  statusText: { fontFamily: fontFamily.heading, fontSize: 11, color: colors.textPrimary },
-  statusTextActive: { color: colors.white },
-  messages: { padding: screenPadding, gap: spacing.sm, flexGrow: 1 },
+// Two initials for the member avatar ("Sipho Dlamini" -> "SD").
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  return parts
+    .slice(0, 2)
+    .map((p) => p.charAt(0))
+    .join('')
+    .toUpperCase();
+}
+
+const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: 'transparent' },
+  loading: { padding: 20 },
+  mThread: {
+    flex: 1,
+    marginHorizontal: 12,
+    marginBottom: 12,
+    borderRadius: adminRadius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    overflow: 'hidden',
+  },
+  mHead: { borderBottomWidth: StyleSheet.hairlineWidth, paddingTop: 12, paddingBottom: 12, gap: 10 },
+  memberInfo: { paddingHorizontal: 16, gap: 2 },
+  statusBar: { flexGrow: 0 },
+  statusScroll: { paddingHorizontal: 16 },
+  statusBusy: { opacity: 0.6 },
+  dHead: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 14,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  avatar: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    // Fairway crest with lime initials, as on every member avatar.
+    backgroundColor: '#1F4234',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarText: { ...adminFont.bodyBold, fontSize: 15, color: '#CDDE5C' },
+  dHeadText: { flex: 1, minWidth: 200 },
+  dName: { ...adminFont.bodyBold, fontSize: 18 },
+  memberEmail: { ...adminFont.body, fontSize: 13.5 },
+  enquiryType: { ...adminFont.bodySemiBold, fontSize: 12.5 },
+  messages: { paddingVertical: 20, paddingHorizontal: 20, gap: 6, flexGrow: 1 },
   bubbleRow: { maxWidth: '80%' },
   bubbleRowLeft: { alignSelf: 'flex-start' },
   bubbleRowRight: { alignSelf: 'flex-end' },
-  bubble: { borderRadius: radius.md, padding: spacing.sm },
-  bubbleMember: { backgroundColor: colors.inputBg },
-  bubbleAdmin: { backgroundColor: colors.clubGreen },
-  bubbleText: { fontFamily: fontFamily.body, fontSize: fontSize.body, color: colors.textPrimary },
-  bubbleTextAdmin: { color: colors.white },
-  bubbleTime: { fontFamily: fontFamily.body, fontSize: 9, color: colors.textSecondary, marginTop: 2, alignSelf: 'flex-end' },
+  bubble: { borderRadius: adminRadius.md, paddingVertical: 10, paddingHorizontal: 14 },
+  bubbleMember: { borderBottomLeftRadius: adminRadius.sm },
+  // Sent replies sit on Fairway with white text in both schemes.
+  bubbleAdmin: { backgroundColor: '#1F4234', borderBottomRightRadius: adminRadius.sm },
+  bubbleText: { ...adminFont.body, fontSize: 14.5, lineHeight: 21 },
+  bubbleTextAdmin: { color: '#FFFFFF' },
+  bubbleTime: { ...adminFont.body, ...tabularNums, fontSize: 11.5, marginTop: 4, marginBottom: 6, marginHorizontal: 6 },
+  bubbleTimeLeft: { alignSelf: 'flex-start' },
+  bubbleTimeRight: { alignSelf: 'flex-end' },
   composer: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    gap: spacing.sm,
-    padding: screenPadding,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
+    gap: 10,
+    padding: 14,
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
   sendButton: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: colors.clubGreen,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  sendDisabled: { opacity: 0.45 },
   dChatCard: {
     flex: 1,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: adminRadius.lg,
     overflow: 'hidden',
   },
 });
-}

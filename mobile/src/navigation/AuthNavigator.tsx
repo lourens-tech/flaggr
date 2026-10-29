@@ -9,6 +9,10 @@ import { AdminLoginScreen } from '../screens/admin/AdminLoginScreen';
 import { ForgotPasswordScreen } from '../screens/onboarding/ForgotPasswordScreen';
 import { AdminForgotPasswordScreen } from '../screens/admin/AdminForgotPasswordScreen';
 import { IS_STORE_BUILD } from '../config/buildConfig';
+import { withAdminScope } from '../components/admin/AdminScope';
+
+const ScopedAdminLogin = withAdminScope(AdminLoginScreen);
+const ScopedAdminForgotPassword = withAdminScope(AdminForgotPasswordScreen);
 import { stackScreenOptions, webScreenLayout } from './motionOptions';
 
 const Stack = createNativeStackNavigator<AuthStackParamList>();
@@ -20,8 +24,8 @@ export function AuthNavigator() {
       <Stack.Screen name="Login" component={LoginScreen} />
       {IS_STORE_BUILD ? null : (
         <>
-          <Stack.Screen name="AdminLogin" component={AdminLoginScreen} />
-          <Stack.Screen name="AdminForgotPassword" component={AdminForgotPasswordScreen} />
+          <Stack.Screen name="AdminLogin" component={ScopedAdminLogin} />
+          <Stack.Screen name="AdminForgotPassword" component={ScopedAdminForgotPassword} />
         </>
       )}
       <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />

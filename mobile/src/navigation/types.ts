@@ -24,17 +24,16 @@ export type AdminTabParamList = {
   AdminDashboard: undefined;
   AdminEnquiries: undefined;
   AdminRewards: undefined;
-  AdminAds: undefined;
   AdminPush: undefined;
   AdminVouchers: undefined;
   AdminCourseProfile: undefined;
   AdminStaffProfile: undefined;
+  AdminMore: undefined;
 };
 
 export type AdminStackParamList = {
   AdminTabs: undefined;
   AdminRewardEdit: { rewardId?: string };
-  AdminAdEdit: { adId?: string };
   AdminNotifications: undefined;
   AdminEnquiryChat: { enquiryId: string };
   AdminMemberStats: { memberId: string };
@@ -61,6 +60,7 @@ export type SuperAdminTabParamList = {
   SuperAdminPush: undefined;
   SuperAdminSupport: undefined;
   SuperAdminProfile: undefined;
+  SuperAdminMore: undefined;
 };
 
 export type SuperAdminStackParamList = {

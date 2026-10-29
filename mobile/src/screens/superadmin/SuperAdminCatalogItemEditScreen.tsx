@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SuperAdminStackParamList } from '../../navigation/types';
@@ -9,12 +9,13 @@ import { PillButton } from '../../components/common/PillButton';
 import { useAdmin } from '../../context/AdminContext';
 import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
 import { SuperAdminDesktopFrame } from '../../components/admin/desktop/SuperAdminDesktopFrame';
-import { DesktopPanel } from '../../components/admin/desktop/DesktopPanel';
+import { AdminButton, PageTitle, SkeletonRows, Tile } from '../../components/admin/ui';
 import { AdminApiError } from '../../api/adminClient';
 import { showAlert } from '../../utils/alert';
-import { fontFamily, fontSize, spacing } from '../../theme';
-import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
+import { spacing } from '../../theme';
+import { useAdminTheme } from '../../context/ThemeContext';
 import type { CatalogActivity, CatalogProduct } from '../../data/adminTypes';
+import { adminFont, tabularNums, type AdminColors } from '../../theme/admin';
 
 type Props = NativeStackScreenProps<SuperAdminStackParamList, 'SuperAdminCatalogItemEdit'>;
 
@@ -22,8 +23,8 @@ type Props = NativeStackScreenProps<SuperAdminStackParamList, 'SuperAdminCatalog
 // rewired for an explicit courseId so a super_admin can add/edit a product
 // or activity on any club's behalf.
 export function SuperAdminCatalogItemEditScreen({ navigation, route }: Props) {
-  const colors = useThemeColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { c } = useAdminTheme();
+  const styles = useMemo(() => createStyles(c), [c]);
   const isDesktop = useIsDesktopNav();
   const { courseId, courseName, fbPerRand, kind, itemId } = route.params;
   const isProduct = kind === 'product';
@@ -161,12 +162,12 @@ export function SuperAdminCatalogItemEditScreen({ navigation, route }: Props) {
   const handleDelete = () => {
     if (!itemId) return;
     showAlert(
-      `Remove this ${isProduct ? 'product' : 'activity'}?`,
-      `The receipt scanner will stop matching it for ${courseName}. Points already awarded from past receipts are kept.`,
+      `Deactivate this ${isProduct ? 'product' : 'activity'}?`,
+      `The receipt scanner will stop matching it for ${courseName}. Flagrr Cash already earned from past receipts is kept.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Remove',
+          text: 'Deactivate',
           style: 'destructive',
           onPress: async () => {
             setSaving(true);
@@ -230,33 +231,35 @@ export function SuperAdminCatalogItemEditScreen({ navigation, route }: Props) {
                   On: multiplies by quantity (e.g. a dozen balls). Off: flat, regardless of quantity.
                 </Text>
               </View>
-              <Switch value={pointsPerUnit} onValueChange={setPointsPerUnit} trackColor={{ true: colors.clubGreen }} />
+              <Switch value={pointsPerUnit} onValueChange={setPointsPerUnit} trackColor={{ true: c.accent }} accessibilityLabel="Points per unit" />
             </View>
           ) : null}
 
           <View style={styles.switchRow}>
             <Text style={styles.switchLabel}>Active — scanner can match it</Text>
-            <Switch value={active} onValueChange={setActive} trackColor={{ true: colors.clubGreen }} />
+            <Switch value={active} onValueChange={setActive} trackColor={{ true: c.accent }} accessibilityLabel="Active — scanner can match it" />
           </View>
 
           <View style={{ height: spacing.lg }} />
           <PillButton label={`Save ${isProduct ? 'Product' : 'Activity'}`} onPress={handleSave} loading={saving} />
 
           {itemId ? (
-            <TouchableOpacity onPress={handleDelete} style={styles.deleteButton} disabled={saving}>
-              <Text style={styles.deleteText}>Remove {isProduct ? 'Product' : 'Activity'}</Text>
-            </TouchableOpacity>
+            <AdminButton
+              label="Deactivate"
+              variant="danger"
+              onPress={handleDelete}
+              disabled={saving}
+              style={styles.deleteButton}
+            />
           ) : null}
     </>
   );
 
   if (isDesktop) {
     return (
-      <SuperAdminDesktopFrame activeKey="SuperAdminCourses" breadcrumb={pageTitle} showRail={false}>
-        <Text style={styles.dPageTitle}>{pageTitle}</Text>
-        <DesktopPanel title=" " style={{ maxWidth: 520 }}>
-          {loading ? <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.md }} /> : form}
-        </DesktopPanel>
+      <SuperAdminDesktopFrame activeKey="SuperAdminCourses" breadcrumb={`Courses › ${courseName} › Products and Activities`} showRail={false}>
+        <PageTitle>{pageTitle}</PageTitle>
+        <Tile style={styles.dCard}>{loading ? <SkeletonRows rows={4} /> : form}</Tile>
       </SuperAdminDesktopFrame>
     );
   }
@@ -266,32 +269,36 @@ export function SuperAdminCatalogItemEditScreen({ navigation, route }: Props) {
       <AdminMobileHeader title={pageTitle} subtitle={courseName} />
 
       {loading ? (
-        <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
+        <View style={styles.content}>
+          <Tile>
+            <SkeletonRows rows={4} />
+          </Tile>
+        </View>
       ) : (
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-          {form}
+          <Tile>{form}</Tile>
         </ScrollView>
       )}
     </View>
   );
 }
 
-function createStyles(colors: ThemeColors) {
+function createStyles(c: AdminColors) {
   return StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.background },
-  content: { padding: spacing.lg, paddingBottom: spacing.xl * 2 },
-  computedCost: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary, marginTop: 6, marginLeft: 4 },
+  screen: { flex: 1, backgroundColor: 'transparent' },
+  content: { padding: 16, paddingBottom: spacing.xl * 2 },
+  computedCost: { ...adminFont.body, ...tabularNums, fontSize: 12.5, color: c.ink2, marginTop: 6, marginLeft: 4 },
   switchRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: spacing.sm,
-    marginTop: spacing.lg,
+    minHeight: 52,
+    marginTop: spacing.md,
   },
-  switchLabel: { flexShrink: 1, fontFamily: fontFamily.body, fontSize: fontSize.body, color: colors.textPrimary },
-  switchHint: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary, marginTop: 2 },
-  deleteButton: { alignItems: 'center', marginTop: spacing.lg },
-  deleteText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.negative },
-  dPageTitle: { fontFamily: fontFamily.heading, fontSize: 26, color: colors.textPrimary },
+  switchLabel: { flexShrink: 1, ...adminFont.body, fontSize: 15, color: c.ink },
+  switchHint: { ...adminFont.body, fontSize: 12.5, lineHeight: 17, color: c.ink2, marginTop: 2 },
+  deleteButton: { alignSelf: 'center', marginTop: spacing.md, height: 44 },
+  dCard: { maxWidth: 560, marginTop: 16, padding: 24 },
 });
 }

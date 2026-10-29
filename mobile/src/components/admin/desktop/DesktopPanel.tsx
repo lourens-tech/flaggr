@@ -1,9 +1,9 @@
-import React, { useMemo } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { fontFamily } from '../../../theme';
-import { useThemeColors, type ThemeColors } from '../../../context/ThemeContext';
+import { useAdminTheme } from '../../../context/ThemeContext';
 import { useHover, hoverTransition } from '../../../hooks/useHover';
+import { adminFont, adminRadius } from '../../../theme/admin';
 import { FadeIn } from '../../motion';
 
 interface Props {
@@ -14,27 +14,33 @@ interface Props {
   style?: object;
 }
 
-// Generic white card used to group dashboard content on desktop (chart,
-// tier distribution, top rewards, member lookup, etc.) — matches the
-// approved mockup's `.panel` styling.
+// Opaque tile that groups a block of content (a chart, a list, a table) under
+// a heading, with an optional "View all" link.
 export function DesktopPanel({ title, onViewAll, viewAllLabel = 'View all', children, style }: Props) {
-  const colors = useThemeColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { c, scheme } = useAdminTheme();
   const [hovered, hoverHandlers] = useHover();
   return (
-    <FadeIn style={[styles.panel, style]}>
+    <FadeIn
+      style={[
+        styles.panel,
+        { backgroundColor: c.surface, borderColor: c.edge, shadowOpacity: scheme === 'dark' ? 0.3 : 0.08 },
+        style,
+      ]}
+    >
       <View style={styles.head}>
-        <Text style={styles.title}>{title}</Text>
+        <Text accessibilityRole="header" style={[styles.title, { color: c.ink }]}>{title}</Text>
         {onViewAll ? (
-          <TouchableOpacity style={styles.link} onPress={onViewAll} activeOpacity={0.7} {...hoverHandlers}>
-            <Text style={[styles.linkText, hoverTransition, hovered && styles.linkTextHover]}>{viewAllLabel}</Text>
-            <Ionicons
-              name="chevron-forward"
-              size={12}
-              color={colors.clubGreen}
-              style={[hoverTransition, hovered && styles.linkChevronHover] as any}
-            />
-          </TouchableOpacity>
+          <Pressable
+            style={styles.link}
+            onPress={onViewAll}
+            accessibilityRole="link"
+            accessibilityLabel={`${viewAllLabel}: ${title}`}
+            onHoverIn={hoverHandlers.onMouseEnter}
+            onHoverOut={hoverHandlers.onMouseLeave}
+          >
+            <Text style={[styles.linkText, { color: c.accentText }, hovered && styles.linkTextHover]}>{viewAllLabel}</Text>
+            <Ionicons name="chevron-forward" size={13} color={c.accentText} style={[hoverTransition, hovered && styles.chevronHover] as never} />
+          </Pressable>
         ) : null}
       </View>
       {children}
@@ -42,21 +48,21 @@ export function DesktopPanel({ title, onViewAll, viewAllLabel = 'View all', chil
   );
 }
 
-function createStyles(colors: ThemeColors) {
-  return StyleSheet.create({
+const styles = StyleSheet.create({
   panel: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: adminRadius.md,
     padding: 20,
     gap: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 14 },
+    shadowRadius: 30,
+    elevation: 2,
   },
   head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  title: { fontFamily: fontFamily.heading, fontSize: 16.5, color: colors.textPrimary },
-  link: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  linkText: { fontFamily: fontFamily.bodySemiBold, fontSize: 12, color: colors.clubGreen },
-  linkTextHover: { color: colors.darkGreen, textDecorationLine: 'underline' },
-  linkChevronHover: { transform: [{ translateX: 2 }] },
+  title: { ...adminFont.bodyBold, fontSize: 17 },
+  link: { flexDirection: 'row', alignItems: 'center', gap: 3, minHeight: 32 },
+  linkText: { ...adminFont.bodySemiBold, fontSize: 14 },
+  linkTextHover: { textDecorationLine: 'underline' },
+  chevronHover: { transform: [{ translateX: 2 }] },
 });
-}

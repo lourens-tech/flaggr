@@ -1,8 +1,8 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import { StyleSheet, Text, View, type DimensionValue } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { fontFamily } from '../../theme';
-import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
+import { useAdminTheme } from '../../context/ThemeContext';
+import { adminFont, adminRadius, tabularNums } from '../../theme/admin';
 import { CountUpText, FadeIn, PressableScale } from '../motion';
 
 interface Props {
@@ -18,65 +18,60 @@ interface Props {
   onPress?: () => void;
 }
 
-// Course-admin mobile counterpart to DesktopStatCard (see
-// components/admin/desktop/DesktopStatCard.tsx) — same icon-chip + delta
-// layout and mintBgAlt/border card look, adapted for touch (no hover) and
-// the mobile dashboard's flex/width grid instead of desktop's row-of-5.
-// Not the shared components/common/StatCard, which HomeScreen (member) and
-// super_admin screens also use — this is course-admin only.
+// Phone counterpart to DesktopStatCard: the same KPI tile, sized for a two-up
+// grid and pressable instead of hoverable.
 export function AdminStatCard({ label, value, icon, deltaPct = 0, showDelta = false, width = '47%', fill = false, onPress }: Props) {
-  const colors = useThemeColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { c, scheme } = useAdminTheme();
   const positive = deltaPct >= 0;
+  const cardStyle = [styles.card, { backgroundColor: c.surface, borderColor: c.edge, shadowOpacity: scheme === 'dark' ? 0.3 : 0.08 }];
   const body = (
     <>
       <View style={styles.top}>
-        <View style={styles.iconChip}>
-          <Ionicons name={icon} size={15} color={colors.clubGreen} />
-        </View>
-        {showDelta ? (
-          <View style={styles.deltaRow}>
-            <Ionicons name={positive ? 'arrow-up' : 'arrow-down'} size={10} color={positive ? colors.clubGreen : colors.negative} />
-            <Text style={[styles.delta, { color: positive ? colors.clubGreen : colors.negative }]}>{Math.abs(deltaPct)}%</Text>
-          </View>
-        ) : onPress ? (
-          <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />
-        ) : null}
+        <Ionicons name={icon} size={16} color={c.ink3} />
+        <Text style={[styles.label, { color: c.ink2 }]} numberOfLines={1}>{label}</Text>
+        {onPress ? <Ionicons name="chevron-forward" size={14} color={c.ink3} /> : null}
       </View>
-      <Text style={styles.label}>{label}</Text>
-      <CountUpText style={styles.value} numberOfLines={1} value={value} />
+      <CountUpText style={[styles.value, { color: c.ink }]} numberOfLines={1} value={value} />
+      {showDelta ? (
+        <View style={styles.deltaRow}>
+          <Ionicons name={positive ? 'arrow-up' : 'arrow-down'} size={10} color={positive ? c.pos : c.neg} />
+          <Text style={[styles.delta, { color: positive ? c.pos : c.neg }]}>{Math.abs(deltaPct)}%</Text>
+        </View>
+      ) : null}
     </>
   );
+  const a11y = `${label}: ${value}${showDelta ? `, ${positive ? 'up' : 'down'} ${Math.abs(deltaPct)}%` : ''}`;
   return (
     <FadeIn style={fill ? styles.fill : { width }}>
       {onPress ? (
-        <PressableScale style={styles.card} onPress={onPress}>
+        <PressableScale style={cardStyle} onPress={onPress} accessibilityRole="button" accessibilityLabel={a11y}>
           {body}
         </PressableScale>
       ) : (
-        <View style={styles.card}>{body}</View>
+        <View style={cardStyle} accessible accessibilityLabel={a11y}>
+          {body}
+        </View>
       )}
     </FadeIn>
   );
 }
 
-function createStyles(colors: ThemeColors) {
-  return StyleSheet.create({
+const styles = StyleSheet.create({
   card: {
     flexGrow: 1,
-    backgroundColor: colors.mintBgAlt,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: adminRadius.md,
     padding: 14,
     gap: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowRadius: 24,
+    elevation: 2,
   },
   fill: { flex: 1 },
-  top: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
-  iconChip: { width: 28, height: 28, borderRadius: 8, backgroundColor: colors.mintBg, alignItems: 'center', justifyContent: 'center' },
+  top: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  label: { ...adminFont.bodySemiBold, fontSize: 13, flex: 1 },
+  value: { ...adminFont.bodyBold, ...tabularNums, fontSize: 26, letterSpacing: -0.6 },
   deltaRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  delta: { fontFamily: fontFamily.bodySemiBold, fontSize: 11 },
-  label: { fontFamily: fontFamily.bodyMedium, fontSize: 12, color: colors.textSecondary },
-  value: { fontFamily: fontFamily.heading, fontSize: 22, color: colors.textPrimary },
+  delta: { ...adminFont.bodySemiBold, ...tabularNums, fontSize: 12 },
 });
-}

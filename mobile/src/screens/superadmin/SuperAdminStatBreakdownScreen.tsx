@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -7,25 +7,28 @@ import type { SuperAdminStackParamList } from '../../navigation/types';
 import { AdminMobileHeader } from '../../components/admin/AdminMobileHeader';
 import { useAdmin } from '../../context/AdminContext';
 import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
+import { useHover, hoverTransition } from '../../hooks/useHover';
 import { SuperAdminDesktopFrame } from '../../components/admin/desktop/SuperAdminDesktopFrame';
+import { AdminButton, EmptyState, PageTitle, Segmented, SkeletonRows, Tile } from '../../components/admin/ui';
 import { AdminApiError, downloadSuperAdminStatBreakdown } from '../../api/adminClient';
 import { showAlert } from '../../utils/alert';
-import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
-import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
+import { useAdminTheme } from '../../context/ThemeContext';
 import type { StatBreakdownRow } from '../../data/adminTypes';
+import { adminFont, adminRadius, tabularNums, type AdminColors } from '../../theme/admin';
 
 type Props = NativeStackScreenProps<SuperAdminStackParamList, 'SuperAdminStatBreakdown'>;
 
 type Period = 'month' | 'year' | 'all';
 const PERIOD_LABELS: Record<Period, string> = { month: 'Month', year: 'Year', all: 'All' };
 const PERIODS: Period[] = ['month', 'year', 'all'];
+const PERIOD_OPTIONS = PERIODS.map((p) => ({ key: p, label: PERIOD_LABELS[p] }));
 
 // Drills into a single Reports-screen stat card (tapped from
 // SuperAdminReportsScreen) to show every club's own number behind that
 // aggregate, sorted highest first.
 export function SuperAdminStatBreakdownScreen({ navigation, route }: Props) {
-  const colors = useThemeColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { c } = useAdminTheme();
+  const styles = useMemo(() => createStyles(c), [c]);
   const isDesktop = useIsDesktopNav();
   const { metric, label } = route.params;
   const { getSuperAdminStatBreakdown } = useAdmin();
@@ -86,6 +89,8 @@ export function SuperAdminStatBreakdownScreen({ navigation, route }: Props) {
   };
 
   const total = rows.reduce((sum, r) => sum + r.value, 0);
+  // Longest bar = the top club; purely visual.
+  const maxValue = rows.reduce((max, r) => Math.max(max, r.value), 0);
   // Only these two metrics are literally counts of members, so only these
   // drill further into an actual member list — the FC/receipts metrics stay
   // as plain per-club totals.
@@ -104,63 +109,53 @@ export function SuperAdminStatBreakdownScreen({ navigation, route }: Props) {
   };
 
   const rowItem = (item: StatBreakdownRow, index: number) => (
-    <TouchableOpacity
+    <RankRow
       key={item.courseId}
-      style={[styles.row, !isDesktop && styles.mRow]}
+      item={item}
+      index={index}
+      isFirst={index === 0}
+      pressable={isMemberMetric}
+      barPct={maxValue > 0 ? (item.value / maxValue) * 100 : 0}
+      showBar={isDesktop}
       onPress={() => handleRowPress(item)}
-      disabled={!isMemberMetric}
-      activeOpacity={isMemberMetric ? 0.7 : 1}
-    >
-      <Text style={styles.rank}>{index + 1}</Text>
-      <Text style={styles.rowLabel} numberOfLines={1}>{item.courseName}</Text>
-      <Text style={styles.rowValue}>{item.value.toLocaleString()}</Text>
-      {isMemberMetric ? <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} /> : null}
-    </TouchableOpacity>
+      styles={styles}
+    />
   );
 
-  const toolbar = (
-    <View style={styles.toolbar}>
-      <Text style={styles.totalText}>{total.toLocaleString()} total</Text>
-      <View style={styles.toolbarRight}>
-        <View style={styles.periodToggle}>
-          {PERIODS.map((p) => (
-            <TouchableOpacity
-              key={p}
-              onPress={() => handlePeriodChange(p)}
-              style={[styles.periodPill, period === p && styles.periodPillActive]}
-            >
-              <Text style={[styles.periodText, period === p && styles.periodTextActive]}>{PERIOD_LABELS[p]}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-        <TouchableOpacity style={styles.exportButton} onPress={handleExport} disabled={exporting}>
-          {exporting ? (
-            <ActivityIndicator color={colors.white} size="small" />
-          ) : (
-            <>
-              <Ionicons name="download-outline" size={16} color={colors.white} />
-              <Text style={styles.exportButtonText}>Excel</Text>
-            </>
-          )}
-        </TouchableOpacity>
-      </View>
-    </View>
+  const periodControl = (
+    <Segmented options={PERIOD_OPTIONS} value={period} onChange={handlePeriodChange} accessibilityLabel="Period" />
   );
+  const exportButton = <AdminButton label="Excel" icon="download-outline" onPress={handleExport} loading={exporting} />;
+  const totalText = <Text style={styles.totalText}>{total.toLocaleString()} total</Text>;
+
+  const emptyState = <EmptyState icon="business-outline" title="No clubs yet." />;
 
   if (isDesktop) {
     return (
-      <SuperAdminDesktopFrame activeKey="SuperAdminReports" breadcrumb={label} showRail={false}>
-        <Text style={styles.dPageTitle}>{label}</Text>
-        <View style={styles.dCard}>
-          {toolbar}
-          {loading ? (
-            <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
-          ) : rows.length === 0 ? (
-            <Text style={styles.emptyText}>No clubs yet.</Text>
-          ) : (
-            <View style={{ padding: screenPadding, gap: spacing.sm }}>{rows.map((r, i) => rowItem(r, i))}</View>
-          )}
+      <SuperAdminDesktopFrame
+        activeKey="SuperAdminReports"
+        breadcrumb={`Reports › ${label}`}
+        showRail={false}
+        headerRight={
+          <View style={styles.headerRight}>
+            {periodControl}
+            {exportButton}
+          </View>
+        }
+      >
+        <View style={styles.dTitleRow}>
+          <PageTitle style={{ flexShrink: 1 }}>{label}</PageTitle>
+          {totalText}
         </View>
+        <Tile style={styles.dCard}>
+          {loading ? (
+            <SkeletonRows rows={5} />
+          ) : rows.length === 0 ? (
+            emptyState
+          ) : (
+            <View>{rows.map((r, i) => rowItem(r, i))}</View>
+          )}
+        </Tile>
       </SuperAdminDesktopFrame>
     );
   }
@@ -169,82 +164,144 @@ export function SuperAdminStatBreakdownScreen({ navigation, route }: Props) {
     <View style={styles.screen}>
       <AdminMobileHeader title={label} />
 
-      {toolbar}
+      <View style={styles.toolbar}>
+        {totalText}
+        <View style={styles.toolbarRight}>
+          {periodControl}
+          {exportButton}
+        </View>
+      </View>
 
       {loading ? (
-        <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
+        <View style={styles.listContent}>
+          <Tile>
+            <SkeletonRows rows={5} />
+          </Tile>
+        </View>
       ) : (
         <FlatList
           data={rows}
           keyExtractor={(r) => r.courseId}
           contentContainerStyle={styles.listContent}
-          renderItem={({ item, index }) => rowItem(item, index)}
-          ListEmptyComponent={<Text style={styles.emptyText}>No clubs yet.</Text>}
+          renderItem={({ item, index }) => (
+            <View
+              style={[
+                styles.groupSlice,
+                index === 0 && styles.groupFirst,
+                index === rows.length - 1 && styles.groupLast,
+              ]}
+            >
+              {rowItem(item, index)}
+            </View>
+          )}
+          ListEmptyComponent={<Tile>{emptyState}</Tile>}
         />
       )}
     </View>
   );
 }
 
-function createStyles(colors: ThemeColors) {
+function RankRow({
+  item,
+  index,
+  isFirst,
+  pressable,
+  barPct,
+  showBar,
+  onPress,
+  styles,
+}: {
+  item: StatBreakdownRow;
+  index: number;
+  isFirst: boolean;
+  pressable: boolean;
+  barPct: number;
+  showBar: boolean;
+  onPress: () => void;
+  styles: ReturnType<typeof createStyles>;
+}) {
+  const { c } = useAdminTheme();
+  const [hovered, hoverHandlers] = useHover();
+  return (
+    <Pressable
+      style={({ pressed }) => [
+        styles.row,
+        hoverTransition,
+        !isFirst && styles.rowDivider,
+        pressable && (hovered || pressed) && styles.rowHover,
+      ]}
+      onPress={onPress}
+      disabled={!pressable}
+      accessibilityRole={pressable ? 'button' : undefined}
+      accessibilityLabel={`${index + 1}. ${item.courseName}, ${item.value.toLocaleString()}`}
+      onHoverIn={hoverHandlers.onMouseEnter}
+      onHoverOut={hoverHandlers.onMouseLeave}
+    >
+      <Text style={styles.rank}>{index + 1}</Text>
+      <Text style={[styles.rowLabel, showBar && styles.rowLabelFixed]} numberOfLines={1}>{item.courseName}</Text>
+      {showBar ? (
+        <View style={styles.barTrack}>
+          <View style={[styles.barFill, { width: `${barPct}%` }]} />
+        </View>
+      ) : null}
+      <Text style={styles.rowValue}>{item.value.toLocaleString()}</Text>
+      {pressable ? <Ionicons name="chevron-forward" size={16} color={c.ink3} /> : null}
+    </Pressable>
+  );
+}
+
+function createStyles(c: AdminColors) {
   return StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.background },
+  screen: { flex: 1, backgroundColor: 'transparent' },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   toolbar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: screenPadding,
-    paddingTop: spacing.md,
+    paddingHorizontal: 16,
+    paddingTop: 12,
     flexWrap: 'wrap',
-    gap: spacing.sm,
+    gap: 10,
   },
-  totalText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.textPrimary },
-  toolbarRight: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  periodToggle: { flexDirection: 'row', backgroundColor: colors.mintBg, borderRadius: radius.pill, padding: 3 },
-  periodPill: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: radius.pill },
-  periodPillActive: { backgroundColor: colors.darkGreen },
-  periodText: { fontFamily: fontFamily.heading, fontSize: 12, color: colors.textPrimary },
-  periodTextActive: { color: colors.white },
-  exportButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: colors.clubGreen,
-    borderRadius: radius.pill,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+  totalText: { ...adminFont.bodyBold, ...tabularNums, fontSize: 14.5, color: c.ink2 },
+  toolbarRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  listContent: { padding: 16, paddingBottom: 32 },
+  // Phone: the FlatList rows read as one grouped tile.
+  groupSlice: {
+    backgroundColor: c.surface,
+    borderLeftWidth: StyleSheet.hairlineWidth,
+    borderRightWidth: StyleSheet.hairlineWidth,
+    borderColor: c.edge,
+    overflow: 'hidden',
   },
-  exportButtonText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.tiny, color: colors.white },
-  listContent: { padding: screenPadding, gap: spacing.sm },
+  groupFirst: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopLeftRadius: adminRadius.md,
+    borderTopRightRadius: adminRadius.md,
+  },
+  groupLast: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomLeftRadius: adminRadius.md,
+    borderBottomRightRadius: adminRadius.md,
+  },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    backgroundColor: colors.mintBg,
-    borderWidth: 0.5,
-    borderColor: colors.clubGreen,
-    borderRadius: radius.md,
-    padding: spacing.md,
+    gap: 12,
+    minHeight: 52,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: adminRadius.sm,
   },
-  // Phone-only row surface — `row` is also rendered inside the desktop card.
-  mRow: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 16 },
-  rank: { fontFamily: fontFamily.heading, fontSize: fontSize.body, color: colors.textSecondary, width: 20 },
-  rowLabel: { flex: 1, minWidth: 0, fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.textPrimary },
-  rowValue: { flexShrink: 0, fontFamily: fontFamily.heading, fontSize: fontSize.body, color: colors.textPrimary },
-  emptyText: {
-    fontFamily: fontFamily.body,
-    fontSize: fontSize.body,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginTop: spacing.xl,
-  },
-  dPageTitle: { fontFamily: fontFamily.heading, fontSize: 26, color: colors.textPrimary },
-  dCard: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 16,
-    overflow: 'hidden',
-  },
+  rowDivider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.edge, borderRadius: 0 },
+  rowHover: { backgroundColor: c.fill2 },
+  rank: { ...adminFont.bodySemiBold, ...tabularNums, fontSize: 13.5, color: c.ink3, width: 22 },
+  rowLabel: { flex: 1, minWidth: 0, ...adminFont.bodySemiBold, fontSize: 15, color: c.ink },
+  rowLabelFixed: { flex: 0, width: 240 },
+  barTrack: { flex: 1, height: 8, borderRadius: adminRadius.pill, backgroundColor: c.fill, overflow: 'hidden' },
+  barFill: { height: '100%', borderRadius: adminRadius.pill, backgroundColor: c.bar },
+  rowValue: { flexShrink: 0, ...adminFont.bodyBold, ...tabularNums, fontSize: 15, color: c.ink, minWidth: 60, textAlign: 'right' },
+  dTitleRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12 },
+  dCard: { marginTop: 16, paddingVertical: 8, paddingHorizontal: 8 },
 });
 }

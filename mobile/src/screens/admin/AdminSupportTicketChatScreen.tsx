@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -20,19 +20,30 @@ import { useLiveThread } from '../../hooks/useLiveThread';
 import { AdminDesktopFrame } from '../../components/admin/desktop/AdminDesktopFrame';
 import { AdminApiError } from '../../api/adminClient';
 import { showAlert } from '../../utils/alert';
-import { fontFamily, fontSize, radius, screenPadding, spacing, ticketStatusBadges } from '../../theme';
-import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
+import { useAdminTheme } from '../../context/ThemeContext';
 import type { SupportTicketStatus, SupportTicketThread } from '../../data/adminTypes';
+import { adminFont, adminRadius, tabularNums } from '../../theme/admin';
+import { StatusPill, Tile, type StatusTone } from '../../components/admin/ui';
 
 type Props = NativeStackScreenProps<AdminStackParamList, 'AdminSupportTicketChat'>;
+
+// Same labels as theme/badges' ticketStatusBadges, with the admin status tones.
+const TICKET_STATUS: Record<SupportTicketStatus, { label: string; tone: StatusTone }> = {
+  open: { label: 'Open', tone: 'amber' },
+  in_progress: { label: 'In Progress', tone: 'pos' },
+  resolved: { label: 'Resolved', tone: 'neutral' },
+};
+
+// The admin's own bubbles sit on the Fairway ground with white text, the
+// same as the Enquiries chat.
+const FAIRWAY = '#1F4234';
 
 function formatTime(iso: string): string {
   return new Date(iso).toLocaleString('en-ZA', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
 export function AdminSupportTicketChatScreen({ route }: Props) {
-  const colors = useThemeColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { c } = useAdminTheme();
   const isDesktop = useIsDesktopNav();
   const { ticketId } = route.params;
   const { getSupportTicketThread, replyToSupportTicket } = useAdmin();
@@ -78,50 +89,51 @@ export function AdminSupportTicketChatScreen({ route }: Props) {
     }
   };
 
-  const badge = thread ? ticketStatusBadges(colors)[thread.status] : null;
+  const status = thread ? TICKET_STATUS[thread.status] : null;
+  const sendDisabled = sending || !draft.trim();
 
   const body = loading || !thread ? (
-    <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
+    <ActivityIndicator color={c.accentText} style={{ marginTop: 32 }} />
   ) : (
     <>
-      <View style={styles.statusRow}>
-        {badge ? (
-          <View style={[styles.badge, { backgroundColor: badge.bg }]}>
-            <Text style={[styles.badgeText, { color: badge.fg }]}>{badge.label}</Text>
-          </View>
+      <View style={[styles.statusRow, isDesktop && [styles.dThreadHead, { borderBottomColor: c.edge }]]}>
+        {isDesktop ? (
+          <Text style={[styles.dSubject, { color: c.ink }]} numberOfLines={1}>
+            {thread.subject}
+          </Text>
         ) : null}
+        {status ? <StatusPill label={status.label} tone={status.tone} /> : null}
       </View>
 
-      <ScrollView ref={scrollRef} contentContainerStyle={styles.messages} showsVerticalScrollIndicator={false}>
-        {thread.messages.map((m) => (
-          <View
-            key={m.id}
-            style={[styles.bubbleRow, m.senderType === 'requester' ? styles.bubbleRowRight : styles.bubbleRowLeft]}
-          >
-            <View style={[styles.bubble, m.senderType === 'requester' ? styles.bubbleMine : styles.bubbleTheirs]}>
-              <Text style={[styles.bubbleText, m.senderType === 'requester' && styles.bubbleTextMine]}>{m.body}</Text>
+      <ScrollView ref={scrollRef} contentContainerStyle={[styles.messages, isDesktop && { paddingHorizontal: 24 }]} showsVerticalScrollIndicator={false}>
+        {thread.messages.map((m) => {
+          const mine = m.senderType === 'requester';
+          return (
+            <View key={m.id} style={[styles.bubbleRow, mine ? styles.bubbleRowRight : styles.bubbleRowLeft]}>
+              <View style={[styles.bubble, mine ? styles.bubbleMine : [styles.bubbleTheirs, { backgroundColor: c.fill }]]}>
+                <Text style={[styles.bubbleText, { color: mine ? '#FFFFFF' : c.ink }]}>{m.body}</Text>
+              </View>
+              <Text style={[styles.bubbleTime, { color: c.ink3 }, mine ? styles.bubbleTimeRight : styles.bubbleTimeLeft]}>
+                {formatTime(m.createdAt)}
+              </Text>
             </View>
-            <Text style={styles.bubbleTime}>{formatTime(m.createdAt)}</Text>
-          </View>
-        ))}
+          );
+        })}
       </ScrollView>
 
-      <View style={styles.composer}>
+      <View style={[styles.composer, { borderTopColor: c.edge }, isDesktop && { paddingHorizontal: 18 }]}>
         <View style={{ flex: 1 }}>
           <TextField placeholder="Type a message…" variant="onLight" value={draft} onChangeText={setDraft} multiline />
         </View>
         <TouchableOpacity
           onPress={handleSend}
-          disabled={sending || !draft.trim()}
-          style={styles.sendButton}
+          disabled={sendDisabled}
+          style={[styles.sendButton, { backgroundColor: c.accent }, sendDisabled && !sending && { opacity: 0.45 }]}
           accessibilityLabel="Send message"
           accessibilityRole="button"
+          accessibilityState={{ disabled: sendDisabled, busy: sending }}
         >
-          {sending ? (
-            <ActivityIndicator color={colors.white} size="small" />
-          ) : (
-            <Ionicons name="send" size={18} color={colors.white} />
-          )}
+          {sending ? <ActivityIndicator color={c.onAccent} size="small" /> : <Ionicons name="send" size={18} color={c.onAccent} />}
         </TouchableOpacity>
       </View>
     </>
@@ -129,8 +141,10 @@ export function AdminSupportTicketChatScreen({ route }: Props) {
 
   if (isDesktop) {
     return (
-      <AdminDesktopFrame activeKey="" breadcrumb={thread?.subject ?? 'Ticket'} showRail={false} scrollable={false}>
-        <View style={styles.dChatCard}>{body}</View>
+      <AdminDesktopFrame activeKey="AdminSupportTickets" breadcrumb={thread?.subject ?? 'Ticket'} showRail={false} scrollable={false}>
+        <Tile padded={false} style={styles.dChatCard}>
+          {body}
+        </Tile>
       </AdminDesktopFrame>
     );
   }
@@ -144,45 +158,42 @@ export function AdminSupportTicketChatScreen({ route }: Props) {
   );
 }
 
-function createStyles(colors: ThemeColors) {
-  return StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.background },
-  statusRow: { paddingHorizontal: screenPadding, paddingTop: spacing.md },
-  badge: { alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 5, borderRadius: radius.pill },
-  badgeText: { fontFamily: fontFamily.bodySemiBold, fontSize: 10 },
-  messages: { padding: screenPadding, gap: spacing.sm, flexGrow: 1 },
+const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: 'transparent' },
+  statusRow: { paddingHorizontal: 16, paddingTop: 12 },
+  dThreadHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  dSubject: { flex: 1, ...adminFont.bodyBold, fontSize: 18 },
+  messages: { padding: 16, gap: 6, flexGrow: 1 },
   bubbleRow: { maxWidth: '80%' },
   bubbleRowLeft: { alignSelf: 'flex-start' },
   bubbleRowRight: { alignSelf: 'flex-end' },
-  bubble: { borderRadius: radius.md, padding: spacing.sm },
-  bubbleTheirs: { backgroundColor: colors.inputBg },
-  bubbleMine: { backgroundColor: colors.clubGreen },
-  bubbleText: { fontFamily: fontFamily.body, fontSize: fontSize.body, color: colors.textPrimary },
-  bubbleTextMine: { color: colors.white },
-  bubbleTime: { fontFamily: fontFamily.body, fontSize: 9, color: colors.textSecondary, marginTop: 2, alignSelf: 'flex-end' },
+  bubble: { borderRadius: adminRadius.md, paddingVertical: 10, paddingHorizontal: 14 },
+  bubbleTheirs: { borderBottomLeftRadius: adminRadius.sm },
+  bubbleMine: { backgroundColor: FAIRWAY, borderBottomRightRadius: adminRadius.sm },
+  bubbleText: { ...adminFont.body, fontSize: 14.5, lineHeight: 21 },
+  bubbleTime: { ...adminFont.body, ...tabularNums, fontSize: 11.5, marginTop: 4, marginBottom: 6, marginHorizontal: 6 },
+  bubbleTimeLeft: { alignSelf: 'flex-start' },
+  bubbleTimeRight: { alignSelf: 'flex-end' },
   composer: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    gap: spacing.sm,
-    padding: screenPadding,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
+    gap: 10,
+    padding: 16,
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
   sendButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.clubGreen,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  dChatCard: {
-    flex: 1,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 16,
-    overflow: 'hidden',
-  },
+  dChatCard: { flex: 1, overflow: 'hidden', borderRadius: adminRadius.lg },
 });
-}

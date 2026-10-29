@@ -23,6 +23,7 @@ export const fontFamily = {
 export const fontsToLoad = {
   Fraunces_600SemiBold: require('@expo-google-fonts/fraunces/600SemiBold/Fraunces_600SemiBold.ttf'),
   Fraunces_800ExtraBold: require('@expo-google-fonts/fraunces/800ExtraBold/Fraunces_800ExtraBold.ttf'),
+  Fraunces_800ExtraBold_Italic: require('@expo-google-fonts/fraunces/800ExtraBold_Italic/Fraunces_800ExtraBold_Italic.ttf'),
   'WsParadose-Regular': require('../../assets/fonts/WsParadose-Regular.ttf'),
   Poppins_300Light: require('@expo-google-fonts/poppins/300Light/Poppins_300Light.ttf'),
   Poppins_400Regular: require('@expo-google-fonts/poppins/400Regular/Poppins_400Regular.ttf'),
