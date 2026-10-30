@@ -136,6 +136,12 @@ function AdminBars({
   const step = niceStep(max);
   const top = step * 3;
   const ticks = [0, step, step * 2, top];
+  // Daily series (the ad trend charts) have up to ~31 bars: per-bar values
+  // and every x label would overlap, so show values only for monthly data
+  // and label every few days.
+  const dense = data.length > 14;
+  const labelEvery = dense ? Math.ceil(data.length / 8) : 1;
+  const gap = dense ? 2 : 6;
   return (
     <View
       accessible
@@ -161,15 +167,17 @@ function AdminBars({
               style={[adminStyles.grid, { borderTopColor: c.edge, bottom: (t / top) * height }]}
             />
           ))}
-          <View style={adminStyles.barsRow}>
+          <View style={[adminStyles.barsRow, { gap }]}>
             {data.map((d, i) => {
               const barHeight = Math.max(4, (d.value / top) * height);
               const isPeak = i === peakIdx;
               return (
                 <View key={`${d.month}-${i}`} style={adminStyles.barColumn}>
-                  <Animated.Text style={[adminStyles.value, { color: isPeak ? c.ink : c.ink2, opacity: grow[i] }]} numberOfLines={1}>
-                    {compact(d.value)}
-                  </Animated.Text>
+                  {dense ? null : (
+                    <Animated.Text style={[adminStyles.value, { color: isPeak ? c.ink : c.ink2, opacity: grow[i] }]} numberOfLines={1}>
+                      {compact(d.value)}
+                    </Animated.Text>
+                  )}
                   <Animated.View
                     style={[
                       adminStyles.bar,
@@ -186,11 +194,12 @@ function AdminBars({
           </View>
         </View>
       </View>
-      <View style={[adminStyles.labelsRow, { paddingLeft: AXIS_WIDTH }]}>
+      <View style={[adminStyles.labelsRow, { paddingLeft: AXIS_WIDTH, gap }]}>
         {data.map((d, i) => (
-          <View key={`label-${i}`} style={adminStyles.barColumn}>
-            <Text style={[adminStyles.label, { color: c.ink3 }]} numberOfLines={1}>
-              {d.month}
+          <View key={`label-${i}`} style={[adminStyles.barColumn, dense && adminStyles.labelColumnDense]}>
+            {/* numberOfLines would cap a dense label at its narrow column's width. */}
+            <Text style={[adminStyles.label, { color: c.ink3 }, dense && adminStyles.labelDense]} numberOfLines={dense ? undefined : 1}>
+              {i % labelEvery === 0 ? d.month : ''}
             </Text>
           </View>
         ))}
@@ -208,4 +217,7 @@ const adminStyles = StyleSheet.create({
   value: { ...adminFont.bodyBold, ...tabularNums, fontSize: 11.5 },
   labelsRow: { flexDirection: 'row', gap: 6, marginTop: 8 },
   label: { ...adminFont.bodySemiBold, fontSize: 11.5 },
+  // Lets a sparse label spill over its neighbours' empty columns.
+  labelColumnDense: { height: 16, overflow: 'visible', alignItems: 'flex-start' },
+  labelDense: { position: 'absolute', left: 0, width: 26 },
 });

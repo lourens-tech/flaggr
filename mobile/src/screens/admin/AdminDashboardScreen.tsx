@@ -21,11 +21,11 @@ import { ScorecardUploadPanel } from '../../components/admin/ScorecardUploadPane
 import { AdminButton, CircleButton, EmptyState, ErrorState, Eyebrow, Muted, Segmented, SkeletonRows, StatusPill, Tile } from '../../components/admin/ui';
 import { PressableScale } from '../../components/motion';
 import { useAdminTheme } from '../../context/ThemeContext';
-import type { AdminMember, TierCount } from '../../data/adminTypes';
+import { TierBreakdown } from '../../components/admin/TierBreakdown';
+import type { AdminMember } from '../../data/adminTypes';
 import { adminFont, adminRadius, tabularNums, type AdminColors } from '../../theme/admin';
 
 const MEMBERS_PAGE_SIZE = 10;
-const TIER_ORDER = ['Bronze', 'Silver', 'Gold', 'Platinum'];
 
 type Period = 'month' | 'year' | 'all';
 const PERIOD_LABELS: Record<Period, string> = { month: 'Month', year: 'Year', all: 'All' };
@@ -39,7 +39,6 @@ const DELTA_LABELS: Record<Period, string> = { month: 'vs Last Month', year: 'vs
 // Fairway with lime; tier colours are the approved tier palette.
 const FAIRWAY = '#1F4234';
 const LIME = '#CDDE5C';
-const TIER_COLORS: Record<string, string> = { Bronze: '#B9773E', Silver: '#AEB8BF', Gold: '#E2B93B', Platinum: '#E8ECEF' };
 // The dark scrim that keeps white hero text readable over any cover photo.
 const SCRIM_STRONG = 'rgba(6,14,10,0.78)';
 const SCRIM_MID = 'rgba(6,14,10,0.45)';
@@ -219,7 +218,7 @@ export function AdminDashboardScreen({ navigation }: Props) {
       </>
     );
 
-  const tierBlock = <TierBreakdown tiers={dashboard?.tierDistribution ?? []} styles={styles} c={c} />;
+  const tierBlock = <TierBreakdown tiers={dashboard?.tierDistribution ?? []} />;
 
   const rewardsBlock =
     !dashboard || dashboard.topRewards.length === 0 ? (
@@ -689,40 +688,6 @@ function HeroNeed({
 }
 
 // ── Tiers ────────────────────────────────────────────────────────────────────
-function TierBreakdown({ tiers, styles, c }: { tiers: TierCount[]; styles: ReturnType<typeof createStyles>; c: AdminColors }) {
-  const counts = new Map(tiers.map((t) => [t.tier, t.count]));
-  const extras = tiers.filter((t) => !TIER_ORDER.includes(t.tier)).map((t) => t.tier);
-  const rows = [...TIER_ORDER, ...extras].map((tier) => ({ tier, count: counts.get(tier) ?? 0, color: TIER_COLORS[tier] ?? c.ink3 }));
-  const total = rows.reduce((sum, r) => sum + r.count, 0);
-  if (total === 0) return <Muted>No members yet.</Muted>;
-  const pct = (n: number) => Math.round((n / total) * 100);
-  return (
-    <View style={{ gap: 16 }}>
-      <View
-        style={styles.tierStack}
-        accessible
-        accessibilityRole="image"
-        accessibilityLabel={rows.map((r) => `${r.tier} ${r.count}`).join(', ')}
-      >
-        {rows
-          .filter((r) => r.count > 0)
-          .map((r) => (
-            <View key={r.tier} style={{ flex: r.count, backgroundColor: r.color }} />
-          ))}
-      </View>
-      <View style={styles.tierLegend}>
-        {rows.map((r) => (
-          <View key={r.tier} style={styles.tierLegendItem}>
-            <View style={[styles.tierSwatch, { backgroundColor: r.color }]} />
-            <Text style={styles.tierName} numberOfLines={1}>{r.tier}</Text>
-            <Text style={styles.tierCount}>{r.count.toLocaleString()}</Text>
-            <Text style={styles.tierPct}>{pct(r.count)}%</Text>
-          </View>
-        ))}
-      </View>
-    </View>
-  );
-}
 
 // ── Members ──────────────────────────────────────────────────────────────────
 function MemberRow({
@@ -843,16 +808,6 @@ function createStyles(c: AdminColors) {
     needCount: { ...adminFont.bodyBold, ...tabularNums, fontSize: 22, color: c.ink, minWidth: 26, textAlign: 'center' },
     needTitle: { flex: 1, ...adminFont.body, fontSize: 15.5, color: c.ink },
 
-    // Tiers
-    tierStack: { flexDirection: 'row', height: 14, borderRadius: adminRadius.pill, overflow: 'hidden', gap: 2, borderWidth: StyleSheet.hairlineWidth, borderColor: c.edge },
-    // One column: four tiers always fit, however narrow the tile gets.
-    tierLegend: { gap: 10 },
-    tierLegendItem: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-    // Hairline edge: Platinum (#E8ECEF) would vanish on a white tile.
-    tierSwatch: { width: 10, height: 10, borderRadius: adminRadius.pill, borderWidth: StyleSheet.hairlineWidth, borderColor: c.edge },
-    tierName: { flex: 1, ...adminFont.body, fontSize: 13.5, color: c.ink },
-    tierCount: { ...adminFont.bodyBold, ...tabularNums, fontSize: 13.5, color: c.ink },
-    tierPct: { ...adminFont.body, ...tabularNums, fontSize: 12.5, color: c.ink3, width: 38, textAlign: 'right' },
 
     // Top rewards
     rewardRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 12 },

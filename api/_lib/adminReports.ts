@@ -15,7 +15,9 @@ export interface DashboardReport {
     receiptsScannedDeltaPct: number;
   };
   tierDistribution: Array<{ tier: string; count: number }>;
-  topRewards: Array<{ rewardId: string; title: string; redemptions: number; fcSpent: number }>;
+  // imageUrl and courseName are only filled in by the cross-club (super
+  // admin) report, where the club a reward belongs to isn't obvious.
+  topRewards: Array<{ rewardId: string; title: string; redemptions: number; fcSpent: number; imageUrl?: string | null; courseName?: string }>;
   signupsByMonth: Array<{ month: string; value: number }>;
 }
 
@@ -361,11 +363,13 @@ export async function getSuperAdminDashboardReport(period: StatsPeriod): Promise
     `,
     sql`select tier, count(*)::int as count from users group by tier`,
     sql`
-      select r.id as reward_id, r.title, count(v.id)::int as redemptions, coalesce(sum(v.cost), 0)::int as fc_spent
+      select r.id as reward_id, r.title, r.image_url, c.name as course_name,
+        count(v.id)::int as redemptions, coalesce(sum(v.cost), 0)::int as fc_spent
       from vouchers v
       join rewards r on r.id = v.reward_id
+      join courses c on c.id = r.course_id
       where v.issued_at >= ${currentStart}
-      group by r.id, r.title
+      group by r.id, r.title, r.image_url, c.name
       order by redemptions desc
       limit 10
     `,
@@ -410,9 +414,23 @@ export async function getSuperAdminDashboardReport(period: StatsPeriod): Promise
       receiptsScannedDeltaPct: deltaPct(receipts.current, receipts.previous, hasComparison),
     },
     tierDistribution: tierRows as Array<{ tier: string; count: number }>,
-    topRewards: (topRewardRows as Array<{ reward_id: string; title: string; redemptions: number; fc_spent: number }>).map(
-      (r) => ({ rewardId: r.reward_id, title: r.title, redemptions: r.redemptions, fcSpent: r.fc_spent }),
-    ),
+    topRewards: (
+      topRewardRows as Array<{
+        reward_id: string;
+        title: string;
+        image_url: string | null;
+        course_name: string;
+        redemptions: number;
+        fc_spent: number;
+      }>
+    ).map((r) => ({
+      rewardId: r.reward_id,
+      title: r.title,
+      redemptions: r.redemptions,
+      fcSpent: r.fc_spent,
+      imageUrl: r.image_url,
+      courseName: r.course_name,
+    })),
     signupsByMonth,
   };
 }

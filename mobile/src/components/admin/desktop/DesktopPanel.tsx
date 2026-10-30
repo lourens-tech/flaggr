@@ -10,13 +10,16 @@ interface Props {
   title: string;
   onViewAll?: () => void;
   viewAllLabel?: string;
+  // Extra controls or a short note beside the heading (a period switch, an
+  // export button, "Any club"). Sits before the View all link.
+  headerRight?: React.ReactNode;
   children: React.ReactNode;
   style?: object;
 }
 
 // Opaque tile that groups a block of content (a chart, a list, a table) under
 // a heading, with an optional "View all" link.
-export function DesktopPanel({ title, onViewAll, viewAllLabel = 'View all', children, style }: Props) {
+export function DesktopPanel({ title, onViewAll, viewAllLabel = 'View all', headerRight, children, style }: Props) {
   const { c, scheme } = useAdminTheme();
   const [hovered, hoverHandlers] = useHover();
   return (
@@ -29,6 +32,7 @@ export function DesktopPanel({ title, onViewAll, viewAllLabel = 'View all', chil
     >
       <View style={styles.head}>
         <Text accessibilityRole="header" style={[styles.title, { color: c.ink }]}>{title}</Text>
+        {headerRight ? <View style={styles.headerRight}>{headerRight}</View> : null}
         {onViewAll ? (
           <Pressable
             style={styles.link}
@@ -59,7 +63,8 @@ const styles = StyleSheet.create({
     shadowRadius: 30,
     elevation: 2,
   },
-  head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 },
+  headerRight: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', flexWrap: 'wrap', gap: 10 },
   title: { ...adminFont.bodyBold, fontSize: 17 },
   link: { flexDirection: 'row', alignItems: 'center', gap: 3, minHeight: 32 },
   linkText: { ...adminFont.bodySemiBold, fontSize: 14 },
