@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import { type CompositeScreenProps, useFocusEffect } from '@react-navigation/native';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -9,12 +9,11 @@ import { AdminStatCard } from '../../components/admin/AdminStatCard';
 import { AdminMobileHeader } from '../../components/admin/AdminMobileHeader';
 import { BarChart } from '../../components/common/BarChart';
 import { TextField } from '../../components/common/TextField';
-import { PillButton } from '../../components/common/PillButton';
 import { useAdmin } from '../../context/AdminContext';
 import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
 import { useHover, hoverTransition } from '../../hooks/useHover';
 import { SuperAdminDesktopFrame } from '../../components/admin/desktop/SuperAdminDesktopFrame';
-import { DesktopStatCard } from '../../components/admin/desktop/DesktopStatCard';
+import { TierBreakdown } from '../../components/admin/TierBreakdown';
 import { DesktopPanel } from '../../components/admin/desktop/DesktopPanel';
 import { TableAvatarCell, TableTag } from '../../components/admin/desktop/DesktopDataTable';
 import { AdminButton, EmptyState, ErrorState, Muted, PageTitle, Segmented, SkeletonRows, Tile } from '../../components/admin/ui';
@@ -45,6 +44,7 @@ type Period = 'month' | 'year' | 'all';
 const PERIOD_LABELS: Record<Period, string> = { month: 'Month', year: 'Year', all: 'All' };
 const PERIODS: Period[] = ['month', 'year', 'all'];
 const PERIOD_OPTIONS = PERIODS.map((p) => ({ key: p, label: PERIOD_LABELS[p] }));
+const PERIOD_WORDS: Record<Period, string> = { month: 'this month', year: 'this year', all: 'all time' };
 const PLACEMENT_LABELS: Record<string, string> = { home: 'Home', home_top: 'Home (Top Banner)', rewards_shop: 'Rewards Shop' };
 
 type AdView = 'combined' | 'slot' | 'course' | 'ad';
@@ -324,19 +324,12 @@ export function SuperAdminReportsScreen({ navigation }: Props) {
     adSectionBody
   );
 
-  const tierRows =
-    dashboard && dashboard.tierDistribution.length === 0 ? (
-      <EmptyState icon="people-outline" title="No members yet." />
-    ) : (
-      <View>
-        {dashboard?.tierDistribution.map((t, i) => (
-          <View key={t.tier} style={[styles.row, i > 0 && styles.rowDivider]}>
-            <Text style={styles.rowLabel}>{t.tier}</Text>
-            <Text style={styles.rowValue}>{t.count}</Text>
-          </View>
-        ))}
-      </View>
-    );
+  const tierRows = (
+    <View style={{ gap: 14 }}>
+      <TierBreakdown tiers={dashboard?.tierDistribution ?? []} />
+      <Muted style={styles.note}>Current tiers across every club. Members not on a club roster stay at Bronze until verified.</Muted>
+    </View>
+  );
 
   const rewardRows =
     dashboard && dashboard.topRewards.length === 0 ? (
@@ -344,9 +337,22 @@ export function SuperAdminReportsScreen({ navigation }: Props) {
     ) : (
       <View>
         {dashboard?.topRewards.map((r, i) => (
-          <View key={r.rewardId} style={[styles.row, i > 0 && styles.rowDivider]}>
-            <Text style={styles.rowLabelStrong} numberOfLines={1}>{r.title}</Text>
-            <Text style={styles.rowValue}>{r.redemptions}× · {r.fcSpent.toLocaleString()} FC</Text>
+          <View key={r.rewardId} style={[styles.rewardRow, i > 0 && styles.rowDivider]}>
+            {r.imageUrl ? (
+              <Image source={{ uri: r.imageUrl }} style={styles.rewardThumb} accessibilityIgnoresInvertColors />
+            ) : (
+              <View style={[styles.rewardThumb, styles.rewardThumbEmpty]}>
+                <Text style={styles.rewardThumbText}>{r.title.charAt(0).toUpperCase()}</Text>
+              </View>
+            )}
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={styles.rowLabelStrong} numberOfLines={1}>{r.title}</Text>
+              {r.courseName ? <Text style={styles.rewardClub} numberOfLines={1}>{r.courseName}</Text> : null}
+            </View>
+            <View style={{ alignItems: 'flex-end' }}>
+              <Text style={styles.rowValue}>{r.redemptions}×</Text>
+              <Text style={styles.rewardFc}>{r.fcSpent.toLocaleString()} FC</Text>
+            </View>
           </View>
         ))}
       </View>
@@ -354,15 +360,17 @@ export function SuperAdminReportsScreen({ navigation }: Props) {
 
   const memberSearchForm = (
     <View style={styles.searchForm}>
-      <TextField
-        placeholder="Search by name or email, any club"
-        variant="onLight"
-        value={memberSearch}
-        onChangeText={setMemberSearch}
-        onSubmitEditing={handleSearchMembers}
-        returnKeyType="search"
-      />
-      <PillButton label="Search" icon="search" variant="outline" onPress={handleSearchMembers} loading={searchingMembers} />
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <TextField
+          placeholder="Search by name or email, any club"
+          variant="onLight"
+          value={memberSearch}
+          onChangeText={setMemberSearch}
+          onSubmitEditing={handleSearchMembers}
+          returnKeyType="search"
+        />
+      </View>
+      <AdminButton label="Search" icon="search" variant="glass" onPress={handleSearchMembers} loading={searchingMembers} />
     </View>
   );
 
@@ -372,10 +380,10 @@ export function SuperAdminReportsScreen({ navigation }: Props) {
 
   if (isDesktop) {
     return (
-      <SuperAdminDesktopFrame activeKey="SuperAdminReports" breadcrumb="Reports" headerRight={periodToggle}>
+      <SuperAdminDesktopFrame activeKey="SuperAdminReports" breadcrumb="Reports" headerRight={periodToggle} showRail={false}>
         <View style={styles.dTitleRow}>
           <PageTitle>Reports</PageTitle>
-          <Muted style={styles.dPageSubtitle}>All Clubs</Muted>
+          <Muted style={styles.dPageSubtitle}>All clubs · {PERIOD_WORDS[period]}</Muted>
         </View>
 
         {dashboardLoading && !dashboard ? (
@@ -385,48 +393,44 @@ export function SuperAdminReportsScreen({ navigation }: Props) {
         ) : dashboard ? (
           <>
             <View style={styles.dStatRow}>
-              <DesktopStatCard label="Clubs" value={dashboard.totals.clubs} icon="business-outline" />
-              <DesktopStatCard
+              <KpiTile label="Clubs" value={dashboard.totals.clubs.toLocaleString()} note="On Flagrr" />
+              <KpiTile
                 label="Members"
-                value={dashboard.totals.members}
-                icon="people-outline"
+                value={dashboard.totals.members.toLocaleString()}
                 onPress={() => navigation.navigate('SuperAdminStatBreakdown', { metric: 'members', label: 'Members', period })}
               />
-              <DesktopStatCard
+              <KpiTile
                 label="New Members"
-                value={dashboard.totals.newMembers}
-                icon="person-add-outline"
+                value={dashboard.totals.newMembers.toLocaleString()}
                 onPress={() => navigation.navigate('SuperAdminStatBreakdown', { metric: 'newMembers', label: 'New Members', period })}
               />
-              <DesktopStatCard
+              <KpiTile
                 label="Flagrr Cash Earned"
                 value={dashboard.totals.fcEarned.toLocaleString()}
-                icon="trending-up-outline"
-                deltaPct={dashboard.totals.fcEarnedDeltaPct}
-                showDelta={period !== 'all'}
+                deltaPct={period !== 'all' ? dashboard.totals.fcEarnedDeltaPct : undefined}
                 onPress={() => navigation.navigate('SuperAdminStatBreakdown', { metric: 'fcEarned', label: 'Flagrr Cash Earned', period })}
               />
-              <DesktopStatCard
+              <KpiTile
                 label="Flagrr Cash Redeemed"
                 value={dashboard.totals.fcRedeemed.toLocaleString()}
-                icon="swap-horizontal-outline"
-                deltaPct={dashboard.totals.fcRedeemedDeltaPct}
-                showDelta={period !== 'all'}
+                deltaPct={period !== 'all' ? dashboard.totals.fcRedeemedDeltaPct : undefined}
                 onPress={() => navigation.navigate('SuperAdminStatBreakdown', { metric: 'fcRedeemed', label: 'Flagrr Cash Redeemed', period })}
               />
-              <DesktopStatCard
+              <KpiTile
                 label="Receipts Scanned"
-                value={dashboard.totals.receiptsScanned}
-                icon="receipt-outline"
-                deltaPct={dashboard.totals.receiptsScannedDeltaPct}
-                showDelta={period !== 'all'}
+                value={dashboard.totals.receiptsScanned.toLocaleString()}
+                deltaPct={period !== 'all' ? dashboard.totals.receiptsScannedDeltaPct : undefined}
                 onPress={() => navigation.navigate('SuperAdminStatBreakdown', { metric: 'receiptsScanned', label: 'Receipts Scanned', period })}
               />
             </View>
 
             <View style={styles.dGrid2}>
-              <DesktopPanel title="Members Joined This Year" style={{ flex: 2, minWidth: 360 }}>
-                <BarChart data={dashboard.signupsByMonth} height={130} />
+              <DesktopPanel
+                title="Members Joined This Year"
+                style={{ flex: 2, minWidth: 360 }}
+                headerRight={<Muted>{dashboard.signupsByMonth.reduce((sum, m) => sum + m.value, 0).toLocaleString()} total</Muted>}
+              >
+                <BarChart data={dashboard.signupsByMonth} height={170} />
               </DesktopPanel>
               <DesktopPanel
                 title="Tier Distribution"
@@ -454,7 +458,7 @@ export function SuperAdminReportsScreen({ navigation }: Props) {
             </DesktopPanel>
           ) : null}
 
-          <DesktopPanel title="Look Up a Member" style={{ flex: 1, minWidth: 320 }}>
+          <DesktopPanel title="Look Up a Member" style={{ flex: 1, minWidth: 320 }} headerRight={<Muted>Any club</Muted>}>
             {memberSearchForm}
             {searchedOnce && memberResults.length === 0 ? (
               memberNoMatch
@@ -484,10 +488,21 @@ export function SuperAdminReportsScreen({ navigation }: Props) {
         <DesktopPanel
           title="Ad Performance"
           style={styles.dBlock}
-          onViewAll={handleExportAdPerformance}
-          viewAllLabel={adExporting ? 'Exporting…' : 'Export Excel'}
+          headerRight={
+            <>
+              {adViewToggle}
+              <View style={{ flex: 1 }} />
+              <AdminButton
+                label="Export Excel"
+                icon="download-outline"
+                variant="glass"
+                onPress={handleExportAdPerformance}
+                loading={adExporting}
+                accessibilityLabel="Export ad performance to Excel"
+              />
+            </>
+          }
         >
-          {adViewToggle}
           {adSection}
         </DesktopPanel>
       </SuperAdminDesktopFrame>
@@ -645,6 +660,73 @@ export function SuperAdminReportsScreen({ navigation }: Props) {
   );
 }
 
+// One of the six equal KPI tiles across the top of the desktop page: label
+// (with a chevron when it opens a breakdown), a big number, then either the
+// change against the previous period or a short note.
+function KpiTile({
+  label,
+  value,
+  deltaPct,
+  note,
+  onPress,
+}: {
+  label: string;
+  value: string;
+  deltaPct?: number;
+  note?: string;
+  onPress?: () => void;
+}) {
+  const { c } = useAdminTheme();
+  const [hovered, hoverHandlers] = useHover();
+  const up = (deltaPct ?? 0) >= 0;
+  return (
+    <Pressable
+      style={[
+        kpiStyles.tile,
+        hoverTransition,
+        { backgroundColor: hovered && onPress ? c.surface2 : c.surface, borderColor: c.edge },
+      ]}
+      onPress={onPress}
+      disabled={!onPress}
+      accessibilityRole={onPress ? 'button' : undefined}
+      accessibilityLabel={`${label}: ${value}${deltaPct !== undefined ? `, ${up ? 'up' : 'down'} ${Math.abs(deltaPct)}% vs last period` : ''}`}
+      onHoverIn={hoverHandlers.onMouseEnter}
+      onHoverOut={hoverHandlers.onMouseLeave}
+    >
+      <View style={kpiStyles.labelRow}>
+        <Text style={[kpiStyles.label, { color: c.ink2 }]} numberOfLines={1}>{label}</Text>
+        {onPress ? <Ionicons name="chevron-forward" size={15} color={c.ink3} /> : null}
+      </View>
+      <Text style={[kpiStyles.value, { color: c.ink }]} numberOfLines={1} adjustsFontSizeToFit>{value}</Text>
+      {deltaPct !== undefined ? (
+        <Text style={[kpiStyles.delta, { color: up ? c.pos : c.neg }]} numberOfLines={1}>
+          {up ? '↑' : '↓'} {Math.abs(deltaPct)}%<Text style={{ color: c.ink3 }}> vs last period</Text>
+        </Text>
+      ) : note ? (
+        <Text style={[kpiStyles.delta, { color: c.ink3 }]} numberOfLines={1}>{note}</Text>
+      ) : null}
+    </Pressable>
+  );
+}
+
+const kpiStyles = StyleSheet.create({
+  tile: {
+    // Six across when there's room, otherwise three and three (never five
+    // and a lone stretched tile).
+    flexGrow: 1,
+    flexBasis: '15%',
+    minWidth: 170,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: adminRadius.md,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  labelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 6 },
+  label: { ...adminFont.bodySemiBold, fontSize: 13, flexShrink: 1 },
+  value: { ...adminFont.bodyBold, ...tabularNums, fontSize: 30, letterSpacing: -0.9, lineHeight: 34, marginTop: 10 },
+  delta: { ...adminFont.bodyBold, ...tabularNums, fontSize: 12.5, marginTop: 8 },
+});
+
 // A pressable list row with the desktop hover wash.
 function HoverRow({
   style,
@@ -731,7 +813,15 @@ function createStyles(c: AdminColors) {
   adSummaryValue: { ...adminFont.bodyBold, ...tabularNums, fontSize: 24, letterSpacing: -0.4, color: c.ink },
   adSummaryValueSmall: { ...adminFont.bodyBold, fontSize: 16, color: c.ink, marginTop: 4 },
   adSummaryLabel: { ...adminFont.body, fontSize: 13, color: c.ink2 },
-  searchForm: { gap: 10 },
+  searchForm: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  note: { fontSize: 12.5, lineHeight: 18 },
+  rewardRow: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 64, paddingVertical: 10 },
+  rewardThumb: { width: 44, height: 44, borderRadius: adminRadius.sm },
+  // Brand ground for a reward with no photo: Fairway with a lime initial.
+  rewardThumbEmpty: { backgroundColor: '#1F4234', alignItems: 'center', justifyContent: 'center' },
+  rewardThumbText: { ...adminFont.title, fontSize: 18, color: '#CDDE5C' },
+  rewardClub: { ...adminFont.body, fontSize: 13, color: c.ink2, marginTop: 2 },
+  rewardFc: { ...adminFont.body, ...tabularNums, fontSize: 13, color: c.ink2, marginTop: 2 },
   memberList: { marginTop: 8 },
   memberRow: {
     flexDirection: 'row',

@@ -38,7 +38,8 @@ All animation uses React Native's built-in `Animated` API plus native modules th
 - Tokens: `mobile/src/theme/admin.ts` (`adminDark` / `adminLight`, `adminRadius`, `adminFont` with the system font for interface text and Fraunces for titles, `tabularNums`). Fraunces 800 italic is loaded for the lime second line (`fontsToLoad` in `theme/typography.ts`).
 - Kit: `mobile/src/components/admin/ui` (`Glass`, `Tile`, `AdminButton`, `Segmented`, `StatusPill`, `Banner`, `EmptyState`, `ErrorState`, `SkeletonRows`, `AdminBackdrop`, …). `Glass` blurs with `backdrop-filter` on the web and `expo-blur` on iOS, and is a solid fill on Android or when Reduce Transparency is on.
 - Admin screens are transparent. The admin navigators paint the blurred photo once per stack screen through `screenLayout` (`adminScreenLayout` in `components/admin/AdminScope.tsx`). Tab scenes share one backdrop, so unfocused tabs are hidden (`tabSceneStyle`).
-- Alerts: `AdminAlertHost` (mounted by `AdminThemeScope`) registers with `utils/alertStore.ts`; while one is mounted, the app-wide `AppAlertHost` stands aside.
+- Alerts: `AdminAlertHost` (mounted by `AdminThemeScope`) registers with `utils/alertStore.ts`; while one is mounted, the app-wide `AppAlertHost` stands aside. Its Modal mounts only while an alert is showing, so on the web it draws above any sheet already open (password, fraud reason, gift Flagrr Cash).
+- The super admin dashboard report (`getSuperAdminDashboardReport` in `api/_lib/adminReports.ts`) also returns each top reward's `imageUrl` and `courseName`; the course-admin report doesn't.
 - Desktop search: `components/admin/desktop/CommandPalette.tsx`, opened by ⌘K / Ctrl K or the toolbar pill. Member results come from the existing `searchMembers` (course admin) and `searchSuperAdminMembers` (super admin) calls; no new endpoint.
 
 ## Multi-tenancy

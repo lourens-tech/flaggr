@@ -30,6 +30,11 @@ export function AdminAlertHost() {
   }, []);
 
   if (!host.current || activeAdminAlertHost() !== host.current.id) return null;
+  // Mount the Modal only while an alert shows: on the web a Modal's layer is
+  // created when it mounts, so one that stayed mounted would sit underneath
+  // any sheet opened later (password, fraud reason, gift) and its alerts
+  // would be hidden behind that sheet.
+  if (!config.visible) return null;
 
   const press = (button: AlertButtonConfig) => {
     dismissAlert();

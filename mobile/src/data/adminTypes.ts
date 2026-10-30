@@ -106,6 +106,9 @@ export interface TopReward {
   title: string;
   redemptions: number;
   fcSpent: number;
+  // Only on the super admin's cross-club report.
+  imageUrl?: string | null;
+  courseName?: string;
 }
 
 export interface MonthlyCount {
