@@ -53,6 +53,7 @@
           "photosPermission": "Flagrr needs access to your photos so you can upload a receipt to scan."
         }
       ],
+      "@sentry/react-native/expo",
       [
         "expo-notifications",
         {

@@ -148,3 +148,7 @@ See the table in `docs/Environment-and-Setup.md`. Open items from that check:
 - **`CONTACT_EMAIL` is not set**; the hard-coded personal address fallback is in use.
 - **Push credentials** (Apple key, Android FCM v1) still need checking in the Expo dashboard; the API cannot show them.
 - **Export My Data** has not been run on a physical phone.
+
+## Crash reporting (Sentry) is prepared but not live (2026-10-30)
+
+See `docs/Environment-and-Setup.md`. Open items: no Sentry project or DSN exists for the app; the EAS variables are not set; a new native build and store submission is needed; the web app (admin consoles) has no error reporting; and the in-app privacy policy and the store privacy disclosures do not yet mention a crash-reporting provider (Sentry, Germany region), which needs adding before release.
