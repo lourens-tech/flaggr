@@ -101,3 +101,7 @@ Super admin mutations and fraud confirm/approve decisions are logged (`api/_lib/
 - Super admin, support agent and staff have no change-password option in their profile.
 
 The full, current list is in [Known Limitations and Future Work](Known-Limitations-and-Future-Work).
+
+## Creating a super admin
+
+There is no screen or API action that creates a `super_admin`. A super admin is added by inserting a row into `admins` directly in the database (role `super_admin`, no `course_id`, a bcrypt `password_hash`, `must_change_password = true`, `activated_at = now()`). The new super admin logs in with their email and the temporary password and is forced to change it. Support agents and course admins, by contrast, are created from the super-admin console.
