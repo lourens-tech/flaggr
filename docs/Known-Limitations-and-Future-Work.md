@@ -1,6 +1,6 @@
 # Known Limitations & Future Work
 
-_Last verified against code on 2026-10-29._
+_Last verified against code on 2026-10-30._
 
 Open issues found by reading the code, grouped by severity. Paths are relative to this repo unless a repo is named. Items marked **unverified** could not be confirmed from the code alone, for example because they depend on settings in Vercel, EAS or DNS.
 
@@ -41,7 +41,7 @@ Open issues found by reading the code, grouped by severity. Paths are relative t
 
 1. **Terms and privacy pages are drafts** ("Draft — pending legal review") and `[ SUPPORT@DOMAIN ]` still appears in the footer and both pages. `flagrr-marketing: src/components/legal/LegalPage.tsx:32`, `Footer.tsx:59`, `content/terms.ts:72`, `content/privacy.ts:64,87`
 2. **No 18+ check at sign-up,** although the terms require it. `mobile/src/screens/onboarding/SignUpStep1Screen.tsx:152`
-3. **The terms cannot be read before sign-up.** The acceptance line is plain text and the terms screen exists only in the logged-in stack. `mobile/src/screens/onboarding/LandingScreen.tsx:65-69`
+3. **The terms cannot be read before sign-up.** The acceptance line is plain text and the terms screen exists only in the logged-in stack. `mobile/src/screens/onboarding/LandingScreen.tsx:98-101`
 4. **Dead `#` links on the marketing site:** Terms and Privacy on the signup, success and cancel pages, "Club login" and "Contact". `flagrr-marketing: src/app/clubs/signup/page.tsx:87-88`, `src/content/home.ts:152,161`
 5. **No privacy contact.** The privacy and delete-account pages point only to in-app Contact Us. `mobile/static/privacy.html:97`, `delete-account.html:75`
 6. **A personal email address** is the fallback contact in code and on a public page. `api/profile/index.ts:19`, `api/admin/index.ts:69`, `mobile/static/support.html:73`
