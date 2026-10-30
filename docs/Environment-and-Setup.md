@@ -173,3 +173,19 @@ Rules and gotchas:
 - Anything native needs a new build and store submission: a new native module or Expo plugin, permission changes, an Expo SDK upgrade, icon or splash changes.
 - **`EXPO_PUBLIC_STORE_BUILD` is set only in the `eas.json` build profiles.** From SDK 55, `eas update` ignores local `.env` files and uses variables stored on EAS servers for the chosen `--environment`. If `EXPO_PUBLIC_STORE_BUILD=1` is not also defined in the EAS `production` environment, an update would be bundled with it unset, which re-enables the admin-login links in the store apps (`mobile/src/config/buildConfig.ts`). It is now defined there (2026-10-28); keep it if the environment is ever recreated.
 - The web app on Vercel is separate: it updates on every Vercel deploy and needs no store step.
+
+## Crash reporting (Sentry, store apps only)
+
+Branch `claude/sentry-mobile` adds `@sentry/react-native` to the Expo app. It is **inert until configured** and only runs in the iOS and Android builds; the web export on Vercel is not instrumented.
+
+Code: `mobile/src/config/sentry.ts` (init, update tags, root wrapper), `mobile/index.ts` (wraps the root component), `mobile/metro.config.js` (debug IDs for readable stack traces), and the `@sentry/react-native/expo` plugin in `mobile/app.json`. Defaults: `sendDefaultPii: false`, 20% trace sampling, events disabled in development, tagged with the EAS update id.
+
+To switch it on (none of this is done yet):
+
+1. Create a Sentry project for the app (React Native platform). The Vercel Sentry integration is installed on the team but not linked to any project, and the Sentry region is Germany, so source map upload may also need `SENTRY_URL=https://de.sentry.io/`.
+2. In the EAS dashboard, add these variables to the **production** environment: `EXPO_PUBLIC_SENTRY_DSN` (plain), `SENTRY_ORG`, `SENTRY_PROJECT`, and `SENTRY_AUTH_TOKEN` (sensitive; an organisation auth token). Without the token the build's source map upload step fails.
+3. Make a **new store build**. The Sentry SDK is a native module, so this cannot be shipped as an over-the-air update, and the app version must be bumped (the `appVersion` runtime policy means 1.0.1 installs never receive an update built for the new runtime). Then submit to the stores.
+4. After each `eas update`, upload that update's source maps: `npx sentry-expo-upload-sourcemaps dist`.
+5. Verify with a release build: trigger a test error and confirm it appears in Sentry with a readable stack trace.
+
+Not yet verified: the package version `8.33.0` was installed with npm because `expo install` could not reach Expo's compatibility service from this environment, so compatibility with Expo SDK 57 was not checked against Expo's list. No native build has been made with it.
