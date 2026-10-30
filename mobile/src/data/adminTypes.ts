@@ -79,6 +79,9 @@ export interface SuperAdminCourseSummary {
   onboardingCompletedAt: string | null;
   staffOnboardingCompletedAt: string | null;
   archivedAt: string | null;
+  // The "My Club Isn't Listed Yet" stand-in club: never has a catalogue or a
+  // go-live, so it is not "pending setup".
+  isPlaceholder: boolean;
   createdAt: string;
   adminCount: number;
   memberCount: number;

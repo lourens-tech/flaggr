@@ -669,6 +669,7 @@ function superAdminCourseDto(row: {
   onboarding_completed_at: string | null;
   staff_onboarding_completed_at: string | null;
   archived_at?: string | null;
+  is_placeholder?: boolean;
   created_at: string;
   admin_count: number | string;
   member_count: number | string;
@@ -683,6 +684,7 @@ function superAdminCourseDto(row: {
     onboardingCompletedAt: row.onboarding_completed_at,
     staffOnboardingCompletedAt: row.staff_onboarding_completed_at,
     archivedAt: row.archived_at ?? null,
+    isPlaceholder: row.is_placeholder ?? false,
     createdAt: row.created_at,
     adminCount: Number(row.admin_count),
     memberCount: Number(row.member_count),
@@ -1670,7 +1672,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       if (action === 'superAdminCourses' && req.method === 'GET') {
         const rows = (await sql`
           select c.id, c.name, c.slug, c.contact_email, c.subscription_status, c.archived_at, c.created_at, c.fb_per_rand,
-            c.onboarding_completed_at, c.staff_onboarding_completed_at,
+            c.onboarding_completed_at, c.staff_onboarding_completed_at, c.is_placeholder,
             (select count(*) from admins a where a.course_id = c.id and a.role = 'course_admin' and a.revoked_at is null) as admin_count,
             (select count(*) from users u where u.course_id = c.id) as member_count
           from courses c
