@@ -1,7 +1,9 @@
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { useColorScheme } from 'react-native';
+import { AccessibilityInfo, Platform, useColorScheme } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { darkColors, lightColors, type ThemeColors } from '../theme';
+import { adminDark, adminLegacyDark, adminLegacyLight, adminLight, type AdminColors } from '../theme/admin';
+import { AdminAlertHost } from '../components/admin/AdminAlertHost';
 
 export type { ThemeColors };
 
@@ -70,4 +72,82 @@ export function useTheme(): ThemeContextValue {
 
 export function useThemeColors(): ThemeColors {
   return useTheme().colors;
+}
+
+// ── Admin consoles ──────────────────────────────────────────────────────────
+// The admin, staff, super-admin and support-agent stacks render inside
+// AdminThemeScope: it re-provides ThemeContext with the admin palette's
+// neutrals (so every existing useThemeColors() call picks them up) and adds
+// the full admin palette for restyled components via useAdminTheme().
+
+interface AdminThemeValue {
+  scheme: 'light' | 'dark';
+  c: AdminColors;
+  // iOS "Reduce Transparency" or the browser's prefers-reduced-transparency:
+  // glass turns into solid fills and the ambient photo is dropped.
+  reduceTransparency: boolean;
+}
+
+const AdminThemeContext = createContext<AdminThemeValue | undefined>(undefined);
+
+function useReduceTransparency(): boolean {
+  const [reduced, setReduced] = useState(false);
+  useEffect(() => {
+    if (Platform.OS === 'web') {
+      if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
+      const mq = window.matchMedia('(prefers-reduced-transparency: reduce)');
+      setReduced(mq.matches);
+      const onChange = (e: MediaQueryListEvent) => setReduced(e.matches);
+      mq.addEventListener?.('change', onChange);
+      return () => mq.removeEventListener?.('change', onChange);
+    }
+    let alive = true;
+    AccessibilityInfo.isReduceTransparencyEnabled()
+      .then((v) => {
+        if (alive) setReduced(v);
+      })
+      .catch(() => {});
+    const sub = AccessibilityInfo.addEventListener('reduceTransparencyChanged', setReduced);
+    return () => {
+      alive = false;
+      sub.remove();
+    };
+  }, []);
+  return reduced;
+}
+
+export function AdminThemeScope({ children }: { children: React.ReactNode }) {
+  const parent = useTheme();
+  const reduceTransparency = useReduceTransparency();
+  const dark = parent.scheme === 'dark';
+
+  const themeValue = useMemo<ThemeContextValue>(
+    () => ({ ...parent, colors: dark ? adminLegacyDark : adminLegacyLight }),
+    [parent, dark],
+  );
+  const adminValue = useMemo<AdminThemeValue>(
+    () => ({ scheme: parent.scheme, c: dark ? adminDark : adminLight, reduceTransparency }),
+    [parent.scheme, dark, reduceTransparency],
+  );
+
+  return (
+    <ThemeContext.Provider value={themeValue}>
+      <AdminThemeContext.Provider value={adminValue}>
+        {children}
+        <AdminAlertHost />
+      </AdminThemeContext.Provider>
+    </ThemeContext.Provider>
+  );
+}
+
+export function useAdminTheme(): AdminThemeValue {
+  const ctx = useContext(AdminThemeContext);
+  if (!ctx) throw new Error('useAdminTheme must be used within AdminThemeScope');
+  return ctx;
+}
+
+// For components shared with the member app (PillButton, TextField…): null
+// outside the admin consoles, so member screens keep their own look.
+export function useOptionalAdminTheme(): AdminThemeValue | null {
+  return useContext(AdminThemeContext) ?? null;
 }

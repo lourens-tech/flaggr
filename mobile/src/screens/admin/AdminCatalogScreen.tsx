@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -8,30 +8,34 @@ import { AdminMobileHeader } from '../../components/admin/AdminMobileHeader';
 import { TextField } from '../../components/common/TextField';
 import { useAdmin } from '../../context/AdminContext';
 import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
-import { hoverTransition } from '../../hooks/useHover';
+import { useHover, hoverTransitionNoTransform } from '../../hooks/useHover';
 import { AdminDesktopFrame } from '../../components/admin/desktop/AdminDesktopFrame';
-import { DesktopPanel } from '../../components/admin/desktop/DesktopPanel';
+import {
+  AdminButton,
+  CircleButton,
+  EmptyState,
+  ErrorState,
+  Muted,
+  PageTitle,
+  Segmented,
+  SkeletonRows,
+  StatusPill,
+  Tile,
+} from '../../components/admin/ui';
 import { AdminApiError } from '../../api/adminClient';
 import { showAlert } from '../../utils/alert';
-import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
-import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
+import { useAdminTheme } from '../../context/ThemeContext';
 import type { CatalogActivity, CatalogProduct } from '../../data/adminTypes';
+import { adminFont, adminRadius, tabularNums } from '../../theme/admin';
 
 type Props = NativeStackScreenProps<AdminStackParamList, 'AdminCatalog'>;
 type Kind = 'product' | 'activity';
-
-// react-native-web passes unknown style keys straight through to the DOM —
-// this suppresses the browser's default focus ring on the search input,
-// which isn't part of RN's typed style props (see DesktopShell's search box).
-const webNoOutline = { outlineStyle: 'none' } as unknown as { outlineWidth: number };
 
 // What the receipt scanner matches item names against for this club, priced
 // in Flagrr Cash from Rand value * the club's own conversion rate — same
 // list/edit shape as Rewards, just backing the earning side instead of the
 // spending side.
 export function AdminCatalogScreen({ navigation }: Props) {
-  const colors = useThemeColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
   const isDesktop = useIsDesktopNav();
   const {
     course,
@@ -40,23 +44,30 @@ export function AdminCatalogScreen({ navigation }: Props) {
     loadCatalogProducts,
     loadCatalogActivities,
     saveCatalogProduct,
+    deleteCatalogProduct,
     hardDeleteCatalogProduct,
     saveCatalogActivity,
+    deleteCatalogActivity,
     hardDeleteCatalogActivity,
   } = useAdmin();
   const [kind, setKind] = useState<Kind>('product');
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
-  const [searchFocused, setSearchFocused] = useState(false);
+  // Load failures used to be swallowed silently; surface them with a retry.
+  const [error, setError] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useFocusEffect(
     useCallback(() => {
       let cancelled = false;
       (async () => {
         setLoading(true);
+        setError(false);
         try {
           await Promise.all([loadCatalogProducts(), loadCatalogActivities()]);
+        } catch {
+          if (!cancelled) setError(true);
         } finally {
           if (!cancelled) setLoading(false);
         }
@@ -65,8 +76,10 @@ export function AdminCatalogScreen({ navigation }: Props) {
         cancelled = true;
       };
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []),
+    }, [reloadKey]),
   );
+
+  const retry = () => setReloadKey((k) => k + 1);
 
   const query = search.trim().toLowerCase();
   const products = useMemo(
@@ -121,8 +134,35 @@ export function AdminCatalogScreen({ navigation }: Props) {
     }
   };
 
+  // Decision 3: the everyday destructive action is a soft deactivate (the
+  // same call the edit screen makes); permanent deletion stays separate.
+  const handleDeactivateProduct = (item: CatalogProduct) => {
+    showAlert(
+      'Deactivate this product?',
+      `"${item.name}" stops being matched by the receipt scanner. It's kept in history, so you can turn it back on from its edit screen.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Deactivate',
+          style: 'destructive',
+          onPress: async () => {
+            setBusyId(item.id);
+            try {
+              await deleteCatalogProduct(item.id);
+            } catch (err) {
+              const message = err instanceof AdminApiError ? err.message : 'Something went wrong. Please try again.';
+              showAlert('Couldn’t deactivate product', message);
+            } finally {
+              setBusyId(null);
+            }
+          },
+        },
+      ],
+    );
+  };
+
   const handleDeleteProduct = (item: CatalogProduct) => {
-    showAlert('Permanently remove this product?', `"${item.name}" will be deleted for good — this can’t be undone. Points already awarded from past receipts are kept.`, [
+    showAlert('Permanently remove this product?', `"${item.name}" will be deleted for good — this can’t be undone. Flagrr Cash already earned from past receipts is kept.`, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete Permanently',
@@ -160,8 +200,33 @@ export function AdminCatalogScreen({ navigation }: Props) {
     }
   };
 
+  const handleDeactivateActivity = (item: CatalogActivity) => {
+    showAlert(
+      'Deactivate this activity?',
+      `"${item.name}" stops being matched by the receipt scanner. It's kept in history, so you can turn it back on from its edit screen.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Deactivate',
+          style: 'destructive',
+          onPress: async () => {
+            setBusyId(item.id);
+            try {
+              await deleteCatalogActivity(item.id);
+            } catch (err) {
+              const message = err instanceof AdminApiError ? err.message : 'Something went wrong. Please try again.';
+              showAlert('Couldn’t deactivate activity', message);
+            } finally {
+              setBusyId(null);
+            }
+          },
+        },
+      ],
+    );
+  };
+
   const handleDeleteActivity = (item: CatalogActivity) => {
-    showAlert('Permanently remove this activity?', `"${item.name}" will be deleted for good — this can’t be undone. Points already awarded from past receipts are kept.`, [
+    showAlert('Permanently remove this activity?', `"${item.name}" will be deleted for good — this can’t be undone. Flagrr Cash already earned from past receipts is kept.`, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete Permanently',
@@ -181,108 +246,64 @@ export function AdminCatalogScreen({ navigation }: Props) {
     ]);
   };
 
-  const renderProductRow = (item: CatalogProduct) => (
-    <View key={item.id} style={styles.row}>
-      <TouchableOpacity
-        style={styles.rowContent}
-        activeOpacity={0.85}
-        onPress={() => navigation.navigate('AdminCatalogItemEdit', { kind: 'product', itemId: item.id })}
-      >
-        <View style={{ flex: 1 }}>
-          <Text style={styles.rowTitle} numberOfLines={1}>{item.name}</Text>
-          <Text style={styles.rowSubtitle} numberOfLines={1}>
-            R{item.randValue.toLocaleString()} {item.pointsPerUnit ? 'per unit' : 'flat'} = {fcFor(item.randValue).toLocaleString()} FC
-          </Text>
-        </View>
-        {!item.active ? (
-          <View style={styles.inactiveBadge}>
-            <Text style={styles.inactiveBadgeText}>Inactive</Text>
-          </View>
-        ) : null}
-        <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
-      </TouchableOpacity>
-      <View style={styles.rowActions}>
-        <TouchableOpacity
-          onPress={() => handleDuplicateProduct(item)}
-          style={styles.rowActionBtn}
-          hitSlop={8}
-          disabled={busyId === item.id}
-          accessibilityLabel={`Duplicate ${item.name}`}
-        >
-          <Ionicons name="copy-outline" size={16} color={colors.textSecondary} />
-          <Text style={styles.rowActionText}>Duplicate</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => handleDeleteProduct(item)}
-          style={styles.rowActionBtn}
-          hitSlop={8}
-          disabled={busyId === item.id}
-          accessibilityLabel={`Permanently delete ${item.name}`}
-        >
-          <Ionicons name="trash-outline" size={16} color={colors.negative} />
-          <Text style={[styles.rowActionText, { color: colors.negative }]}>Delete</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+  const renderProductRow = (item: CatalogProduct, index: number) => (
+    <CatalogRow
+      key={item.id}
+      first={index === 0}
+      desktop={isDesktop}
+      name={item.name}
+      subtitle={`R${item.randValue.toLocaleString()} ${item.pointsPerUnit ? 'per unit' : 'flat'} = ${fcFor(item.randValue).toLocaleString()} FC`}
+      active={item.active}
+      busy={busyId === item.id}
+      onOpen={() => navigation.navigate('AdminCatalogItemEdit', { kind: 'product', itemId: item.id })}
+      onDuplicate={() => handleDuplicateProduct(item)}
+      onDeactivate={() => handleDeactivateProduct(item)}
+      onDelete={() => handleDeleteProduct(item)}
+    />
   );
 
-  const renderActivityRow = (item: CatalogActivity) => (
-    <View key={item.id} style={styles.row}>
-      <TouchableOpacity
-        style={styles.rowContent}
-        activeOpacity={0.85}
-        onPress={() => navigation.navigate('AdminCatalogItemEdit', { kind: 'activity', itemId: item.id })}
-      >
-        <View style={{ flex: 1 }}>
-          <Text style={styles.rowTitle} numberOfLines={1}>{item.name}</Text>
-          <Text style={styles.rowSubtitle} numberOfLines={1}>
-            R{item.randValue.toLocaleString()} = {fcFor(item.randValue).toLocaleString()} FC
-          </Text>
-        </View>
-        {!item.active ? (
-          <View style={styles.inactiveBadge}>
-            <Text style={styles.inactiveBadgeText}>Inactive</Text>
-          </View>
-        ) : null}
-        <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
-      </TouchableOpacity>
-      <View style={styles.rowActions}>
-        <TouchableOpacity
-          onPress={() => handleDuplicateActivity(item)}
-          style={styles.rowActionBtn}
-          hitSlop={8}
-          disabled={busyId === item.id}
-          accessibilityLabel={`Duplicate ${item.name}`}
-        >
-          <Ionicons name="copy-outline" size={16} color={colors.textSecondary} />
-          <Text style={styles.rowActionText}>Duplicate</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => handleDeleteActivity(item)}
-          style={styles.rowActionBtn}
-          hitSlop={8}
-          disabled={busyId === item.id}
-          accessibilityLabel={`Permanently delete ${item.name}`}
-        >
-          <Ionicons name="trash-outline" size={16} color={colors.negative} />
-          <Text style={[styles.rowActionText, { color: colors.negative }]}>Delete</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+  const renderActivityRow = (item: CatalogActivity, index: number) => (
+    <CatalogRow
+      key={item.id}
+      first={index === 0}
+      desktop={isDesktop}
+      name={item.name}
+      subtitle={`R${item.randValue.toLocaleString()} = ${fcFor(item.randValue).toLocaleString()} FC`}
+      active={item.active}
+      busy={busyId === item.id}
+      onOpen={() => navigation.navigate('AdminCatalogItemEdit', { kind: 'activity', itemId: item.id })}
+      onDuplicate={() => handleDuplicateActivity(item)}
+      onDeactivate={() => handleDeactivateActivity(item)}
+      onDelete={() => handleDeleteActivity(item)}
+    />
   );
 
   const list = kind === 'product' ? products : activities;
 
   const toggle = (
-    <View style={styles.toggle}>
-      <TouchableOpacity style={[styles.togglePill, kind === 'product' && styles.togglePillActive]} onPress={() => setKind('product')}>
-        <Text style={[styles.toggleText, kind === 'product' && styles.toggleTextActive]}>Products</Text>
-      </TouchableOpacity>
-      <TouchableOpacity style={[styles.togglePill, kind === 'activity' && styles.togglePillActive]} onPress={() => setKind('activity')}>
-        <Text style={[styles.toggleText, kind === 'activity' && styles.toggleTextActive]}>Activities</Text>
-      </TouchableOpacity>
-    </View>
+    <Segmented<Kind>
+      options={[
+        { key: 'product', label: 'Products' },
+        { key: 'activity', label: 'Activities' },
+      ]}
+      value={kind}
+      onChange={setKind}
+      accessibilityLabel="Catalogue type"
+    />
   );
+
+  const searchField = (
+    <TextField
+      placeholder={kind === 'product' ? 'Search products' : 'Search activities'}
+      variant="onLight"
+      icon="search"
+      value={search}
+      onChangeText={setSearch}
+    />
+  );
+
+  const helpText =
+    'The receipt scanner matches item names against this list to award Flagrr Cash — anything not listed here still earns Flagrr Cash from its printed Rand price.';
 
   const emptyText = query
     ? `No ${kind === 'product' ? 'products' : 'activities'} match "${search.trim()}".`
@@ -290,47 +311,47 @@ export function AdminCatalogScreen({ navigation }: Props) {
       ? 'No products yet — add your first one.'
       : 'No activities yet — add your first one.';
 
-  const listRows =
-    loading ? (
-      <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.md }} />
+  const mobileEmptyText = query
+    ? `No ${kind === 'product' ? 'products' : 'activities'} match "${search.trim()}".`
+    : kind === 'product'
+      ? 'No products yet — tap + to add your first one.'
+      : 'No activities yet — tap + to add your first one.';
+
+  const listRows = (empty: string) =>
+    error ? (
+      <ErrorState onRetry={retry} />
+    ) : loading ? (
+      <Tile>
+        <SkeletonRows rows={5} />
+      </Tile>
     ) : list.length === 0 ? (
-      <Text style={styles.emptyText}>{emptyText}</Text>
+      <Tile>
+        <EmptyState icon={query ? 'search-outline' : 'pricetag-outline'} title={empty} />
+      </Tile>
     ) : (
-      <View style={{ gap: spacing.sm }}>{kind === 'product' ? products.map(renderProductRow) : activities.map(renderActivityRow)}</View>
+      <Tile padded={false} style={styles.listTile}>
+        {kind === 'product' ? products.map(renderProductRow) : activities.map(renderActivityRow)}
+      </Tile>
     );
 
   if (isDesktop) {
     return (
       <AdminDesktopFrame activeKey="AdminCatalog" breadcrumb="Products and Activities">
         <View style={styles.dHeadRow}>
-          <Text style={styles.dPageTitle}>Products and Activities</Text>
-          <TouchableOpacity style={styles.dAddButton} onPress={() => navigation.navigate('AdminCatalogItemEdit', { kind })}>
-            <Ionicons name="add" size={16} color={colors.darkGreen} />
-            <Text style={styles.dAddButtonText}>{kind === 'product' ? 'Add Product' : 'Add Activity'}</Text>
-          </TouchableOpacity>
+          <PageTitle>Products and Activities</PageTitle>
+          <AdminButton
+            variant="accent"
+            icon="add"
+            label={kind === 'product' ? 'Add Product' : 'Add Activity'}
+            onPress={() => navigation.navigate('AdminCatalogItemEdit', { kind })}
+          />
         </View>
-        <Text style={styles.helpText}>
-          The receipt scanner matches item names against this list to award Flagrr Cash — anything not listed here
-          still earns Flagrr Cash from its printed Rand price.
-        </Text>
+        <Muted style={styles.dLede}>{helpText}</Muted>
         <View style={styles.dToolbar}>
-          <View style={[styles.dSearchBox, hoverTransition, searchFocused && styles.dSearchBoxFocused]}>
-            <Ionicons name="search" size={15} color={searchFocused ? colors.clubGreen : colors.textMuted} />
-            <TextInput
-              value={search}
-              onChangeText={setSearch}
-              onFocus={() => setSearchFocused(true)}
-              onBlur={() => setSearchFocused(false)}
-              placeholder={kind === 'product' ? 'Search products' : 'Search activities'}
-              placeholderTextColor={colors.textMuted}
-              style={[styles.dSearchInput, webNoOutline]}
-            />
-          </View>
           {toggle}
+          <View style={styles.dSearch}>{searchField}</View>
         </View>
-        <DesktopPanel title=" ">
-          <View>{listRows}</View>
-        </DesktopPanel>
+        {listRows(emptyText)}
       </AdminDesktopFrame>
     );
   }
@@ -340,139 +361,136 @@ export function AdminCatalogScreen({ navigation }: Props) {
       <AdminMobileHeader
         title="Products and Activities"
         right={
-          <TouchableOpacity
+          <CircleButton
+            icon="add"
+            size={44}
             onPress={() => navigation.navigate('AdminCatalogItemEdit', { kind })}
-            hitSlop={8}
             accessibilityLabel={kind === 'product' ? 'Add Product' : 'Add Activity'}
-            accessibilityRole="button"
-          >
-            <Ionicons name="add-circle" size={28} color={colors.clubGreen} />
-          </TouchableOpacity>
+          />
         }
       />
 
-      <View style={styles.toolbar}>{toggle}</View>
-
-      <Text style={styles.helpText}>
-        The receipt scanner matches item names against this list to award Flagrr Cash — anything not listed here
-        still earns Flagrr Cash from its printed Rand price.
-      </Text>
-
-      <View style={styles.searchArea}>
-        <TextField
-          placeholder={kind === 'product' ? 'Search products' : 'Search activities'}
-          variant="onLight"
-          icon="search"
-          value={search}
-          onChangeText={setSearch}
-        />
-      </View>
-
-      {loading ? (
-        <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
-      ) : list.length === 0 ? (
-        <Text style={styles.emptyText}>
-          {query
-            ? `No ${kind === 'product' ? 'products' : 'activities'} match "${search.trim()}".`
-            : kind === 'product'
-              ? 'No products yet — tap + to add your first one.'
-              : 'No activities yet — tap + to add your first one.'}
-        </Text>
-      ) : (
-        <ScrollView contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={false}>
-          {kind === 'product' ? products.map(renderProductRow) : activities.map(renderActivityRow)}
-        </ScrollView>
-      )}
+      <ScrollView contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        {toggle}
+        <Muted>{helpText}</Muted>
+        {searchField}
+        {listRows(mobileEmptyText)}
+      </ScrollView>
     </View>
   );
 }
 
-function createStyles(colors: ThemeColors) {
-  return StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.background },
-  toolbar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: screenPadding,
-    paddingTop: spacing.md,
-  },
-  toggle: { flexDirection: 'row', backgroundColor: colors.mintBg, borderRadius: radius.pill, padding: 3 },
-  togglePill: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: radius.pill },
-  togglePillActive: { backgroundColor: colors.darkGreen },
-  toggleText: { fontFamily: fontFamily.heading, fontSize: 13, color: colors.textPrimary },
-  toggleTextActive: { color: colors.white },
-  helpText: {
-    fontFamily: fontFamily.body,
-    fontSize: fontSize.tiny,
-    color: colors.textSecondary,
-    paddingHorizontal: screenPadding,
-    marginTop: spacing.sm,
-  },
-  searchArea: { paddingHorizontal: screenPadding, marginTop: spacing.md },
-  listContent: { padding: screenPadding, gap: spacing.sm },
-  row: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 16,
-  },
-  rowContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    padding: spacing.md,
-  },
-  rowActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    gap: spacing.md,
-    paddingHorizontal: spacing.md,
-    paddingBottom: spacing.sm,
-    borderTopWidth: 0.5,
-    borderTopColor: 'rgba(0,0,0,0.08)',
-    paddingTop: spacing.sm,
-  },
-  rowActionBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 2 },
-  rowActionText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.tiny, color: colors.textSecondary },
-  rowTitle: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.textPrimary },
-  rowSubtitle: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary, marginTop: 2 },
-  inactiveBadge: { backgroundColor: 'rgba(0,0,0,0.15)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: radius.pill },
-  inactiveBadgeText: { fontFamily: fontFamily.body, fontSize: 10, color: colors.textSecondary },
-  emptyText: {
-    fontFamily: fontFamily.body,
-    fontSize: fontSize.body,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginTop: spacing.xl,
-  },
-  dHeadRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  dPageTitle: { fontFamily: fontFamily.heading, fontSize: 26, color: colors.textPrimary },
-  dAddButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: colors.lime,
-    borderRadius: radius.pill,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-  },
-  dAddButtonText: { fontFamily: fontFamily.bodySemiBold, fontSize: 13, color: colors.darkGreen },
-  dToolbar: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flexWrap: 'wrap', marginTop: spacing.md },
-  dSearchBox: {
-    flex: 1,
-    minWidth: 220,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 9,
-    backgroundColor: colors.inputBg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-  },
-  dSearchBoxFocused: { borderColor: colors.clubGreen, backgroundColor: colors.surface },
-  dSearchInput: { flex: 1, fontFamily: fontFamily.body, fontSize: 13, color: colors.textPrimary, padding: 0 },
-});
+function CatalogRow({
+  name,
+  subtitle,
+  active,
+  busy,
+  first,
+  desktop,
+  onOpen,
+  onDuplicate,
+  onDeactivate,
+  onDelete,
+}: {
+  name: string;
+  subtitle: string;
+  active: boolean;
+  busy: boolean;
+  first: boolean;
+  desktop: boolean;
+  onOpen: () => void;
+  onDuplicate: () => void;
+  onDeactivate: () => void;
+  onDelete: () => void;
+}) {
+  const { c } = useAdminTheme();
+  const [hovered, hoverHandlers] = useHover();
+  const actionStyle = desktop ? undefined : styles.mAction;
+  const actions = (
+    <View style={[styles.rowActions, !desktop && styles.mRowActions]}>
+      <AdminButton
+        variant="glass"
+        icon="copy-outline"
+        label="Duplicate"
+        onPress={onDuplicate}
+        disabled={busy}
+        accessibilityLabel={`Duplicate ${name}`}
+        style={actionStyle}
+      />
+      {active ? (
+        <AdminButton
+          variant="danger"
+          icon="eye-off-outline"
+          label="Deactivate"
+          onPress={onDeactivate}
+          disabled={busy}
+          accessibilityLabel={`Deactivate ${name}`}
+          style={actionStyle}
+        />
+      ) : null}
+      <Pressable
+        onPress={onDelete}
+        disabled={busy}
+        accessibilityRole="button"
+        accessibilityLabel={`Permanently delete ${name}`}
+        accessibilityState={{ disabled: busy }}
+        style={({ pressed }) => [styles.deleteAction, actionStyle, (pressed || busy) && { opacity: busy ? 0.45 : 0.7 }]}
+      >
+        <Ionicons name="trash-outline" size={16} color={c.neg} />
+        <Text style={[styles.deleteActionText, { color: c.neg }]}>Delete permanently…</Text>
+      </Pressable>
+    </View>
+  );
+  return (
+    <Pressable
+      accessible={false}
+      onHoverIn={hoverHandlers.onMouseEnter}
+      onHoverOut={hoverHandlers.onMouseLeave}
+      style={[
+        styles.row,
+        desktop && styles.dRow,
+        !first && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.edge },
+        desktop && hoverTransitionNoTransform,
+        desktop && hovered && { backgroundColor: c.fill2 },
+      ]}
+    >
+      <Pressable
+        onPress={onOpen}
+        accessibilityRole="button"
+        accessibilityLabel={`Edit ${name}`}
+        style={({ pressed }) => [styles.rowContent, pressed && { opacity: 0.7 }]}
+      >
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <View style={styles.rowTitleLine}>
+            <Text style={[styles.rowTitle, { color: c.ink }]} numberOfLines={1}>{name}</Text>
+            {!active ? <StatusPill label="Inactive" tone="neutral" /> : null}
+          </View>
+          <Text style={[styles.rowSubtitle, { color: c.ink2 }]} numberOfLines={1}>{subtitle}</Text>
+        </View>
+        {desktop ? null : <Ionicons name="chevron-forward" size={16} color={c.ink3} />}
+      </Pressable>
+      {actions}
+    </Pressable>
+  );
 }
+
+const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: 'transparent' },
+  listContent: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 48, gap: 14 },
+  listTile: { overflow: 'hidden' },
+  row: { paddingHorizontal: 16 },
+  dRow: { flexDirection: 'row', alignItems: 'center', gap: 14, minHeight: 62, paddingLeft: 18, paddingRight: 12 },
+  rowContent: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 52, paddingVertical: 10 },
+  rowTitleLine: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  rowTitle: { ...adminFont.bodyBold, fontSize: 15, flexShrink: 1 },
+  rowSubtitle: { ...adminFont.body, ...tabularNums, fontSize: 13, marginTop: 2 },
+  rowActions: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
+  mRowActions: { paddingBottom: 12 },
+  mAction: { height: 44 },
+  deleteAction: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 40, paddingHorizontal: 8, borderRadius: adminRadius.pill },
+  deleteActionText: { ...adminFont.bodySemiBold, fontSize: 14.5 },
+  dHeadRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' },
+  dLede: { maxWidth: 720, marginTop: 6 },
+  dToolbar: { flexDirection: 'row', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginTop: 16, marginBottom: 14 },
+  dSearch: { flex: 1, minWidth: 220, maxWidth: 360 },
+});

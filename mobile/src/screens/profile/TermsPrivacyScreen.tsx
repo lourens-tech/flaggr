@@ -12,9 +12,9 @@ interface Props {
   navigation: { goBack: () => void };
 }
 
-const LAST_UPDATED = 'July 2026';
+export const LAST_UPDATED = 'July 2026';
 
-interface Section {
+export interface Section {
   heading: string;
   body: string[];
 }
@@ -22,7 +22,7 @@ interface Section {
 // Platform-wide content — deliberately not club-specific (no club name,
 // logo, or per-club branching), since Flagrr is the operator of the
 // platform every Club's members and staff use, not any one Club.
-const TERMS_SECTIONS: Section[] = [
+export const TERMS_SECTIONS: Section[] = [
   {
     heading: '1. Acceptance of These Terms',
     body: [
@@ -111,7 +111,7 @@ const TERMS_SECTIONS: Section[] = [
   },
 ];
 
-const PRIVACY_SECTIONS: Section[] = [
+export const PRIVACY_SECTIONS: Section[] = [
   {
     heading: '1. Introduction',
     body: [

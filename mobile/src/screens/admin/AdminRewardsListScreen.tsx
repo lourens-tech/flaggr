@@ -1,5 +1,6 @@
-import React, { useCallback, useState, useMemo } from 'react';
-import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useState } from 'react';
+import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import type { CompositeScreenProps } from '@react-navigation/native';
 import { useFocusEffect } from '@react-navigation/native';
@@ -10,9 +11,11 @@ import { useAdmin } from '../../context/AdminContext';
 import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
 import { AdminDesktopFrame } from '../../components/admin/desktop/AdminDesktopFrame';
 import { AdminMobileHeader } from '../../components/admin/AdminMobileHeader';
-import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
-import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
+import { AdminButton, CircleButton, EmptyState, ErrorState, PageTitle, SkeletonRows, Tile } from '../../components/admin/ui';
+import { PressableScale } from '../../components/motion';
+import { useAdminTheme } from '../../context/ThemeContext';
 import type { AdminReward } from '../../data/adminTypes';
+import { adminFont, adminRadius, tabularNums } from '../../theme/admin';
 
 type Props = CompositeScreenProps<
   BottomTabScreenProps<AdminTabParamList, 'AdminRewards'>,
@@ -38,19 +41,24 @@ function priceLabelFor(item: AdminReward): string {
 }
 
 export function AdminRewardsListScreen({ navigation }: Props) {
-  const colors = useThemeColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { c } = useAdminTheme();
   const isDesktop = useIsDesktopNav();
   const { rewards, loadRewards } = useAdmin();
   const [loading, setLoading] = useState(true);
+  // Load failures used to be swallowed silently; surface them with a retry.
+  const [error, setError] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useFocusEffect(
     useCallback(() => {
       let cancelled = false;
       (async () => {
         setLoading(true);
+        setError(false);
         try {
           await loadRewards();
+        } catch {
+          if (!cancelled) setError(true);
         } finally {
           if (!cancelled) setLoading(false);
         }
@@ -59,24 +67,29 @@ export function AdminRewardsListScreen({ navigation }: Props) {
         cancelled = true;
       };
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []),
+    }, [reloadKey]),
   );
 
+  const retry = () => setReloadKey((k) => k + 1);
+
   const rewardCard = (reward: AdminReward) => (
-    <TouchableOpacity
+    <PressableScale
       key={reward.id}
-      style={[styles.card, isDesktop && styles.dCard]}
-      activeOpacity={0.85}
+      style={[styles.card, isDesktop ? styles.dCard : styles.mCard, { backgroundColor: c.surface, borderColor: c.edge }]}
+      pressedScale={0.98}
       onPress={() => navigation.navigate('AdminRewardEdit', { rewardId: reward.id })}
+      accessibilityRole="button"
+      accessibilityLabel={`Edit ${reward.title}`}
     >
       {reward.imageUrl ? (
-        <Image source={{ uri: reward.imageUrl }} style={styles.image} />
+        <Image source={{ uri: reward.imageUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
       ) : (
-        <View style={[styles.image, styles.imageFallback]}>
+        <View style={[StyleSheet.absoluteFill, styles.imageFallback]}>
           <MaterialCommunityIcons
             name={CATEGORY_ICON[reward.category] ?? 'gift'}
             size={40}
-            color={colors.lime}
+            color={LIME}
+            style={styles.fallbackIcon}
           />
         </View>
       )}
@@ -86,33 +99,38 @@ export function AdminRewardsListScreen({ navigation }: Props) {
         </View>
       ) : null}
 
-      <View style={styles.body}>
+      <LinearGradient colors={CAPTION_GRADIENT} style={styles.caption}>
         <Text style={styles.title} numberOfLines={1}>{reward.title}</Text>
         <Text style={styles.description} numberOfLines={2}>{reward.description}</Text>
-        <Text style={styles.cost}>{priceLabelFor(reward)}</Text>
-
-        <View style={styles.editButton}>
-          <Text style={styles.editButtonText}>Edit</Text>
-          <Ionicons name="arrow-forward" size={14} color={colors.darkGreen} />
+        <View style={styles.captionFoot}>
+          <Text style={styles.cost} numberOfLines={1}>{priceLabelFor(reward)}</Text>
+          <View style={styles.editLink}>
+            <Text style={styles.editLinkText}>Edit</Text>
+            <Ionicons name="arrow-forward" size={14} color={WHITE} />
+          </View>
         </View>
-      </View>
-    </TouchableOpacity>
+      </LinearGradient>
+    </PressableScale>
   );
 
   if (isDesktop) {
     return (
       <AdminDesktopFrame activeKey="AdminRewards" breadcrumb="Rewards">
         <View style={styles.dHeadRow}>
-          <Text style={styles.dPageTitle}>Rewards</Text>
-          <TouchableOpacity style={styles.dAddButton} onPress={() => navigation.navigate('AdminRewardEdit', {})}>
-            <Ionicons name="add" size={16} color={colors.darkGreen} />
-            <Text style={styles.dAddButtonText}>New Reward</Text>
-          </TouchableOpacity>
+          <PageTitle>Rewards</PageTitle>
+          <AdminButton variant="accent" icon="add" label="New Reward" onPress={() => navigation.navigate('AdminRewardEdit', {})} />
         </View>
+        {error ? <ErrorState onRetry={retry} /> : null}
         {loading ? (
-          <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
+          <Tile>
+            <SkeletonRows rows={4} />
+          </Tile>
         ) : rewards.length === 0 ? (
-          <Text style={styles.emptyText}>No rewards yet — add your first one.</Text>
+          error ? null : (
+            <Tile>
+              <EmptyState icon="gift-outline" title="No rewards yet — add your first one." />
+            </Tile>
+          )
         ) : (
           <View style={styles.dGrid}>{rewards.map(rewardCard)}</View>
         )}
@@ -125,22 +143,28 @@ export function AdminRewardsListScreen({ navigation }: Props) {
       <AdminMobileHeader
         title="Rewards"
         showBack={false}
-        right={
-          <TouchableOpacity
-            onPress={() => navigation.navigate('AdminRewardEdit', {})}
-            hitSlop={8}
-            accessibilityLabel="Add Reward"
-            accessibilityRole="button"
-          >
-            <Ionicons name="add-circle" size={28} color={colors.clubGreen} />
-          </TouchableOpacity>
-        }
+        right={<CircleButton icon="add" onPress={() => navigation.navigate('AdminRewardEdit', {})} accessibilityLabel="Add Reward" size={44} />}
       />
 
+      {error ? (
+        <View style={styles.mState}>
+          <ErrorState onRetry={retry} />
+        </View>
+      ) : null}
       {loading ? (
-        <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
+        <View style={styles.mState}>
+          <Tile>
+            <SkeletonRows rows={4} />
+          </Tile>
+        </View>
       ) : rewards.length === 0 ? (
-        <Text style={styles.emptyText}>No rewards yet — tap + to create your first one.</Text>
+        error ? null : (
+          <View style={styles.mState}>
+            <Tile>
+              <EmptyState icon="gift-outline" title="No rewards yet — tap + to create your first one." />
+            </Tile>
+          </View>
+        )
       ) : (
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           <View style={styles.grid}>{rewards.map(rewardCard)}</View>
@@ -151,66 +175,44 @@ export function AdminRewardsListScreen({ navigation }: Props) {
   );
 }
 
-function createStyles(colors: ThemeColors) {
-  return StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.background },
-  content: { paddingHorizontal: screenPadding, paddingTop: spacing.lg },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: spacing.md },
+// Brand constants for text and icons that sit on a reward photo (or on the
+// Fairway fallback when there's no photo): they stay the same in both schemes.
+const WHITE = '#FFFFFF';
+const LIME = '#CDDE5C';
+const CAPTION_GRADIENT = ['rgba(6,14,10,0)', 'rgba(6,14,10,0.82)'] as const;
+
+const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: 'transparent' },
+  content: { paddingHorizontal: 16, paddingTop: 8 },
+  mState: { paddingHorizontal: 16, paddingTop: 8, gap: 12 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 12 },
   card: {
-    width: '47%',
-    backgroundColor: colors.background,
-    borderRadius: radius.md,
-    borderWidth: 0.5,
-    borderColor: colors.clubGreen,
+    borderRadius: adminRadius.md,
+    borderWidth: StyleSheet.hairlineWidth,
     overflow: 'hidden',
+    justifyContent: 'flex-end',
   },
-  image: { width: '100%', height: 112, backgroundColor: colors.imagePlaceholder },
-  imageFallback: { backgroundColor: colors.darkGreen, alignItems: 'center', justifyContent: 'center' },
+  mCard: { width: '48.5%', height: 220 },
+  dCard: { width: 250, height: 260 },
+  imageFallback: { backgroundColor: '#1F4234', alignItems: 'center' },
+  fallbackIcon: { marginTop: 48 },
   inactiveBadge: {
     position: 'absolute',
-    top: spacing.sm,
-    right: spacing.sm,
+    top: 12,
+    left: 12,
     backgroundColor: 'rgba(0,0,0,0.55)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: radius.pill,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: adminRadius.pill,
   },
-  inactiveBadgeText: { fontFamily: fontFamily.body, fontSize: 10, color: colors.white },
-  body: { padding: spacing.sm + 4, gap: 4 },
-  title: { fontFamily: fontFamily.heading, fontSize: fontSize.cardTitle, color: colors.textPrimary },
-  description: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary },
-  cost: { fontFamily: fontFamily.heading, fontSize: fontSize.label, color: colors.textPrimary, marginTop: 2 },
-  editButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    backgroundColor: colors.lime,
-    borderRadius: radius.pill,
-    paddingVertical: 10,
-    marginTop: 4,
-  },
-  editButtonText: { fontFamily: fontFamily.heading, fontSize: 12, color: colors.darkGreen },
-  emptyText: {
-    fontFamily: fontFamily.body,
-    fontSize: fontSize.body,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginTop: spacing.xl,
-  },
-  dHeadRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  dPageTitle: { fontFamily: fontFamily.heading, fontSize: 26, color: colors.textPrimary },
-  dAddButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: colors.lime,
-    borderRadius: radius.pill,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-  },
-  dAddButtonText: { fontFamily: fontFamily.bodySemiBold, fontSize: 13, color: colors.darkGreen },
-  dGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
-  dCard: { width: 220 },
+  inactiveBadgeText: { ...adminFont.bodyBold, fontSize: 12, color: WHITE },
+  caption: { paddingTop: 40, paddingHorizontal: 14, paddingBottom: 12, gap: 3 },
+  title: { ...adminFont.bodyBold, fontSize: 15.5, color: WHITE },
+  description: { ...adminFont.body, fontSize: 12.5, lineHeight: 17, color: 'rgba(255,255,255,0.88)' },
+  captionFoot: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginTop: 4 },
+  cost: { ...adminFont.bodyBold, ...tabularNums, fontSize: 13, color: WHITE, flexShrink: 1 },
+  editLink: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  editLinkText: { ...adminFont.bodySemiBold, fontSize: 13, color: WHITE },
+  dHeadRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' },
+  dGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 16 },
 });
-}

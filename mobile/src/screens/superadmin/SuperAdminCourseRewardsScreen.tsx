@@ -1,5 +1,5 @@
 import React, { useCallback, useState, useMemo } from 'react';
-import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -8,11 +8,13 @@ import { AdminMobileHeader } from '../../components/admin/AdminMobileHeader';
 import { useAdmin } from '../../context/AdminContext';
 import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
 import { SuperAdminDesktopFrame } from '../../components/admin/desktop/SuperAdminDesktopFrame';
+import { AdminButton, CircleButton, EmptyState, ErrorState, Muted, PageTitle, SkeletonRows, Tile } from '../../components/admin/ui';
 import { AdminApiError } from '../../api/adminClient';
 import { showAlert } from '../../utils/alert';
-import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
-import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
+import { useAdminTheme } from '../../context/ThemeContext';
+import { useHover, hoverTransition } from '../../hooks/useHover';
 import type { AdminReward } from '../../data/adminTypes';
+import { adminFont, adminRadius, tabularNums, type AdminColors } from '../../theme/admin';
 
 type Props = NativeStackScreenProps<SuperAdminStackParamList, 'SuperAdminCourseRewards'>;
 
@@ -34,24 +36,77 @@ function priceLabelFor(item: AdminReward): string {
   return `${prices[0].toLocaleString()}–${prices[prices.length - 1].toLocaleString()} Flagrr Cash`;
 }
 
+function clubInitials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '?';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[1][0]).toUpperCase();
+}
+
+// Photo-topped reward card: inactive badge on the photo, title, description,
+// price and an Edit cue.
+function RewardCard({ reward, onPress, style }: { reward: AdminReward; onPress: () => void; style?: object }) {
+  const { c } = useAdminTheme();
+  const styles = useMemo(() => createStyles(c), [c]);
+  const [hovered, hoverHandlers] = useHover();
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`Edit ${reward.title}`}
+      onHoverIn={hoverHandlers.onMouseEnter}
+      onHoverOut={hoverHandlers.onMouseLeave}
+      style={({ pressed }) => [styles.card, hoverTransition, (hovered || pressed) && { backgroundColor: c.surface2 }, style]}
+    >
+      {reward.imageUrl ? (
+        <Image source={{ uri: reward.imageUrl }} style={styles.image} />
+      ) : (
+        <View style={[styles.image, styles.imageFallback]}>
+          <MaterialCommunityIcons name={CATEGORY_ICON[reward.category] ?? 'gift'} size={40} color="#CDDE5C" />
+        </View>
+      )}
+      {!reward.active ? (
+        <View style={styles.inactiveBadge}>
+          <Text style={styles.inactiveBadgeText}>Inactive</Text>
+        </View>
+      ) : null}
+
+      <View style={styles.body}>
+        <Text style={styles.title} numberOfLines={1}>{reward.title}</Text>
+        <Text style={styles.description} numberOfLines={2}>{reward.description}</Text>
+        <View style={styles.footRow}>
+          <Text style={styles.cost} numberOfLines={1}>{priceLabelFor(reward)}</Text>
+          <View style={styles.editCue}>
+            <Text style={styles.editText}>Edit</Text>
+            <Ionicons name="chevron-forward" size={13} color={c.accentText} />
+          </View>
+        </View>
+      </View>
+    </Pressable>
+  );
+}
+
 // Same grid/card layout as AdminRewardsListScreen (the course_admin's own
 // Rewards tab), rewired for an explicit courseId param so a super_admin can
 // view and override any club's rewards from the Courses tab's "Manage
 // Rewards" button, instead of relying on session-implicit scoping.
 export function SuperAdminCourseRewardsScreen({ navigation, route }: Props) {
-  const colors = useThemeColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { c } = useAdminTheme();
+  const styles = useMemo(() => createStyles(c), [c]);
   const isDesktop = useIsDesktopNav();
   const { courseId, courseName, fbPerRand } = route.params;
   const { getSuperAdminRewards } = useAdmin();
   const [rewards, setRewards] = useState<AdminReward[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
+    setLoadError(false);
     try {
       setRewards(await getSuperAdminRewards(courseId));
     } catch (err) {
+      setLoadError(true);
       const message = err instanceof AdminApiError ? err.message : 'Something went wrong. Please try again.';
       showAlert('Couldn’t load rewards', message);
     } finally {
@@ -73,56 +128,42 @@ export function SuperAdminCourseRewardsScreen({ navigation, route }: Props) {
     }, [courseId]),
   );
 
-  const rewardCard = (reward: AdminReward) => (
-    <TouchableOpacity
-      key={reward.id}
-      style={[styles.card, isDesktop ? styles.dCard : styles.cardPhone]}
-      activeOpacity={0.85}
-      onPress={() => navigation.navigate('SuperAdminRewardEdit', { courseId, fbPerRand, rewardId: reward.id })}
-    >
-      {reward.imageUrl ? (
-        <Image source={{ uri: reward.imageUrl }} style={styles.image} />
-      ) : (
-        <View style={[styles.image, styles.imageFallback]}>
-          <MaterialCommunityIcons name={CATEGORY_ICON[reward.category] ?? 'gift'} size={40} color={colors.lime} />
-        </View>
-      )}
-      {!reward.active ? (
-        <View style={styles.inactiveBadge}>
-          <Text style={styles.inactiveBadgeText}>Inactive</Text>
-        </View>
-      ) : null}
+  const openReward = (reward: AdminReward) => navigation.navigate('SuperAdminRewardEdit', { courseId, fbPerRand, rewardId: reward.id });
 
-      <View style={styles.body}>
-        <Text style={styles.title} numberOfLines={1}>{reward.title}</Text>
-        <Text style={styles.description} numberOfLines={2}>{reward.description}</Text>
-        <Text style={styles.cost}>{priceLabelFor(reward)}</Text>
-
-        <View style={styles.editButton}>
-          <Text style={styles.editButtonText}>Edit</Text>
-          <Ionicons name="arrow-forward" size={14} color={colors.darkGreen} />
-        </View>
+  const content = (emptyText: string, cardStyle: object) =>
+    loadError ? (
+      <ErrorState onRetry={load} />
+    ) : loading ? (
+      <Tile>
+        <SkeletonRows rows={3} />
+      </Tile>
+    ) : rewards.length === 0 ? (
+      <Tile padded={false}>
+        <EmptyState icon="gift-outline" title={emptyText} />
+      </Tile>
+    ) : (
+      <View style={[styles.grid, !isDesktop && styles.mGrid]}>
+        {rewards.map((reward) => (
+          <RewardCard key={reward.id} reward={reward} onPress={() => openReward(reward)} style={cardStyle} />
+        ))}
       </View>
-    </TouchableOpacity>
-  );
+    );
 
   if (isDesktop) {
     return (
-      <SuperAdminDesktopFrame activeKey="SuperAdminCourses" breadcrumb={`${courseName} Rewards`} showRail={false}>
+      <SuperAdminDesktopFrame activeKey="SuperAdminCourses" breadcrumb={`Courses › ${courseName} › Rewards`} showRail={false}>
         <View style={styles.dHeadRow}>
-          <Text style={styles.dPageTitle}>{courseName} — Rewards</Text>
-          <TouchableOpacity style={styles.dAddButton} onPress={() => navigation.navigate('SuperAdminRewardEdit', { courseId, fbPerRand })}>
-            <Ionicons name="add" size={16} color={colors.darkGreen} />
-            <Text style={styles.dAddButtonText}>New Reward</Text>
-          </TouchableOpacity>
+          <View style={styles.crest}>
+            <Text style={styles.crestText}>{clubInitials(courseName)}</Text>
+          </View>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <PageTitle>{courseName}</PageTitle>
+            <Muted style={styles.dSection}>Rewards</Muted>
+          </View>
+          <AdminButton label="New Reward" icon="add" variant="accent" onPress={() => navigation.navigate('SuperAdminRewardEdit', { courseId, fbPerRand })} />
         </View>
-        {loading ? (
-          <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
-        ) : rewards.length === 0 ? (
-          <Text style={styles.emptyText}>No rewards yet — create the first one.</Text>
-        ) : (
-          <View style={styles.dGrid}>{rewards.map(rewardCard)}</View>
-        )}
+        <View style={{ height: 18 }} />
+        {content('No rewards yet — create the first one.', styles.dCard)}
       </SuperAdminDesktopFrame>
     );
   }
@@ -133,93 +174,61 @@ export function SuperAdminCourseRewardsScreen({ navigation, route }: Props) {
         title="Rewards"
         subtitle={courseName}
         right={
-          <TouchableOpacity
+          <CircleButton
+            icon="add"
+            size={44}
             onPress={() => navigation.navigate('SuperAdminRewardEdit', { courseId, fbPerRand })}
-            hitSlop={8}
             accessibilityLabel="Add Reward"
-            accessibilityRole="button"
-          >
-            <Ionicons name="add-circle" size={28} color={colors.clubGreen} />
-          </TouchableOpacity>
+          />
         }
       />
 
-      {loading ? (
-        <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
-      ) : rewards.length === 0 ? (
-        <Text style={styles.emptyText}>No rewards yet — tap + to create the first one.</Text>
-      ) : (
-        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-          <View style={styles.grid}>{rewards.map(rewardCard)}</View>
-          <View style={{ height: 120 }} />
-        </ScrollView>
-      )}
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        {content('No rewards yet — tap + to create the first one.', styles.mCard)}
+        <View style={{ height: 120 }} />
+      </ScrollView>
     </View>
   );
 }
 
-function createStyles(colors: ThemeColors) {
+function createStyles(c: AdminColors) {
   return StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.background },
-  content: { paddingHorizontal: screenPadding, paddingTop: spacing.lg },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: spacing.md },
+  screen: { flex: 1, backgroundColor: 'transparent' },
+  content: { paddingHorizontal: 16, paddingTop: 4 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   card: {
-    width: '47%',
-    backgroundColor: colors.background,
-    borderRadius: radius.md,
-    borderWidth: 0.5,
-    borderColor: colors.clubGreen,
+    backgroundColor: c.surface,
+    borderRadius: adminRadius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: c.edge,
     overflow: 'hidden',
   },
-  // Phone-only card surface; desktop layers dCard on the shared `card` instead.
-  cardPhone: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 16 },
-  image: { width: '100%', height: 112, backgroundColor: colors.imagePlaceholder },
-  imageFallback: { backgroundColor: colors.darkGreen, alignItems: 'center', justifyContent: 'center' },
+  mCard: { width: '47%' },
+  mGrid: { justifyContent: 'space-between' },
+  dCard: { width: 230 },
+  image: { width: '100%', height: 124, backgroundColor: c.fill },
+  imageFallback: { backgroundColor: '#1F4234', alignItems: 'center', justifyContent: 'center' },
+  // Sits on the reward photo, so it keeps a dark chip with white text.
   inactiveBadge: {
     position: 'absolute',
-    top: spacing.sm,
-    right: spacing.sm,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: radius.pill,
+    top: 10,
+    left: 10,
+    backgroundColor: 'rgba(10,20,15,0.6)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: adminRadius.pill,
   },
-  inactiveBadgeText: { fontFamily: fontFamily.body, fontSize: 10, color: colors.white },
-  body: { padding: spacing.sm + 4, gap: 4 },
-  title: { fontFamily: fontFamily.heading, fontSize: fontSize.cardTitle, color: colors.textPrimary },
-  description: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary },
-  cost: { fontFamily: fontFamily.heading, fontSize: fontSize.label, color: colors.textPrimary, marginTop: 2 },
-  editButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    backgroundColor: colors.lime,
-    borderRadius: radius.pill,
-    paddingVertical: 10,
-    marginTop: 4,
-  },
-  editButtonText: { fontFamily: fontFamily.heading, fontSize: 12, color: colors.darkGreen },
-  emptyText: {
-    fontFamily: fontFamily.body,
-    fontSize: fontSize.body,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginTop: spacing.xl,
-  },
-  dHeadRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  dPageTitle: { fontFamily: fontFamily.heading, fontSize: 26, color: colors.textPrimary },
-  dAddButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: colors.lime,
-    borderRadius: radius.pill,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-  },
-  dAddButtonText: { fontFamily: fontFamily.bodySemiBold, fontSize: 13, color: colors.darkGreen },
-  dGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
-  dCard: { width: 220 },
+  inactiveBadgeText: { ...adminFont.bodyBold, fontSize: 12, color: '#FFFFFF' },
+  body: { paddingHorizontal: 14, paddingTop: 12, paddingBottom: 14, gap: 3 },
+  title: { ...adminFont.bodyBold, fontSize: 15, color: c.ink },
+  description: { ...adminFont.body, fontSize: 13, lineHeight: 18, color: c.ink2 },
+  footRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginTop: 8 },
+  cost: { ...adminFont.bodyBold, ...tabularNums, fontSize: 13, color: c.ink, flexShrink: 1 },
+  editCue: { flexDirection: 'row', alignItems: 'center', gap: 2, flexShrink: 0 },
+  editText: { ...adminFont.bodySemiBold, fontSize: 13, color: c.accentText },
+  dHeadRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  crest: { width: 48, height: 48, borderRadius: adminRadius.sm, backgroundColor: '#1F4234', alignItems: 'center', justifyContent: 'center' },
+  crestText: { ...adminFont.bodyBold, fontSize: 16, color: '#CDDE5C' },
+  dSection: { marginTop: 2, fontSize: 15 },
 });
 }

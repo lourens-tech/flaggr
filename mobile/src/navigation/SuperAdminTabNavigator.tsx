@@ -7,9 +7,11 @@ import { SuperAdminReportsScreen } from '../screens/superadmin/SuperAdminReports
 import { SuperAdminPushScreen } from '../screens/superadmin/SuperAdminPushScreen';
 import { SuperAdminSupportInboxScreen } from '../screens/superadmin/SuperAdminSupportInboxScreen';
 import { SuperAdminProfileScreen } from '../screens/superadmin/SuperAdminProfileScreen';
-import { AdminTabBar } from '../components/common/AdminTabBar';
+import { AdminTabBar } from '../components/admin/AdminTabBar';
+import { AdminMoreScreen } from '../screens/admin/AdminMoreScreen';
 import { useAdmin } from '../context/AdminContext';
 import { useIsDesktopNav } from '../hooks/useIsDesktopNav';
+import { tabSceneStyle } from '../components/admin/AdminScope';
 
 const Tab = createBottomTabNavigator<SuperAdminTabParamList>();
 
@@ -18,11 +20,13 @@ export function SuperAdminTabNavigator() {
   const isDesktop = useIsDesktopNav();
   // Tabs crossfade on phones; on desktop the per-screen DesktopShell fades
   // its own content area instead, so the sidebar never flickers.
-  const screenOptions = {
+  const screenOptions = (props: Parameters<typeof tabSceneStyle>[0]) => ({
     headerShown: false,
     tabBarPosition: isDesktop ? ('left' as const) : ('bottom' as const),
     animation: isDesktop ? ('none' as const) : ('fade' as const),
-  };
+    // See-through so the admin backdrop (AdminScope) shows behind every tab.
+    sceneStyle: tabSceneStyle(props),
+  });
   // On desktop web, each screen renders its own persistent sidebar/topbar via
   // SuperAdminDesktopFrame (see components/admin/desktop) — this bar would
   // just duplicate it. Native app and narrow browser windows are unaffected.
@@ -49,6 +53,8 @@ export function SuperAdminTabNavigator() {
       <Tab.Screen name="SuperAdminPush" component={SuperAdminPushScreen} />
       <Tab.Screen name="SuperAdminSupport" component={SuperAdminSupportInboxScreen} />
       <Tab.Screen name="SuperAdminProfile" component={SuperAdminProfileScreen} />
+      {/* Phones only: lists every section that isn't on the tab bar. */}
+      <Tab.Screen name="SuperAdminMore" component={AdminMoreScreen} />
     </Tab.Navigator>
   );
 }

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { CompositeScreenProps } from '@react-navigation/native';
@@ -6,20 +6,19 @@ import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AdminStackParamList, AdminTabParamList } from '../../navigation/types';
 import { TextField } from '../../components/common/TextField';
-import { PillButton } from '../../components/common/PillButton';
 import { AdminMobileHeader } from '../../components/admin/AdminMobileHeader';
 import { useAdmin } from '../../context/AdminContext';
 import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
 import { AdminDesktopFrame } from '../../components/admin/desktop/AdminDesktopFrame';
-import { DesktopPanel } from '../../components/admin/desktop/DesktopPanel';
-import { QuickLinkButton } from '../../components/admin/desktop/DesktopQuickLink';
 import { AdminApiError } from '../../api/adminClient';
 import { pickAndResizeAvatar, pickAndResizeCoverImage, AvatarPermissionError } from '../../utils/pickAvatar';
 import { showAlert } from '../../utils/alert';
 import { ThemeToggleRow } from '../../components/common/ThemeToggleRow';
 import type { ThemePreference } from '../../context/ThemeContext';
-import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
-import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
+import { useAdminTheme } from '../../context/ThemeContext';
+import { adminFont, adminRadius, tabularNums } from '../../theme/admin';
+import { AdminButton, Banner, Eyebrow, Muted, PageTitle, StatusPill, Tile } from '../../components/admin/ui';
+import { useHover, hoverTransition } from '../../hooks/useHover';
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -29,14 +28,58 @@ const SUBSCRIPTION_LABELS: Record<string, string> = {
   past_due: 'Payment Failed',
 };
 
+// Brand constants for the club crest placeholder (Fairway ground, lime mark).
+const FAIRWAY = '#1F4234';
+const LIME = '#CDDE5C';
+// Dark wash over a photo or crest while it uploads, so the white spinner reads.
+const PHOTO_SCRIM = 'rgba(6,14,10,0.6)';
+
 type Props = CompositeScreenProps<
   BottomTabScreenProps<AdminTabParamList, 'AdminCourseProfile'>,
   NativeStackScreenProps<AdminStackParamList>
 >;
 
+// One tappable row of a grouped settings list: icon, label, chevron.
+function SettingsRow({
+  icon,
+  label,
+  onPress,
+  danger,
+  first,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  onPress: () => void;
+  danger?: boolean;
+  first?: boolean;
+}) {
+  const { c } = useAdminTheme();
+  const [hovered, hoverHandlers] = useHover();
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.85}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      style={[
+        styles.listRow,
+        !first && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.edge },
+        hoverTransition,
+        hovered && { backgroundColor: c.fill2 },
+      ]}
+      {...hoverHandlers}
+    >
+      <Ionicons name={icon} size={18} color={danger ? c.neg : c.icon} />
+      <Text style={[styles.listRowLabel, { color: danger ? c.neg : c.ink }]} numberOfLines={1}>
+        {label}
+      </Text>
+      {danger ? null : <Ionicons name="chevron-forward" size={16} color={c.ink3} />}
+    </TouchableOpacity>
+  );
+}
+
 export function AdminCourseProfileScreen({ navigation }: Props) {
-  const colors = useThemeColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { c } = useAdminTheme();
   const isDesktop = useIsDesktopNav();
   const {
     admin,
@@ -151,188 +194,120 @@ export function AdminCourseProfileScreen({ navigation }: Props) {
     ]);
   };
 
-  if (isDesktop) {
-    return (
-      <AdminDesktopFrame activeKey="AdminCourseProfile" breadcrumb="Course Profile" showRail={false}>
-        <Text style={styles.dPageTitle}>Course Profile</Text>
+  const pastDue = course.subscriptionStatus === 'past_due';
 
-        {course.subscriptionStatus === 'past_due' ? (
-          <View style={styles.billingWarningBanner}>
-            <Ionicons name="warning-outline" size={18} color={colors.warning} />
-            <Text style={styles.billingWarningText}>
-              Your last payment failed. Update your billing details or contact Flagrr support to avoid losing access.
-            </Text>
+  const banners = (
+    <>
+      {pastDue ? (
+        <Banner
+          tone="neg"
+          title="Your last payment failed."
+          body="Update your billing details or contact Flagrr support to avoid losing access."
+        />
+      ) : null}
+
+      {course.onboardingCompletedAt === null ? (
+        <TouchableOpacity
+          onPress={reopenOnboardingWizard}
+          activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel="Finish setting up your course"
+        >
+          <Banner tone="pos" title="Finish setting up your course" action={<Ionicons name="chevron-forward" size={18} color={c.ink3} />} />
+        </TouchableOpacity>
+      ) : null}
+    </>
+  );
+
+  const logoSize = isDesktop ? 104 : 84;
+
+  // Cover photo with the club logo overlapping its lower edge.
+  const hero = (
+    <View>
+      <TouchableOpacity
+        style={[
+          styles.cover,
+          {
+            height: isDesktop ? 220 : 150,
+            borderRadius: isDesktop ? adminRadius.lg : adminRadius.md,
+            backgroundColor: c.surface2,
+            borderColor: c.edge,
+          },
+        ]}
+        onPress={handlePickCover}
+        disabled={uploadingCover}
+        activeOpacity={0.9}
+        accessibilityRole="button"
+        accessibilityLabel="Reports Cover Photo"
+      >
+        {course.coverImageUrl ? (
+          <Image source={{ uri: course.coverImageUrl }} style={styles.fill} resizeMode="cover" />
+        ) : (
+          <View style={styles.coverPlaceholder}>
+            <Ionicons name="image-outline" size={24} color={c.icon} />
+            <Text style={[styles.hint, { color: c.accentText }]}>Tap to add a cover photo</Text>
+          </View>
+        )}
+        <View style={styles.coverChip}>
+          <Ionicons name="camera-outline" size={14} color="#FFFFFF" />
+          <Text style={styles.coverChipText}>Reports Cover Photo</Text>
+        </View>
+        {uploadingCover ? (
+          <View style={[styles.overlay, { backgroundColor: PHOTO_SCRIM }]}>
+            <ActivityIndicator color="#FFFFFF" />
           </View>
         ) : null}
+      </TouchableOpacity>
 
-        {course.onboardingCompletedAt === null ? (
-          <TouchableOpacity style={styles.onboardingBanner} onPress={reopenOnboardingWizard} activeOpacity={0.85}>
-            <Ionicons name="rocket-outline" size={18} color={colors.darkGreen} />
-            <Text style={styles.onboardingBannerText}>Finish setting up your course</Text>
-            <Ionicons name="chevron-forward" size={16} color={colors.darkGreen} />
-          </TouchableOpacity>
-        ) : null}
-
-        <View style={styles.dGrid2}>
-          <DesktopPanel title="Course Details" style={{ flex: 1.2 }}>
-            <View style={styles.dLogoRow}>
-              <TouchableOpacity style={styles.logoPicker} onPress={handlePickLogo} disabled={uploadingLogo}>
-                {course.logoUrl ? (
-                  <Image source={{ uri: course.logoUrl }} style={styles.logoImage} />
-                ) : (
-                  <View style={styles.logoPlaceholder}>
-                    <Ionicons name="business-outline" size={24} color={colors.clubGreen} />
-                  </View>
-                )}
-                <Text style={styles.logoHint}>Tap to change logo</Text>
-              </TouchableOpacity>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.helpText}>Reports Cover Photo</Text>
-                <TouchableOpacity style={styles.coverPicker} onPress={handlePickCover} disabled={uploadingCover}>
-                  {course.coverImageUrl ? (
-                    <Image source={{ uri: course.coverImageUrl }} style={styles.coverImage} />
-                  ) : (
-                    <View style={styles.coverPlaceholder}>
-                      <Ionicons name="image-outline" size={22} color={colors.clubGreen} />
-                      <Text style={styles.coverHint}>Tap to add a cover photo</Text>
-                    </View>
-                  )}
-                  {uploadingCover ? (
-                    <View style={styles.coverOverlay}>
-                      <ActivityIndicator color={colors.white} />
-                    </View>
-                  ) : null}
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            <TextField placeholder="Course Name" variant="onLight" value={name} onChangeText={setName} />
-            <TextField
-              placeholder="Contact Email"
-              variant="onLight"
-              autoCapitalize="none"
-              keyboardType="email-address"
-              value={contactEmail}
-              onChangeText={setContactEmail}
-            />
-            <TextField placeholder="Contact Phone" variant="onLight" keyboardType="phone-pad" value={contactPhone} onChangeText={setContactPhone} />
-            <TextField placeholder="Address" variant="onLight" value={address} onChangeText={setAddress} />
-            <View style={styles.disabledField}>
-              <TextField placeholder="Flagrr Cash per Rand" variant="onLight" editable={false} value={String(course.fbPerRand)} />
-            </View>
-            <Text style={styles.helpText}>
-              Your Flagrr Cash denomination can only be changed by the Flagrr team. Contact support if you'd like to request a change.
-            </Text>
-            <PillButton label="Save Course Profile" onPress={handleSaveProfile} loading={savingProfile} />
-          </DesktopPanel>
-
-          <View style={{ flex: 1, gap: spacing.lg }}>
-            <DesktopPanel title="Quick Links">
-              <QuickLinkButton label="Manage Staff" icon="people-outline" tone="green" onPress={() => navigation.navigate('AdminStaffList')} />
-              <QuickLinkButton label="Club Admins" icon="person-add-outline" tone="darkGreen" onPress={() => navigation.navigate('AdminClubAdmins')} />
-              <QuickLinkButton label="Manage Member List" icon="cloud-upload-outline" tone="green" onPress={() => navigation.navigate('AdminMemberList')} />
-              <QuickLinkButton label="Products and Activities" icon="pricetags-outline" tone="lime" onPress={() => navigation.navigate('AdminCatalog')} />
-              <QuickLinkButton label="Flagged Receipts" icon="flag-outline" tone="amber" onPress={() => navigation.navigate('AdminFraudOversight')} />
-              <QuickLinkButton label="Contact Support" icon="headset-outline" tone="lime" onPress={() => navigation.navigate('AdminSupportTickets')} />
-            </DesktopPanel>
-
-            <DesktopPanel title="Billing">
-              <View style={styles.disabledField}>
-                <TextField
-                  placeholder="Subscription Status"
-                  variant="onLight"
-                  editable={false}
-                  value={SUBSCRIPTION_LABELS[course.subscriptionStatus ?? 'active'] ?? 'Active'}
-                />
-              </View>
-              <Text style={styles.helpText}>
-                {course.subscriptionStatus === 'past_due'
-                  ? 'Your last payment failed. Contact Flagrr support to update your billing details before your subscription is cancelled.'
-                  : 'Managed by the Flagrr team. Contact support with any billing questions.'}
-              </Text>
-            </DesktopPanel>
-          </View>
-        </View>
-
-        <View style={styles.dGrid2}>
-          <DesktopPanel title="Appearance" style={{ flex: 1 }}>
-            <ThemeToggleRow onChange={handleThemeChange} disabled={savingTheme} />
-          </DesktopPanel>
-
-          <DesktopPanel title="Change Password" style={{ flex: 1 }}>
-            <TextField placeholder="Current Password" variant="onLight" isPassword value={currentPassword} onChangeText={setCurrentPassword} />
-            <TextField placeholder="New Password" variant="onLight" isPassword value={newPassword} onChangeText={setNewPassword} />
-            <PillButton label="Update Password" variant="outline" onPress={handleChangePassword} loading={changingPassword} />
-          </DesktopPanel>
-        </View>
-
-        <View style={styles.dFooterRow}>
-          <TouchableOpacity onPress={() => navigation.navigate('TermsPrivacy')}>
-            <Text style={styles.dFooterLink}>Terms and Privacy</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
-            <Ionicons name="log-out-outline" size={16} color={colors.negative} />
-            <Text style={styles.logoutText}>Log Out</Text>
-          </TouchableOpacity>
-        </View>
-      </AdminDesktopFrame>
-    );
-  }
-
-  return (
-    <View style={styles.screen}>
-      <AdminMobileHeader title="Course Profile" subtitle={`${admin.firstName} ${admin.lastName}`} showBack={false} />
-
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {course.subscriptionStatus === 'past_due' ? (
-          <View style={styles.billingWarningBanner}>
-            <Ionicons name="warning-outline" size={18} color={colors.warning} />
-            <Text style={styles.billingWarningText}>
-              Your last payment failed. Update your billing details or contact Flagrr support to avoid losing access.
-            </Text>
-          </View>
-        ) : null}
-
-        {course.onboardingCompletedAt === null ? (
-          <TouchableOpacity style={styles.onboardingBanner} onPress={reopenOnboardingWizard} activeOpacity={0.85}>
-            <Ionicons name="rocket-outline" size={18} color={colors.darkGreen} />
-            <Text style={styles.onboardingBannerText}>Finish setting up your course</Text>
-            <Ionicons name="chevron-forward" size={16} color={colors.darkGreen} />
-          </TouchableOpacity>
-        ) : null}
-
-        <TouchableOpacity style={styles.logoPicker} onPress={handlePickLogo} disabled={uploadingLogo}>
+      <View style={[styles.idRow, { marginTop: -Math.round(logoSize / 2), paddingLeft: isDesktop ? 24 : 16 }]}>
+        <TouchableOpacity
+          onPress={handlePickLogo}
+          disabled={uploadingLogo}
+          activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel="Tap to change logo"
+          style={[
+            styles.logo,
+            {
+              width: logoSize,
+              height: logoSize,
+              borderRadius: isDesktop ? adminRadius.lg : adminRadius.md,
+              borderColor: c.base,
+              backgroundColor: FAIRWAY,
+            },
+          ]}
+        >
           {course.logoUrl ? (
-            <Image source={{ uri: course.logoUrl }} style={styles.logoImage} />
+            <Image source={{ uri: course.logoUrl }} style={styles.fill} />
           ) : (
             <View style={styles.logoPlaceholder}>
-              <Ionicons name="business-outline" size={24} color={colors.clubGreen} />
+              <Ionicons name="business-outline" size={28} color={LIME} />
             </View>
           )}
-          <Text style={styles.logoHint}>Tap to change logo</Text>
-        </TouchableOpacity>
-
-        <Text style={styles.sectionTitle}>Reports Cover Photo</Text>
-        <TouchableOpacity style={styles.coverPicker} onPress={handlePickCover} disabled={uploadingCover}>
-          {course.coverImageUrl ? (
-            <Image source={{ uri: course.coverImageUrl }} style={styles.coverImage} />
-          ) : (
-            <View style={styles.coverPlaceholder}>
-              <Ionicons name="image-outline" size={22} color={colors.clubGreen} />
-              <Text style={styles.coverHint}>Tap to add a cover photo</Text>
-            </View>
-          )}
-          {uploadingCover ? (
-            <View style={styles.coverOverlay}>
-              <ActivityIndicator color={colors.white} />
+          {uploadingLogo ? (
+            <View style={[styles.overlay, { backgroundColor: PHOTO_SCRIM }]}>
+              <ActivityIndicator color="#FFFFFF" />
             </View>
           ) : null}
         </TouchableOpacity>
-        <Text style={styles.helpText}>Shown at the top of your Reports dashboard.</Text>
+        <View style={styles.idText}>
+          <Text style={[styles.clubName, { color: c.ink }]} numberOfLines={2}>
+            {course.name}
+          </Text>
+          <TouchableOpacity onPress={handlePickLogo} disabled={uploadingLogo} accessibilityRole="button" hitSlop={8}>
+            <Text style={[styles.hint, { color: c.accentText }]}>Tap to change logo</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+      {isDesktop ? null : <Text style={[styles.foot, { color: c.ink2 }]}>Shown at the top of your Reports dashboard.</Text>}
+    </View>
+  );
 
-        <View style={{ height: spacing.lg }} />
+  const detailsGroup = (
+    <View>
+      <Eyebrow style={styles.groupLabel}>Course Details</Eyebrow>
+      <Tile style={styles.formTile}>
         <TextField placeholder="Course Name" variant="onLight" value={name} onChangeText={setName} />
-        <View style={{ height: spacing.md }} />
         <TextField
           placeholder="Contact Email"
           variant="onLight"
@@ -341,224 +316,178 @@ export function AdminCourseProfileScreen({ navigation }: Props) {
           value={contactEmail}
           onChangeText={setContactEmail}
         />
-        <View style={{ height: spacing.md }} />
         <TextField placeholder="Contact Phone" variant="onLight" keyboardType="phone-pad" value={contactPhone} onChangeText={setContactPhone} />
-        <View style={{ height: spacing.md }} />
         <TextField placeholder="Address" variant="onLight" value={address} onChangeText={setAddress} />
-        <View style={{ height: spacing.md }} />
-        <View style={styles.disabledField}>
-          <TextField
-            placeholder="Flagrr Cash per Rand"
-            variant="onLight"
-            editable={false}
-            value={String(course.fbPerRand)}
+        <AdminButton label="Save Course Profile" variant="accent" size="lg" fullWidth onPress={handleSaveProfile} loading={savingProfile} />
+      </Tile>
+
+      {/* Earn rate: read only, set by the Flagrr team. */}
+      <Tile padded={false} style={styles.groupGap}>
+        <View style={styles.valueRow}>
+          <Text style={[styles.rowLabel, { color: c.ink2 }]}>Flagrr Cash per Rand</Text>
+          <Text style={[styles.rowValue, { color: c.ink }]}>{String(course.fbPerRand)}</Text>
+        </View>
+      </Tile>
+      <Text style={[styles.foot, { color: c.ink2 }]}>
+        Your Flagrr Cash denomination can only be changed by the Flagrr team. Contact support if you'd like to request a change.
+      </Text>
+    </View>
+  );
+
+  const billingGroup = (
+    <View>
+      <Eyebrow style={styles.groupLabel}>Billing</Eyebrow>
+      <Tile style={styles.formTile}>
+        <View style={styles.inlineRow}>
+          <Text style={[styles.rowLabel, { color: c.ink2 }]}>Subscription Status</Text>
+          <StatusPill
+            label={SUBSCRIPTION_LABELS[course.subscriptionStatus ?? 'active'] ?? 'Active'}
+            tone={pastDue ? 'neg' : 'pos'}
           />
         </View>
-        <Text style={styles.helpText}>
-          Your Flagrr Cash denomination can only be changed by the Flagrr team. Contact support if you'd like to request a change.
-        </Text>
-        <View style={{ height: spacing.sm }} />
-        <PillButton
-          label="Contact Support"
-          icon="headset-outline"
-          variant="outline"
-          onPress={() => navigation.navigate('AdminSupportTickets')}
-        />
-
-        <View style={{ height: spacing.md }} />
-        <PillButton label="Save Course Profile" onPress={handleSaveProfile} loading={savingProfile} />
-
-        <Text style={styles.sectionTitle}>Staff</Text>
-        <Text style={styles.helpText}>
-          Add staff accounts for your team — they can log in to validate members' reward vouchers.
-        </Text>
-        <View style={{ height: spacing.sm }} />
-        <PillButton label="Manage Staff" icon="people-outline" variant="outline" onPress={() => navigation.navigate('AdminStaffList')} />
-
-        <Text style={styles.sectionTitle}>Club Admins</Text>
-        <Text style={styles.helpText}>
-          See who else administers your club, or add one more admin (up to 2 in total).
-        </Text>
-        <View style={{ height: spacing.sm }} />
-        <PillButton
-          label="Club Admins"
-          icon="person-add-outline"
-          variant="outline"
-          onPress={() => navigation.navigate('AdminClubAdmins')}
-        />
-
-        <Text style={styles.sectionTitle}>Member List</Text>
-        <Text style={styles.helpText}>
-          Upload your club's membership list so new signups can be confirmed as actual members. Members who don't
-          match stay capped at Bronze tier until verified.
-        </Text>
-        <View style={{ height: spacing.sm }} />
-        <PillButton
-          label="Manage Member List"
-          icon="cloud-upload-outline"
-          variant="outline"
-          onPress={() => navigation.navigate('AdminMemberList')}
-        />
-
-        <Text style={styles.sectionTitle}>Products and Activities</Text>
-        <Text style={styles.helpText}>
-          What the receipt scanner matches purchases against and how much Flagrr Cash each one earns. Keep this up
-          to date with what you actually sell for accurate points.
-        </Text>
-        <View style={{ height: spacing.sm }} />
-        <PillButton
-          label="Manage Products and Activities"
-          icon="pricetags-outline"
-          variant="outline"
-          onPress={() => navigation.navigate('AdminCatalog')}
-        />
-
-        <Text style={styles.sectionTitle}>Fraud Review</Text>
-        <Text style={styles.helpText}>
-          Review receipts flagged for your club, confirm genuine fraud (reverses the Flagrr Cash awarded), or clear
-          false positives.
-        </Text>
-        <View style={{ height: spacing.sm }} />
-        <PillButton
-          label="Flagged Receipts"
-          icon="flag-outline"
-          variant="outline"
-          onPress={() => navigation.navigate('AdminFraudOversight')}
-        />
-
-        <Text style={styles.sectionTitle}>Billing</Text>
-        <View style={styles.disabledField}>
-          <TextField
-            placeholder="Subscription Status"
-            variant="onLight"
-            editable={false}
-            value={SUBSCRIPTION_LABELS[course.subscriptionStatus ?? 'active'] ?? 'Active'}
-          />
-        </View>
-        <Text style={styles.helpText}>
+        <Muted>
           {course.subscriptionStatus === 'past_due'
             ? 'Your last payment failed. Contact Flagrr support to update your billing details before your subscription is cancelled.'
             : 'Managed by the Flagrr team. Contact support with any billing questions.'}
-        </Text>
-        <View style={{ height: spacing.sm }} />
-        <PillButton
+        </Muted>
+        <AdminButton
           label="Contact Support"
           icon="headset-outline"
-          variant="outline"
+          variant="glass"
           onPress={() => navigation.navigate('AdminSupportTickets')}
+          style={{ alignSelf: 'flex-start' }}
         />
+      </Tile>
+    </View>
+  );
 
-        <Text style={styles.sectionTitle}>Appearance</Text>
+  // Phones only: the desktop Staff and Admins page links here, but the phone
+  // Staff screen and More tab don't, so keep a way in.
+  const clubAdminsGroup = (
+    <View>
+      <Eyebrow style={styles.groupLabel}>Club Admins</Eyebrow>
+      <Tile padded={false} style={styles.listTile}>
+        <SettingsRow first icon="person-add-outline" label="Club Admins" onPress={() => navigation.navigate('AdminClubAdmins')} />
+      </Tile>
+      <Text style={[styles.foot, { color: c.ink2 }]}>
+        See who else administers your club, or add one more admin (up to 2 in total).
+      </Text>
+    </View>
+  );
+
+  const appearanceGroup = (
+    <View>
+      <Eyebrow style={styles.groupLabel}>Appearance</Eyebrow>
+      <Tile>
         <ThemeToggleRow onChange={handleThemeChange} disabled={savingTheme} />
+      </Tile>
+    </View>
+  );
 
-        <Text style={styles.sectionTitle}>Change Password</Text>
+  const passwordGroup = (
+    <View>
+      <Eyebrow style={styles.groupLabel}>Change Password</Eyebrow>
+      <Tile style={styles.formTile}>
         <TextField placeholder="Current Password" variant="onLight" isPassword value={currentPassword} onChangeText={setCurrentPassword} />
-        <View style={{ height: spacing.md }} />
         <TextField placeholder="New Password" variant="onLight" isPassword value={newPassword} onChangeText={setNewPassword} />
-        <View style={{ height: spacing.md }} />
-        <PillButton label="Update Password" variant="outline" onPress={handleChangePassword} loading={changingPassword} />
-
-        <Text style={styles.sectionTitle}>Legal</Text>
-        <PillButton
-          label="Terms and Privacy"
-          icon="shield-checkmark-outline"
-          variant="outline"
-          onPress={() => navigation.navigate('TermsPrivacy')}
+        <AdminButton
+          label="Update Password"
+          variant="glass"
+          onPress={handleChangePassword}
+          loading={changingPassword}
+          style={{ alignSelf: 'flex-start' }}
         />
+      </Tile>
+    </View>
+  );
 
-        <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
-          <Ionicons name="log-out-outline" size={18} color={colors.negative} />
-          <Text style={styles.logoutText}>Log Out</Text>
-        </TouchableOpacity>
+  const legalGroup = (
+    <View>
+      <Eyebrow style={styles.groupLabel}>Legal</Eyebrow>
+      <Tile padded={false} style={styles.listTile}>
+        <SettingsRow first icon="shield-checkmark-outline" label="Terms and Privacy" onPress={() => navigation.navigate('TermsPrivacy')} />
+        <SettingsRow danger icon="log-out-outline" label="Log Out" onPress={handleLogout} />
+      </Tile>
+    </View>
+  );
+
+  if (isDesktop) {
+    return (
+      <AdminDesktopFrame activeKey="AdminCourseProfile" breadcrumb="Club Settings" showRail={false}>
+        <PageTitle>Course Profile</PageTitle>
+        {banners}
+        {hero}
+        <View style={styles.dCols}>
+          <View style={styles.dCol}>
+            {detailsGroup}
+            {appearanceGroup}
+          </View>
+          <View style={styles.dCol}>
+            {billingGroup}
+            {passwordGroup}
+            {legalGroup}
+          </View>
+        </View>
+      </AdminDesktopFrame>
+    );
+  }
+
+  return (
+    <View style={styles.screen}>
+      <AdminMobileHeader title="Club Settings" subtitle={`${admin.firstName} ${admin.lastName}`} showBack={false} />
+
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        {banners}
+        {hero}
+        {detailsGroup}
+        {billingGroup}
+        {clubAdminsGroup}
+        {appearanceGroup}
+        {passwordGroup}
+        {legalGroup}
       </ScrollView>
     </View>
   );
 }
 
-function createStyles(colors: ThemeColors) {
-  return StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.background },
-  content: { padding: screenPadding, paddingBottom: spacing.xl * 2 },
-  onboardingBanner: {
+const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: 'transparent' },
+  content: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 48, gap: 16 },
+  fill: { width: '100%', height: '100%' },
+  cover: { width: '100%', overflow: 'hidden', borderWidth: StyleSheet.hairlineWidth },
+  coverPlaceholder: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 6 },
+  coverChip: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    backgroundColor: colors.mintBg,
-    borderRadius: radius.md,
-    padding: spacing.sm + 4,
-    marginBottom: spacing.lg,
-  },
-  onboardingBannerText: { flex: 1, fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.darkGreen },
-  billingWarningBanner: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.sm,
-    backgroundColor: colors.warningBg,
-    borderRadius: radius.md,
-    padding: spacing.sm + 4,
-    marginBottom: spacing.lg,
-  },
-  billingWarningText: { flex: 1, fontFamily: fontFamily.bodyMedium, fontSize: fontSize.tiny, color: colors.warning },
-  logoPicker: { alignSelf: 'center', alignItems: 'center', gap: spacing.xs, marginBottom: spacing.lg },
-  logoImage: { width: 88, height: 88, borderRadius: radius.md },
-  logoPlaceholder: {
-    width: 88,
-    height: 88,
-    borderRadius: radius.md,
-    backgroundColor: colors.imagePlaceholder,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  logoHint: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.clubGreen },
-  coverPicker: {
-    width: '100%',
-    height: 120,
-    borderRadius: radius.md,
-    overflow: 'hidden',
-  },
-  coverImage: { width: '100%', height: '100%' },
-  coverPlaceholder: {
-    width: '100%',
-    height: '100%',
-    backgroundColor: colors.imagePlaceholder,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-  },
-  coverHint: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.clubGreen },
-  coverOverlay: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(0,0,0,0.35)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  helpText: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary, marginTop: 6, marginLeft: 4 },
-  disabledField: { opacity: 0.5 },
-  sectionTitle: {
-    fontFamily: fontFamily.heading,
-    fontSize: fontSize.cardTitle,
-    color: colors.textPrimary,
-    marginTop: spacing.xl,
-    marginBottom: spacing.md,
-  },
-  logoutButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
     gap: 6,
-    marginTop: spacing.xl,
-    paddingVertical: spacing.sm,
+    borderRadius: adminRadius.pill,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    // A dark wash so the white label reads on any photo.
+    backgroundColor: PHOTO_SCRIM,
   },
-  logoutText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.negative },
-  dPageTitle: { fontFamily: fontFamily.heading, fontSize: 26, color: colors.textPrimary },
-  dGrid2: { flexDirection: 'row', gap: 18, alignItems: 'flex-start', flexWrap: 'wrap' },
-  dLogoRow: { flexDirection: 'row', gap: spacing.md, alignItems: 'flex-start' },
-  dFooterRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: spacing.sm,
-  },
-  dFooterLink: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.small, color: colors.clubGreen },
+  coverChipText: { ...adminFont.bodySemiBold, fontSize: 12.5, color: '#FFFFFF' },
+  overlay: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center' },
+  idRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 16 },
+  logo: { overflow: 'hidden', borderWidth: 4 },
+  logoPlaceholder: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  idText: { flex: 1, minWidth: 0, gap: 4, paddingBottom: 4 },
+  clubName: { ...adminFont.bodyBold, fontSize: 20 },
+  hint: { ...adminFont.bodySemiBold, fontSize: 13 },
+  groupLabel: { marginLeft: 16, marginBottom: 8 },
+  groupGap: { marginTop: 12 },
+  formTile: { gap: 12 },
+  listTile: { overflow: 'hidden' },
+  listRow: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 52, paddingHorizontal: 16 },
+  listRowLabel: { flex: 1, ...adminFont.bodyMedium, fontSize: 15 },
+  valueRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, minHeight: 52, paddingHorizontal: 16 },
+  inlineRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  rowLabel: { ...adminFont.body, fontSize: 15 },
+  rowValue: { ...adminFont.bodyBold, ...tabularNums, fontSize: 20 },
+  foot: { ...adminFont.body, fontSize: 12.5, lineHeight: 18, marginTop: 8, marginHorizontal: 16 },
+  dCols: { flexDirection: 'row', flexWrap: 'wrap', gap: 20, alignItems: 'flex-start' },
+  dCol: { flex: 1, minWidth: 360, gap: 20 },
 });
-}

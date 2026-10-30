@@ -27,9 +27,11 @@ import { SuperAdminAuditLogScreen } from '../screens/superadmin/SuperAdminAuditL
 import { SuperAdminFraudOversightScreen } from '../screens/superadmin/SuperAdminFraudOversightScreen';
 import { SuperAdminCourseMapsScreen } from '../screens/superadmin/SuperAdminCourseMapsScreen';
 import { SuperAdminCourseMapScreen } from '../screens/superadmin/SuperAdminCourseMapScreen';
-import { TermsPrivacyScreen } from '../screens/profile/TermsPrivacyScreen';
+import { AdminTermsPrivacyScreen } from '../screens/admin/AdminTermsPrivacyScreen';
 import { useIsDesktopNav } from '../hooks/useIsDesktopNav';
-import { stackScreenOptions, webScreenLayout } from './motionOptions';
+import { stackScreenOptions } from './motionOptions';
+import { AdminThemeScope } from '../context/ThemeContext';
+import { adminScreenLayout, transparentScene } from '../components/admin/AdminScope';
 
 const Stack = createNativeStackNavigator<SuperAdminStackParamList>();
 
@@ -42,9 +44,10 @@ export function SuperAdminNavigator() {
   // SuperAdminDesktopFrame) so it reads as persistent chrome — the default
   // slide transition would otherwise visibly re-animate it on every nav.
   return (
+    <AdminThemeScope>
     <Stack.Navigator
-        screenOptions={isDesktop ? { headerShown: false, animation: 'none' } : stackScreenOptions}
-        screenLayout={isDesktop ? undefined : webScreenLayout}
+        screenOptions={isDesktop ? { headerShown: false, animation: 'none', contentStyle: transparentScene } : { ...stackScreenOptions, contentStyle: transparentScene }}
+        screenLayout={adminScreenLayout(isDesktop)}
       >
       <Stack.Screen name="SuperAdminTabs" component={SuperAdminTabNavigator} />
       <Stack.Screen name="SuperAdminCourseMaps" component={SuperAdminCourseMapsScreen} />
@@ -72,7 +75,8 @@ export function SuperAdminNavigator() {
       <Stack.Screen name="SuperAdminMemberStats" component={SuperAdminMemberStatsScreen} />
       <Stack.Screen name="SuperAdminAuditLog" component={SuperAdminAuditLogScreen} />
       <Stack.Screen name="SuperAdminFraudOversight" component={SuperAdminFraudOversightScreen} />
-      <Stack.Screen name="TermsPrivacy" component={TermsPrivacyScreen} />
+      <Stack.Screen name="TermsPrivacy" component={AdminTermsPrivacyScreen} />
     </Stack.Navigator>
+    </AdminThemeScope>
   );
 }

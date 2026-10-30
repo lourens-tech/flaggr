@@ -1,5 +1,5 @@
-import React, { useRef, useState, useMemo } from 'react';
-import { ActivityIndicator, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useRef, useState } from 'react';
+import { Pressable, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,12 +9,13 @@ import { AdminMobileHeader } from '../../components/admin/AdminMobileHeader';
 import { useAdmin } from '../../context/AdminContext';
 import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
 import { AdminDesktopFrame } from '../../components/admin/desktop/AdminDesktopFrame';
-import { DesktopPanel } from '../../components/admin/desktop/DesktopPanel';
+import { AdminButton, Muted, PageTitle, SkeletonRows, Tile } from '../../components/admin/ui';
+import { PressableScale } from '../../components/motion';
 import { AdminApiError } from '../../api/adminClient';
 import { showAlert } from '../../utils/alert';
-import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
-import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
+import { useAdminTheme } from '../../context/ThemeContext';
 import type { AdminVoucherLookup } from '../../data/adminTypes';
+import { adminFont, adminRadius, tabularNums } from '../../theme/admin';
 
 const STATUS_LABEL: Record<AdminVoucherLookup['status'], string> = {
   active: 'Active — ready to redeem',
@@ -25,8 +26,7 @@ const STATUS_LABEL: Record<AdminVoucherLookup['status'], string> = {
 const VOUCHER_QR_PREFIX = 'flagrr://voucher/';
 
 export function AdminVoucherRedeemScreen() {
-  const colors = useThemeColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { c } = useAdminTheme();
   const isDesktop = useIsDesktopNav();
   const { lookupVoucher, redeemVoucher } = useAdmin();
   const [permission, requestPermission] = useCameraPermissions();
@@ -68,19 +68,31 @@ export function AdminVoucherRedeemScreen() {
     performLookup(scannedCode);
   };
 
-  const handleRedeem = async () => {
+  const handleRedeem = () => {
     if (!voucher) return;
-    setRedeeming(true);
-    try {
-      const updated = await redeemVoucher(voucher.code);
-      setVoucher(updated);
-      showAlert('Redeemed', `${voucher.rewardTitle} marked as redeemed for ${voucher.memberName}.`);
-    } catch (err) {
-      const message = err instanceof AdminApiError ? err.message : 'Something went wrong. Please try again.';
-      showAlert('Couldn’t redeem voucher', message);
-    } finally {
-      setRedeeming(false);
-    }
+    // Confirm first, naming the reward and member the lookup returned.
+    const reward = voucher.rewardTitle?.trim();
+    const member = voucher.memberName?.trim();
+    const summary = reward && member ? `${reward} for ${member}.` : reward ? `${reward}.` : member ? `For ${member}.` : undefined;
+    showAlert('Redeem this voucher?', summary, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Redeem',
+        onPress: async () => {
+          setRedeeming(true);
+          try {
+            const updated = await redeemVoucher(voucher.code);
+            setVoucher(updated);
+            showAlert('Redeemed', `${voucher.rewardTitle} marked as redeemed for ${voucher.memberName}.`);
+          } catch (err) {
+            const message = err instanceof AdminApiError ? err.message : 'Something went wrong. Please try again.';
+            showAlert('Couldn’t redeem voucher', message);
+          } finally {
+            setRedeeming(false);
+          }
+        },
+      },
+    ]);
   };
 
   if (scanning) {
@@ -89,23 +101,33 @@ export function AdminVoucherRedeemScreen() {
         <StatusBar barStyle="light-content" />
         <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
           <View style={styles.scannerHeader}>
-            <TouchableOpacity onPress={() => setScanning(false)} hitSlop={12} accessibilityLabel="Cancel scan">
-              <Ionicons name="chevron-back" size={24} color={colors.white} />
-            </TouchableOpacity>
+            <Pressable
+              onPress={() => setScanning(false)}
+              hitSlop={12}
+              accessibilityLabel="Cancel scan"
+              accessibilityRole="button"
+              style={({ pressed }) => [styles.scannerBack, pressed && { opacity: 0.7 }]}
+            >
+              <Ionicons name="chevron-back" size={24} color={WHITE} />
+            </Pressable>
             <Text style={styles.headerTitle}>Scan Voucher QR</Text>
-            <View style={{ width: 24 }} />
+            <View style={{ width: 44 }} />
           </View>
         </SafeAreaView>
 
         {!permission ? null : !permission.granted ? (
-          <SafeAreaView style={styles.permissionContainer}>
-            <Ionicons name="camera-outline" size={48} color={colors.white} />
-            <Text style={styles.permissionTitle}>Camera access needed</Text>
-            <Text style={styles.permissionBody}>
-              Flagrr needs camera access to scan a member's voucher QR code.
-            </Text>
-            <View style={{ height: spacing.lg }} />
-            <PillButton label="Continue" onPress={requestPermission} />
+          <SafeAreaView edges={['bottom']} style={styles.permissionContainer}>
+            <View style={[styles.permissionCard, { backgroundColor: c.surface, borderColor: c.edge }]}>
+              <View style={[styles.permissionIcon, { backgroundColor: c.fill }]}>
+                <Ionicons name="camera-outline" size={30} color={c.icon} />
+              </View>
+              <Text style={[styles.permissionTitle, { color: c.ink }]}>Camera access needed</Text>
+              <Text style={[styles.permissionBody, { color: c.ink2 }]}>
+                Flagrr needs camera access to scan a member's voucher QR code.
+              </Text>
+              <View style={{ height: 18 }} />
+              <PillButton label="Continue" onPress={requestPermission} />
+            </View>
           </SafeAreaView>
         ) : (
           <CameraView
@@ -118,7 +140,12 @@ export function AdminVoucherRedeemScreen() {
               <View style={styles.alignBadge}>
                 <Text style={styles.alignBadgeText}>Align the member's QR code</Text>
               </View>
-              <View style={styles.frame} />
+              <View style={styles.frame}>
+                <View style={[styles.corner, styles.cornerTL]} />
+                <View style={[styles.corner, styles.cornerTR]} />
+                <View style={[styles.corner, styles.cornerBL]} />
+                <View style={[styles.corner, styles.cornerBR]} />
+              </View>
             </View>
           </CameraView>
         )}
@@ -126,21 +153,31 @@ export function AdminVoucherRedeemScreen() {
     );
   }
 
-  const lookupForm = (
-    <>
-      <Text style={styles.helpText}>
-        Enter the voucher code, or scan the QR code shown on the member's screen, to check and redeem it.
-      </Text>
+  const canRedeem = voucher?.status === 'active';
 
-      <PillButton label="Scan QR Code" icon="scan-outline" variant="dark" onPress={handleOpenScanner} />
-      <View style={{ height: spacing.md }} />
+  const lookupPanel = (
+    <Tile style={styles.lookupTile}>
+      <Muted style={styles.helpText}>
+        Enter the voucher code, or scan the QR code shown on the member's screen, to check and redeem it.
+      </Muted>
+
+      <PressableScale
+        onPress={handleOpenScanner}
+        accessibilityRole="button"
+        accessibilityLabel="Scan QR Code"
+        style={[styles.scanButton, isDesktop ? [styles.dScanButton, { backgroundColor: c.fill }] : styles.mScanButton]}
+      >
+        <View style={[styles.scanIcon, !isDesktop && styles.mScanIcon]}>
+          <Ionicons name="scan-outline" size={isDesktop ? 28 : 34} color={LIME} />
+        </View>
+        <Text style={[styles.scanLabel, { color: isDesktop ? c.ink : WHITE }]}>Scan QR Code</Text>
+      </PressableScale>
 
       <View style={styles.dividerRow}>
-        <View style={styles.dividerLine} />
-        <Text style={styles.dividerText}>or enter manually</Text>
-        <View style={styles.dividerLine} />
+        <View style={[styles.dividerLine, { backgroundColor: c.edge }]} />
+        <Text style={[styles.dividerText, { color: c.ink3 }]}>or enter manually</Text>
+        <View style={[styles.dividerLine, { backgroundColor: c.edge }]} />
       </View>
-      <View style={{ height: spacing.md }} />
 
       <View style={styles.searchRow}>
         <View style={{ flex: 1 }}>
@@ -154,50 +191,71 @@ export function AdminVoucherRedeemScreen() {
             returnKeyType="search"
           />
         </View>
+        <AdminButton
+          variant={canRedeem ? 'glass' : 'accent'}
+          icon="search"
+          label="Look Up"
+          size="lg"
+          onPress={handleLookup}
+          loading={looking}
+          disabled={!code.trim()}
+        />
       </View>
-      <View style={{ height: spacing.md }} />
-      <PillButton label="Look Up" icon="search" onPress={handleLookup} loading={looking} disabled={!code.trim()} />
-
-      {voucher ? (
-        <View style={styles.card}>
-          <Text style={styles.rewardTitle}>{voucher.rewardTitle}</Text>
-          <Text style={styles.variantLabel}>{voucher.variantLabel} · {voucher.cost.toLocaleString()} FC</Text>
-          <View style={styles.divider} />
-          <View style={styles.row}>
-            <Ionicons name="person-outline" size={16} color={colors.clubGreen} />
-            <Text style={styles.rowText}>{voucher.memberName} ({voucher.memberEmail})</Text>
-          </View>
-          <View style={styles.row}>
-            <Ionicons
-              name={voucher.status === 'active' ? 'checkmark-circle-outline' : 'alert-circle-outline'}
-              size={16}
-              color={voucher.status === 'active' ? colors.clubGreen : colors.negative}
-            />
-            <Text style={[styles.rowText, voucher.status !== 'active' && { color: colors.negative }]}>
-              {STATUS_LABEL[voucher.status]}
-            </Text>
-          </View>
-
-          {voucher.status === 'active' ? (
-            <>
-              <View style={{ height: spacing.md }} />
-              <PillButton label="Confirm Redeem" variant="dark" icon="checkmark" onPress={handleRedeem} loading={redeeming} />
-            </>
-          ) : null}
-        </View>
-      ) : looking ? (
-        <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
-      ) : null}
-    </>
+    </Tile>
   );
+
+  const result = voucher ? (
+    <Tile padded={false} style={styles.resultTile}>
+      <View style={styles.resultHead}>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={[styles.rewardTitle, { color: c.ink }]}>{voucher.rewardTitle}</Text>
+          <Text style={[styles.variantLabel, { color: c.ink2 }]}>{voucher.variantLabel} · {voucher.cost.toLocaleString()} FC</Text>
+        </View>
+      </View>
+      <View style={[styles.row, { borderTopColor: c.edge }]}>
+        <Ionicons name="person-outline" size={18} color={c.icon} />
+        <Text style={[styles.rowText, { color: c.ink }]}>{voucher.memberName} ({voucher.memberEmail})</Text>
+      </View>
+      <View style={[styles.row, { borderTopColor: c.edge }]}>
+        <Ionicons
+          name={voucher.status === 'active' ? 'checkmark-circle-outline' : 'alert-circle-outline'}
+          size={18}
+          color={voucher.status === 'active' ? c.pos : c.neg}
+        />
+        <Text style={[styles.rowText, styles.statusText, { color: voucher.status === 'active' ? c.pos : c.neg }]}>
+          {STATUS_LABEL[voucher.status]}
+        </Text>
+      </View>
+
+      {voucher.status === 'active' ? (
+        <View style={styles.redeemArea}>
+          <AdminButton variant="accent" size="lg" icon="checkmark" label="Confirm Redeem" onPress={handleRedeem} loading={redeeming} fullWidth />
+        </View>
+      ) : null}
+    </Tile>
+  ) : looking ? (
+    <Tile>
+      <SkeletonRows rows={3} />
+    </Tile>
+  ) : null;
 
   if (isDesktop) {
     return (
       <AdminDesktopFrame activeKey="AdminVouchers" breadcrumb="Voucher Redemption" showRail={false}>
-        <Text style={styles.dPageTitle}>Redeem a Voucher</Text>
-        <DesktopPanel title="Look Up a Voucher" style={{ maxWidth: 480 }}>
-          {lookupForm}
-        </DesktopPanel>
+        <PageTitle>Redeem a Voucher</PageTitle>
+        <View style={styles.dCols}>
+          <View style={styles.dCol}>
+            <Text accessibilityRole="header" style={[styles.sectionTitle, { color: c.ink }]}>Look Up a Voucher</Text>
+            {lookupPanel}
+          </View>
+          <View style={[styles.dCol, styles.dResultCol]}>
+            {result ?? (
+              <View style={[styles.placeholder, { borderColor: c.edge }]}>
+                <Ionicons name="ticket-outline" size={30} color={c.icon} />
+              </View>
+            )}
+          </View>
+        </View>
       </AdminDesktopFrame>
     );
   }
@@ -206,71 +264,115 @@ export function AdminVoucherRedeemScreen() {
     <View style={styles.screen}>
       <AdminMobileHeader title="Redeem a Voucher" showBack={false} />
 
-      <View style={styles.content}>{lookupForm}</View>
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+        {lookupPanel}
+        {result}
+      </ScrollView>
     </View>
   );
 }
 
-function createStyles(colors: ThemeColors) {
-  return StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.background },
-  scannerScreen: { flex: 1, backgroundColor: colors.darkGreen },
-  headerSafeArea: { backgroundColor: colors.clubGreen },
-  headerTitle: { fontFamily: fontFamily.headingDisplay, fontSize: fontSize.title, color: colors.white },
-  content: { padding: screenPadding },
-  helpText: { fontFamily: fontFamily.body, fontSize: fontSize.body, color: colors.textSecondary, marginBottom: spacing.md },
-  dividerRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  dividerLine: { flex: 1, height: 1, backgroundColor: colors.border },
-  dividerText: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary },
-  searchRow: { flexDirection: 'row' },
-  card: {
-    marginTop: spacing.lg,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 16,
-    padding: spacing.md,
+// Brand constants used on the Fairway scan tile and over the live camera:
+// they read the same in both schemes.
+const WHITE = '#FFFFFF';
+const LIME = '#CDDE5C';
+const FAIRWAY = '#1F4234';
+
+const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: 'transparent' },
+  scannerScreen: { flex: 1, backgroundColor: FAIRWAY },
+  headerSafeArea: { backgroundColor: FAIRWAY },
+  headerTitle: { ...adminFont.bodyBold, fontSize: 17, color: WHITE },
+  content: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 120, gap: 16 },
+  lookupTile: { gap: 14 },
+  helpText: { fontSize: 14.5, lineHeight: 21 },
+  scanButton: { borderRadius: adminRadius.md, alignItems: 'center' },
+  mScanButton: { backgroundColor: FAIRWAY, height: 180, justifyContent: 'center', gap: 14, borderRadius: adminRadius.lg },
+  dScanButton: { flexDirection: 'row', gap: 16, padding: 18 },
+  scanIcon: { width: 56, height: 56, borderRadius: adminRadius.sm, backgroundColor: FAIRWAY, alignItems: 'center', justifyContent: 'center' },
+  mScanIcon: { width: 72, height: 72, borderRadius: adminRadius.md, backgroundColor: 'rgba(205,222,92,0.14)' },
+  scanLabel: { ...adminFont.bodyBold, fontSize: 17 },
+  dividerRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  dividerLine: { flex: 1, height: StyleSheet.hairlineWidth },
+  dividerText: { ...adminFont.bodyBold, fontSize: 12, letterSpacing: 1.1, textTransform: 'uppercase' },
+  searchRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  resultTile: { overflow: 'hidden' },
+  resultHead: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, padding: 18 },
+  rewardTitle: { ...adminFont.heading, fontSize: 24, lineHeight: 30 },
+  variantLabel: { ...adminFont.body, ...tabularNums, fontSize: 14.5, marginTop: 4 },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    minHeight: 48,
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
-  rewardTitle: { fontFamily: fontFamily.heading, fontSize: fontSize.cardTitle, color: colors.textPrimary },
-  variantLabel: { fontFamily: fontFamily.body, fontSize: fontSize.body, color: colors.textSecondary, marginTop: 2 },
-  divider: { height: 1, backgroundColor: colors.border, marginVertical: spacing.sm },
-  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.xs },
-  rowText: { fontFamily: fontFamily.body, fontSize: fontSize.body, color: colors.textPrimary },
+  rowText: { ...adminFont.body, fontSize: 15, flex: 1 },
+  statusText: { ...adminFont.bodySemiBold },
+  redeemArea: { padding: 18, paddingTop: 8 },
+  sectionTitle: { ...adminFont.bodyBold, fontSize: 17, marginBottom: 12 },
+  dCols: { flexDirection: 'row', flexWrap: 'wrap', gap: 16, marginTop: 18, alignItems: 'flex-start' },
+  dCol: { flexGrow: 1, flexBasis: 360, maxWidth: 560 },
+  dResultCol: { paddingTop: 36 },
+  placeholder: {
+    borderRadius: adminRadius.md,
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 48,
+  },
   scannerHeader: {
     height: 62,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: screenPadding,
+    paddingHorizontal: 12,
+  },
+  scannerBack: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.18)',
   },
   camera: { flex: 1 },
   overlay: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   alignBadge: {
     position: 'absolute',
-    top: spacing.lg,
+    top: 24,
     backgroundColor: 'rgba(0,0,0,0.4)',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.pill,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: adminRadius.pill,
   },
-  alignBadgeText: { fontFamily: fontFamily.bodyMedium, fontSize: fontSize.small, color: colors.white },
-  frame: {
-    width: '80%',
-    height: '40%',
-    borderRadius: radius.lg,
-    borderWidth: 2,
-    borderColor: colors.lime,
-    borderStyle: 'dashed',
+  alignBadgeText: { ...adminFont.bodySemiBold, fontSize: 14, color: WHITE },
+  frame: { width: 240, height: 240 },
+  corner: { position: 'absolute', width: 44, height: 44, borderColor: LIME },
+  cornerTL: { left: 0, top: 0, borderLeftWidth: 4, borderTopWidth: 4, borderTopLeftRadius: adminRadius.md },
+  cornerTR: { right: 0, top: 0, borderRightWidth: 4, borderTopWidth: 4, borderTopRightRadius: adminRadius.md },
+  cornerBL: { left: 0, bottom: 0, borderLeftWidth: 4, borderBottomWidth: 4, borderBottomLeftRadius: adminRadius.md },
+  cornerBR: { right: 0, bottom: 0, borderRightWidth: 4, borderBottomWidth: 4, borderBottomRightRadius: adminRadius.md },
+  permissionContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
+  permissionCard: {
+    width: '100%',
+    maxWidth: 420,
+    alignItems: 'center',
+    borderRadius: adminRadius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 22,
+    paddingVertical: 28,
   },
-  permissionContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: screenPadding },
-  permissionTitle: { fontFamily: fontFamily.heading, fontSize: fontSize.title, color: colors.white, marginTop: spacing.md },
+  permissionIcon: { width: 64, height: 64, borderRadius: adminRadius.md, alignItems: 'center', justifyContent: 'center' },
+  permissionTitle: { ...adminFont.bodyBold, fontSize: 20, marginTop: 14, textAlign: 'center' },
   permissionBody: {
-    fontFamily: fontFamily.body,
-    fontSize: fontSize.small,
-    color: 'rgba(255,255,255,0.8)',
+    ...adminFont.body,
+    fontSize: 15,
+    lineHeight: 21,
     textAlign: 'center',
-    marginTop: spacing.sm,
+    marginTop: 6,
   },
-  dPageTitle: { fontFamily: fontFamily.heading, fontSize: 26, color: colors.textPrimary },
 });
-}

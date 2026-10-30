@@ -1,25 +1,40 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, useWindowDimensions, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { Image, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { fontFamily, fontSize, radius, spacing } from '../../../theme';
-import { useThemeColors, type ThemeColors } from '../../../context/ThemeContext';
+import { useAdminTheme } from '../../../context/ThemeContext';
+import { adminFont, adminRadius, tabularNums } from '../../../theme/admin';
 import { useHover, hoverTransition } from '../../../hooks/useHover';
-import type { DesktopNavGroup, DesktopNavTarget } from '../../../navigation/adminNavConfig';
+import type { DesktopNavGroup, DesktopNavItem, DesktopNavTarget } from '../../../navigation/adminNavConfig';
 import { ScreenFade } from '../../motion';
-import { prefersReducedMotion, spring, useNativeDriver } from '../../../theme/motion';
+import { CircleButton, CountBadge, Glass } from '../ui';
+import { CommandPalette, commandKeyHint, type PaletteMember } from './CommandPalette';
 
-const RAIL_BREAKPOINT = 1280;
+// The Activity inspector only fits beside the content on wide windows.
+const INSPECTOR_BREAKPOINT = 1280;
+// Between the tab-bar cutoff (useIsDesktopNav, 900) and this width — an open
+// Galaxy Z Fold or iPhone Duo, a half-width browser window — the sidebar
+// collapses to an icon rail so the content keeps its room.
+const RAIL_BREAKPOINT = 1100;
 
-// react-native-web passes unknown style keys straight through to the DOM —
-// this suppresses the browser's default focus ring on the search input,
-// which isn't part of RN's typed style props.
-const webNoOutline = { outlineStyle: 'none' } as unknown as { outlineWidth: number };
+// Touch screens (a foldable or tablet in a browser) get taller targets.
+function useCoarsePointer(): boolean {
+  const [coarse, setCoarse] = useState(false);
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
+    const mq = window.matchMedia('(pointer: coarse)');
+    setCoarse(mq.matches);
+    const onChange = (e: MediaQueryListEvent) => setCoarse(e.matches);
+    mq.addEventListener?.('change', onChange);
+    return () => mq.removeEventListener?.('change', onChange);
+  }, []);
+  return coarse;
+}
 
 export interface DesktopNavigator {
   navigate: (name: string, params?: object) => void;
 }
 
-function goTo(navigation: DesktopNavigator, target: DesktopNavTarget) {
+export function goTo(navigation: DesktopNavigator, target: DesktopNavTarget) {
   if (target.nestedIn) navigation.navigate(target.nestedIn, { screen: target.screen });
   else navigation.navigate(target.screen);
 }
@@ -28,45 +43,53 @@ function initials(firstName: string, lastName: string) {
   return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase() || '?';
 }
 
-// The lime marker beside the current section springs in from its centre
-// each time a section opens (every screen mounts its own shell).
-function ActiveBar({ style }: { style: object }) {
-  const grow = useRef(new Animated.Value(prefersReducedMotion() ? 1 : 0)).current;
-  useEffect(() => {
-    if (prefersReducedMotion()) return;
-    const anim = Animated.spring(grow, { toValue: 1, ...spring.snappy, useNativeDriver });
-    anim.start();
-    return () => anim.stop();
-  }, [grow]);
-  return <Animated.View style={[style, { transform: [{ scaleY: grow }] }]} />;
-}
+const FLAGRR_MARK = require('../../../../assets/images/flagrr-icon-lime.png');
 
 interface NavItemButtonProps {
-  item: DesktopNavGroup['items'][number];
+  item: DesktopNavItem;
   isActive: boolean;
+  count?: number;
+  hot?: boolean;
   navigation: DesktopNavigator;
-  colors: ThemeColors;
-  styles: ReturnType<typeof createStyles>;
+  rail: boolean;
+  touch: boolean;
 }
 
-function NavItemButton({ item, isActive, navigation, colors, styles }: NavItemButtonProps) {
+function NavItemButton({ item, isActive, count, hot, navigation, rail, touch }: NavItemButtonProps) {
+  const { c } = useAdminTheme();
   const [hovered, hoverHandlers] = useHover();
-  const lit = isActive || hovered;
   return (
-    <TouchableOpacity
-      style={[styles.navItem, hoverTransition, isActive && styles.navItemActive, !isActive && hovered && styles.navItemHover]}
+    <Pressable
       onPress={() => goTo(navigation, item.target)}
-      activeOpacity={0.7}
-      accessibilityRole="button"
-      accessibilityLabel={item.label}
-      {...hoverHandlers}
+      accessibilityRole="link"
+      accessibilityLabel={count ? `${item.label}, ${count} waiting` : item.label}
+      accessibilityState={{ selected: isActive }}
+      onHoverIn={hoverHandlers.onMouseEnter}
+      onHoverOut={hoverHandlers.onMouseLeave}
+      style={[
+        styles.navItem,
+        hoverTransition,
+        touch && { height: 48 },
+        rail && styles.navItemRail,
+        isActive ? { backgroundColor: c.sel } : hovered ? { backgroundColor: c.fill2 } : null,
+      ]}
     >
-      {isActive ? <ActiveBar style={styles.navItemActiveBar} /> : null}
-      <Ionicons name={item.icon} size={17} color={lit ? colors.white : 'rgba(255,255,255,0.78)'} />
-      <Text style={[styles.navItemLabel, lit && styles.navItemLabelActive]} numberOfLines={1}>
-        {item.label}
-      </Text>
-    </TouchableOpacity>
+      <Ionicons name={item.icon} size={rail ? 21 : 18} color={isActive ? c.ink : c.ink2} />
+      {rail ? (
+        count && hot ? <CountBadge count={count} style={styles.railBadge} /> : null
+      ) : (
+        <Text style={[styles.navLabel, { color: isActive ? c.ink : c.ink2 }, isActive && adminFont.bodySemiBold]} numberOfLines={1}>
+          {item.label}
+        </Text>
+      )}
+      {rail ? null : count ? (
+        hot ? (
+          <CountBadge count={count} />
+        ) : (
+          <Text style={[styles.navCount, { color: c.ink3 }]}>{count}</Text>
+        )
+      ) : null}
+    </Pressable>
   );
 }
 
@@ -74,173 +97,200 @@ interface Props {
   navigation: DesktopNavigator;
   brandName: string;
   brandSub: string;
+  // Club crest: the club's logo, or its initial on Fairway green. Flagrr's own
+  // consoles show the Flagrr mark instead.
+  brandLogoUrl?: string | null;
+  brandIsFlagrr?: boolean;
   navGroups: DesktopNavGroup[];
   activeKey: string;
+  // Waiting items per nav key; `hot` ones get a red badge.
+  navCounts?: Record<string, { count: number; hot?: boolean }>;
   userFirstName: string;
   userLastName: string;
   userRoleLabel: string;
-  avatarImageUrl?: string | null;
   onAvatarPress: () => void;
   breadcrumb: string;
   headerRight?: React.ReactNode;
   unreadNotificationCount?: number;
   onBellPress?: () => void;
   rightRail?: React.ReactNode;
-  // Square image card shown in the sidebar, under the nav menu items.
-  sidebarCoverImageUrl?: string | null;
+  // Shown under the account button on a club's console.
+  poweredByFlagrr?: boolean;
+  // ⌘K member lookup; omitted where the role can't search members.
+  searchMembers?: (query: string) => Promise<PaletteMember[]>;
+  onMember?: (member: PaletteMember) => void;
   // Set false for screens that manage their own internal scrolling (e.g. a
   // chat thread with a pinned composer) — the content area becomes a plain
   // flex column instead of a ScrollView, so children aren't nested inside
   // two scroll containers.
   scrollable?: boolean;
+  // Sits above the content on every page (e.g. the past-due banner).
+  topBanner?: React.ReactNode;
   children: React.ReactNode;
 }
 
-// Persistent chrome for the course-admin / super-admin desktop-web experience
-// (see useIsDesktopNav — native app and narrow browser windows never render
-// this). Each screen renders its own instance of this wrapper rather than it
-// living above the navigator, so it can use the screen's own `navigation`
-// prop directly; screen transitions are disabled on desktop (see
-// AdminNavigator/SuperAdminNavigator) so re-mounting it per screen doesn't
-// produce a visible flicker.
+// Persistent chrome for the admin consoles on desktop web (see
+// useIsDesktopNav — native apps and narrow windows use the tab bar). A glass
+// sidebar and toolbar float over the club's blurred cover photo (painted by
+// AdminScope's screen layout); content stays on opaque tiles. Each screen
+// renders its own instance so it can use the screen's own `navigation`;
+// transitions are off on desktop (see AdminNavigator/SuperAdminNavigator), so
+// only the content area fades between sections.
 export function DesktopShell({
   navigation,
   brandName,
   brandSub,
+  brandLogoUrl,
+  brandIsFlagrr,
   navGroups,
   activeKey,
+  navCounts,
   userFirstName,
   userLastName,
   userRoleLabel,
-  avatarImageUrl,
   onAvatarPress,
   breadcrumb,
   headerRight,
   unreadNotificationCount = 0,
   onBellPress,
   rightRail,
-  sidebarCoverImageUrl,
+  poweredByFlagrr,
+  searchMembers,
+  onMember,
   scrollable = true,
+  topBanner,
   children,
 }: Props) {
-  const colors = useThemeColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { c } = useAdminTheme();
   const { width } = useWindowDimensions();
-  const showRail = !!rightRail && width >= RAIL_BREAKPOINT;
-  const [search, setSearch] = useState('');
-  const [searchFocused, setSearchFocused] = useState(false);
-  const userInitials = initials(userFirstName, userLastName);
-  const [footHovered, footHoverHandlers] = useHover();
-  const [bellHovered, bellHoverHandlers] = useHover();
-  const [avatarHovered, avatarHoverHandlers] = useHover();
+  const showInspector = !!rightRail && width >= INSPECTOR_BREAKPOINT;
+  const rail = width < RAIL_BREAKPOINT;
+  const touch = useCoarsePointer();
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [searchHovered, searchHoverHandlers] = useHover();
+  const [acctHovered, acctHoverHandlers] = useHover();
+
+  // ⌘K / Ctrl K opens search from anywhere in the console.
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') return;
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setPaletteOpen(true);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  const crest = brandIsFlagrr ? (
+    <View style={[styles.crest, { backgroundColor: '#1F4234' }]}>
+      <Image source={FLAGRR_MARK} style={styles.crestMark} resizeMode="contain" accessibilityLabel="Flagrr" />
+    </View>
+  ) : brandLogoUrl ? (
+    <Image source={{ uri: brandLogoUrl }} style={[styles.crest, { backgroundColor: c.surface }]} accessibilityLabel={`${brandName} logo`} />
+  ) : (
+    <View style={[styles.crest, { backgroundColor: '#1F4234' }]}>
+      <Text style={styles.crestText}>{brandName.charAt(0).toUpperCase() || 'F'}</Text>
+    </View>
+  );
 
   return (
     <View style={styles.shell}>
-      <View style={styles.sidebar}>
-        <View style={styles.brand}>
-          <View style={styles.brandMark}>
-            <Text style={styles.brandMarkText}>F</Text>
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.brandName} numberOfLines={1}>{brandName}</Text>
-            <Text style={styles.brandSub}>{brandSub}</Text>
-          </View>
+      <Glass radius={adminRadius.lg} style={[styles.sidebar, rail && styles.sidebarRail]}>
+        <View style={[styles.club, rail && styles.clubRail]}>
+          {crest}
+          {rail ? null : (
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={[styles.clubName, { color: c.ink }]} numberOfLines={1}>{brandName}</Text>
+              <Text style={[styles.clubRole, { color: c.ink3 }]} numberOfLines={1}>{brandSub}</Text>
+            </View>
+          )}
         </View>
 
-        <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
-          {navGroups.map((group) => (
-            <View key={group.label} style={styles.navGroup}>
-              <Text style={styles.navGroupLabel}>{group.label}</Text>
+        <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} accessibilityRole="menu">
+          {navGroups.map((group, gi) => (
+            <View key={group.label || `g${gi}`} style={styles.group}>
+              {group.label && !rail ? <Text style={[styles.groupLabel, { color: c.ink3 }]}>{group.label}</Text> : null}
+              {rail && gi > 0 ? <View style={[styles.railSep, { backgroundColor: c.edge }]} /> : null}
               {group.items.map((item) => (
                 <NavItemButton
                   key={item.key}
                   item={item}
                   isActive={item.key === activeKey}
+                  count={navCounts?.[item.key]?.count}
+                  hot={navCounts?.[item.key]?.hot}
                   navigation={navigation}
-                  colors={colors}
-                  styles={styles}
+                  rail={rail}
+                  touch={touch}
                 />
               ))}
             </View>
           ))}
         </ScrollView>
 
-        {sidebarCoverImageUrl ? (
-          <Image source={{ uri: sidebarCoverImageUrl }} style={styles.sidebarCover} />
-        ) : null}
-
-        <TouchableOpacity
-          style={[styles.sidebarFoot, hoverTransition, footHovered && styles.sidebarFootHover]}
+        <Pressable
           onPress={onAvatarPress}
-          activeOpacity={0.7}
-          {...footHoverHandlers}
+          accessibilityRole="button"
+          accessibilityLabel={`Account: ${userFirstName} ${userLastName}, ${userRoleLabel}`}
+          onHoverIn={acctHoverHandlers.onMouseEnter}
+          onHoverOut={acctHoverHandlers.onMouseLeave}
+          style={[styles.acct, hoverTransition, { borderTopColor: c.edge }, rail && styles.acctRail, acctHovered && { backgroundColor: c.fill2 }]}
         >
-          <View style={styles.footAvatar}>
-            {avatarImageUrl ? (
-              <Image source={{ uri: avatarImageUrl }} style={styles.footAvatarImage} />
-            ) : (
-              <Text style={styles.footAvatarText}>{userInitials}</Text>
-            )}
+          <View style={[styles.av, { backgroundColor: c.fill }]}>
+            <Text style={[styles.avText, { color: c.ink }]}>{initials(userFirstName, userLastName)}</Text>
           </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.footName} numberOfLines={1}>{userFirstName} {userLastName}</Text>
-            <Text style={styles.footRole}>{userRoleLabel}</Text>
+          {rail ? null : (
+            <>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={[styles.acctName, { color: c.ink }]} numberOfLines={1}>{userFirstName} {userLastName}</Text>
+                <Text style={[styles.acctRole, { color: c.ink3 }]} numberOfLines={1}>{userRoleLabel}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={14} color={c.ink3} />
+            </>
+          )}
+        </Pressable>
+        {poweredByFlagrr && !rail ? (
+          <View style={styles.powered}>
+            <Image source={FLAGRR_MARK} style={styles.poweredMark} resizeMode="contain" accessible={false} />
+            <Text style={[styles.poweredText, { color: c.ink3 }]}>Powered by Flagrr</Text>
           </View>
-        </TouchableOpacity>
-      </View>
+        ) : null}
+      </Glass>
 
       <View style={styles.main}>
-        <View style={styles.topbar}>
-          <Text style={styles.crumb} numberOfLines={1}>
-            {brandName} <Text style={styles.crumbActive}>/ {breadcrumb}</Text>
+        <View style={styles.toolbar}>
+          <Text style={[styles.crumb, { color: c.ink3 }]} numberOfLines={1}>
+            {breadcrumb}
           </Text>
-          <View style={[styles.search, hoverTransition, searchFocused && styles.searchFocused]}>
-            <Ionicons name="search" size={14} color={searchFocused ? colors.clubGreen : colors.textMuted} />
-            <TextInput
-              value={search}
-              onChangeText={setSearch}
-              onFocus={() => setSearchFocused(true)}
-              onBlur={() => setSearchFocused(false)}
-              placeholder="Search"
-              placeholderTextColor={colors.textMuted}
-              style={[styles.searchInput, webNoOutline]}
-            />
-          </View>
           <View style={{ flex: 1 }} />
           {headerRight}
-          {onBellPress ? (
-            <TouchableOpacity
-              style={[styles.iconBtn, hoverTransition, bellHovered && styles.iconBtnHover]}
-              onPress={onBellPress}
-              accessibilityLabel="Notifications"
-              accessibilityRole="button"
-              {...bellHoverHandlers}
-            >
-              <Ionicons name="notifications-outline" size={17} color={bellHovered ? colors.clubGreen : colors.textSecondary} />
-              {unreadNotificationCount > 0 ? (
-                <View style={styles.dot}>
-                  <Text style={styles.dotText}>{unreadNotificationCount > 9 ? '9+' : unreadNotificationCount}</Text>
-                </View>
-              ) : null}
-            </TouchableOpacity>
-          ) : null}
-          <TouchableOpacity
-            style={[styles.avatarBtn, hoverTransition, avatarHovered && styles.avatarBtnHover]}
-            onPress={onAvatarPress}
-            accessibilityLabel="Profile"
-            accessibilityRole="button"
-            {...avatarHoverHandlers}
+          <Pressable
+            onPress={() => setPaletteOpen(true)}
+            accessibilityRole="search"
+            accessibilityLabel={`Search, ${commandKeyHint()}`}
+            onHoverIn={searchHoverHandlers.onMouseEnter}
+            onHoverOut={searchHoverHandlers.onMouseLeave}
           >
-            {avatarImageUrl ? (
-              <Image source={{ uri: avatarImageUrl }} style={styles.avatarBtnImage} />
-            ) : (
-              <Text style={styles.avatarBtnText}>{userInitials}</Text>
-            )}
-          </TouchableOpacity>
+            <Glass radius={adminRadius.pill} style={[styles.search, touch && { height: 46 }, rail && { width: 46, paddingHorizontal: 0, justifyContent: 'center' }, searchHovered && { backgroundColor: c.fill }]}>
+              <Ionicons name="search" size={15} color={c.ink3} />
+              {rail ? null : (
+                <>
+                  <Text style={[styles.searchText, { color: c.ink3 }]}>Search</Text>
+                  {touch ? null : <Text style={[styles.kbd, { color: c.ink3, backgroundColor: c.fill }]}>{commandKeyHint()}</Text>}
+                </>
+              )}
+            </Glass>
+          </Pressable>
+          {onBellPress ? (
+            <CircleButton icon="notifications-outline" onPress={onBellPress} accessibilityLabel="Activity" badge={unreadNotificationCount || undefined} size={touch ? 46 : 40} />
+          ) : null}
         </View>
 
-        {/* The sidebar and topbar stay put; only the content area fades in,
-            so moving between sections reads as one persistent window. */}
+        {topBanner ? <View style={styles.topBanner}>{topBanner}</View> : null}
+
+        {/* Sidebar and toolbar stay put; only the content area fades in, so
+            moving between sections reads as one persistent window. */}
         <ScreenFade>
           {scrollable ? (
             <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -252,155 +302,63 @@ export function DesktopShell({
         </ScreenFade>
       </View>
 
-      {showRail ? (
-        <View style={styles.rail}>
-          <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={styles.railContent}>
+      {showInspector ? (
+        <Glass radius={adminRadius.lg} style={styles.inspector}>
+          <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={styles.inspectorContent}>
             {rightRail}
           </ScrollView>
-        </View>
+        </Glass>
       ) : null}
+
+      <CommandPalette
+        visible={paletteOpen}
+        onClose={() => setPaletteOpen(false)}
+        navGroups={navGroups}
+        onSection={(item) => goTo(navigation, item.target)}
+        searchMembers={searchMembers}
+        onMember={onMember}
+      />
     </View>
   );
 }
 
-function createStyles(colors: ThemeColors) {
-  return StyleSheet.create({
-  shell: { flex: 1, flexDirection: 'row', backgroundColor: colors.background },
-  sidebar: {
-    width: 248,
-    backgroundColor: colors.darkGreen,
-    paddingTop: 20,
-    paddingBottom: 16,
-    paddingHorizontal: 12,
-  },
-  brand: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 8, marginBottom: 22 },
-  brandMark: { width: 34, height: 34, borderRadius: 9, backgroundColor: colors.lime, alignItems: 'center', justifyContent: 'center' },
-  brandMarkText: { fontFamily: fontFamily.headingBold, fontSize: 16, color: colors.darkGreen },
-  brandName: { fontFamily: fontFamily.heading, fontSize: 15, color: colors.white },
-  brandSub: { fontFamily: fontFamily.bodySemiBold, fontSize: 10, color: 'rgba(255,255,255,0.55)', letterSpacing: 0.5, marginTop: 1 },
-  navGroup: { marginBottom: 18 },
-  navGroupLabel: {
-    fontFamily: fontFamily.bodySemiBold,
-    fontSize: 10,
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
-    color: 'rgba(255,255,255,0.38)',
-    paddingHorizontal: 12,
-    marginBottom: 6,
-  },
-  navItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 11,
-    paddingVertical: 9,
-    paddingHorizontal: 12,
-    borderRadius: 10,
-    marginBottom: 2,
-  },
-  navItemActive: { backgroundColor: 'rgba(205,222,92,0.14)' },
-  navItemActiveBar: {
-    position: 'absolute',
-    left: 0,
-    top: 8,
-    bottom: 8,
-    width: 3,
-    borderTopRightRadius: 3,
-    borderBottomRightRadius: 3,
-    backgroundColor: colors.lime,
-  },
-  navItemHover: { backgroundColor: 'rgba(255,255,255,0.08)' },
-  navItemLabel: { fontFamily: fontFamily.bodyMedium, fontSize: 13.5, color: 'rgba(255,255,255,0.78)', flexShrink: 1 },
-  navItemLabelActive: { color: colors.white },
-  sidebarFoot: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingTop: 14,
-    paddingHorizontal: 8,
-    marginTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 10,
-  },
-  sidebarFootHover: { backgroundColor: 'rgba(255,255,255,0.06)' },
-  footAvatar: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.lime, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
-  footAvatarImage: { width: '100%', height: '100%' },
-  footAvatarText: { fontFamily: fontFamily.bodySemiBold, fontSize: 12, color: colors.darkGreen },
-  sidebarCover: {
-    width: '100%',
-    aspectRatio: 1,
-    borderRadius: 12,
-    marginTop: 4,
-    marginBottom: 12,
-  },
-  footName: { fontFamily: fontFamily.bodySemiBold, fontSize: 12.5, color: colors.white },
-  footRole: { fontFamily: fontFamily.body, fontSize: 10.5, color: 'rgba(255,255,255,0.5)' },
+const styles = StyleSheet.create({
+  shell: { flex: 1, flexDirection: 'row', gap: 12, padding: 12 },
+  sidebar: { width: 252, paddingTop: 16, paddingBottom: 12, paddingHorizontal: 12 },
+  sidebarRail: { width: 76, paddingHorizontal: 10 },
+  clubRail: { justifyContent: 'center', paddingHorizontal: 0 },
+  navItemRail: { justifyContent: 'center', paddingHorizontal: 0, height: 48 },
+  railBadge: { position: 'absolute', top: 2, right: 4, minWidth: 18, height: 18 },
+  railSep: { height: StyleSheet.hairlineWidth, marginHorizontal: 10, marginVertical: 8 },
+  acctRail: { justifyContent: 'center', paddingHorizontal: 0 },
+  club: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 6, marginBottom: 14 },
+  crest: { width: 40, height: 40, borderRadius: adminRadius.sm, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  crestMark: { width: 26, height: 26 },
+  crestText: { ...adminFont.title, fontSize: 18, color: '#CDDE5C' },
+  clubName: { ...adminFont.bodyBold, fontSize: 15 },
+  clubRole: { ...adminFont.body, fontSize: 12.5, marginTop: 1 },
+  group: { marginBottom: 6 },
+  groupLabel: { ...adminFont.bodyBold, fontSize: 11.5, letterSpacing: 1.1, textTransform: 'uppercase', paddingHorizontal: 12, paddingTop: 12, paddingBottom: 6 },
+  navItem: { flexDirection: 'row', alignItems: 'center', gap: 12, height: 40, paddingHorizontal: 12, borderRadius: adminRadius.sm, marginBottom: 2 },
+  navLabel: { ...adminFont.bodyMedium, fontSize: 14.5, flex: 1 },
+  navCount: { ...adminFont.bodyMedium, ...tabularNums, fontSize: 13 },
+  acct: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, paddingHorizontal: 8, marginTop: 8, borderTopWidth: StyleSheet.hairlineWidth, borderRadius: adminRadius.sm },
+  av: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
+  avText: { ...adminFont.bodyBold, fontSize: 12.5 },
+  acctName: { ...adminFont.bodySemiBold, fontSize: 13.5 },
+  acctRole: { ...adminFont.body, fontSize: 12 },
+  powered: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 10, paddingTop: 10 },
+  poweredMark: { width: 24, height: 24 },
+  poweredText: { ...adminFont.body, fontSize: 12 },
   main: { flex: 1, minWidth: 0 },
-  topbar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    paddingHorizontal: 28,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    backgroundColor: colors.background,
-  },
-  crumb: { fontFamily: fontFamily.body, fontSize: 12, color: colors.textMuted, maxWidth: 260 },
-  crumbActive: { fontFamily: fontFamily.bodySemiBold, color: colors.textPrimary },
-  search: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: colors.inputBg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    width: 240,
-  },
-  searchInput: { flex: 1, fontFamily: fontFamily.body, fontSize: 13, color: colors.textPrimary, padding: 0 },
-  searchFocused: { borderColor: colors.clubGreen, backgroundColor: colors.surface },
-  iconBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  iconBtnHover: { borderColor: colors.clubGreen, backgroundColor: colors.mintBg },
-  dot: {
-    position: 'absolute',
-    top: -4,
-    right: -4,
-    minWidth: 16,
-    height: 16,
-    borderRadius: 8,
-    paddingHorizontal: 3,
-    backgroundColor: colors.negative,
-    borderWidth: 2,
-    borderColor: colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dotText: { fontFamily: fontFamily.bodySemiBold, fontSize: 9, color: colors.white },
-  avatarBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.mintBg, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
-  avatarBtnHover: { transform: [{ scale: 1.08 }] },
-  avatarBtnImage: { width: '100%', height: '100%' },
-  avatarBtnText: { fontFamily: fontFamily.bodySemiBold, fontSize: 13, color: colors.clubGreen },
-  content: { padding: 28, paddingBottom: 60, gap: spacing.lg, maxWidth: 1160 },
-  nonScrollContent: { flex: 1, paddingBottom: 0 },
-  rail: {
-    width: 292,
-    borderLeftWidth: 1,
-    borderLeftColor: colors.border,
-  },
-  railContent: {
-    paddingHorizontal: 20,
-    paddingVertical: 22,
-  },
+  toolbar: { flexDirection: 'row', alignItems: 'center', gap: 10, height: 52, paddingHorizontal: 12 },
+  crumb: { ...adminFont.bodyMedium, fontSize: 13.5, flexShrink: 1 },
+  search: { flexDirection: 'row', alignItems: 'center', gap: 8, height: 40, width: 240, paddingHorizontal: 14 },
+  searchText: { ...adminFont.body, fontSize: 14, flex: 1 },
+  kbd: { ...adminFont.bodySemiBold, fontSize: 11.5, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, overflow: 'hidden' },
+  topBanner: { paddingHorizontal: 12, paddingBottom: 8 },
+  content: { paddingHorizontal: 12, paddingTop: 4, paddingBottom: 60, gap: 20, maxWidth: 1180, width: '100%' },
+  nonScrollContent: { flex: 1, paddingBottom: 12 },
+  inspector: { width: 320 },
+  inspectorContent: { paddingHorizontal: 18, paddingVertical: 20 },
 });
-}

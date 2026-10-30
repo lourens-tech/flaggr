@@ -1,6 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SuperAdminStackParamList } from '../../navigation/types';
@@ -10,11 +9,13 @@ import { useAdmin } from '../../context/AdminContext';
 import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
 import { SuperAdminDesktopFrame } from '../../components/admin/desktop/SuperAdminDesktopFrame';
 import { DesktopPanel } from '../../components/admin/desktop/DesktopPanel';
+import { DesktopStatCard } from '../../components/admin/desktop/DesktopStatCard';
+import { AdminButton, ErrorState, PageTitle, Segmented, SkeletonRows, Tile } from '../../components/admin/ui';
 import { AdminApiError, downloadSuperAdminAdClickLog } from '../../api/adminClient';
 import { showAlert } from '../../utils/alert';
-import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
-import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
+import { useAdminTheme } from '../../context/ThemeContext';
 import type { AdClickLogRow, AdTrendPoint } from '../../data/adminTypes';
+import { adminFont, tabularNums, type AdminColors } from '../../theme/admin';
 
 type Props = NativeStackScreenProps<SuperAdminStackParamList, 'SuperAdminAdDetail'>;
 
@@ -36,8 +37,8 @@ function computeCtr(clicks: number, impressions: number): number {
 // server-side) — only clicks get a per-event log; impressions stay a
 // count/trend line.
 export function SuperAdminAdDetailScreen({ route }: Props) {
-  const colors = useThemeColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { c } = useAdminTheme();
+  const styles = useMemo(() => createStyles(c), [c]);
   const isDesktop = useIsDesktopNav();
   const { adId, adTitle } = route.params;
   const { getSuperAdminAdTrend, getSuperAdminAdClickLog } = useAdmin();
@@ -46,15 +47,18 @@ export function SuperAdminAdDetailScreen({ route }: Props) {
   const [clickLog, setClickLog] = useState<AdClickLogRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
+  const [loadError, setLoadError] = useState(false);
 
   const load = useCallback(
     async (p: Period) => {
       setLoading(true);
+      setLoadError(false);
       try {
         const [trendPoints, log] = await Promise.all([getSuperAdminAdTrend(p, adId), getSuperAdminAdClickLog(adId, p)]);
         setTrend(trendPoints);
         setClickLog(log);
       } catch (err) {
+        setLoadError(true);
         const message = err instanceof AdminApiError ? err.message : 'Something went wrong. Please try again.';
         showAlert('Couldn’t load ad detail', message);
       } finally {
@@ -98,64 +102,69 @@ export function SuperAdminAdDetailScreen({ route }: Props) {
   const ctr = computeCtr(totalClicks, totalImpressions);
 
   const periodToggle = (
-    <View style={styles.periodToggle}>
-      {PERIODS.map((p) => (
-        <TouchableOpacity
-          key={p}
-          onPress={() => handlePeriodChange(p)}
-          style={[styles.periodPill, period === p && styles.periodPillActive]}
-        >
-          <Text style={[styles.periodText, period === p && styles.periodTextActive]}>{PERIOD_LABELS[p]}</Text>
-        </TouchableOpacity>
-      ))}
-    </View>
+    <Segmented
+      accessibilityLabel="Period"
+      options={PERIODS.map((p) => ({ key: p, label: PERIOD_LABELS[p] }))}
+      value={period}
+      onChange={handlePeriodChange}
+    />
+  );
+
+  const clickRows =
+    clickLog.length === 0 ? (
+      <Text style={styles.emptyText}>No clicks in this period.</Text>
+    ) : (
+      clickLog.map((row, i) => (
+        <View key={row.id} style={[styles.row, i > 0 && styles.rowRule]}>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={[styles.rowLabel, !row.memberName && styles.rowLabelDeleted]} numberOfLines={1}>{row.memberName ?? 'Deleted member'}</Text>
+            {row.memberEmail ? <Text style={styles.rowSubtext} numberOfLines={1}>{row.memberEmail}</Text> : null}
+          </View>
+          <Text style={[styles.rowValue, { flexShrink: 0 }]}>{formatDate(row.clickedAt)}</Text>
+        </View>
+      ))
+    );
+
+  const clicksChart = (
+    <>
+      <Text style={styles.chartTitle}>Clicks Over Time</Text>
+      <BarChart data={trend.map((t) => ({ month: t.label, value: t.clicks }))} />
+    </>
+  );
+  const impressionsChart = (
+    <>
+      <Text style={styles.chartTitle}>Impressions Over Time</Text>
+      <BarChart data={trend.map((t) => ({ month: t.label, value: t.impressions }))} />
+    </>
   );
 
   if (isDesktop) {
     return (
-      <SuperAdminDesktopFrame activeKey="SuperAdminReports" breadcrumb={adTitle} headerRight={periodToggle} showRail={false}>
-        <Text style={styles.dPageTitle}>{adTitle}</Text>
-        {loading ? (
-          <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
+      <SuperAdminDesktopFrame activeKey="SuperAdminReports" breadcrumb={`Reports › ${adTitle}`} headerRight={periodToggle} showRail={false}>
+        <PageTitle>{adTitle}</PageTitle>
+        {loadError ? (
+          <View style={styles.dBlock}>
+            <ErrorState onRetry={() => load(period)} />
+          </View>
+        ) : loading ? (
+          <Tile style={styles.dBlock}>
+            <SkeletonRows rows={4} />
+          </Tile>
         ) : (
           <>
-            <View style={styles.summaryRow}>
-              <View style={styles.summaryTile}>
-                <Text style={styles.summaryValue}>{totalClicks.toLocaleString()}</Text>
-                <Text style={styles.summaryLabel}>Clicks</Text>
-              </View>
-              <View style={styles.summaryTile}>
-                <Text style={styles.summaryValue}>{totalImpressions.toLocaleString()}</Text>
-                <Text style={styles.summaryLabel}>Impressions</Text>
-              </View>
-              <View style={styles.summaryTile}>
-                <Text style={styles.summaryValue}>{ctr}%</Text>
-                <Text style={styles.summaryLabel}>CTR</Text>
-              </View>
+            <View style={styles.dStrip}>
+              <DesktopStatCard label="Clicks" value={totalClicks.toLocaleString()} icon="hand-left-outline" />
+              <DesktopStatCard label="Impressions" value={totalImpressions.toLocaleString()} icon="eye-outline" />
+              <DesktopStatCard label="CTR" value={`${ctr}%`} icon="analytics-outline" />
             </View>
 
-            <DesktopPanel title="Trend">
-              <Text style={styles.chartTitle}>Clicks Over Time</Text>
-              <BarChart data={trend.map((t) => ({ month: t.label, value: t.clicks }))} />
-              <View style={{ height: spacing.md }} />
-              <Text style={styles.chartTitle}>Impressions Over Time</Text>
-              <BarChart data={trend.map((t) => ({ month: t.label, value: t.impressions }))} />
-            </DesktopPanel>
+            <View style={styles.dCharts}>
+              <Tile style={styles.dChart}>{clicksChart}</Tile>
+              <Tile style={styles.dChart}>{impressionsChart}</Tile>
+            </View>
 
-            <DesktopPanel title="Click Log" onViewAll={handleExport} viewAllLabel={exporting ? 'Exporting…' : 'Export Excel'}>
-              {clickLog.length === 0 ? (
-                <Text style={styles.emptyText}>No clicks in this period.</Text>
-              ) : (
-                clickLog.map((c) => (
-                  <View key={c.id} style={styles.row}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.rowLabel} numberOfLines={1}>{c.memberName ?? 'Deleted member'}</Text>
-                      {c.memberEmail ? <Text style={styles.rowSubtext}>{c.memberEmail}</Text> : null}
-                    </View>
-                    <Text style={styles.rowValue}>{formatDate(c.clickedAt)}</Text>
-                  </View>
-                ))
-              )}
+            <DesktopPanel title="Click Log" onViewAll={handleExport} viewAllLabel={exporting ? 'Exporting…' : 'Export Excel'} style={styles.dBlock}>
+              <View>{clickRows}</View>
             </DesktopPanel>
           </>
         )}
@@ -169,125 +178,77 @@ export function SuperAdminAdDetailScreen({ route }: Props) {
 
       <View style={styles.toolbar}>{periodToggle}</View>
 
-      {loading ? (
-        <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
+      {loadError ? (
+        <View style={styles.content}>
+          <ErrorState onRetry={() => load(period)} />
+        </View>
+      ) : loading ? (
+        <View style={styles.content}>
+          <Tile>
+            <SkeletonRows rows={4} />
+          </Tile>
+        </View>
       ) : (
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-          <View style={styles.summaryRow}>
-            <View style={[styles.summaryTile, styles.mSummaryTile]}>
+          <Tile style={styles.summaryRow}>
+            <View style={styles.summaryStat}>
               <Text style={styles.summaryValue} numberOfLines={1} adjustsFontSizeToFit>{totalClicks.toLocaleString()}</Text>
               <Text style={styles.summaryLabel}>Clicks</Text>
             </View>
-            <View style={[styles.summaryTile, styles.mSummaryTile]}>
+            <View style={[styles.summaryStat, styles.summaryRule]}>
               <Text style={styles.summaryValue} numberOfLines={1} adjustsFontSizeToFit>{totalImpressions.toLocaleString()}</Text>
               <Text style={styles.summaryLabel}>Impressions</Text>
             </View>
-            <View style={[styles.summaryTile, styles.mSummaryTile]}>
+            <View style={[styles.summaryStat, styles.summaryRule]}>
               <Text style={styles.summaryValue} numberOfLines={1} adjustsFontSizeToFit>{ctr}%</Text>
               <Text style={styles.summaryLabel}>CTR</Text>
             </View>
-          </View>
+          </Tile>
 
-          <View style={styles.chartCard}>
-            <Text style={styles.chartTitle}>Clicks Over Time</Text>
-            <BarChart data={trend.map((t) => ({ month: t.label, value: t.clicks }))} />
-            <View style={{ height: spacing.md }} />
-            <Text style={styles.chartTitle}>Impressions Over Time</Text>
-            <BarChart data={trend.map((t) => ({ month: t.label, value: t.impressions }))} />
-          </View>
+          <Tile>
+            {clicksChart}
+            <View style={{ height: 16 }} />
+            {impressionsChart}
+          </Tile>
 
           <View style={styles.sectionHeaderRow}>
             <Text style={styles.sectionTitle}>Click Log</Text>
-            <TouchableOpacity style={styles.exportButton} onPress={handleExport} disabled={exporting}>
-              {exporting ? (
-                <ActivityIndicator color={colors.white} size="small" />
-              ) : (
-                <>
-                  <Ionicons name="download-outline" size={16} color={colors.white} />
-                  <Text style={styles.exportButtonText}>Excel</Text>
-                </>
-              )}
-            </TouchableOpacity>
+            <AdminButton label="Excel" icon="download-outline" variant="glass" onPress={handleExport} loading={exporting} style={{ height: 44 }} />
           </View>
-          <View style={styles.card}>
-            {clickLog.length === 0 ? (
-              <Text style={styles.emptyText}>No clicks in this period.</Text>
-            ) : (
-              clickLog.map((c) => (
-                <View key={c.id} style={styles.row}>
-                  <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text style={styles.rowLabel} numberOfLines={1}>{c.memberName ?? 'Deleted member'}</Text>
-                    {c.memberEmail ? <Text style={styles.rowSubtext} numberOfLines={1}>{c.memberEmail}</Text> : null}
-                  </View>
-                  <Text style={[styles.rowValue, { flexShrink: 0 }]}>{formatDate(c.clickedAt)}</Text>
-                </View>
-              ))
-            )}
-          </View>
+          <Tile padded={false} style={styles.listTile}>
+            <View style={styles.listInner}>{clickRows}</View>
+          </Tile>
         </ScrollView>
       )}
     </View>
   );
 }
 
-function createStyles(colors: ThemeColors) {
+function createStyles(c: AdminColors) {
   return StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.background },
-  content: { padding: screenPadding, paddingBottom: spacing.xl * 2 },
-  toolbar: { paddingHorizontal: screenPadding, paddingTop: spacing.md, paddingBottom: spacing.sm },
-  periodToggle: { flexDirection: 'row', backgroundColor: colors.mintBg, borderRadius: radius.pill, padding: 3, alignSelf: 'flex-start' },
-  periodPill: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: radius.pill },
-  periodPillActive: { backgroundColor: colors.darkGreen },
-  periodText: { fontFamily: fontFamily.heading, fontSize: 12, color: colors.textPrimary },
-  periodTextActive: { color: colors.white },
-  summaryRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg },
-  summaryTile: {
-    flex: 1,
-    backgroundColor: colors.mintBg,
-    borderWidth: 0.5,
-    borderColor: colors.clubGreen,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    alignItems: 'center',
-  },
-  summaryValue: { fontFamily: fontFamily.heading, fontSize: fontSize.title, color: colors.textPrimary },
-  // Phone-only override — summaryTile itself is shared with the desktop branch.
-  mSummaryTile: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 16 },
-  summaryLabel: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary, marginTop: 2 },
-  chartCard: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 16,
-    padding: spacing.md,
-    marginBottom: spacing.lg,
-  },
-  chartTitle: { fontFamily: fontFamily.heading, fontSize: fontSize.small, color: colors.textPrimary, marginBottom: spacing.md },
-  sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.sm },
-  sectionTitle: { fontFamily: fontFamily.heading, fontSize: fontSize.title, color: colors.textPrimary },
-  exportButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: colors.clubGreen,
-    borderRadius: radius.pill,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-  },
-  exportButtonText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.tiny, color: colors.white },
-  card: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 16,
-    padding: spacing.md,
-    gap: spacing.sm,
-  },
-  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: spacing.sm },
-  rowLabel: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.textPrimary },
-  rowSubtext: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary, marginTop: 2 },
-  rowValue: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary },
-  emptyText: { fontFamily: fontFamily.body, fontSize: fontSize.body, color: colors.textSecondary },
-  dPageTitle: { fontFamily: fontFamily.heading, fontSize: 26, color: colors.textPrimary },
+  screen: { flex: 1, backgroundColor: 'transparent' },
+  content: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 48, gap: 14 },
+  toolbar: { paddingHorizontal: 16, paddingBottom: 12 },
+  summaryRow: { flexDirection: 'row', paddingHorizontal: 8, paddingVertical: 14 },
+  summaryStat: { flex: 1, alignItems: 'center', paddingHorizontal: 4 },
+  summaryRule: { borderLeftWidth: StyleSheet.hairlineWidth, borderLeftColor: c.edge },
+  summaryValue: { ...adminFont.bodyBold, ...tabularNums, fontSize: 24, letterSpacing: -0.5, color: c.ink },
+  summaryLabel: { ...adminFont.body, fontSize: 12.5, color: c.ink2, marginTop: 2 },
+  chartTitle: { ...adminFont.bodyBold, fontSize: 15, color: c.ink, marginBottom: 14 },
+  sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 },
+  sectionTitle: { ...adminFont.bodyBold, fontSize: 17, color: c.ink },
+  listTile: { overflow: 'hidden' },
+  listInner: { paddingHorizontal: 16, paddingVertical: 4 },
+  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 10, minHeight: 56, paddingVertical: 8 },
+  rowRule: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.edge },
+  rowLabel: { ...adminFont.bodySemiBold, fontSize: 15, color: c.ink },
+  rowLabelDeleted: { ...adminFont.body, fontStyle: 'italic', color: c.ink2 },
+  rowSubtext: { ...adminFont.body, fontSize: 13, color: c.ink2, marginTop: 2 },
+  rowValue: { ...adminFont.body, ...tabularNums, fontSize: 13, color: c.ink2 },
+  emptyText: { ...adminFont.body, fontSize: 14, color: c.ink2, textAlign: 'center', paddingVertical: 24 },
+  dBlock: { marginTop: 16 },
+  dStrip: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 18 },
+  dCharts: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 12 },
+  dChart: { flexGrow: 1, flexBasis: 360 },
 });
 }

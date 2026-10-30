@@ -1,5 +1,5 @@
 import React, { useCallback, useState, useMemo } from 'react';
-import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -8,10 +8,11 @@ import { AdminMobileHeader } from '../../components/admin/AdminMobileHeader';
 import { useAdmin } from '../../context/AdminContext';
 import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
 import { SuperAdminDesktopFrame } from '../../components/admin/desktop/SuperAdminDesktopFrame';
-import { DesktopPanel } from '../../components/admin/desktop/DesktopPanel';
-import { enquiryStatusBadges, fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
-import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
+import { EmptyState, ErrorState, Muted, PageTitle, Segmented, SkeletonRows, StatusPill, Tile, type StatusTone } from '../../components/admin/ui';
+import { useHover, hoverTransition } from '../../hooks/useHover';
+import { useAdminTheme } from '../../context/ThemeContext';
 import type { AdminEnquirySummary, EnquiryStatus } from '../../data/adminTypes';
+import { adminFont, adminRadius, tabularNums, type AdminColors } from '../../theme/admin';
 
 type Props = NativeStackScreenProps<SuperAdminStackParamList, 'SuperAdminCourseEnquiries'>;
 
@@ -21,6 +22,44 @@ const FILTERS: Array<{ label: string; value: EnquiryStatus | 'all' }> = [
   { label: 'Chat in Progress', value: 'in_progress' },
   { label: 'Resolved', value: 'resolved' },
 ];
+
+const STATUS_TONE: Record<EnquiryStatus, StatusTone> = { pending: 'amber', in_progress: 'pos', resolved: 'neutral' };
+
+function statusLabel(status: EnquiryStatus): string {
+  return FILTERS.find((f) => f.value === status)?.label ?? status;
+}
+
+function clubInitials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '?';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[1][0]).toUpperCase();
+}
+
+// One enquiry in the grouped list: member, last message, type and age, status.
+function EnquiryRow({ item, first, onPress }: { item: AdminEnquirySummary; first: boolean; onPress: () => void }) {
+  const { c } = useAdminTheme();
+  const styles = useMemo(() => createStyles(c), [c]);
+  const [hovered, hoverHandlers] = useHover();
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${item.memberName}, ${statusLabel(item.status)}`}
+      onHoverIn={hoverHandlers.onMouseEnter}
+      onHoverOut={hoverHandlers.onMouseLeave}
+      style={({ pressed }) => [styles.row, hoverTransition, !first && styles.rowRule, (hovered || pressed) && { backgroundColor: c.fill2 }]}
+    >
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text style={styles.memberName} numberOfLines={1}>{item.memberName}</Text>
+        <Text style={styles.lastMessage} numberOfLines={1}>{item.lastMessage ?? '—'}</Text>
+        <Text style={styles.meta} numberOfLines={1}>{item.enquiryType} · {relativeTime(item.updatedAt)}</Text>
+      </View>
+      <StatusPill label={statusLabel(item.status)} tone={STATUS_TONE[item.status]} style={styles.pill} />
+      <Ionicons name="chevron-forward" size={16} color={c.ink3} />
+    </Pressable>
+  );
+}
 
 function relativeTime(iso: string): string {
   const diffMs = Date.now() - new Date(iso).getTime();
@@ -37,18 +76,20 @@ function relativeTime(iso: string): string {
 // course_admin) — a super_admin can see every conversation, but can't
 // reply into one; that stays between the member and their club.
 export function SuperAdminCourseEnquiriesScreen({ route, navigation }: Props) {
-  const colors = useThemeColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { c } = useAdminTheme();
+  const styles = useMemo(() => createStyles(c), [c]);
   const isDesktop = useIsDesktopNav();
   const { courseId, courseName } = route.params;
   const { getSuperAdminCourseEnquiries } = useAdmin();
   const [filter, setFilter] = useState<EnquiryStatus | 'all'>('all');
   const [enquiries, setEnquiries] = useState<AdminEnquirySummary[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
 
   const load = useCallback(
     async (f: EnquiryStatus | 'all') => {
       setLoading(true);
+      setLoadError(false);
       try {
         setEnquiries(await getSuperAdminCourseEnquiries(courseId, f === 'all' ? undefined : f));
       } finally {
@@ -60,66 +101,57 @@ export function SuperAdminCourseEnquiriesScreen({ route, navigation }: Props) {
 
   useFocusEffect(
     useCallback(() => {
-      load(filter).catch(() => {});
+      load(filter).catch(() => setLoadError(true));
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [filter]),
   );
 
-  const renderItem = ({ item }: { item: AdminEnquirySummary }) => {
-    const badge = enquiryStatusBadges(colors)[item.status];
-    return (
-      <TouchableOpacity
-        style={[styles.row, !isDesktop && styles.rowPhone]}
-        onPress={() => navigation.navigate('SuperAdminEnquiryChat', { courseId, enquiryId: item.id })}
-        activeOpacity={0.8}
-      >
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <View style={styles.rowTop}>
-            <Text style={styles.memberName} numberOfLines={1}>{item.memberName}</Text>
-          </View>
-          <Text style={styles.lastMessage} numberOfLines={1}>{item.lastMessage ?? '—'}</Text>
-          <Text style={styles.meta} numberOfLines={1}>{item.enquiryType} · {relativeTime(item.updatedAt)}</Text>
-        </View>
-        <View style={[styles.badge, { backgroundColor: badge.bg }]}>
-          <Text style={[styles.badgeText, { color: badge.fg }]}>{badge.label}</Text>
-        </View>
-        <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
-      </TouchableOpacity>
-    );
-  };
-
   const filterRow = (
-    <View style={styles.filterRow}>
-      {FILTERS.map((f) => (
-        <TouchableOpacity
-          key={f.value}
-          onPress={() => setFilter(f.value)}
-          style={[styles.filterPill, filter === f.value && styles.filterPillActive]}
-        >
-          <Text style={[styles.filterText, filter === f.value && styles.filterTextActive]}>{f.label}</Text>
-        </TouchableOpacity>
+    <Segmented
+      accessibilityLabel="Status filter"
+      options={FILTERS.map((f) => ({ key: f.value, label: f.label }))}
+      value={filter}
+      onChange={setFilter}
+    />
+  );
+
+  const list = loadError ? (
+    <ErrorState onRetry={() => load(filter).catch(() => setLoadError(true))} />
+  ) : loading ? (
+    <Tile>
+      <SkeletonRows rows={4} />
+    </Tile>
+  ) : enquiries.length === 0 ? (
+    <Tile padded={false}>
+      <EmptyState icon="chatbubbles-outline" title="No enquiries here yet." />
+    </Tile>
+  ) : (
+    <Tile padded={false} style={styles.listTile}>
+      {enquiries.map((item, i) => (
+        <EnquiryRow
+          key={item.id}
+          item={item}
+          first={i === 0}
+          onPress={() => navigation.navigate('SuperAdminEnquiryChat', { courseId, enquiryId: item.id })}
+        />
       ))}
-    </View>
+    </Tile>
   );
 
   if (isDesktop) {
     return (
-      <SuperAdminDesktopFrame activeKey="SuperAdminCourses" breadcrumb={`${courseName} Enquiries`} showRail={false}>
-        <Text style={styles.dPageTitle}>{courseName} — Enquiries</Text>
-        <DesktopPanel title="All Enquiries">
-          {filterRow}
-          {loading ? (
-            <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.md }} />
-          ) : enquiries.length === 0 ? (
-            <Text style={styles.emptyText}>No enquiries here yet.</Text>
-          ) : (
-            <View style={{ gap: spacing.sm, marginTop: spacing.sm }}>
-              {enquiries.map((item) => (
-                <React.Fragment key={item.id}>{renderItem({ item })}</React.Fragment>
-              ))}
-            </View>
-          )}
-        </DesktopPanel>
+      <SuperAdminDesktopFrame activeKey="SuperAdminCourses" breadcrumb={`Courses › ${courseName} › Enquiries`} showRail={false}>
+        <View style={styles.dHeadRow}>
+          <View style={styles.crest}>
+            <Text style={styles.crestText}>{clubInitials(courseName)}</Text>
+          </View>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <PageTitle>{courseName}</PageTitle>
+            <Muted style={styles.dSection}>Enquiries</Muted>
+          </View>
+        </View>
+        <View style={styles.dToolbar}>{filterRow}</View>
+        {list}
       </SuperAdminDesktopFrame>
     );
   }
@@ -128,64 +160,33 @@ export function SuperAdminCourseEnquiriesScreen({ route, navigation }: Props) {
     <View style={styles.screen}>
       <AdminMobileHeader title="Enquiries" subtitle={courseName} />
 
-      {filterRow}
-
-      {loading ? (
-        <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
-      ) : (
-        <FlatList
-          data={enquiries}
-          keyExtractor={(e) => e.id}
-          renderItem={renderItem}
-          contentContainerStyle={styles.listContent}
-          ListEmptyComponent={<Text style={styles.emptyText}>No enquiries here yet.</Text>}
-        />
-      )}
+      <ScrollView contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={false}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.segScroll}>
+          {filterRow}
+        </ScrollView>
+        {list}
+      </ScrollView>
     </View>
   );
 }
 
-function createStyles(colors: ThemeColors) {
+function createStyles(c: AdminColors) {
   return StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.background },
-  filterRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-    paddingHorizontal: screenPadding,
-    paddingTop: spacing.md,
-  },
-  filterPill: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: radius.pill, backgroundColor: colors.mintBgAlt },
-  filterPillActive: { backgroundColor: colors.darkGreen },
-  filterText: { fontFamily: fontFamily.heading, fontSize: 11, color: colors.textPrimary },
-  filterTextActive: { color: colors.white },
-  listContent: { padding: screenPadding, gap: spacing.sm },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    backgroundColor: colors.background,
-    borderWidth: 0.5,
-    borderColor: colors.clubGreen,
-    borderRadius: radius.md,
-    padding: spacing.sm,
-    marginBottom: spacing.sm,
-  },
-  // Phone-only row surface; `row` is shared with the desktop branch.
-  rowPhone: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: spacing.md },
-  rowTop: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  memberName: { flexShrink: 1, fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.textPrimary },
-  lastMessage: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary, marginTop: 2 },
-  meta: { fontFamily: fontFamily.body, fontSize: 10, color: colors.textSecondary, marginTop: 2 },
-  badge: { flexShrink: 0, paddingHorizontal: 8, paddingVertical: 4, borderRadius: radius.pill },
-  badgeText: { fontFamily: fontFamily.bodySemiBold, fontSize: 9 },
-  emptyText: {
-    fontFamily: fontFamily.body,
-    fontSize: fontSize.body,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginTop: spacing.xl,
-  },
-  dPageTitle: { fontFamily: fontFamily.heading, fontSize: 26, color: colors.textPrimary },
+  screen: { flex: 1, backgroundColor: 'transparent' },
+  listContent: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 40, gap: 12 },
+  // flexGrow 0: react-native-web gives ScrollView flex-grow/shrink 1 by default.
+  segScroll: { flexGrow: 0, flexShrink: 0 },
+  listTile: { overflow: 'hidden' },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 72, paddingHorizontal: 16, paddingVertical: 12 },
+  rowRule: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.edge },
+  memberName: { ...adminFont.bodySemiBold, fontSize: 15, color: c.ink },
+  lastMessage: { ...adminFont.body, fontSize: 13.5, color: c.ink2, marginTop: 2 },
+  meta: { ...adminFont.body, ...tabularNums, fontSize: 12.5, color: c.ink3, marginTop: 3 },
+  pill: { flexShrink: 0, alignSelf: 'center' },
+  dHeadRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  crest: { width: 48, height: 48, borderRadius: adminRadius.sm, backgroundColor: '#1F4234', alignItems: 'center', justifyContent: 'center' },
+  crestText: { ...adminFont.bodyBold, fontSize: 16, color: '#CDDE5C' },
+  dSection: { marginTop: 2, fontSize: 15 },
+  dToolbar: { flexDirection: 'row', marginTop: 18, marginBottom: 12 },
 });
 }

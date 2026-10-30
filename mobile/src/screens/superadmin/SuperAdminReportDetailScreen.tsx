@@ -1,6 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SuperAdminStackParamList } from '../../navigation/types';
@@ -9,17 +8,19 @@ import { useAdmin } from '../../context/AdminContext';
 import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
 import { SuperAdminDesktopFrame } from '../../components/admin/desktop/SuperAdminDesktopFrame';
 import { DesktopDataTable, TableAvatarCell, TableTag, TableText, statusTone, type DesktopTableColumn } from '../../components/admin/desktop/DesktopDataTable';
+import { AdminButton, EmptyState, PageTitle, Segmented, SkeletonRows, Tile } from '../../components/admin/ui';
 import { AdminApiError, downloadSuperAdminReport } from '../../api/adminClient';
 import { showAlert } from '../../utils/alert';
-import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
-import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
+import { useAdminTheme } from '../../context/ThemeContext';
 import type { SuperAdminMemberReportRow, SuperAdminRedemptionReportRow, SuperAdminReportKind } from '../../data/adminTypes';
+import { adminFont, adminRadius, tabularNums, type AdminColors } from '../../theme/admin';
 
 type Props = NativeStackScreenProps<SuperAdminStackParamList, 'SuperAdminReportDetail'>;
 
 type Period = 'month' | 'year' | 'all';
 const PERIOD_LABELS: Record<Period, string> = { month: 'Month', year: 'Year', all: 'All' };
 const PERIODS: Period[] = ['month', 'year', 'all'];
+const PERIOD_OPTIONS = PERIODS.map((p) => ({ key: p, label: PERIOD_LABELS[p] }));
 
 type Row = SuperAdminMemberReportRow | SuperAdminRedemptionReportRow;
 
@@ -81,13 +82,20 @@ const D_MEMBER_COLUMNS: DesktopTableColumn<SuperAdminMemberReportRow>[] = [
     label: 'Member',
     width: 220,
     render: (r) => <TableAvatarCell name={`${r.firstName} ${r.lastName}`} subtitle={r.email} />,
+    sortValue: (r) => `${r.firstName} ${r.lastName}`.toLowerCase(),
   },
-  { key: 'courseName', label: 'Club', width: 150, render: (r) => <TableText>{r.courseName}</TableText> },
-  { key: 'tier', label: 'Tier', width: 100, render: (r) => <TableTag label={r.tier} /> },
-  { key: 'memberSince', label: 'Member Since', width: 160, render: (r) => <TableText muted>{formatDate(r.memberSince)}</TableText> },
-  { key: 'balance', label: 'FC Balance', width: 100, align: 'right', render: (r) => <TableText>{r.balance.toLocaleString()}</TableText> },
-  { key: 'totalEarned', label: 'FC Earned', width: 100, align: 'right', render: (r) => <TableText>{r.totalEarned.toLocaleString()}</TableText> },
-  { key: 'totalRedeemed', label: 'FC Redeemed', width: 110, align: 'right', render: (r) => <TableText>{r.totalRedeemed.toLocaleString()}</TableText> },
+  { key: 'courseName', label: 'Club', width: 150, render: (r) => <TableText>{r.courseName}</TableText>, sortValue: (r) => r.courseName.toLowerCase() },
+  { key: 'tier', label: 'Tier', width: 100, render: (r) => <TableTag label={r.tier} tone="gray" />, sortValue: (r) => r.tier },
+  {
+    key: 'memberSince',
+    label: 'Member Since',
+    width: 160,
+    render: (r) => <TableText muted>{formatDate(r.memberSince)}</TableText>,
+    sortValue: (r) => new Date(r.memberSince).getTime(),
+  },
+  { key: 'balance', label: 'FC Balance', width: 100, align: 'right', render: (r) => <TableText>{r.balance.toLocaleString()}</TableText>, sortValue: (r) => r.balance },
+  { key: 'totalEarned', label: 'FC Earned', width: 100, align: 'right', render: (r) => <TableText>{r.totalEarned.toLocaleString()}</TableText>, sortValue: (r) => r.totalEarned },
+  { key: 'totalRedeemed', label: 'FC Redeemed', width: 110, align: 'right', render: (r) => <TableText>{r.totalRedeemed.toLocaleString()}</TableText>, sortValue: (r) => r.totalRedeemed },
 ];
 
 const D_REDEMPTION_COLUMNS: DesktopTableColumn<SuperAdminRedemptionReportRow>[] = [
@@ -97,18 +105,26 @@ const D_REDEMPTION_COLUMNS: DesktopTableColumn<SuperAdminRedemptionReportRow>[] 
     label: 'Member',
     width: 220,
     render: (r) => <TableAvatarCell name={r.memberName} subtitle={r.memberEmail} />,
+    sortValue: (r) => r.memberName.toLowerCase(),
   },
-  { key: 'courseName', label: 'Club', width: 150, render: (r) => <TableText>{r.courseName}</TableText> },
-  { key: 'reward', label: 'Reward', width: 170, render: (r) => <TableText>{r.rewardTitle}</TableText> },
+  { key: 'courseName', label: 'Club', width: 150, render: (r) => <TableText>{r.courseName}</TableText>, sortValue: (r) => r.courseName.toLowerCase() },
+  { key: 'reward', label: 'Reward', width: 170, render: (r) => <TableText>{r.rewardTitle}</TableText>, sortValue: (r) => r.rewardTitle.toLowerCase() },
   { key: 'variant', label: 'Variant', width: 130, render: (r) => <TableText>{r.variantLabel}</TableText> },
-  { key: 'cost', label: 'Flagrr Cash', width: 100, align: 'right', render: (r) => <TableText>{r.cost.toLocaleString()}</TableText> },
-  { key: 'status', label: 'Status', width: 110, render: (r) => <TableTag label={r.status} tone={statusTone(r.status)} /> },
-  { key: 'issuedAt', label: 'Issued At', width: 160, render: (r) => <TableText muted>{formatDate(r.issuedAt)}</TableText> },
+  { key: 'cost', label: 'Flagrr Cash', width: 100, align: 'right', render: (r) => <TableText>{r.cost.toLocaleString()}</TableText>, sortValue: (r) => r.cost },
+  { key: 'status', label: 'Status', width: 110, render: (r) => <TableTag label={r.status} tone={statusTone(r.status)} />, sortValue: (r) => r.status },
+  {
+    key: 'issuedAt',
+    label: 'Issued At',
+    width: 160,
+    render: (r) => <TableText muted>{formatDate(r.issuedAt)}</TableText>,
+    sortValue: (r) => new Date(r.issuedAt).getTime(),
+  },
   {
     key: 'redeemedAt',
     label: 'Redeemed At',
     width: 160,
     render: (r) => <TableText muted>{r.redeemedAt ? formatDate(r.redeemedAt) : '—'}</TableText>,
+    sortValue: (r) => (r.redeemedAt ? new Date(r.redeemedAt).getTime() : 0),
   },
 ];
 
@@ -121,8 +137,8 @@ const D_COLUMNS_BY_REPORT: Record<SuperAdminReportKind, DesktopTableColumn<Row>[
 // Tier Distribution ('crossClubMembers') and Top Redeemed Rewards
 // ('crossClubRedemptions') cards on SuperAdminReportsScreen.
 export function SuperAdminReportDetailScreen({ route }: Props) {
-  const colors = useThemeColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { c } = useAdminTheme();
+  const styles = useMemo(() => createStyles(c), [c]);
   const isDesktop = useIsDesktopNav();
   const { report, label } = route.params;
   const { getSuperAdminReportRows } = useAdmin();
@@ -176,55 +192,38 @@ export function SuperAdminReportDetailScreen({ route }: Props) {
     }
   };
 
-  const toolbar = (
-    <View style={styles.toolbar}>
-      <Text style={styles.totalText}>{rows.length.toLocaleString()} row{rows.length === 1 ? '' : 's'}</Text>
-      <View style={styles.toolbarRight}>
-        <View style={styles.periodToggle}>
-          {PERIODS.map((p) => (
-            <TouchableOpacity
-              key={p}
-              onPress={() => handlePeriodChange(p)}
-              style={[styles.periodPill, period === p && styles.periodPillActive]}
-            >
-              <Text style={[styles.periodText, period === p && styles.periodTextActive]}>{PERIOD_LABELS[p]}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-        <TouchableOpacity style={styles.exportButton} onPress={handleExport} disabled={exporting}>
-          {exporting ? (
-            <ActivityIndicator color={colors.white} size="small" />
-          ) : (
-            <>
-              <Ionicons name="download-outline" size={16} color={colors.white} />
-              <Text style={styles.exportButtonText}>Excel</Text>
-            </>
-          )}
-        </TouchableOpacity>
-      </View>
-    </View>
+  const totalText = (
+    <Text style={styles.totalText}>{rows.length.toLocaleString()} row{rows.length === 1 ? '' : 's'}</Text>
   );
+  const periodControl = (
+    <Segmented options={PERIOD_OPTIONS} value={period} onChange={handlePeriodChange} accessibilityLabel="Period" />
+  );
+  const exportButton = <AdminButton label="Excel" icon="download-outline" onPress={handleExport} loading={exporting} />;
+  const emptyState = <EmptyState icon="document-text-outline" title="No data for this period." />;
+  const hasRows = !loading && rows.length > 0;
 
   const table = loading ? (
-    <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
+    <View style={styles.statePad}>
+      <SkeletonRows rows={6} />
+    </View>
   ) : rows.length === 0 ? (
-    <Text style={styles.emptyText}>No data for this period.</Text>
+    emptyState
   ) : (
     <ScrollView horizontal showsHorizontalScrollIndicator style={styles.tableScroll}>
       <View>
         <View style={styles.headerRow}>
-          {columns.map((c) => (
-            <Text key={c.key} style={[styles.headerCell, { width: c.width }]} numberOfLines={1}>
-              {c.label}
+          {columns.map((col) => (
+            <Text key={col.key} style={[styles.headerCell, { width: col.width }]} numberOfLines={1}>
+              {col.label}
             </Text>
           ))}
         </View>
         <ScrollView showsVerticalScrollIndicator style={styles.verticalScroll}>
           {rows.map((row, i) => (
-            <View key={i} style={[styles.dataRow, i % 2 === 1 && styles.dataRowAlt]}>
-              {columns.map((c) => (
-                <Text key={c.key} style={[styles.dataCell, { width: c.width }]} numberOfLines={1}>
-                  {c.render(row)}
+            <View key={i} style={[styles.dataRow, i === rows.length - 1 && styles.dataRowLast]}>
+              {columns.map((col) => (
+                <Text key={col.key} style={[styles.dataCell, { width: col.width }]} numberOfLines={1}>
+                  {col.render(row)}
                 </Text>
               ))}
             </View>
@@ -235,21 +234,36 @@ export function SuperAdminReportDetailScreen({ route }: Props) {
   );
 
   const desktopTable = loading ? (
-    <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
+    <View style={styles.statePad}>
+      <SkeletonRows rows={6} />
+    </View>
   ) : rows.length === 0 ? (
-    <Text style={styles.emptyText}>No data for this period.</Text>
+    emptyState
   ) : (
     <DesktopDataTable columns={D_COLUMNS_BY_REPORT[report]} rows={rows} keyExtractor={(_, i) => String(i)} />
   );
 
   if (isDesktop) {
     return (
-      <SuperAdminDesktopFrame activeKey="SuperAdminReports" breadcrumb={label} showRail={false} scrollable={false}>
-        <Text style={styles.dPageTitle}>{label}</Text>
-        <View style={styles.dTableCard}>
-          {toolbar}
-          {desktopTable}
+      <SuperAdminDesktopFrame
+        activeKey="SuperAdminReports"
+        breadcrumb={`Reports › ${label}`}
+        showRail={false}
+        scrollable={false}
+        headerRight={
+          <View style={styles.headerRight}>
+            {periodControl}
+            {exportButton}
+          </View>
+        }
+      >
+        <View style={styles.dTitleRow}>
+          <PageTitle style={{ flexShrink: 1 }}>{label}</PageTitle>
+          {totalText}
         </View>
+        <Tile style={[styles.dTableCard, hasRows && styles.fill]} padded={false}>
+          {desktopTable}
+        </Tile>
       </SuperAdminDesktopFrame>
     );
   }
@@ -258,75 +272,68 @@ export function SuperAdminReportDetailScreen({ route }: Props) {
     <View style={styles.screen}>
       <AdminMobileHeader title={label} />
 
-      {toolbar}
-      {table}
+      <View style={styles.toolbar}>
+        {totalText}
+        <View style={styles.toolbarRight}>
+          {periodControl}
+          {exportButton}
+        </View>
+      </View>
+      <Tile style={[styles.mTableCard, hasRows && styles.fill]} padded={false}>
+        {table}
+      </Tile>
     </View>
   );
 }
 
-function createStyles(colors: ThemeColors) {
+function createStyles(c: AdminColors) {
   return StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.background },
+  screen: { flex: 1, backgroundColor: 'transparent' },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   toolbar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: screenPadding,
-    paddingTop: spacing.md,
-    paddingBottom: spacing.sm,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 12,
     flexWrap: 'wrap',
-    gap: spacing.sm,
+    gap: 10,
   },
-  totalText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.textPrimary },
-  toolbarRight: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  periodToggle: { flexDirection: 'row', backgroundColor: colors.mintBg, borderRadius: radius.pill, padding: 3 },
-  periodPill: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: radius.pill },
-  periodPillActive: { backgroundColor: colors.darkGreen },
-  periodText: { fontFamily: fontFamily.heading, fontSize: 12, color: colors.textPrimary },
-  periodTextActive: { color: colors.white },
-  exportButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: colors.clubGreen,
-    borderRadius: radius.pill,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-  },
-  exportButtonText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.tiny, color: colors.white },
+  totalText: { ...adminFont.bodyBold, ...tabularNums, fontSize: 14.5, color: c.ink2 },
+  toolbarRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   tableScroll: { flex: 1 },
   verticalScroll: { flex: 1 },
   headerRow: {
     flexDirection: 'row',
-    backgroundColor: colors.darkGreen,
-    paddingHorizontal: screenPadding,
-    paddingVertical: spacing.sm,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: c.edge,
   },
-  headerCell: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.tiny, color: colors.white, paddingRight: spacing.sm },
+  headerCell: {
+    ...adminFont.bodyBold,
+    fontSize: 11.5,
+    letterSpacing: 1.1,
+    textTransform: 'uppercase',
+    color: c.ink3,
+    paddingRight: 8,
+  },
   dataRow: {
     flexDirection: 'row',
-    paddingHorizontal: screenPadding,
-    paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(31,66,52,0.08)',
+    alignItems: 'center',
+    minHeight: 48,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: c.edge,
   },
-  dataRowAlt: { backgroundColor: colors.mintBg },
-  dataCell: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textPrimary, paddingRight: spacing.sm },
-  emptyText: {
-    fontFamily: fontFamily.body,
-    fontSize: fontSize.body,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginTop: spacing.xl,
-  },
-  dPageTitle: { fontFamily: fontFamily.heading, fontSize: 26, color: colors.textPrimary },
-  dTableCard: {
-    flex: 1,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 16,
-    overflow: 'hidden',
-  },
+  dataRowLast: { borderBottomWidth: 0 },
+  statePad: { padding: 16 },
+  dataCell: { ...adminFont.body, ...tabularNums, fontSize: 13.5, color: c.ink, paddingRight: 8 },
+  fill: { flex: 1 },
+  mTableCard: { marginHorizontal: 16, marginBottom: 16, overflow: 'hidden' },
+  dTitleRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12 },
+  dTableCard: { marginTop: 16, paddingHorizontal: 8, paddingVertical: 6, overflow: 'hidden', borderRadius: adminRadius.md },
 });
 }

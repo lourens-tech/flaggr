@@ -1,26 +1,21 @@
-import React, { useState, useMemo } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useState } from 'react';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SuperAdminStackParamList } from '../../navigation/types';
 import { AdminMobileHeader } from '../../components/admin/AdminMobileHeader';
 import { TextField } from '../../components/common/TextField';
-import { PillButton } from '../../components/common/PillButton';
 import { useAdmin } from '../../context/AdminContext';
 import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
 import { SuperAdminDesktopFrame } from '../../components/admin/desktop/SuperAdminDesktopFrame';
-import { DesktopPanel } from '../../components/admin/desktop/DesktopPanel';
+import { AdminButton, PageTitle, Tile } from '../../components/admin/ui';
 import { AdminApiError } from '../../api/adminClient';
 import { showAlert } from '../../utils/alert';
-import { fontFamily, screenPadding, spacing } from '../../theme';
-import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 
 type Props = NativeStackScreenProps<SuperAdminStackParamList, 'SuperAdminAgentCreate'>;
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function SuperAdminAgentCreateScreen({ navigation }: Props) {
-  const colors = useThemeColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
   const isDesktop = useIsDesktopNav();
   const { createSupportAgent } = useAdmin();
   const [firstName, setFirstName] = useState('');
@@ -52,9 +47,9 @@ export function SuperAdminAgentCreateScreen({ navigation }: Props) {
   const form = (
     <>
       <TextField placeholder="First Name" variant="onLight" value={firstName} onChangeText={setFirstName} />
-      <View style={{ height: spacing.md }} />
+      <View style={styles.gap} />
       <TextField placeholder="Last Name" variant="onLight" value={lastName} onChangeText={setLastName} />
-      <View style={{ height: spacing.md }} />
+      <View style={styles.gap} />
       <TextField
         placeholder="Email"
         variant="onLight"
@@ -63,18 +58,17 @@ export function SuperAdminAgentCreateScreen({ navigation }: Props) {
         value={email}
         onChangeText={setEmail}
       />
-      <View style={{ height: spacing.lg }} />
-      <PillButton label="Send Invite" onPress={handleSave} loading={saving} />
+      <View style={styles.actions}>
+        <AdminButton label="Send Invite" variant="accent" size="lg" onPress={handleSave} loading={saving} />
+      </View>
     </>
   );
 
   if (isDesktop) {
     return (
       <SuperAdminDesktopFrame activeKey="SuperAdminAgents" breadcrumb="New Support Agent" showRail={false}>
-        <Text style={styles.dPageTitle}>New Support Agent</Text>
-        <DesktopPanel title=" " style={{ maxWidth: 480 }}>
-          {form}
-        </DesktopPanel>
+        <PageTitle>New Support Agent</PageTitle>
+        <Tile style={styles.dCard}>{form}</Tile>
       </SuperAdminDesktopFrame>
     );
   }
@@ -83,17 +77,17 @@ export function SuperAdminAgentCreateScreen({ navigation }: Props) {
     <View style={styles.screen}>
       <AdminMobileHeader title="New Support Agent" />
 
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {form}
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        <Tile>{form}</Tile>
       </ScrollView>
     </View>
   );
 }
 
-function createStyles(colors: ThemeColors) {
-  return StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.background },
-  content: { padding: screenPadding, paddingBottom: spacing.xl * 2 },
-  dPageTitle: { fontFamily: fontFamily.heading, fontSize: 26, color: colors.textPrimary },
+const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: 'transparent' },
+  content: { padding: 16, paddingBottom: 64 },
+  gap: { height: 14 },
+  actions: { marginTop: 22, alignItems: 'flex-start' },
+  dCard: { marginTop: 18, maxWidth: 520, padding: 22 },
 });
-}

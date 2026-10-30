@@ -8,7 +8,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { fontFamily, fontSize, radius } from '../../theme';
-import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
+import { useOptionalAdminTheme, useThemeColors, type ThemeColors } from '../../context/ThemeContext';
+import { adminFont, adminRadius } from '../../theme/admin';
 import { useHover, hoverTransitionNoTransform } from '../../hooks/useHover';
 import { PressableScale } from '../motion';
 
@@ -45,6 +46,45 @@ export function PillButton({
   const outlineColor = isOutlineLight ? colors.white : colors.textPrimary;
   const [hovered, hoverHandlers] = useHover();
   const canHover = hovered && !disabled && !loading;
+  const admin = useOptionalAdminTheme();
+
+  // In the admin consoles: lime (Flag Green in light mode) for the primary
+  // action, a neutral fill for everything else, system font, no border.
+  if (admin) {
+    const { c } = admin;
+    const bg = isPrimary ? c.accent : c.fill;
+    const fg = isPrimary ? c.onAccent : c.ink;
+    return (
+      <PressableScale
+        onPress={onPress}
+        disabled={disabled || loading}
+        accessibilityRole="button"
+        accessibilityLabel={label}
+        accessibilityState={{ disabled: !!(disabled || loading), busy: !!loading }}
+        onHoverIn={hoverHandlers.onMouseEnter}
+        onHoverOut={hoverHandlers.onMouseLeave}
+        style={[
+          styles.adminBase,
+          hoverTransitionNoTransform,
+          { backgroundColor: bg },
+          fullWidth && { alignSelf: 'stretch' },
+          canHover && { opacity: 0.9 },
+          (disabled || loading) && { opacity: 0.45 },
+        ]}
+      >
+        {loading ? (
+          <ActivityIndicator color={fg} />
+        ) : (
+          <View style={styles.content}>
+            <Text style={[styles.adminLabel, { color: fg }]} numberOfLines={1}>
+              {label}
+            </Text>
+            {icon ? <Ionicons name={icon} size={17} color={fg} /> : null}
+          </View>
+        )}
+      </PressableScale>
+    );
+  }
 
   return (
     <PressableScale
@@ -118,5 +158,7 @@ function createStyles(colors: ThemeColors) {
     elevation: 3,
   },
   disabled: { opacity: 0.5 },
+  adminBase: { height: 50, borderRadius: adminRadius.pill, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 22 },
+  adminLabel: { ...adminFont.bodySemiBold, fontSize: 16 },
 });
 }

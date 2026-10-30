@@ -1,33 +1,33 @@
-import React, { useEffect, useMemo } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import React, { useCallback, useEffect } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { fontFamily } from '../../../theme';
-import { useThemeColors, type ThemeColors } from '../../../context/ThemeContext';
+import { useAdminTheme } from '../../../context/ThemeContext';
 import { useAdmin } from '../../../context/AdminContext';
 import { getAdminNavGroups } from '../../../navigation/adminNavConfig';
+import { adminFont, adminRadius } from '../../../theme/admin';
 import { DesktopShell, type DesktopNavigator } from './DesktopShell';
 import { AdminActivityRail } from './AdminActivityRail';
-import { useHover, hoverTransition } from '../../../hooks/useHover';
+import { AdminButton, Banner, Eyebrow, Muted } from '../ui';
 import type { AdminNotification } from '../../../data/adminTypes';
+import type { PaletteMember } from './CommandPalette';
 
 const ROLE_LABELS: Record<string, string> = {
-  course_admin: 'Course Admin',
+  course_admin: 'Course admin',
   staff: 'Staff',
 };
 
 const SUBSCRIPTION_LABELS: Record<string, string> = {
   trialing: 'Trial',
-  active: 'Active Plan',
-  past_due: 'Payment Failed',
+  active: 'Active plan',
+  past_due: 'Payment failed',
 };
 
 interface Props {
   activeKey: string;
   breadcrumb: string;
   headerRight?: React.ReactNode;
-  // Set false to omit the right-hand "Recent Activity" rail entirely (e.g.
-  // on already-dense screens like a chat thread or a long form).
+  // Set false to omit the Activity inspector (e.g. on already-dense screens
+  // like a chat thread or a long form).
   showRail?: boolean;
   // Set false for screens that manage their own internal scrolling (e.g. a
   // chat thread with a pinned composer) — see DesktopShell.
@@ -35,17 +35,16 @@ interface Props {
   children: React.ReactNode;
 }
 
-// Convenience wrapper around DesktopShell for course-admin screens — pulls
-// admin/course/notification state from AdminContext so each screen only has
-// to say which nav item is active and what the page is called.
+// DesktopShell for course-admin and staff screens — pulls admin/course/
+// notification state from AdminContext so each screen only has to say which
+// nav item is active and what the page is called.
 export function AdminDesktopFrame({ activeKey, breadcrumb, headerRight, showRail = true, scrollable = true, children }: Props) {
-  const colors = useThemeColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { c } = useAdminTheme();
   const navigation = useNavigation() as unknown as DesktopNavigator;
-  const { admin, course, notifications, unreadNotificationCount, markNotificationRead, loadNotifications } = useAdmin();
-  const [supportHovered, supportHoverHandlers] = useHover();
+  const { admin, course, notifications, unreadNotificationCount, markNotificationRead, loadNotifications, searchMembers } = useAdmin();
+  const isStaff = admin.role === 'staff';
 
-  // The Recent Activity rail's notifications are otherwise only loaded once,
+  // The Activity inspector's notifications are otherwise only loaded once,
   // at login — a long-lived desktop session (this frame wraps every admin
   // screen) would never pick up a new member enquiry/receipt without a
   // manual re-login. Poll while any admin screen is open, on top of the
@@ -62,95 +61,77 @@ export function AdminDesktopFrame({ activeKey, breadcrumb, headerRight, showRail
     if (!n.read) markNotificationRead(n.id);
     if (n.enquiryId) navigation.navigate('AdminEnquiryChat', { enquiryId: n.enquiryId });
     else if (n.receiptId) navigation.navigate('AdminFraudOversight');
-    else if (/enquiry/i.test(`${n.title} ${n.body}`)) navigation.navigate('AdminEnquiries');
+    else if (/enquiry/i.test(`${n.title} ${n.body}`)) navigation.navigate('AdminTabs', { screen: 'AdminEnquiries' });
   };
 
-  const rail = showRail ? (
-    <AdminActivityRail
-      notifications={notifications}
-      onPress={handleActivityPress}
-      footer={
-        <View style={styles.subCard}>
-          <Text style={styles.subPlan}>{(SUBSCRIPTION_LABELS[course.subscriptionStatus ?? 'active'] ?? 'Active Plan').toUpperCase()}</Text>
-          <Text style={styles.subTitle}>Flagrr Subscription</Text>
-          <Text style={styles.subBody}>
-            {course.subscriptionStatus === 'past_due'
-              ? 'Your last payment failed. Contact Flagrr support to update your billing details.'
-              : 'Managed by the Flagrr team. Contact support with any billing questions.'}
-          </Text>
-          <TouchableOpacity
-            style={[styles.subSupportBtn, hoverTransition, supportHovered && styles.subSupportBtnHover]}
-            onPress={() => navigation.navigate('AdminSupportTickets')}
-            activeOpacity={0.8}
-            {...supportHoverHandlers}
-          >
-            <Ionicons name="headset-outline" size={14} color={colors.darkGreen} />
-            <Text style={styles.subSupportBtnText}>Contact Support</Text>
-          </TouchableOpacity>
-        </View>
-      }
-    />
-  ) : undefined;
+  const memberSearch = useCallback(
+    async (q: string): Promise<PaletteMember[]> =>
+      (await searchMembers(q)).map((m) => ({ id: m.id, label: `${m.firstName} ${m.lastName}`, sub: `${m.email} · ${m.tier}` })),
+    [searchMembers],
+  );
+
+  const pastDue = course.subscriptionStatus === 'past_due';
+  const contactSupport = () => navigation.navigate('AdminSupportTickets');
+
+  const rail =
+    showRail && !isStaff ? (
+      <AdminActivityRail
+        notifications={notifications}
+        onPress={handleActivityPress}
+        onShowAll={() => navigation.navigate('AdminNotifications')}
+        footer={
+          <View style={[styles.plan, { backgroundColor: c.surface, borderColor: c.edge }]}>
+            <Eyebrow>{SUBSCRIPTION_LABELS[course.subscriptionStatus ?? 'active'] ?? 'Active plan'}</Eyebrow>
+            <Text style={[styles.planTitle, { color: c.ink }]}>Flagrr subscription</Text>
+            <Muted>
+              {pastDue
+                ? 'Your last payment didn’t go through. Contact Flagrr support to update your billing details.'
+                : 'Managed by the Flagrr team. Contact support with any billing questions.'}
+            </Muted>
+            <AdminButton label="Contact support" icon="headset-outline" onPress={contactSupport} style={{ marginTop: 10, alignSelf: 'flex-start' }} />
+          </View>
+        }
+      />
+    ) : undefined;
 
   return (
     <DesktopShell
       navigation={navigation}
-      brandName={course.name || 'Course Admin'}
-      brandSub="COURSE ADMIN"
+      brandName={course.name || 'Your club'}
+      brandSub={ROLE_LABELS[admin.role] ?? 'Course admin'}
+      brandLogoUrl={course.logoUrl}
       navGroups={getAdminNavGroups(admin.role)}
       activeKey={activeKey}
       userFirstName={admin.firstName}
       userLastName={admin.lastName}
-      userRoleLabel={ROLE_LABELS[admin.role] ?? 'Course Admin'}
-      avatarImageUrl={course.logoUrl}
-      onAvatarPress={() => navigation.navigate('AdminTabs', { screen: admin.role === 'staff' ? 'AdminStaffProfile' : 'AdminCourseProfile' })}
+      userRoleLabel={ROLE_LABELS[admin.role] ?? 'Course admin'}
+      onAvatarPress={() => navigation.navigate('AdminTabs', { screen: isStaff ? 'AdminStaffProfile' : 'AdminCourseProfile' })}
       breadcrumb={breadcrumb}
       headerRight={headerRight}
-      unreadNotificationCount={unreadNotificationCount}
-      onBellPress={() => navigation.navigate('AdminNotifications')}
+      unreadNotificationCount={isStaff ? 0 : unreadNotificationCount}
+      onBellPress={isStaff ? undefined : () => navigation.navigate('AdminNotifications')}
       rightRail={rail}
-      sidebarCoverImageUrl={course.coverImageUrl}
+      poweredByFlagrr
+      searchMembers={isStaff ? undefined : memberSearch}
+      onMember={isStaff ? undefined : (m) => navigation.navigate('AdminMemberStats', { memberId: m.id })}
       scrollable={scrollable}
+      topBanner={
+        pastDue && !isStaff ? (
+          <Banner
+            tone="neg"
+            title="Your last payment didn’t go through"
+            body="Your club keeps working in the meantime. Contact Flagrr support to update your billing details."
+            action={<AdminButton label="Contact support" onPress={contactSupport} />}
+          />
+        ) : undefined
+      }
     >
       {children}
     </DesktopShell>
   );
 }
 
-function createStyles(colors: ThemeColors) {
-  return StyleSheet.create({
-  subCard: {
-    backgroundColor: colors.darkGreen,
-    borderRadius: 16,
-    padding: 18,
-    gap: 6,
-  },
-  subPlan: {
-    alignSelf: 'flex-start',
-    backgroundColor: colors.lime,
-    color: colors.darkGreen,
-    fontFamily: fontFamily.bodySemiBold,
-    fontSize: 10.5,
-    letterSpacing: 0.4,
-    paddingHorizontal: 9,
-    paddingVertical: 3,
-    borderRadius: 99,
-    overflow: 'hidden',
-    marginBottom: 4,
-  },
-  subTitle: { fontFamily: fontFamily.heading, fontSize: 16, color: colors.white },
-  subBody: { fontFamily: fontFamily.body, fontSize: 12, color: 'rgba(255,255,255,0.72)', lineHeight: 17 },
-  subSupportBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 7,
-    backgroundColor: colors.lime,
-    borderRadius: 10,
-    paddingVertical: 9,
-    marginTop: 8,
-  },
-  subSupportBtnHover: { backgroundColor: colors.white, transform: [{ translateY: -1 }] },
-  subSupportBtnText: { fontFamily: fontFamily.bodySemiBold, fontSize: 12.5, color: colors.darkGreen },
+const styles = StyleSheet.create({
+  plan: { borderRadius: adminRadius.md, borderWidth: StyleSheet.hairlineWidth, padding: 16, gap: 6 },
+  planTitle: { ...adminFont.bodyBold, fontSize: 16 },
 });
-}

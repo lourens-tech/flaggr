@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
+import React, { useState } from 'react';
+import { ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AdminStackParamList } from '../../navigation/types';
 import { AdminMobileHeader } from '../../components/admin/AdminMobileHeader';
@@ -8,17 +8,16 @@ import { PillButton } from '../../components/common/PillButton';
 import { useAdmin } from '../../context/AdminContext';
 import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
 import { AdminDesktopFrame } from '../../components/admin/desktop/AdminDesktopFrame';
-import { DesktopPanel } from '../../components/admin/desktop/DesktopPanel';
+import { AdminButton, PageTitle, Tile } from '../../components/admin/ui';
 import { AdminApiError } from '../../api/adminClient';
 import { showAlert } from '../../utils/alert';
-import { fontFamily, fontSize, spacing } from '../../theme';
-import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
+import { useAdminTheme } from '../../context/ThemeContext';
+import { adminFont, tabularNums } from '../../theme/admin';
 
 type Props = NativeStackScreenProps<AdminStackParamList, 'AdminCatalogItemEdit'>;
 
 export function AdminCatalogItemEditScreen({ navigation, route }: Props) {
-  const colors = useThemeColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { c } = useAdminTheme();
   const isDesktop = useIsDesktopNav();
   const { kind, itemId } = route.params;
   const isProduct = kind === 'product';
@@ -102,12 +101,12 @@ export function AdminCatalogItemEditScreen({ navigation, route }: Props) {
   const handleDelete = () => {
     if (!itemId) return;
     showAlert(
-      `Remove this ${isProduct ? 'product' : 'activity'}?`,
-      'The receipt scanner will stop matching it. Points already awarded from past receipts are kept.',
+      `Deactivate this ${isProduct ? 'product' : 'activity'}?`,
+      'The receipt scanner will stop matching it. Flagrr Cash already earned from past receipts is kept.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Remove',
+          text: 'Deactivate',
           style: 'destructive',
           onPress: async () => {
             setSaving(true);
@@ -130,22 +129,16 @@ export function AdminCatalogItemEditScreen({ navigation, route }: Props) {
   const title = itemId ? `Edit ${isProduct ? 'Product' : 'Activity'}` : `New ${isProduct ? 'Product' : 'Activity'}`;
 
   const form = (
-    <>
+    <View style={styles.form}>
+      <Tile style={styles.fields}>
         <TextField
           placeholder={isProduct ? 'Name (e.g. Titleist Pro V1 Golf Balls)' : 'Name (e.g. 18 Hole Round)'}
           variant="onLight"
           value={name}
           onChangeText={setName}
         />
-        <View style={{ height: spacing.md }} />
-        {isProduct ? (
-          <>
-            <TextField placeholder="Brand (optional)" variant="onLight" value={brand} onChangeText={setBrand} />
-            <View style={{ height: spacing.md }} />
-          </>
-        ) : null}
+        {isProduct ? <TextField placeholder="Brand (optional)" variant="onLight" value={brand} onChangeText={setBrand} /> : null}
         <TextField placeholder="Category (optional)" variant="onLight" value={category} onChangeText={setCategory} />
-        <View style={{ height: spacing.md }} />
         <TextField
           placeholder="Aliases, comma-separated (helps the scanner match OCR misreads)"
           variant="onLight"
@@ -153,51 +146,54 @@ export function AdminCatalogItemEditScreen({ navigation, route }: Props) {
           onChangeText={setAliasesText}
           multiline
         />
-        <View style={{ height: spacing.md }} />
-        <TextField
-          placeholder="Rand value (earns 1 Flagrr Cash per R1, before tier bonus)"
-          variant="onLight"
-          keyboardType="numeric"
-          value={randValueText}
-          onChangeText={setRandValueText}
-        />
-        {fcPreview !== null ? <Text style={styles.computedCost}>= {fcPreview.toLocaleString()} Flagrr Cash</Text> : null}
+        <View>
+          <TextField
+            placeholder="Rand value (earns 1 Flagrr Cash per R1, before tier bonus)"
+            variant="onLight"
+            keyboardType="numeric"
+            value={randValueText}
+            onChangeText={setRandValueText}
+          />
+          {fcPreview !== null ? (
+            <Text style={[styles.computedCost, { color: c.ink2 }]}>= {fcPreview.toLocaleString()} Flagrr Cash</Text>
+          ) : null}
+        </View>
+      </Tile>
 
+      <Tile padded={false}>
         {isProduct ? (
           <View style={styles.switchRow}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.switchLabel}>Points per unit</Text>
-              <Text style={styles.switchHint}>
+              <Text style={[styles.switchLabel, { color: c.ink }]}>Points per unit</Text>
+              <Text style={[styles.switchHint, { color: c.ink2 }]}>
                 On: multiplies by quantity (e.g. a dozen balls). Off: flat, regardless of quantity.
               </Text>
             </View>
-            <Switch value={pointsPerUnit} onValueChange={setPointsPerUnit} trackColor={{ true: colors.clubGreen }} />
+            <Switch value={pointsPerUnit} onValueChange={setPointsPerUnit} trackColor={{ true: c.accent }} />
           </View>
         ) : null}
 
-        <View style={styles.switchRow}>
-          <Text style={styles.switchLabel}>Active — scanner can match it</Text>
-          <Switch value={active} onValueChange={setActive} trackColor={{ true: colors.clubGreen }} />
+        <View style={[styles.switchRow, isProduct && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.edge }]}>
+          <Text style={[styles.switchLabel, { color: c.ink, flex: 1 }]}>Active — scanner can match it</Text>
+          <Switch value={active} onValueChange={setActive} trackColor={{ true: c.accent }} />
         </View>
+      </Tile>
 
-        <View style={{ height: spacing.lg }} />
+      <View style={styles.actions}>
         <PillButton label={`Save ${isProduct ? 'Product' : 'Activity'}`} onPress={handleSave} loading={saving} />
 
         {itemId ? (
-          <TouchableOpacity onPress={handleDelete} style={styles.deleteButton} disabled={saving}>
-            <Text style={styles.deleteText}>Remove {isProduct ? 'Product' : 'Activity'}</Text>
-          </TouchableOpacity>
+          <AdminButton variant="danger" label="Deactivate" onPress={handleDelete} disabled={saving} size="lg" fullWidth />
         ) : null}
-    </>
+      </View>
+    </View>
   );
 
   if (isDesktop) {
     return (
       <AdminDesktopFrame activeKey="AdminCatalog" breadcrumb={title} showRail={false}>
-        <Text style={styles.dPageTitle}>{title}</Text>
-        <DesktopPanel title=" " style={{ maxWidth: 520 }}>
-          {form}
-        </DesktopPanel>
+        <PageTitle>{title}</PageTitle>
+        {form}
       </AdminDesktopFrame>
     );
   }
@@ -213,22 +209,22 @@ export function AdminCatalogItemEditScreen({ navigation, route }: Props) {
   );
 }
 
-function createStyles(colors: ThemeColors) {
-  return StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.background },
-  content: { padding: spacing.lg, paddingBottom: spacing.xl * 2 },
-  computedCost: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary, marginTop: 6, marginLeft: 4 },
+const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: 'transparent' },
+  content: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 64 },
+  form: { width: '100%', maxWidth: 560, gap: 14 },
+  fields: { gap: 12 },
+  computedCost: { ...adminFont.body, ...tabularNums, fontSize: 13, marginTop: 6, marginLeft: 4 },
   switchRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: spacing.sm,
-    marginTop: spacing.lg,
+    gap: 12,
+    minHeight: 54,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
-  switchLabel: { fontFamily: fontFamily.body, fontSize: fontSize.body, color: colors.textPrimary },
-  switchHint: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary, marginTop: 2 },
-  deleteButton: { alignItems: 'center', marginTop: spacing.lg },
-  deleteText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.negative },
-  dPageTitle: { fontFamily: fontFamily.heading, fontSize: 26, color: colors.textPrimary },
+  switchLabel: { ...adminFont.body, fontSize: 15 },
+  switchHint: { ...adminFont.body, fontSize: 13, lineHeight: 18, marginTop: 2 },
+  actions: { gap: 12, marginTop: 6 },
 });
-}

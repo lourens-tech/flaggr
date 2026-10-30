@@ -3,7 +3,7 @@ import { Modal, StyleSheet, Text, View } from 'react-native';
 import { fontFamily, fontSize, radius, spacing } from '../../theme';
 import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 import { PopIn, PressableScale } from '../motion';
-import { dismissAlert, subscribeAlert, type AlertButtonConfig, type AlertConfig } from '../../utils/alertStore';
+import { activeAdminAlertHost, dismissAlert, subscribeAlert, type AlertButtonConfig, type AlertConfig } from '../../utils/alertStore';
 
 // Mounted once near the app root. Replaces react-native-web's no-op Alert.alert
 // and the browser's native window.alert/confirm (both off-brand, and the
@@ -20,6 +20,9 @@ export function AppAlertHost() {
     dismissAlert();
     button.onPress?.();
   };
+
+  // An admin console is showing its own alert host (AdminAlertHost).
+  if (activeAdminAlertHost() !== null) return null;
 
   return (
     <Modal visible={config.visible} transparent animationType="fade" onRequestClose={dismissAlert}>

@@ -1,10 +1,12 @@
-import React, { useMemo } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { fontFamily, fontSize, radius, spacing } from '../../../theme';
-import { useThemeColors, type ThemeColors } from '../../../context/ThemeContext';
+import React, { useMemo, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { spacing } from '../../../theme';
+import { useAdminTheme } from '../../../context/ThemeContext';
 import { useHover, hoverTransition } from '../../../hooks/useHover';
 import { duration } from '../../../theme/motion';
 import { FadeIn } from '../../motion';
+import { adminFont, adminRadius, type AdminColors } from '../../../theme/admin';
 
 export interface DesktopTableColumn<T> {
   key: string;
@@ -12,6 +14,8 @@ export interface DesktopTableColumn<T> {
   width: number;
   align?: 'left' | 'right';
   render: (row: T) => React.ReactNode;
+  // Makes the column header a sort toggle.
+  sortValue?: (row: T) => string | number;
 }
 
 interface Props<T> {
@@ -31,9 +35,25 @@ interface Props<T> {
 // proportionally to fill it; if it's wider (many columns), they hold their
 // size and the table scrolls horizontally instead of squeezing.
 export function DesktopDataTable<T>({ columns, rows, keyExtractor }: Props<T>) {
-  const colors = useThemeColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
-  const totalWidth = useMemo(() => columns.reduce((sum, c) => sum + c.width, 0), [columns]);
+  const { c } = useAdminTheme();
+  const styles = useMemo(() => createStyles(c), [c]);
+  const totalWidth = useMemo(() => columns.reduce((sum, col) => sum + col.width, 0), [columns]);
+  const [sort, setSort] = useState<{ key: string; dir: 1 | -1 } | null>(null);
+
+  const sorted = useMemo(() => {
+    const col = sort && columns.find((x) => x.key === sort.key);
+    if (!sort || !col?.sortValue) return rows;
+    const get = col.sortValue;
+    return [...rows].sort((a, b) => {
+      const va = get(a);
+      const vb = get(b);
+      const cmp = typeof va === 'number' && typeof vb === 'number' ? va - vb : String(va).localeCompare(String(vb));
+      return cmp * sort.dir;
+    });
+  }, [rows, columns, sort]);
+
+  const toggle = (key: string) =>
+    setSort((cur) => (cur?.key !== key ? { key, dir: 1 } : cur.dir === 1 ? { key, dir: -1 } : null));
 
   return (
     <ScrollView
@@ -44,23 +64,38 @@ export function DesktopDataTable<T>({ columns, rows, keyExtractor }: Props<T>) {
     >
       <View style={{ flex: 1 }}>
         <View style={styles.headerRow}>
-          {columns.map((c) => (
-            <Text
-              key={c.key}
-              style={[styles.headerCell, columnFlex(c), { textAlign: c.align ?? 'left' }]}
-              numberOfLines={1}
-            >
-              {c.label}
-            </Text>
-          ))}
+          {columns.map((col) => {
+            const active = sort?.key === col.key;
+            const label = (
+              <Text style={[styles.headerCell, active && { color: c.ink }, { textAlign: col.align ?? 'left' }]} numberOfLines={1}>
+                {col.label}
+              </Text>
+            );
+            return col.sortValue ? (
+              <Pressable
+                key={col.key}
+                onPress={() => toggle(col.key)}
+                accessibilityRole="button"
+                accessibilityLabel={`Sort by ${col.label}${active ? (sort?.dir === 1 ? ', ascending' : ', descending') : ''}`}
+                style={[columnFlex(col), styles.headerPress, col.align === 'right' && { justifyContent: 'flex-end' }]}
+              >
+                {label}
+                <Ionicons name={active ? (sort?.dir === 1 ? 'chevron-up' : 'chevron-down') : 'swap-vertical'} size={12} color={active ? c.ink : c.ink3} />
+              </Pressable>
+            ) : (
+              <View key={col.key} style={columnFlex(col)}>
+                {label}
+              </View>
+            );
+          })}
         </View>
         <ScrollView showsVerticalScrollIndicator style={styles.verticalScroll}>
-          {rows.map((row, i) => (
+          {sorted.map((row, i) => (
             <DataRow
               key={keyExtractor(row, i)}
               row={row}
               columns={columns}
-              isLast={i === rows.length - 1}
+              isLast={i === sorted.length - 1}
               animate={i < ANIMATED_ROWS}
               styles={styles}
             />
@@ -119,8 +154,8 @@ function initials(a: string, b?: string): string {
 // (typically the email) stacked underneath — the "profile pic" treatment
 // for tables, reusing the same avatar language as the dashboard's member rows.
 export function TableAvatarCell({ name, subtitle }: { name: string; subtitle?: string }) {
-  const colors = useThemeColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { c } = useAdminTheme();
+  const styles = useMemo(() => createStyles(c), [c]);
   const parts = name.trim().split(/\s+/);
 
   return (
@@ -150,29 +185,29 @@ export function statusTone(status: string): TableTagTone {
 }
 
 export function TableTag({ label, tone = 'green' }: { label: string; tone?: TableTagTone }) {
-  const colors = useThemeColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { c } = useAdminTheme();
+  const styles = useMemo(() => createStyles(c), [c]);
   const toneStyle = TONE_STYLES[tone];
 
   return (
-    <View style={[styles.tag, { backgroundColor: toneStyle.bg(colors) }]}>
-      <Text style={[styles.tagText, { color: toneStyle.fg(colors) }]} numberOfLines={1}>
+    <View style={[styles.tag, { backgroundColor: toneStyle.bg(c) }]}>
+      <Text style={[styles.tagText, { color: toneStyle.fg(c) }]} numberOfLines={1}>
         {label}
       </Text>
     </View>
   );
 }
 
-const TONE_STYLES: Record<TableTagTone, { bg: (c: ThemeColors) => string; fg: (c: ThemeColors) => string }> = {
-  green: { bg: (c) => c.mintBg, fg: (c) => c.clubGreen },
-  amber: { bg: (c) => c.warningBg, fg: (c) => c.warning },
-  red: { bg: (c) => c.dangerBg, fg: (c) => c.negative },
-  gray: { bg: (c) => c.inputBg, fg: (c) => c.textSecondary },
+const TONE_STYLES: Record<TableTagTone, { bg: (c: AdminColors) => string; fg: (c: AdminColors) => string }> = {
+  green: { bg: (c) => c.posBg, fg: (c) => c.pos },
+  amber: { bg: (c) => c.amberBg, fg: (c) => c.amber },
+  red: { bg: (c) => c.negBg, fg: (c) => c.neg },
+  gray: { bg: (c) => c.fill, fg: (c) => c.ink2 },
 };
 
 export function TableText({ children, muted }: { children: React.ReactNode; muted?: boolean }) {
-  const colors = useThemeColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { c } = useAdminTheme();
+  const styles = useMemo(() => createStyles(c), [c]);
   return (
     <Text style={[styles.plainText, muted && styles.plainTextMuted]} numberOfLines={1}>
       {children}
@@ -180,57 +215,59 @@ export function TableText({ children, muted }: { children: React.ReactNode; mute
   );
 }
 
-function createStyles(colors: ThemeColors) {
+function createStyles(c: AdminColors) {
   return StyleSheet.create({
   tableScroll: { flex: 1 },
   verticalScroll: { flex: 1 },
   headerRow: {
     flexDirection: 'row',
-    backgroundColor: colors.inputBg,
-    paddingHorizontal: 20,
+    paddingHorizontal: 18,
     paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: c.edge,
   },
   headerCell: {
-    fontFamily: fontFamily.bodySemiBold,
-    fontSize: 10.5,
-    letterSpacing: 0.5,
+    ...adminFont.bodyBold,
+    fontSize: 11.5,
+    letterSpacing: 0.9,
     textTransform: 'uppercase',
-    color: colors.textSecondary,
-    paddingRight: spacing.sm,
+    color: c.ink3,
+    paddingRight: spacing.xs,
+    flexShrink: 1,
   },
+  headerPress: { flexDirection: 'row', alignItems: 'center', gap: 2, paddingRight: spacing.sm },
   dataRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    minHeight: 52,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: c.edge,
   },
   dataRowLast: { borderBottomWidth: 0 },
-  dataRowHover: { backgroundColor: colors.mintBgAlt },
+  dataRowHover: { backgroundColor: c.fill2 },
   cellAlignRight: { alignItems: 'flex-end' },
-  plainText: { fontFamily: fontFamily.body, fontSize: 13, color: colors.textPrimary },
-  plainTextMuted: { color: colors.textSecondary },
+  plainText: { ...adminFont.body, fontSize: 14, color: c.ink, fontVariant: ['tabular-nums'] },
+  plainTextMuted: { color: c.ink2 },
   avatarCell: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   avatar: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: colors.mintBg,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#1F4234',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarText: { fontFamily: fontFamily.bodySemiBold, fontSize: 11.5, color: colors.clubGreen },
-  avatarName: { fontFamily: fontFamily.bodyMedium, fontSize: 13, color: colors.textPrimary },
-  avatarSubtitle: { fontFamily: fontFamily.body, fontSize: 11.5, color: colors.textSecondary, marginTop: 1 },
+  avatarText: { ...adminFont.bodyBold, fontSize: 12, color: '#CDDE5C' },
+  avatarName: { ...adminFont.bodySemiBold, fontSize: 14, color: c.ink },
+  avatarSubtitle: { ...adminFont.body, fontSize: 12.5, color: c.ink2, marginTop: 1 },
   tag: {
     alignSelf: 'flex-start',
     paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: radius.pill,
+    paddingVertical: 3,
+    borderRadius: adminRadius.pill,
   },
-  tagText: { fontFamily: fontFamily.bodySemiBold, fontSize: 11.5, textTransform: 'capitalize' },
+  tagText: { ...adminFont.bodySemiBold, fontSize: 12, textTransform: 'capitalize' },
 });
 }

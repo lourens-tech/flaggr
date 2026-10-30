@@ -8,9 +8,11 @@ import { AdminPushScreen } from '../screens/admin/AdminPushScreen';
 import { AdminVoucherRedeemScreen } from '../screens/admin/AdminVoucherRedeemScreen';
 import { AdminCourseProfileScreen } from '../screens/admin/AdminCourseProfileScreen';
 import { AdminStaffProfileScreen } from '../screens/admin/AdminStaffProfileScreen';
-import { AdminTabBar } from '../components/common/AdminTabBar';
+import { AdminTabBar } from '../components/admin/AdminTabBar';
+import { AdminMoreScreen } from '../screens/admin/AdminMoreScreen';
 import { useAdmin } from '../context/AdminContext';
 import { useIsDesktopNav } from '../hooks/useIsDesktopNav';
+import { tabSceneStyle } from '../components/admin/AdminScope';
 
 const Tab = createBottomTabNavigator<AdminTabParamList>();
 
@@ -19,11 +21,13 @@ export function AdminTabNavigator() {
   const isDesktop = useIsDesktopNav();
   // Tabs crossfade on phones; on desktop the per-screen DesktopShell fades
   // its own content area instead, so the sidebar never flickers.
-  const screenOptions = {
+  const screenOptions = (props: Parameters<typeof tabSceneStyle>[0]) => ({
     headerShown: false,
     tabBarPosition: isDesktop ? ('left' as const) : ('bottom' as const),
     animation: isDesktop ? ('none' as const) : ('fade' as const),
-  };
+    // See-through so the admin backdrop (AdminScope) shows behind every tab.
+    sceneStyle: tabSceneStyle(props),
+  });
   // On desktop web, each screen renders its own persistent sidebar/topbar via
   // AdminDesktopFrame (see components/admin/desktop) — this bar would just
   // duplicate it, so it renders nothing there instead of its old plain
@@ -50,6 +54,8 @@ export function AdminTabNavigator() {
       <Tab.Screen name="AdminPush" component={AdminPushScreen} />
       <Tab.Screen name="AdminVouchers" component={AdminVoucherRedeemScreen} />
       <Tab.Screen name="AdminCourseProfile" component={AdminCourseProfileScreen} />
+      {/* Phones only: lists every section that isn't on the tab bar. */}
+      <Tab.Screen name="AdminMore" component={AdminMoreScreen} />
     </Tab.Navigator>
   );
 }

@@ -1,6 +1,6 @@
 # Known Limitations & Future Work
 
-_Last verified against code on 2026-10-28._
+_Last verified against code on 2026-10-29._
 
 Open issues found by reading the code, grouped by severity. Paths are relative to this repo unless a repo is named. Items marked **unverified** could not be confirmed from the code alone, for example because they depend on settings in Vercel, EAS or DNS.
 
@@ -109,9 +109,9 @@ These need native code, so they wait for a new App Store / Play Store build (eve
 - Most club-admin actions (staff, rewards, catalogue, broadcasts, roster upload, co-admin changes) are not written to the audit log. Only fraud decisions are. `api/admin/index.ts:3287`
 - A super admin can create or reactivate course admins past the 2-active limit, and two course admins can revoke each other. `api/admin/index.ts:2381, 2504, 3633, 3698`
 - The super-admin enquiry chat is read-only, and there is no course-admin screen for duplicate receipt attempts although a comment says there is. `api/admin/index.ts:2065`
-- Orphaned code: `AdminAdsListScreen` is in no navigator, and `AdminAdEdit` is reachable only from it. `mobile/src/screens/admin/AdminAdsListScreen.tsx`
-- The desktop shell's search box stores text but does nothing, and the desktop bell links to a notifications screen that returns 403 for staff. `mobile/src/components/admin/desktop/DesktopShell.tsx:115,184`, `AdminDesktopFrame.tsx:110`
 - Super admin, support agent and staff have no change-password option in Profile.
+- Fixed on 2026-10-29 in the admin redesign: the unreachable course-admin ads screens were deleted, the desktop search now works (⌘K / Ctrl K: sections and, for course and super admins, members), and staff no longer get a bell that opened a 403 screen.
+- The admin enquiry thread keeps showing its loading skeleton if the first load fails, until the 12-second refresh succeeds (an alert is shown). `mobile/src/screens/admin/AdminEnquiryChatScreen.tsx`
 - When a course admin sets a staff member's password, `must_change_password` is cleared. `api/admin/index.ts:3866`
 - Report downloads are web-only, and `memberActivity` ignores its period. `api/admin/index.ts:4373-4390`
 

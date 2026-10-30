@@ -1,29 +1,31 @@
-import React, { useState, useMemo } from 'react';
-import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import React, { useState } from 'react';
+import { ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AdminStackParamList } from '../../navigation/types';
 import { AdminMobileHeader } from '../../components/admin/AdminMobileHeader';
 import { TextField } from '../../components/common/TextField';
-import { PillButton } from '../../components/common/PillButton';
 import { useAdmin } from '../../context/AdminContext';
 import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
 import { AdminDesktopFrame } from '../../components/admin/desktop/AdminDesktopFrame';
-import { DesktopPanel } from '../../components/admin/desktop/DesktopPanel';
 import { AdminApiError } from '../../api/adminClient';
 import { showAlert } from '../../utils/alert';
-import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
-import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
+import { useAdminTheme } from '../../context/ThemeContext';
+import { adminFont, adminRadius } from '../../theme/admin';
+import { AdminButton, PageTitle, Tile } from '../../components/admin/ui';
 
 type Props = NativeStackScreenProps<AdminStackParamList, 'AdminSupportTicketCreate'>;
 
+// The browser's own focus outline is replaced by the field's accent ring.
+const webNoOutline = { outlineStyle: 'none' } as unknown as { outlineWidth: number };
+
 export function AdminSupportTicketCreateScreen({ navigation }: Props) {
-  const colors = useThemeColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { c } = useAdminTheme();
   const isDesktop = useIsDesktopNav();
   const { createSupportTicket } = useAdmin();
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [messageFocused, setMessageFocused] = useState(false);
 
   const handleSubmit = async () => {
     if (!subject.trim() || !message.trim()) {
@@ -43,29 +45,32 @@ export function AdminSupportTicketCreateScreen({ navigation }: Props) {
   };
 
   const form = (
-    <>
+    <Tile style={[styles.formTile, isDesktop && { borderRadius: adminRadius.lg, padding: 22 }]}>
       <TextField placeholder="Subject" variant="onLight" value={subject} onChangeText={setSubject} />
-      <View style={{ height: spacing.md }} />
       <TextInput
         placeholder="Describe what's going on…"
-        placeholderTextColor={colors.textSecondary}
+        placeholderTextColor={c.ink3}
         value={message}
         onChangeText={setMessage}
         multiline
-        style={styles.messageInput}
+        onFocus={() => setMessageFocused(true)}
+        onBlur={() => setMessageFocused(false)}
+        style={[
+          styles.messageInput,
+          { backgroundColor: c.fill, borderColor: messageFocused ? c.focus : c.edge, color: c.ink },
+          messageFocused && { borderWidth: 1.5 },
+          webNoOutline,
+        ]}
       />
-      <View style={{ height: spacing.lg }} />
-      <PillButton label="Send Ticket" onPress={handleSubmit} loading={submitting} />
-    </>
+      <AdminButton label="Send Ticket" variant="accent" size="lg" fullWidth onPress={handleSubmit} loading={submitting} />
+    </Tile>
   );
 
   if (isDesktop) {
     return (
-      <AdminDesktopFrame activeKey="" breadcrumb="New Ticket" showRail={false}>
-        <Text style={styles.dPageTitle}>New Support Ticket</Text>
-        <DesktopPanel title=" " style={{ maxWidth: 480 }}>
-          {form}
-        </DesktopPanel>
+      <AdminDesktopFrame activeKey="AdminSupportTickets" breadcrumb="New Ticket" showRail={false}>
+        <PageTitle>New Support Ticket</PageTitle>
+        <View style={styles.dColumn}>{form}</View>
       </AdminDesktopFrame>
     );
   }
@@ -81,22 +86,20 @@ export function AdminSupportTicketCreateScreen({ navigation }: Props) {
   );
 }
 
-function createStyles(colors: ThemeColors) {
-  return StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.background },
-  content: { padding: screenPadding, paddingBottom: spacing.xl * 2 },
+const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: 'transparent' },
+  content: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 48 },
+  formTile: { gap: 14 },
   messageInput: {
-    backgroundColor: colors.inputBg,
-    borderWidth: 1,
-    borderColor: colors.inputBorder,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    minHeight: 140,
-    fontFamily: fontFamily.body,
-    fontSize: fontSize.body,
-    color: colors.textPrimary,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: adminRadius.sm,
+    paddingHorizontal: 14,
+    paddingTop: 12,
+    paddingBottom: 12,
+    minHeight: 160,
+    ...adminFont.body,
+    fontSize: 15.5,
     textAlignVertical: 'top',
   },
-  dPageTitle: { fontFamily: fontFamily.heading, fontSize: 26, color: colors.textPrimary },
+  dColumn: { maxWidth: 560, width: '100%' },
 });
-}

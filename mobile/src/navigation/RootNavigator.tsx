@@ -27,6 +27,10 @@ import { AdminNavigator } from './AdminNavigator';
 import { SuperAdminNavigator } from './SuperAdminNavigator';
 import { AdminForceChangePasswordScreen } from '../screens/admin/AdminForceChangePasswordScreen';
 import { AdminStaffWelcomeScreen } from '../screens/admin/AdminStaffWelcomeScreen';
+import { withAdminScope } from '../components/admin/AdminScope';
+
+const ScopedForceChangePassword = withAdminScope(AdminForceChangePasswordScreen);
+const ScopedStaffWelcome = withAdminScope(AdminStaffWelcomeScreen);
 import { fadeUpOptions, slideUpOptions, stackScreenOptions, webScreenLayout } from './motionOptions';
 import { useApp } from '../context/AppContext';
 import { useAdmin } from '../context/AdminContext';
@@ -59,9 +63,9 @@ export function RootNavigator() {
         // member with a system-generated temp password must set their own
         // before they can reach any other screen.
         admin.mustChangePassword ? (
-          <Stack.Screen name="AdminForceChangePassword" component={AdminForceChangePasswordScreen} />
+          <Stack.Screen name="AdminForceChangePassword" component={ScopedForceChangePassword} />
         ) : staffWelcomePending ? (
-          <Stack.Screen name="AdminStaffWelcome" component={AdminStaffWelcomeScreen} />
+          <Stack.Screen name="AdminStaffWelcome" component={ScopedStaffWelcome} />
         ) : admin.role === 'super_admin' || admin.role === 'support_agent' ? (
           <Stack.Screen name="SuperAdminMain" component={SuperAdminNavigator} />
         ) : (

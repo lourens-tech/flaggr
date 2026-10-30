@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SuperAdminStackParamList } from '../../navigation/types';
@@ -9,11 +9,12 @@ import { PillButton } from '../../components/common/PillButton';
 import { useAdmin } from '../../context/AdminContext';
 import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
 import { SuperAdminDesktopFrame } from '../../components/admin/desktop/SuperAdminDesktopFrame';
-import { DesktopPanel } from '../../components/admin/desktop/DesktopPanel';
+import { AdminButton, PageTitle, Tile } from '../../components/admin/ui';
 import { AdminApiError, type SuperAdminCourseCreateResponse } from '../../api/adminClient';
 import { showAlert } from '../../utils/alert';
-import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
-import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
+import { spacing } from '../../theme';
+import { useAdminTheme } from '../../context/ThemeContext';
+import { adminFont, adminRadius, type AdminColors } from '../../theme/admin';
 
 type Props = NativeStackScreenProps<SuperAdminStackParamList, 'SuperAdminCourseCreate'>;
 
@@ -25,8 +26,8 @@ const STEP_COUNT = 4;
 // Postgres, which is how every course/course_admin before this feature
 // existed. Same wizard shape as AdminStaffEditScreen's add-staff flow.
 export function SuperAdminCourseCreateScreen({ navigation }: Props) {
-  const colors = useThemeColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { c } = useAdminTheme();
+  const styles = useMemo(() => createStyles(c), [c]);
   const isDesktop = useIsDesktopNav();
   const { createSuperAdminCourse } = useAdmin();
 
@@ -84,7 +85,7 @@ export function SuperAdminCourseCreateScreen({ navigation }: Props) {
   };
 
   const progressRow = (
-    <View style={styles.progressRow}>
+    <View style={[styles.progressRow, !isDesktop && styles.progressRowPhone]} accessibilityLabel={`Step ${Math.min(step + 1, STEP_COUNT)} of ${STEP_COUNT}`}>
       {Array.from({ length: STEP_COUNT }).map((_, i) => (
         <View key={i} style={[styles.progressDot, i <= step && styles.progressDotActive]} />
       ))}
@@ -145,9 +146,7 @@ export function SuperAdminCourseCreateScreen({ navigation }: Props) {
                 if (validateAdminDetails()) setStep(2);
               }}
             />
-            <TouchableOpacity onPress={() => setStep(0)} style={styles.backButton} disabled={saving}>
-              <Text style={styles.backButtonText}>Back</Text>
-            </TouchableOpacity>
+            <AdminButton label="Back" variant="plain" onPress={() => setStep(0)} disabled={saving} style={styles.backButton} />
           </>
         ) : null}
 
@@ -155,40 +154,41 @@ export function SuperAdminCourseCreateScreen({ navigation }: Props) {
           <>
             <Text style={styles.title}>Review and Send</Text>
             <View style={{ height: spacing.md }} />
-            <View style={[styles.reviewCard, !isDesktop && styles.reviewCardPhone]}>
-              <Text style={styles.reviewLabel}>Course</Text>
-              <Text style={styles.reviewValue}>{courseName.trim()}</Text>
+            <View style={styles.reviewCard}>
+              <View style={styles.reviewRow}>
+                <Text style={styles.reviewLabel}>Course</Text>
+                <Text style={styles.reviewValue}>{courseName.trim()}</Text>
+              </View>
               {contactEmail.trim() ? (
-                <>
-                  <View style={{ height: spacing.sm }} />
+                <View style={[styles.reviewRow, styles.reviewRowRule]}>
                   <Text style={styles.reviewLabel}>Contact Email</Text>
                   <Text style={styles.reviewValue}>{contactEmail.trim()}</Text>
-                </>
+                </View>
               ) : null}
-              <View style={{ height: spacing.sm }} />
-              <Text style={styles.reviewLabel}>Course Admin</Text>
-              <Text style={styles.reviewValue}>{adminFirstName.trim()} {adminLastName.trim()}</Text>
-              <View style={{ height: spacing.sm }} />
-              <Text style={styles.reviewLabel}>Admin Email</Text>
-              <Text style={styles.reviewValue}>{adminEmail.trim()}</Text>
+              <View style={[styles.reviewRow, styles.reviewRowRule]}>
+                <Text style={styles.reviewLabel}>Course Admin</Text>
+                <Text style={styles.reviewValue}>{adminFirstName.trim()} {adminLastName.trim()}</Text>
+              </View>
+              <View style={[styles.reviewRow, styles.reviewRowRule]}>
+                <Text style={styles.reviewLabel}>Admin Email</Text>
+                <Text style={styles.reviewValue}>{adminEmail.trim()}</Text>
+              </View>
             </View>
             <Text style={styles.helpText}>
               A temporary password will be generated and emailed to the course admin, along with a login link.
             </Text>
             <View style={{ height: spacing.lg }} />
             <PillButton label="Create Course" onPress={handleSend} loading={saving} />
-            <TouchableOpacity onPress={() => setStep(1)} style={styles.backButton} disabled={saving}>
-              <Text style={styles.backButtonText}>Back</Text>
-            </TouchableOpacity>
+            <AdminButton label="Back" variant="plain" onPress={() => setStep(1)} disabled={saving} style={styles.backButton} />
           </>
         ) : null}
 
         {step === 3 && created ? (
           <>
-            <Ionicons name="checkmark-circle" size={48} color={colors.clubGreen} style={styles.successIcon} />
-            <Text style={styles.title}>Course Created</Text>
+            <Ionicons name="checkmark-circle" size={56} color={c.accentText} style={styles.successIcon} />
+            <Text style={[styles.title, styles.titleCentered]}>Course Created</Text>
             <Text style={styles.helpTextCentered}>
-              {created.course.name} is live, and {created.admin.firstName} has been emailed their login details.
+              {created.course.name} has been created, and {created.admin.firstName} has been emailed their login details.
             </Text>
             <View style={{ height: spacing.lg }} />
             <PillButton label="Done" onPress={() => navigation.goBack()} />
@@ -199,12 +199,13 @@ export function SuperAdminCourseCreateScreen({ navigation }: Props) {
 
   if (isDesktop) {
     return (
-      <SuperAdminDesktopFrame activeKey="SuperAdminCourses" breadcrumb="New Course" showRail={false}>
-        <Text style={styles.dPageTitle}>New Course</Text>
-        <DesktopPanel title=" " style={{ maxWidth: 480 }}>
+      <SuperAdminDesktopFrame activeKey="SuperAdminCourses" breadcrumb="Courses › New Course" showRail={false}>
+        <PageTitle>New Course</PageTitle>
+        <Tile style={styles.dCard}>
           {progressRow}
+          <View style={{ height: spacing.lg }} />
           {wizardBody}
-        </DesktopPanel>
+        </Tile>
       </SuperAdminDesktopFrame>
     );
   }
@@ -216,45 +217,48 @@ export function SuperAdminCourseCreateScreen({ navigation }: Props) {
       {progressRow}
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {wizardBody}
+        <Tile>{wizardBody}</Tile>
       </ScrollView>
     </View>
   );
 }
 
-function createStyles(colors: ThemeColors) {
+function createStyles(c: AdminColors) {
   return StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.background },
-  progressRow: { flexDirection: 'row', gap: 6, paddingHorizontal: screenPadding, paddingTop: spacing.md },
-  progressDot: { flex: 1, height: 4, borderRadius: 2, backgroundColor: colors.inputBorder },
-  progressDotActive: { backgroundColor: colors.clubGreen },
-  content: { padding: screenPadding, paddingBottom: spacing.xl * 2 },
-  title: { fontFamily: fontFamily.heading, fontSize: fontSize.title, color: colors.textPrimary },
+  screen: { flex: 1, backgroundColor: 'transparent' },
+  progressRow: { flexDirection: 'row', gap: 6 },
+  progressRowPhone: { paddingHorizontal: 16, paddingBottom: 4 },
+  progressDot: { flex: 1, height: 4, borderRadius: adminRadius.pill, backgroundColor: c.fill },
+  progressDotActive: { backgroundColor: c.segOn },
+  content: { padding: 16, paddingBottom: spacing.xl * 2 },
+  title: { ...adminFont.title, fontSize: 28, letterSpacing: -0.4, color: c.ink },
+  titleCentered: { textAlign: 'center' },
   helpText: {
-    fontFamily: fontFamily.body,
-    fontSize: fontSize.tiny,
-    color: colors.textSecondary,
+    ...adminFont.body,
+    fontSize: 13,
+    lineHeight: 19,
+    color: c.ink2,
     marginTop: spacing.md,
   },
   helpTextCentered: {
-    fontFamily: fontFamily.body,
-    fontSize: fontSize.body,
-    color: colors.textSecondary,
+    ...adminFont.body,
+    fontSize: 15,
+    lineHeight: 21,
+    color: c.ink2,
     textAlign: 'center',
     marginTop: spacing.sm,
   },
   reviewCard: {
-    backgroundColor: colors.mintBg,
-    borderRadius: radius.md,
-    padding: spacing.md,
+    backgroundColor: c.fill,
+    borderRadius: adminRadius.sm,
+    paddingHorizontal: 14,
   },
-  // Phone-only surface; reviewCard is shared with the desktop branch.
-  reviewCardPhone: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 16 },
-  reviewLabel: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary },
-  reviewValue: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.textPrimary, marginTop: 2 },
+  reviewRow: { paddingVertical: 11 },
+  reviewRowRule: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.edge },
+  reviewLabel: { ...adminFont.body, fontSize: 12.5, color: c.ink2 },
+  reviewValue: { ...adminFont.bodySemiBold, fontSize: 15, color: c.ink, marginTop: 2 },
   successIcon: { alignSelf: 'center', marginBottom: spacing.sm },
-  backButton: { alignItems: 'center', marginTop: spacing.md },
-  backButtonText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.textSecondary },
-  dPageTitle: { fontFamily: fontFamily.heading, fontSize: 26, color: colors.textPrimary },
+  backButton: { alignSelf: 'center', marginTop: spacing.sm, height: 44 },
+  dCard: { maxWidth: 520, marginTop: 16, padding: 24 },
 });
 }

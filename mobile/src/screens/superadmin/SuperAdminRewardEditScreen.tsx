@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { ActivityIndicator, Image, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { Image, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SuperAdminStackParamList } from '../../navigation/types';
@@ -10,13 +10,14 @@ import { PillButton } from '../../components/common/PillButton';
 import { useAdmin } from '../../context/AdminContext';
 import { useIsDesktopNav } from '../../hooks/useIsDesktopNav';
 import { SuperAdminDesktopFrame } from '../../components/admin/desktop/SuperAdminDesktopFrame';
-import { DesktopPanel } from '../../components/admin/desktop/DesktopPanel';
+import { AdminButton, PageTitle, SkeletonRows, Tile } from '../../components/admin/ui';
 import { AdminApiError, type RewardVariantPayload } from '../../api/adminClient';
 import { pickAndResizeAvatar, AvatarPermissionError } from '../../utils/pickAvatar';
 import { showAlert } from '../../utils/alert';
-import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
-import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
+import { spacing } from '../../theme';
+import { useAdminTheme } from '../../context/ThemeContext';
 import type { AdminReward } from '../../data/adminTypes';
+import { adminFont, adminRadius, tabularNums, type AdminColors } from '../../theme/admin';
 
 type Props = NativeStackScreenProps<SuperAdminStackParamList, 'SuperAdminRewardEdit'>;
 
@@ -45,11 +46,14 @@ function newVariant(sortOrder: number): LocalVariant {
 // pattern) to find the existing reward by id, rather than reading from a
 // cached list it doesn't have.
 export function SuperAdminRewardEditScreen({ navigation, route }: Props) {
-  const colors = useThemeColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { c } = useAdminTheme();
+  const styles = useMemo(() => createStyles(c), [c]);
   const isDesktop = useIsDesktopNav();
   const { courseId, fbPerRand, rewardId } = route.params;
-  const { getSuperAdminRewards, saveSuperAdminReward, deleteSuperAdminReward } = useAdmin();
+  const { getSuperAdminRewards, saveSuperAdminReward, deleteSuperAdminReward, superAdminCourses } = useAdmin();
+  // For the breadcrumb only; this route doesn't carry the club's name.
+  const clubName = superAdminCourses.find((course) => course.id === courseId)?.name;
+  const breadcrumb = ['Courses', clubName, 'Rewards'].filter(Boolean).join(' › ');
 
   const [existing, setExisting] = useState<AdminReward | null>(null);
   const [loadingExisting, setLoadingExisting] = useState(!!rewardId);
@@ -199,27 +203,40 @@ export function SuperAdminRewardEditScreen({ navigation, route }: Props) {
   if (loadingExisting) {
     if (isDesktop) {
       return (
-        <SuperAdminDesktopFrame activeKey="SuperAdminCourses" breadcrumb="Edit Reward" showRail={false}>
-          <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
+        <SuperAdminDesktopFrame activeKey="SuperAdminCourses" breadcrumb={breadcrumb} showRail={false}>
+          <PageTitle>Edit Reward</PageTitle>
+          <Tile style={styles.dCard}>
+            <SkeletonRows rows={4} />
+          </Tile>
         </SuperAdminDesktopFrame>
       );
     }
     return (
       <View style={styles.screen}>
         <AdminMobileHeader title="Edit Reward" />
-        <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
+        <View style={styles.content}>
+          <Tile>
+            <SkeletonRows rows={4} />
+          </Tile>
+        </View>
       </View>
     );
   }
 
   const form = (
     <>
-        <TouchableOpacity style={styles.imagePicker} onPress={handlePickImage} disabled={uploadingImage}>
+        <TouchableOpacity
+          style={styles.imagePicker}
+          onPress={handlePickImage}
+          disabled={uploadingImage}
+          accessibilityRole="button"
+          accessibilityLabel={previewUrl ? 'Change photo' : 'Add photo'}
+        >
           {previewUrl ? (
             <Image source={{ uri: previewUrl }} style={styles.imagePreview} />
           ) : (
             <View style={styles.imagePlaceholder}>
-              <Ionicons name="image-outline" size={24} color={colors.clubGreen} />
+              <Ionicons name="image-outline" size={24} color={c.icon} />
               <Text style={styles.imagePlaceholderText}>Add photo</Text>
             </View>
           )}
@@ -233,7 +250,7 @@ export function SuperAdminRewardEditScreen({ navigation, route }: Props) {
 
         <View style={styles.activeRow}>
           <Text style={styles.activeLabel}>Visible in Rewards Shop</Text>
-          <Switch value={active} onValueChange={setActive} trackColor={{ true: colors.clubGreen }} />
+          <Switch value={active} onValueChange={setActive} trackColor={{ true: c.accent }} accessibilityLabel="Visible in Rewards Shop" />
         </View>
 
         <Text style={styles.sectionTitle}>Options</Text>
@@ -250,8 +267,14 @@ export function SuperAdminRewardEditScreen({ navigation, route }: Props) {
                     onChangeText={(text) => updateVariant(v.key, { label: text })}
                   />
                 </View>
-                <TouchableOpacity onPress={() => removeVariant(v.key)} hitSlop={8} style={{ marginLeft: spacing.sm }}>
-                  <Ionicons name="close-circle-outline" size={22} color={colors.negative} />
+                <TouchableOpacity
+                  onPress={() => removeVariant(v.key)}
+                  hitSlop={8}
+                  style={styles.removeVariant}
+                  accessibilityRole="button"
+                  accessibilityLabel="Remove option"
+                >
+                  <Ionicons name="close-circle-outline" size={22} color={c.neg} />
                 </TouchableOpacity>
               </View>
               <View style={{ height: spacing.sm }} />
@@ -273,32 +296,28 @@ export function SuperAdminRewardEditScreen({ navigation, route }: Props) {
             </View>
           ))}
 
-        <TouchableOpacity
-          style={styles.addVariantButton}
+        <AdminButton
+          label="Add another option"
+          icon="add"
+          variant="plain"
           onPress={() => setVariants((prev) => [...prev, newVariant(prev.length)])}
-        >
-          <Ionicons name="add" size={18} color={colors.clubGreen} />
-          <Text style={styles.addVariantText}>Add another option</Text>
-        </TouchableOpacity>
+          style={styles.addVariantButton}
+        />
 
         <View style={{ height: spacing.lg }} />
         <PillButton label="Save Reward" onPress={handleSave} loading={saving} />
 
         {existing ? (
-          <TouchableOpacity onPress={handleDelete} style={styles.deleteButton} disabled={saving}>
-            <Text style={styles.deleteText}>Remove Reward</Text>
-          </TouchableOpacity>
+          <AdminButton label="Remove Reward" variant="danger" onPress={handleDelete} disabled={saving} style={styles.deleteButton} />
         ) : null}
     </>
   );
 
   if (isDesktop) {
     return (
-      <SuperAdminDesktopFrame activeKey="SuperAdminCourses" breadcrumb={pageTitle} showRail={false}>
-        <Text style={styles.dPageTitle}>{pageTitle}</Text>
-        <DesktopPanel title=" " style={{ maxWidth: 520 }}>
-          {form}
-        </DesktopPanel>
+      <SuperAdminDesktopFrame activeKey="SuperAdminCourses" breadcrumb={breadcrumb} showRail={false}>
+        <PageTitle>{pageTitle}</PageTitle>
+        <Tile style={styles.dCard}>{form}</Tile>
       </SuperAdminDesktopFrame>
     );
   }
@@ -308,55 +327,56 @@ export function SuperAdminRewardEditScreen({ navigation, route }: Props) {
       <AdminMobileHeader title={pageTitle} />
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {form}
+        <Tile>{form}</Tile>
       </ScrollView>
     </View>
   );
 }
 
-function createStyles(colors: ThemeColors) {
+function createStyles(c: AdminColors) {
   return StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.background },
-  content: { padding: screenPadding, paddingBottom: spacing.xl * 2 },
+  screen: { flex: 1, backgroundColor: 'transparent' },
+  content: { padding: 16, paddingBottom: spacing.xl * 2 },
   imagePicker: { alignSelf: 'center', marginBottom: spacing.lg },
-  imagePreview: { width: 120, height: 120, borderRadius: radius.md },
+  imagePreview: { width: 120, height: 120, borderRadius: adminRadius.md },
   imagePlaceholder: {
     width: 120,
     height: 120,
-    borderRadius: radius.md,
-    backgroundColor: colors.imagePlaceholder,
+    borderRadius: adminRadius.md,
+    backgroundColor: c.fill,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 4,
   },
-  imagePlaceholderText: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.clubGreen },
+  imagePlaceholderText: { ...adminFont.bodyMedium, fontSize: 13, color: c.ink2 },
   activeRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: spacing.sm,
-    marginTop: spacing.md,
+    minHeight: 52,
+    marginTop: spacing.sm,
   },
-  activeLabel: { flexShrink: 1, fontFamily: fontFamily.body, fontSize: fontSize.body, color: colors.textPrimary },
+  activeLabel: { flexShrink: 1, ...adminFont.body, fontSize: 15, color: c.ink },
   sectionTitle: {
-    fontFamily: fontFamily.heading,
-    fontSize: fontSize.cardTitle,
-    color: colors.textPrimary,
-    marginTop: spacing.lg,
+    ...adminFont.bodyBold,
+    fontSize: 17,
+    color: c.ink,
+    marginTop: spacing.md,
     marginBottom: spacing.sm,
   },
   variantCard: {
-    backgroundColor: colors.inputBg,
-    borderRadius: radius.md,
-    padding: spacing.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: c.edge,
+    borderRadius: adminRadius.md,
+    padding: 12,
     marginBottom: spacing.sm,
   },
   variantRow: { flexDirection: 'row', alignItems: 'center' },
-  computedCost: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary, marginTop: 4, marginLeft: 4 },
-  addVariantButton: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: spacing.sm },
-  addVariantText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.clubGreen },
-  deleteButton: { alignItems: 'center', marginTop: spacing.lg },
-  deleteText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.negative },
-  dPageTitle: { fontFamily: fontFamily.heading, fontSize: 26, color: colors.textPrimary },
+  removeVariant: { marginLeft: spacing.sm, width: 36, height: 44, alignItems: 'center', justifyContent: 'center' },
+  computedCost: { ...adminFont.body, ...tabularNums, fontSize: 12.5, color: c.ink2, marginTop: 6, marginLeft: 4 },
+  addVariantButton: { alignSelf: 'flex-start', height: 44 },
+  deleteButton: { alignSelf: 'center', marginTop: spacing.md, height: 44 },
+  dCard: { maxWidth: 560, marginTop: 16, padding: 24 },
 });
 }

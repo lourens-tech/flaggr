@@ -173,7 +173,34 @@ Needs migration `048` applied and at least one live course map.
 - [ ] Refreshing the browser mid-session keeps the member logged in and on a sensible screen (not dumped back to login unnecessarily).
 - [ ] No console errors in the browser dev tools during a normal walkthrough of sections 1–15.
 - [ ] The public pages `/privacy.html` and `/support.html` load.
-- [ ] Super admin on a phone (or a browser window under 900px wide): every tab and pushed screen shows the plain "Super Admin / {screen}" header, not a solid green bar; on Courses the All/Active/Pending/Archived filter is fully visible and each card's Ads/Rewards/Catalog/Members buttons sit in a 2×2 grid; on Push a club-scoped notification's badge truncates instead of running off the card; nothing runs off the right edge of the screen.
+- [ ] Super admin on a phone (or a browser window under 900px wide): every tab and pushed screen shows the large-title header over the photo, not a solid green bar; on Courses the filter is fully visible; on Push a club-scoped notification's badge truncates instead of running off the card; nothing runs off the right edge of the screen.
+
+## 16a. Admin consoles (all four roles)
+
+Test each role (course admin, staff, super admin, support agent) at three widths: desktop (1440px), a foldable or small laptop (about 960px) and a phone (375px), in both light and dark mode.
+
+- [ ] Sign-in, forgot password, forced password change and staff welcome show the admin look (Flagrr photo behind glass), not the member look.
+- [ ] Desktop: glass sidebar with the club crest (or the Flagrr mark for super admin and support), grouped sections, account button; content on solid tiles over the blurred club photo. Between 900 and 1100px the sidebar becomes an icon rail. At 1280px and wider, course admins see the Activity inspector (All / Enquiries / Receipts, Mark all as read), super admins the audit log, support agents their tickets; staff see no bell and no inspector.
+- [ ] ⌘K (Mac) or Ctrl K (Windows), or clicking the search pill, opens search. Typing a section name and pressing Enter goes there; for course admins and super admins, typing two or more letters of a member's name lists members and opening one shows their stats. Esc closes it.
+- [ ] Phone: floating tab bar with the role's tabs (course admin Home, Enquiries, Vouchers, Rewards, More; staff Vouchers, Support, Profile; super admin Courses, Reports, Support, Ads, More; support agent Inbox, Profile). More lists every other section; the More tab shows the unread count for course admins.
+- [ ] Every list shows a skeleton while loading, a calm empty state, and an error state with Retry when the network is off.
+- [ ] Turning on Reduce Transparency (iOS Accessibility, or the browser setting) replaces glass with solid fills.
+- [ ] Alerts and confirms inside the admin consoles use the admin style, and the member app's alerts are unchanged.
+- [ ] Products and activities: each active row has Deactivate (confirm, then the item shows Inactive and the scanner stops matching it) and a separate red "Delete permanently…" with its own confirm. The edit screen's red button says Deactivate.
+- [ ] Push: sending a new notification asks "Send to <audience>?" first; Cancel sends nothing.
+- [ ] Vouchers: after Look Up, Confirm Redeem asks "Redeem this voucher?" naming the reward and member; Cancel leaves the voucher active.
+- [ ] Reward edit on desktop opens inside the sidebar layout with the breadcrumb "Rewards › …".
+- [ ] Fraud Review on desktop: list on the left, selected receipt on the right; View Photo shows the receipt image inline. With no member name, the fraud reason hint reads "…already awarded. The member will be sent the reason below." (with a space).
+- [ ] Staff and Admins: the Staff / Club Admins / Activity switch at the top moves between the three screens.
+- [ ] Home: the hero shows the club's cover photo and a greeting with the admin's first name in lime italic (a club with no cover shows Fairway green with an outline 18). "Needs you" lists pending enquiries and flagged receipts only when there are some, and each opens the right screen. Coming back to Home refreshes the numbers.
+- [ ] Activity (course admin): search and filters work, tapping an enquiry or receipt notification opens it, and Mark all as read clears every unread dot (and the More / bell count).
+- [ ] Club Settings: no Quick Links panel; one Contact Support button in Billing; a past-due club sees the red "Your last payment failed." banner.
+- [ ] Sign-in: a wrong password shows a red banner on the card (no pop-up); forgot password and forced change show their errors the same way; the reset success message still returns to sign-in.
+- [ ] Super admin Courses (desktop): the photo header and counts show; the table sorts by Club, Status, Members and Admins; filters and search work; each Manage link opens that club's page; the ⋯ menu archives, unarchives, cancels and reactivates, and Reactivate and Unarchive now ask first. Creating a club ends with "{club} has been created, and {admin} has been emailed their login details."
+- [ ] Super admin per-club pages show `Courses › {club} › {section}` in the breadcrumb, and the club catalogue offers Deactivate and a separate Delete permanently….
+- [ ] Super admin Push: sending asks "Send to <audience> — <club scope>?" first; Cancel sends nothing.
+- [ ] Support inbox (super admin and support agent): status, priority and assignee filters work; in a ticket, Claim / Release / Take Over and the Status and Priority menus update the ticket; replies send. Support agents see only Inbox and Profile, with their own tickets in the desktop inspector.
+- [ ] Audit log: catalogue and fraud-decision entries show readable labels, not codes.
 
 ## 17. Motion
 
@@ -184,7 +211,7 @@ Needs migration `048` applied and at least one live course map.
 - [ ] The scan camera slides up from the bottom; Voucher and Receipt Success fade up. On Voucher the QR code pops in; on Receipt Success the trophy pops and the Flagrr Cash amount rolls up.
 - [ ] Alerts and confirmations spring in over a fading backdrop.
 - [ ] With Reduce Motion turned on (iOS Settings > Accessibility > Motion, or Android remove animations), everything appears instantly with no movement.
-- [ ] Admin dashboard (desktop browser): stat cards and panels rise in, numbers roll up, chart bars grow, table rows cascade in; the sidebar stays still while the content fades, and the lime marker springs in beside the current section.
+- [ ] Admin dashboard (desktop browser): stat cards and panels rise in, numbers roll up, chart bars grow, table rows cascade in; the sidebar stays still while the content fades.
 
 ## Known-not-yet-testable
 
