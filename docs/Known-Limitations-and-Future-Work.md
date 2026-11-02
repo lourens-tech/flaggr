@@ -1,6 +1,6 @@
 # Known Limitations & Future Work
 
-_Last verified against code on 2026-10-30._
+_Last verified against code on 2026-11-02._
 
 Open issues found by reading the code, grouped by severity. Paths are relative to this repo unless a repo is named. Items marked **unverified** could not be confirmed from the code alone, for example because they depend on settings in Vercel, EAS or DNS.
 
@@ -52,12 +52,14 @@ Open issues found by reading the code, grouped by severity. Paths are relative t
 
 Fixed in `flagrr-marketing` on 2026-10-28 (commit `5f230aa`): the "R1 = 1" and "on every rand" wording, the desktop-app claim, the "paid automatically" bar voucher claim, the roster note for tier climbing, the claim that flagged receipts credit immediately (they are held until reviewed), "balance" wording, the invented partner club list, the invented advertiser reach figures, and the dead Terms/Privacy links on the club signup pages.
 
+Updated in `flagrr-marketing` on 2026-11-02 (PR ewo-solutions/flagrr-marketing#2, merged and live on flagrr.com): the golfers page shows Course and My Golf, the clubs page shows the Liquid Glass console and the four Course map stages, every phone mock-up has the app's seven-slot tab bar, and two wrong claims are gone: that staff handle enquiries and tickets (they only redeem vouchers and raise Flagrr support tickets), and that admin tools run in the app (admin login is web-only in store builds). The Course copy says courses go live as their maps are built, which stays true while no map is published (see [Course Guide and My Golf](#course-guide-and-my-golf)).
+
 Still open:
 
 - **The season calculator still converts rand spend to Flagrr Cash and then to "rounds of 18"** (`flagrr-marketing: src/components/home/CalculatorSection.tsx`, 900 FC per round). That is an FC-to-reward equivalence the brand kit says not to state, since reward values are set per club. Needs a product decision: reword, caveat, or remove.
-- **Bar voucher amounts (R100 / R200)** are still shown in the tier tables (`flagrr-marketing: PhoneScreen.tsx:29-30`, `golfers.ts:13-14`, `home.ts:95-96`). They are set per club, so these should be dropped or caveated.
-- **Placeholders and dead links that need a real value from you:** `[ SUPPORT@DOMAIN ]` (footer, terms, privacy), the footer "Club login" and "[ Contact ]" links (`home.ts:152, 161`), and "Web app" pointing at a section that has no web-app link.
-- **Pricing is duplicated by hand** in several places and must be kept in step: `flagrr-marketing: src/content/home.ts:111`, `clubs/signup/page.tsx:56-60`, `DemoSection.tsx:48-55`, and the constants in `api/courses/index.ts:27-28`.
+- **Bar voucher amounts (R100 / R200)** are still shown in the tier tables (`flagrr-marketing: PhoneScreen.tsx:30-31`, `golfers.ts:13-14`, `home.ts:86-87`). They are set per club, so these should be dropped or caveated.
+- **Placeholders and dead links that need a real value from you:** `[ SUPPORT@DOMAIN ]` (footer, terms, privacy), the footer "Club login" and "[ Contact ]" links (`home.ts:144, 153`), and "Web app" pointing at a section that has no web-app link.
+- **Pricing is duplicated by hand** in several places and must be kept in step: `flagrr-marketing: src/content/home.ts:104`, `clubs/signup/page.tsx:56-60`, `DemoSection.tsx:48-55`, and the constants in `api/courses/index.ts:27-28`.
 
 ## Push notifications and native builds
 
@@ -83,7 +85,7 @@ These need native code, so they wait for a new App Store / Play Store build (eve
 
 ## Course Guide and My Golf
 
-- **Not live until migration `048` is applied and Strand's map is imported and published** (see [Course Maps](Course-Maps)). Strand's card and map are built and pass every check.
+- **Not live until migration `048` is applied and Strand's map is imported and published** (see [Course Maps](Course-Maps)). Strand's card and map are built and pass every check. The marketing site already describes the feature (with "on courses Flagrr has mapped" and "GPS coming soon" caveats), so publish a map before promoting it.
 - **No GPS yet.** The ball starts on the tee and the member drags it; the hole view says "GPS integration coming soon". Club distances are typed in, not learned from shots.
 - **No satellite imagery:** holes are drawn from OpenStreetMap outlines.
 - **Nine-hole rounds need nine-hole ratings on the card.** Strand's card has none, so only 18-hole rounds can be scored there.
@@ -130,7 +132,7 @@ These need native code, so they wait for a new App Store / Play Store build (eve
 - The first FAQ answer describes ways to earn (promotions, in-app activities) that the backend does not implement, and the three help articles are stubs ending in "...". `mobile/src/data/faqData.ts:9, 46-50`
 - With no ad configured, the ad slot shows a plain "Ad Space" box. `mobile/src/components/common/AdSpace.tsx:93`
 - The PWA manifest describes the app as admin tools only, though members use the same web export. `mobile/static/manifest.json`
-- Pilot launch email images and links use `flagrr.com`, which was not confirmed to serve anything, and the QR script docstrings still mention `app.flagrr.com`. `marketing/strand-golf-club-pilot-launch.html:223`
+- Pilot launch email images and links use `flagrr.com` (which does serve the marketing site, verified 2026-11-02), and the QR script docstrings still mention `app.flagrr.com`. `marketing/strand-golf-club-pilot-launch.html:223`
 - `app.flagrr.com` DNS is not configured, so the API base URL is pinned to `flagrr-loyalty.vercel.app`. `mobile/src/api/client.ts:26-30`
 - Stale comments to refresh: "No live billing/Stripe wiring yet" (`api/admin/index.ts:1755`), "only 'canceled' is ever set" (`api/_lib/pointsEngine.ts:314-318`), PDF support mentioned in `api/_lib/memberRoster.ts`, and a reference to a nonexistent `itemsForBasis` in `api/_lib/pointsEngine.test.ts`.
 

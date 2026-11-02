@@ -132,7 +132,7 @@ Known issues in `app.json`: it requests `android.permission.RECORD_AUDIO`, which
 
 - `app.flagrr.com` is registered in Vercel but its DNS does not resolve publicly yet.
 - Because of that, `mobile/src/api/client.ts` hard-codes `https://flagrr-loyalty.vercel.app` as the API base (overridable with `EXPO_PUBLIC_API_URL`), and the Strand pilot email loads its images from the same domain.
-- The pilot email's "Get Flagrr" button points at `https://flagrr.com`, which has not been confirmed to serve the marketing site.
+- `flagrr.com` and `www.flagrr.com` serve the marketing site's production deployment (verified 2026-11-02), so the pilot email's "Get Flagrr" button works.
 - Once DNS is set up, switch `APP_URL`, the mobile API base URL and the email links together.
 
 ## Production settings check (Vercel project `flagrr-loyalty`, 2026-10-28)
