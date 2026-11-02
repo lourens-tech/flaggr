@@ -15,6 +15,9 @@ A practical checklist for manually testing the member-facing app end-to-end at h
 - [ ] "Keep me logged in" unchecked: closing and reopening the app requires login again.
 - [ ] "Keep me logged in" checked (default): reopening the app stays logged in.
 - [ ] On a store build (`EXPO_PUBLIC_STORE_BUILD=1`), the Landing and Login screens do not show an Admin Login option. On the web build they do.
+- [ ] The opening screen (Landing) shows the photo, headline and glass panel without clipping or sideways scrolling at phone width (375 px), on a foldable's cover and inner screens, on a landscape phone (it scrolls) and on desktop web, in both light and dark mode. Get Started opens sign-up, Golf Course Admin Login opens the admin sign-in and I already have an account opens member login.
+- [ ] With Reduce Motion on, the opening screen appears without the fade-up; with Reduce Transparency on, its panel is solid.
+- [ ] An error alert on member Login or Sign-up (reached from the opening screen) keeps the member style, not the admin one.
 
 ## 2. Forgot Password
 

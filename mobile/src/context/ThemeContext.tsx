@@ -116,7 +116,10 @@ function useReduceTransparency(): boolean {
   return reduced;
 }
 
-export function AdminThemeScope({ children }: { children: React.ReactNode }) {
+// `alerts={false}` leaves out the admin alert host, for a screen that only
+// borrows the look and stays mounted under member screens (the opening
+// screen): while an admin host is mounted, every alert is drawn admin-style.
+export function AdminThemeScope({ children, alerts = true }: { children: React.ReactNode; alerts?: boolean }) {
   const parent = useTheme();
   const reduceTransparency = useReduceTransparency();
   const dark = parent.scheme === 'dark';
@@ -134,7 +137,7 @@ export function AdminThemeScope({ children }: { children: React.ReactNode }) {
     <ThemeContext.Provider value={themeValue}>
       <AdminThemeContext.Provider value={adminValue}>
         {children}
-        <AdminAlertHost />
+        {alerts ? <AdminAlertHost /> : null}
       </AdminThemeContext.Provider>
     </ThemeContext.Provider>
   );

@@ -4,7 +4,8 @@ Everything below describes the app as it exists today for a signed-up member. Se
 
 ## Onboarding
 
-- **Landing screen** → "Get Started" (sign-up) or Login. An "Admin Login" entry is also shown unless the build is a store build (`EXPO_PUBLIC_STORE_BUILD=1`, set in the `preview` and `production` EAS profiles).
+- **Landing screen** (the opening screen) → **Get Started** (sign-up) or **I already have an account** (login). A **Golf Course Admin Login** button is also shown unless the build is a store build (`EXPO_PUBLIC_STORE_BUILD=1`, set in the `preview` and `production` EAS profiles). The "By continuing, you're accepting our Terms of Use and Privacy Notice" line is plain text, not links.
+  - Since 2026-10-30 it uses the same Liquid Glass look as the admin sign-in screen: the Flagrr fairway photo under a dark scrim, the lime Flagrr wordmark, "Play. Earn. *Redeem.* Repeat." in Fraunces 800 with "Redeem." in lime italic, and the three actions on a frosted glass panel in the system font (lime primary button in dark mode, Flag Green in light mode). Phones, foldables and tablets stack it with the panel at the bottom; windows 900 px and wider put the headline left and the panel right. Content scrolls when the screen is short (landscape phones). Elements fade up in turn on open; Reduce Motion skips that, and Reduce Transparency makes the panel solid.
 - **Sign-up** is a two-step flow:
   1. Full name, email, phone, date of birth, and a **Golf Club** picker (the list of all clubs, fetched live — this is the member's "home club"), plus an optional **referral code**.
   2. Password (at least 8 characters).

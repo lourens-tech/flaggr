@@ -52,8 +52,18 @@ const ON_PHOTO = '#FFFFFF';
 // none of them are archived or mid-setup).
 function courseBucket(c: SuperAdminCourseSummary): Exclude<StatusFilter, 'all'> {
   if (c.archivedAt) return 'archived';
+  if (c.isPlaceholder) return 'active';
   if (c.onboardingCompletedAt === null) return 'pending';
   return 'active';
+}
+
+// What a pending club is actually waiting for: a club with no admin needs an
+// invite; one that has an admin is waiting for them to finish the setup wizard
+// (logging in alone does not complete it).
+function pendingHint(c: SuperAdminCourseSummary): string {
+  return c.adminCount > 0
+    ? 'Admin invited. Waiting for them to finish setup.'
+    : 'Awaiting its first admin invite before it can go live';
 }
 
 function initials(name: string): string {
@@ -77,6 +87,7 @@ interface Badge {
 
 function statusBadge(c: SuperAdminCourseSummary): Badge {
   if (c.archivedAt) return { label: 'Archived', tone: 'neutral' };
+  if (c.isPlaceholder) return { label: 'Placeholder club', tone: 'neutral' };
   if (c.onboardingCompletedAt === null) return { label: 'Setup Pending', tone: 'amber' };
   switch (c.subscriptionStatus) {
     case 'past_due':
@@ -260,7 +271,7 @@ function CourseCard({ course, pending, ...actions }: CourseCardProps) {
       {isPending ? (
         <View style={styles.hintRow}>
           <Ionicons name="information-circle-outline" size={16} color={c.amber} />
-          <Text style={styles.hintText}>Awaiting its first admin invite before it can go live</Text>
+          <Text style={styles.hintText}>{pendingHint(course)}</Text>
         </View>
       ) : null}
 
@@ -565,7 +576,7 @@ export function SuperAdminCoursesScreen({ navigation }: Props) {
             <View style={{ gap: 4 }}>
               <StatusPill label={badge.label} tone={badge.tone} />
               {courseBucket(row) === 'pending' ? (
-                <Text style={styles.tableHint} numberOfLines={2}>Awaiting its first admin invite before it can go live</Text>
+                <Text style={styles.tableHint} numberOfLines={2}>{pendingHint(row)}</Text>
               ) : null}
             </View>
           );
