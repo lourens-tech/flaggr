@@ -1,6 +1,15 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
-import type { CourseMapStatus, ScorecardPhoto, SuperAdminGolfCourseDetail, SuperAdminGolfCourses } from '../golf/adminDto';
+import type {
+  CourseMapStatus,
+  GolfClubOverviewDto,
+  GolfMemberDetailDto,
+  GolfScorecardDto,
+  ScorecardPhoto,
+  SuperAdminGolfCourseDetail,
+  SuperAdminGolfCourses,
+  SuperAdminGolfDto,
+} from '../golf/adminDto';
 import type {
   AdminAd,
   AdminBroadcast,
@@ -227,7 +236,20 @@ export interface SupportAgentCreatePayload {
   email: string;
 }
 
+type GolfPeriodParam = 'month' | 'year' | 'all';
+const q = encodeURIComponent;
+
 export const adminApi = {
+  // Golf (api/_lib/golfClub.ts): members' rounds on the club's own course.
+  golfOverview: (period: GolfPeriodParam) => request<GolfClubOverviewDto>(`?action=golfOverview&period=${period}`),
+  golfMember: (userId: string, period: GolfPeriodParam) => request<GolfMemberDetailDto>(`?action=golfMember&userId=${q(userId)}&period=${period}`),
+  golfScorecard: (id: string) => request<GolfScorecardDto>(`?action=golfScorecard&id=${q(id)}`),
+  superAdminGolf: (period: GolfPeriodParam) => request<SuperAdminGolfDto>(`?action=superAdminGolf&period=${period}`),
+  superAdminGolfClub: (courseId: string, period: GolfPeriodParam) =>
+    request<GolfClubOverviewDto>(`?action=superAdminGolfClub&courseId=${q(courseId)}&period=${period}`),
+  superAdminGolfMember: (userId: string, period: GolfPeriodParam) =>
+    request<GolfMemberDetailDto>(`?action=superAdminGolfMember&userId=${q(userId)}&period=${period}`),
+  superAdminGolfScorecard: (id: string) => request<GolfScorecardDto>(`?action=superAdminGolfScorecard&id=${q(id)}`),
   // Course maps (api/_lib/golfAdmin.ts): the GM's scorecard photos...
   courseMapStatus: () => request<CourseMapStatus>('?action=courseMapStatus'),
   scorecardPhoto: (id: string) => request<{ imageData: string }>(`?action=scorecardPhoto&id=${encodeURIComponent(id)}`),

@@ -23,6 +23,10 @@ import { SuperAdminBroadcastComposeScreen } from '../screens/superadmin/SuperAdm
 import { SuperAdminCourseAdminsScreen } from '../screens/superadmin/SuperAdminCourseAdminsScreen';
 import { SuperAdminCourseAdminCreateScreen } from '../screens/superadmin/SuperAdminCourseAdminCreateScreen';
 import { SuperAdminMemberStatsScreen } from '../screens/superadmin/SuperAdminMemberStatsScreen';
+import { SuperAdminGolfScreen } from '../screens/superadmin/SuperAdminGolfScreen';
+import { AdminGolfScreen } from '../screens/admin/AdminGolfScreen';
+import { AdminGolfMemberScreen } from '../screens/admin/AdminGolfMemberScreen';
+import { AdminGolfScorecardScreen } from '../screens/admin/AdminGolfScorecardScreen';
 import { SuperAdminAuditLogScreen } from '../screens/superadmin/SuperAdminAuditLogScreen';
 import { SuperAdminFraudOversightScreen } from '../screens/superadmin/SuperAdminFraudOversightScreen';
 import { SuperAdminCourseMapsScreen } from '../screens/superadmin/SuperAdminCourseMapsScreen';
@@ -52,6 +56,10 @@ export function SuperAdminNavigator() {
       <Stack.Screen name="SuperAdminTabs" component={SuperAdminTabNavigator} />
       <Stack.Screen name="SuperAdminCourseMaps" component={SuperAdminCourseMapsScreen} />
       <Stack.Screen name="SuperAdminCourseMap" component={SuperAdminCourseMapScreen} />
+      <Stack.Screen name="SuperAdminGolf" component={SuperAdminGolfScreen} />
+      <Stack.Screen name="SuperAdminGolfClub" component={AdminGolfScreen} />
+      <Stack.Screen name="SuperAdminGolfMember" component={AdminGolfMemberScreen} />
+      <Stack.Screen name="SuperAdminGolfScorecard" component={AdminGolfScorecardScreen} />
       <Stack.Screen name="SuperAdminCourseCreate" component={SuperAdminCourseCreateScreen} />
       <Stack.Screen name="SuperAdminCourseAds" component={SuperAdminCourseAdsScreen} />
       <Stack.Screen name="SuperAdminAdEdit" component={SuperAdminAdEditScreen} />

@@ -170,6 +170,16 @@ Needs migration `048` applied and at least one live course map.
 - [ ] Tap a photo to view it; delete it; the 12-photo limit is enforced.
 - [ ] Super admin: Course Maps lists the club; its photos show and download (web); importing `course-maps/strand-golf-club.json` creates a draft with no blockers; a file with a bad stroke index is saved as a draft with the blocker listed and Publish disabled; Publish makes the club's Course tab show **Start a round**; Unpublish brings back Coming soon.
 
+## 15c. Golf on the admin dashboards
+
+- [ ] Member: My Golf shows **Share my rounds with {club}**, on. Turn it off: the club's Golf page no longer lists the member or their rounds, and opening their page or a scorecard says the member keeps their rounds private. Turn it back on: they reappear.
+- [ ] Course admin: Members › Golf (sidebar, ⌘K, or More on a phone). Before the map is live the page says so. With rounds: the totals, rounds chart, scoring mix, toughest holes, latest rounds and members table match the members' own My Golf numbers for the same period; Month / Year / All changes them.
+- [ ] Only the club's own members' rounds on the club's own course appear: a member's away rounds and other clubs' members playing the course do not.
+- [ ] Open a member: their numbers match their My Golf screen. Open a round: the scorecard's shots received, points, putts and fairways match the round in the member app; a picked-up hole shows a dash and the gross shows a dash; Previous / Next round step through their rounds.
+- [ ] Staff accounts have no Golf entry, and the API refuses the Golf actions for them.
+- [ ] Super admin: Insights › Golf lists every active club with its map status; open a club, a member and a scorecard; the sidebar keeps Golf selected throughout.
+- [ ] All Golf pages at desktop, 840-wide, phone and landscape sizes, light and dark.
+
 ## 16. Cross-cutting
 
 - [ ] Every confirm/alert dialog in the app (redeem confirmation, change-club confirmation, error messages) uses the branded in-app modal — no native browser `alert()`/`confirm()` popups anywhere.

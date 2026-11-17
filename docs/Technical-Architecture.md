@@ -63,15 +63,15 @@ Vercel's Hobby plan allows **12 serverless functions**, and the API uses exactly
 | `api/receipts/index.ts` | List, `?action=scan` (preview), POST (confirm), `?action=image` |
 | `api/profile/index.ts` | Avatar upload (default), plus actions: `update`, `changeClub`, `contact`, `feedbackCreate`, `enquiryReply`, `myEnquiries`, `enquiryThread`, `adClick`, `adImpression`, `registerPushToken`, `themePreference`, `notificationPreferences`, `updateNotificationPreferences`, `changePassword`, `deleteAccount`, `exportMyData`, `referralInfo` |
 | `api/courses/index.ts` | Public club list (GET), `?action=initiateSignup`, `?action=payfastNotify`, `?action=payfastGracePeriodCheck`, and the member Course / My Golf actions in `api/_lib/golf.ts`: `golfHome`, `golfCourse`, `golfProfile` (GET and POST), `golfRoundStart`, `golfRound`, `golfRoundSave`, `golfRoundFinish`, `golfRoundDelete`, `golfStats` |
-| `api/admin/index.ts` | Every admin, staff, support-agent and super-admin action (about 4,400 lines), dispatched by `?action=`. Course map actions live in `api/_lib/golfAdmin.ts`: course admin `courseMapStatus`, `scorecardPhoto`, `scorecardPhotoUpload`, `scorecardPhotoDelete`; super admin `superAdminGolfCourses`, `superAdminGolfCourse`, `superAdminScorecardPhotos`, `superAdminScorecardPhoto`, `superAdminGolfCourseImport`, `superAdminGolfCoursePublish`, `superAdminGolfCourseDelete` |
+| `api/admin/index.ts` | Every admin, staff, support-agent and super-admin action (about 4,400 lines), dispatched by `?action=`. Course map actions live in `api/_lib/golfAdmin.ts`: course admin `courseMapStatus`, `scorecardPhoto`, `scorecardPhotoUpload`, `scorecardPhotoDelete`; super admin `superAdminGolfCourses`, `superAdminGolfCourse`, `superAdminScorecardPhotos`, `superAdminScorecardPhoto`, `superAdminGolfCourseImport`, `superAdminGolfCoursePublish`, `superAdminGolfCourseDelete`. The admin Golf pages live in `api/_lib/golfClub.ts` (read-only, GET): course admin `golfOverview`, `golfMember` (`userId`), `golfScorecard` (`id`); super admin `superAdminGolf`, `superAdminGolfClub` (`courseId`), `superAdminGolfMember`, `superAdminGolfScorecard`. They count completed rounds on a club's own course map by members of that club whose `golf_profiles.share_with_club` is not false; staff are refused |
 
 **New backend capability must go into an existing file via `?action=` dispatch**, unless a function is retired to make room.
 
-Shared logic that is not a route lives in `api/_lib/`: `db`, `auth`, `http`, `email`, `emailTemplate`, `welcomeEmail`, `passwordReset`, `ocr`, `receiptParser`, `receiptExtraction`, `claudeReceipt`, `scanPipeline`, `scanCache`, `matching`, `pointsEngine`, `fraudChecks`, `imageHash`, `tiers`, `tierRewards`, `streak`, `streakRewards`, `quarter`, `periods`, `monthly`, `referrals`, `ads`, `adAnalytics`, `pushNotifications`, `payfast`, `memberRoster`, `memberRosterFileParsing`, `xlsx`, `enquiries`, `supportTickets`, `adminNotifications`, `adminReports`, `auditLog`, `giftFlagrrCash`, `golf`, `golfAdmin`.
+Shared logic that is not a route lives in `api/_lib/`: `db`, `auth`, `http`, `email`, `emailTemplate`, `welcomeEmail`, `passwordReset`, `ocr`, `receiptParser`, `receiptExtraction`, `claudeReceipt`, `scanPipeline`, `scanCache`, `matching`, `pointsEngine`, `fraudChecks`, `imageHash`, `tiers`, `tierRewards`, `streak`, `streakRewards`, `quarter`, `periods`, `monthly`, `referrals`, `ads`, `adAnalytics`, `pushNotifications`, `payfast`, `memberRoster`, `memberRosterFileParsing`, `xlsx`, `enquiries`, `supportTickets`, `adminNotifications`, `adminReports`, `auditLog`, `giftFlagrrCash`, `golf`, `golfAdmin`, `golfClub`.
 
-**Shared with the app:** the golf scoring and stats code lives in `mobile/src/golf/` (`courseMap.ts` the map file format and its checks, `scoring.ts` the World Handicap System handicaps, strokes and Stableford, `stats.ts` My Golf, `holeGeometry.ts` the hole view and shot suggestion, `dto.ts` / `adminDto.ts` the response shapes). It has no React Native imports, and `api/_lib/golf.ts` and `golfAdmin.ts` import it directly, so the totals the API stores always match what the member saw.
+**Shared with the app:** the golf scoring and stats code lives in `mobile/src/golf/` (`courseMap.ts` the map file format and its checks, `scoring.ts` the World Handicap System handicaps, strokes and Stableford, `stats.ts` My Golf, `clubStats.ts` a club's Golf page (built on `stats.ts`), `holeGeometry.ts` the hole view and shot suggestion, `dto.ts` / `adminDto.ts` the response shapes). It has no React Native imports, and `api/_lib/golf.ts`, `golfAdmin.ts` and `golfClub.ts` import it directly, so the totals the API stores always match what the member saw.
 
-Unit tests (`npm test`, which runs `tsx --test api/_lib/*.test.ts`) cover `matching`, `pointsEngine`, `receiptParser` and the golf scoring, stats and map checks (`golfScoring.test.ts`).
+Unit tests (`npm test`, which runs `tsx --test api/_lib/*.test.ts`) cover `matching`, `pointsEngine`, `receiptParser` and the golf scoring, stats, club Golf numbers and map checks (`golfScoring.test.ts`).
 
 ## Authentication and roles
 
@@ -88,7 +88,7 @@ Unit tests (`npm test`, which runs `tsx --test api/_lib/*.test.ts`) cover `match
 
 ## Database
 
-Full schema: `db/schema.sql`. Migrations are `db/migrations/001`–`048`, applied by hand in the Neon console. There is no migration runner or tracking table.
+Full schema: `db/schema.sql`. Migrations are `db/migrations/001`–`049`, applied by hand in the Neon console. There is no migration runner or tracking table.
 
 **Important:** `db/schema.sql` is behind the migrations and cannot rebuild the current database on its own (see [Known Limitations](Known-Limitations-and-Future-Work)). Treat the migrations, applied in order, as the source of truth.
 
@@ -102,7 +102,7 @@ Main groups of tables (some are created only by migrations):
 - **Earning**: `activity`, ledgers `birthday_rewards_granted`, `quarterly_tier_vouchers_granted`, `streak_rewards_granted`, `referrals`.
 - **Ads**: `ads`, `ad_courses`, `ad_clicks`, `ad_impressions`.
 - **Support**: `enquiries`, `enquiry_messages`, support tickets.
-- **Course Guide and My Golf** (`048`): `golf_courses` (one course map per row, `club_id` linking it to a Flagrr club or null for an away-only course, `status` draft or live, the whole map file in `map` jsonb), `scorecard_photos`, `golf_profiles` (Handicap Index as entered, rating gender, format, allowance, bag, putts-and-fairways setting), `golf_rounds` (a snapshot of holes, ratings and handicaps, the per-hole `entries`, and totals recomputed on every save; one in progress per member, enforced by a partial unique index).
+- **Course Guide and My Golf** (`048`): `golf_courses` (one course map per row, `club_id` linking it to a Flagrr club or null for an away-only course, `status` draft or live, the whole map file in `map` jsonb), `scorecard_photos`, `golf_profiles` (Handicap Index as entered, rating gender, format, allowance, bag, putts-and-fairways setting, and `share_with_club` from `049`, default true), `golf_rounds` (a snapshot of holes, ratings and handicaps, the per-hole `entries`, and totals recomputed on every save; one in progress per member, enforced by a partial unique index; `049` adds an index on course and completion date for the admin Golf pages).
 
 ## Receipt scan pipeline
 

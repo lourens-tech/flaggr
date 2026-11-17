@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, RefreshControl, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, RefreshControl, ScrollView, StatusBar, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Line, Path, Rect, Text as SvgText } from 'react-native-svg';
 import { useFocusEffect } from '@react-navigation/native';
@@ -12,6 +12,7 @@ import { HeaderAvatar } from '../../components/common/HeaderAvatar';
 import { PillButton } from '../../components/common/PillButton';
 import { FadeIn, PressableScale } from '../../components/motion';
 import { api } from '../../api/client';
+import { showAlert } from '../../utils/alert';
 import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
 import type { GolfStatsDto } from '../../golf/dto';
@@ -38,6 +39,23 @@ export function MyGolfScreen({ navigation }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [tip, setTip] = useState<number | null>(null);
+  const [sharing, setSharing] = useState(false);
+
+  // Whether the member's club sees their rounds on its course (the admin
+  // Golf pages). Flips at once and goes back if the save fails.
+  const setShare = async (on: boolean) => {
+    if (!data || sharing) return;
+    setSharing(true);
+    setData({ ...data, shareWithClub: on });
+    try {
+      await api.saveGolfProfile({ shareWithClub: on });
+    } catch (e) {
+      setData((d) => (d ? { ...d, shareWithClub: !on } : d));
+      showAlert('Couldn’t save that', e instanceof Error ? e.message : 'Try again.');
+    } finally {
+      setSharing(false);
+    }
+  };
 
   const load = useCallback(async (p: StatsPeriod) => {
     try {
@@ -360,6 +378,29 @@ export function MyGolfScreen({ navigation }: Props) {
             )}
           </>
         ) : null}
+
+        {data && !data.isPlaceholderClub ? (
+          <View style={[styles.card, styles.shareCard]}>
+            <View style={styles.shareRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.cardTitle}>Share my rounds with {data.clubName || 'my club'}</Text>
+                <Text style={styles.body}>
+                  {data.shareWithClub
+                    ? 'Your club can see the rounds you play on its course, your scorecards and the stats from them. Turn this off to keep them to yourself.'
+                    : 'Your rounds are private. Your club can’t see your scorecards or golf stats.'}
+                </Text>
+              </View>
+              <Switch
+                value={data.shareWithClub}
+                onValueChange={setShare}
+                disabled={sharing}
+                trackColor={{ true: colors.clubGreen, false: colors.border }}
+                thumbColor={colors.white}
+                accessibilityLabel={`Share my rounds with ${data.clubName || 'my club'}`}
+              />
+            </View>
+          </View>
+        ) : null}
       </ScrollView>
     </View>
   );
@@ -528,6 +569,8 @@ function createStyles(colors: ThemeColors) {
     tile: { width: '47%', flexGrow: 1, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, paddingHorizontal: 12, paddingVertical: 10, gap: 2 },
     tileVal: { fontFamily: fontFamily.bodySemiBold, fontSize: 22, color: colors.textPrimary },
     tileSub: { fontFamily: fontFamily.body, fontSize: 11, color: colors.textSecondary },
+    shareCard: { marginTop: spacing.md },
+    shareRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
     card: { borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, marginHorizontal: spacing.md, padding: 14, gap: 8, backgroundColor: colors.surface },
     cardTitle: { fontFamily: fontFamily.bodySemiBold, fontSize: 14.5, color: colors.textPrimary },
     sub: { fontFamily: fontFamily.body, fontSize: 11.5, color: colors.textMuted, marginTop: -6 },

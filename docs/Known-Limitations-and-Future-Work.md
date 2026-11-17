@@ -1,6 +1,6 @@
 # Known Limitations & Future Work
 
-_Last verified against code on 2026-11-02._
+_Last verified against code on 2026-11-17._
 
 Open issues found by reading the code, grouped by severity. Paths are relative to this repo unless a repo is named. Items marked **unverified** could not be confirmed from the code alone, for example because they depend on settings in Vercel, EAS or DNS.
 
@@ -47,6 +47,7 @@ Open issues found by reading the code, grouped by severity. Paths are relative t
 6. **A personal email address** is the fallback contact in code and on a public page. `api/profile/index.ts:19`, `api/admin/index.ts:69`, `mobile/static/support.html:73`
 7. **App store badges** on current marketing assets are placeholders and must be replaced with official artwork before paid or printed use (see `docs/Brand-Kit.md`).
 8. **Google Analytics** on the marketing site is off by default and needs a cookie notice before it is switched on. `flagrr-marketing/.env.example:16-22`
+9. **The privacy notice does not yet say that a member's club can see their golf rounds** (the admin Golf pages, added 2026-11-17, on by default with a switch in My Golf). Update the in-app terms and privacy text and `privacy.html` (and the marketing site's privacy page) before relying on the default under POPIA. `mobile/static/privacy.html`
 
 ## Marketing claims that conflict with the app or the brand kit
 
@@ -93,6 +94,8 @@ These need native code, so they wait for a new App Store / Play Store build (eve
 - **Scores are not submitted to GolfRSA,** and Flagrr never calculates a Handicap Index; members type theirs in.
 - **Away courses are only courses Flagrr has mapped.** A member cannot add an unmapped course.
 - **A map stays live if its club's subscription is cancelled**; unpublish it from the super admin console if it should go.
+- **Admin Golf pages count only rounds on the club's own course** by its own members (owner's decision, 2026-11-17). Away rounds and visitors from other clubs are not shown to any club. There is no Excel export of golf data yet.
+- **Fixed on 2026-11-17:** the admin and web screen layouts (`adminScreenLayout` in `AdminScope.tsx`, `webScreenLayout` in `motionOptions.tsx`) called hooks directly inside the navigator's render, which React flagged as a change in hook order when screens were pushed or popped (introduced with the edge-to-edge change in PR #21). Each now renders its own component.
 - **Deferred on purpose:** the Flagrr Amateur Cup teaser from the mockup was left out; strokes gained, scrambling and handicap history are not built.
 
 ## Database and migrations

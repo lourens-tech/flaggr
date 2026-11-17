@@ -12,6 +12,9 @@ export interface GolfProfileDto {
   allowance: 0.95 | 1;
   bag: Club[] | null; // null = the app's sample distances
   trackStats: boolean;
+  // Whether the member's club can see their rounds on its course (and the
+  // stats from them) on the admin Golf pages. On unless they turn it off.
+  shareWithClub: boolean;
 }
 
 export interface GolfCourseSummaryDto {
@@ -65,10 +68,12 @@ export interface GolfCourseDto extends GolfCourseSummaryDto {
 export interface GolfStatsDto {
   period: 'month' | 'year' | 'all';
   clubName: string;
+  isPlaceholderClub: boolean;
   homeMapLive: boolean;
   anyCourseLive: boolean;
   totalRounds: number; // all time, any period
   handicapIndex: number | null;
   trackStats: boolean;
+  shareWithClub: boolean;
   stats: GolfStats;
 }

@@ -192,7 +192,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
              from support_ticket_messages m where m.ticket_id = t.id) as messages
           from support_tickets t where t.requester_user_id = ${authed.id} order by t.created_at desc
         `,
-        sql`select handicap_index, rating_gender, format, allowance, bag, track_stats from golf_profiles where user_id = ${authed.id}`,
+        sql`select handicap_index, rating_gender, format, allowance, bag, track_stats, share_with_club from golf_profiles where user_id = ${authed.id}`,
         sql`
           select course_name, tee_name, rating_gender, layout, format, allowance, handicap_index, course_rating, slope, par,
             course_handicap, playing_handicap, holes, entries, status, total_points, total_gross, total_adjusted, started_at, completed_at
@@ -284,6 +284,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
             allowance: Number(golfProfileRows[0].allowance),
             bag: golfProfileRows[0].bag,
             trackStats: golfProfileRows[0].track_stats,
+            shareWithClub: golfProfileRows[0].share_with_club,
           }
         : null,
       golfRounds: (golfRoundRows as Array<Record<string, unknown>>).map((r) => ({
