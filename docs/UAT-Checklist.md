@@ -176,17 +176,18 @@ Needs migration `048` applied and at least one live course map.
 - [ ] Refreshing the browser mid-session keeps the member logged in and on a sensible screen (not dumped back to login unnecessarily).
 - [ ] No console errors in the browser dev tools during a normal walkthrough of sections 1–15.
 - [ ] The public pages `/privacy.html` and `/support.html` load.
-- [ ] Super admin on a phone (or a browser window under 900px wide): every tab and pushed screen shows the large-title header over the photo, not a solid green bar; on Courses the filter is fully visible; on Push a club-scoped notification's badge truncates instead of running off the card; nothing runs off the right edge of the screen.
+- [ ] Super admin on a phone (or a browser window under 840px wide): every tab and pushed screen shows the large-title header over the photo, not a solid green bar; on Courses the filter is fully visible; on Push a club-scoped notification's badge truncates instead of running off the card; nothing runs off the right edge of the screen.
 
 ## 16a. Admin consoles (all four roles)
 
 Test each role (course admin, staff, super admin, support agent) at three widths: desktop (1440px), a foldable or small laptop (about 960px) and a phone (375px), in both light and dark mode.
 
 - [ ] Sign-in, forgot password, forced password change and staff welcome show the admin look (Flagrr photo behind glass), not the member look.
-- [ ] Desktop: glass sidebar with the club crest (or the Flagrr mark for super admin and support), grouped sections, account button; content on solid tiles over the blurred club photo. Between 900 and 1100px the sidebar becomes an icon rail. At 1280px and wider, course admins see the Activity inspector (All / Enquiries / Receipts, Mark all as read), super admins the audit log, support agents their tickets; staff see no bell and no inspector.
+- [ ] Desktop: glass sidebar with the club crest (or the Flagrr mark for super admin and support), grouped sections, account button; content on solid tiles over the blurred club photo. Below 1100px the sidebar becomes an icon rail. At 1280px and wider, course admins see the Activity inspector (All / Enquiries / Receipts, Mark all as read), super admins the audit log, support agents their tickets; staff see no bell and no inspector.
 - [ ] ⌘K (Mac) or Ctrl K (Windows), or clicking the search pill, opens search. Typing a section name and pressing Enter goes there; for course admins and super admins, typing two or more letters of a member's name lists members and opening one shows their stats. Esc closes it.
 - [ ] Phone: floating tab bar with the role's tabs (course admin Home, Enquiries, Vouchers, Rewards, More; staff Vouchers, Support, Profile; super admin Courses, Reports, Support, Ads, More; support agent Inbox, Profile). More lists every other section; the More tab shows the unread count for course admins.
 - [ ] Every list shows a skeleton while loading, a calm empty state, and an error state with Retry when the network is off.
+- [ ] iPhone Duo unfolded (or any phone in landscape), in Safari and as an installed web app: no white bars down the sides; the photo background reaches the screen edges and nothing sits under the notch. Unfolded, the console shows the icon rail on the left (it scrolls if the last items don't fit); a phone in landscape shows the tab bar as a vertical rail on the left with More at the bottom; folded, the bottom tab bar is back.
 - [ ] Turning on Reduce Transparency (iOS Accessibility, or the browser setting) replaces glass with solid fills.
 - [ ] Alerts and confirms inside the admin consoles use the admin style, and the member app's alerts are unchanged.
 - [ ] Products and activities: each active row has Deactivate (confirm, then the item shows Inactive and the scanner stops matching it) and a separate red "Delete permanently…" with its own confirm. The edit screen's red button says Deactivate.

@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
-import { Image, Platform, ScrollView, StyleSheet, Text, View, type TextStyle } from 'react-native';
+import { Image, Platform, ScrollView, StyleSheet, Text, View, type TextStyle, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, type CompositeScreenProps } from '@react-navigation/native';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
@@ -74,6 +74,7 @@ export function AdminDashboardScreen({ navigation }: Props) {
   const { c } = useAdminTheme();
   const styles = useMemo(() => createStyles(c), [c]);
   const isDesktop = useIsDesktopNav();
+  const { height: windowHeight } = useWindowDimensions();
   const {
     admin,
     course,
@@ -425,7 +426,8 @@ export function AdminDashboardScreen({ navigation }: Props) {
           greetingText={greeting()}
           firstName={admin.firstName}
           subtitle={subtitle}
-          height={300}
+          // Shorter on a phone held in landscape, so the numbers stay in view.
+          height={Math.min(300, Math.round(windowHeight * 0.45))}
           titleSize={40}
           desktop={false}
         />

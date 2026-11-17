@@ -21,7 +21,7 @@ _Last verified against code on 2026-10-28._
 - `outputDirectory`: `mobile/dist`
 - `functions`: `api/receipts/index.ts` gets `maxDuration: 60` and bundles `node_modules/tesseract.js-core/**`. No other function sets a duration.
 - `crons`: one job, `GET /api/courses?action=payfastGracePeriodCheck` at `0 6 * * *` (06:00 UTC), protected by `CRON_SECRET`.
-- `copy-static-assets.sh` copies email images, reward images, store QR codes, the standalone `privacy.html`, `support.html` and `delete-account.html` pages, and the PWA manifest and service worker into `dist/`.
+- `copy-static-assets.sh` copies email images, reward images, store QR codes, the standalone `privacy.html`, `support.html` and `delete-account.html` pages, and the PWA manifest and service worker into `dist/`. It also edits `dist/index.html`: manifest and icon links, theme colour, service-worker registration, `viewport-fit=cover` on the viewport tag, and a Fairway page background.
 
 ## Motion and transitions
 
