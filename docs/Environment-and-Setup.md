@@ -173,3 +173,9 @@ Rules and gotchas:
 - Anything native needs a new build and store submission: a new native module or Expo plugin, permission changes, an Expo SDK upgrade, icon or splash changes.
 - **`EXPO_PUBLIC_STORE_BUILD` is set only in the `eas.json` build profiles.** From SDK 55, `eas update` ignores local `.env` files and uses variables stored on EAS servers for the chosen `--environment`. If `EXPO_PUBLIC_STORE_BUILD=1` is not also defined in the EAS `production` environment, an update would be bundled with it unset, which re-enables the admin-login links in the store apps (`mobile/src/config/buildConfig.ts`). It is now defined there (2026-10-28); keep it if the environment is ever recreated.
 - The web app on Vercel is separate: it updates on every Vercel deploy and needs no store step.
+
+## Production database migration status (checked 2026-11-17)
+
+A marker check for every migration from 025 to 048 was run against the production database. All were present except `035_support_ticket_priority.sql`, which had been skipped (036 had been applied). The missing `support_tickets.priority` column made the super-admin Support Centre fail to load ("Couldn't load this"; server error `column t.priority does not exist`). It was added on 2026-11-17 with the idempotent form of migration 035. Production is now up to date through migration 048.
+
+Because migrations are applied by hand, run the same marker check after applying a batch of migrations, and add a row for each new migration to it. The check query is in `db/checks/migration-status.sql`.

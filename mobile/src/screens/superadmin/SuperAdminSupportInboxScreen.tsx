@@ -87,13 +87,20 @@ export function SuperAdminSupportInboxScreen({ navigation }: Props) {
   // Set when the inbox fails to load (it used to fail silently); cleared on retry.
   const [error, setError] = useState(false);
 
+  // Only the most recent request may update the list: with several filter
+  // changes in quick succession, a slow earlier response used to land last and
+  // show tickets that no longer matched the selected filters.
+  const latestRequest = useRef(0);
+
   const load = useCallback(
     async (f: SupportTicketStatus | 'all', p: SupportTicketPriority | 'all', a: 'all' | 'mine' | 'unassigned') => {
+      const requestId = ++latestRequest.current;
       setLoading(true);
       try {
-        setTickets(await getSupportInbox(f === 'all' ? undefined : f, p === 'all' ? undefined : p, a === 'all' ? undefined : a));
+        const result = await getSupportInbox(f === 'all' ? undefined : f, p === 'all' ? undefined : p, a === 'all' ? undefined : a);
+        if (requestId === latestRequest.current) setTickets(result);
       } finally {
-        setLoading(false);
+        if (requestId === latestRequest.current) setLoading(false);
       }
     },
     [getSupportInbox],
