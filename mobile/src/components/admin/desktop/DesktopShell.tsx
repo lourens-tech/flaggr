@@ -208,11 +208,9 @@ export function DesktopShell({
           )}
         </View>
 
-        {/* The icon rail can run out of height on short screens (an unfolded
-            iPhone Duo is 626 pt tall), so it shows that it scrolls. */}
-        <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={rail} accessibilityRole="menu">
+        <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} accessibilityRole="menu">
           {navGroups.map((group, gi) => (
-            <View key={group.label || `g${gi}`} style={rail ? null : styles.group}>
+            <View key={group.label || `g${gi}`} style={styles.group}>
               {group.label && !rail ? <Text style={[styles.groupLabel, { color: c.ink3 }]}>{group.label}</Text> : null}
               {rail && gi > 0 ? <View style={[styles.railSep, { backgroundColor: c.edge }]} /> : null}
               {group.items.map((item) => (
@@ -328,10 +326,10 @@ const styles = StyleSheet.create({
   shell: { flex: 1, flexDirection: 'row', gap: 12, padding: 12 },
   sidebar: { width: 252, paddingTop: 16, paddingBottom: 12, paddingHorizontal: 12 },
   sidebarRail: { width: 76, paddingHorizontal: 10 },
-  clubRail: { justifyContent: 'center', paddingHorizontal: 0, marginBottom: 10 },
-  navItemRail: { justifyContent: 'center', paddingHorizontal: 0, height: 44 },
+  clubRail: { justifyContent: 'center', paddingHorizontal: 0 },
+  navItemRail: { justifyContent: 'center', paddingHorizontal: 0, height: 48 },
   railBadge: { position: 'absolute', top: 2, right: 4, minWidth: 18, height: 18 },
-  railSep: { height: StyleSheet.hairlineWidth, marginHorizontal: 10, marginVertical: 5 },
+  railSep: { height: StyleSheet.hairlineWidth, marginHorizontal: 10, marginVertical: 8 },
   acctRail: { justifyContent: 'center', paddingHorizontal: 0 },
   club: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 6, marginBottom: 14 },
   crest: { width: 40, height: 40, borderRadius: adminRadius.sm, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },

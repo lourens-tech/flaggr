@@ -95,7 +95,7 @@ These need native code, so they wait for a new App Store / Play Store build (eve
 - **Away courses are only courses Flagrr has mapped.** A member cannot add an unmapped course.
 - **A map stays live if its club's subscription is cancelled**; unpublish it from the super admin console if it should go.
 - **Admin Golf pages count only rounds on the club's own course** by its own members (owner's decision, 2026-11-17). Away rounds and visitors from other clubs are not shown to any club. There is no Excel export of golf data yet.
-- **Fixed on 2026-11-17:** the admin and web screen layouts (`adminScreenLayout` in `AdminScope.tsx`, `webScreenLayout` in `motionOptions.tsx`) called hooks directly inside the navigator's render, which React flagged as a change in hook order when screens were pushed or popped (introduced with the edge-to-edge change in PR #21). Each now renders its own component.
+- **Fixed on 2026-11-17, then reverted with the change that caused it:** the iPhone Duo edge-to-edge change (PR #21) put hooks inside the admin and web screen layouts, which React flagged as a change in hook order when screens were pushed or popped. The owner asked for that whole Duo change to be undone, so the layouts are back to their earlier hook-free form (`adminScreenLayout` in `AdminScope.tsx`, `webScreenLayout` in `motionOptions.tsx`). React Navigation calls a `screenLayout` as a plain function, so keep hooks out of it.
 - **Deferred on purpose:** the Flagrr Amateur Cup teaser from the mockup was left out; strokes gained, scrambling and handicap history are not built.
 
 ## Database and migrations
@@ -108,6 +108,8 @@ These need native code, so they wait for a new App Store / Play Store build (eve
 - **Nothing cleans up:** vouchers are never marked `expired`, and expired sessions and reset codes are never purged. The billing check is the only scheduled job.
 
 ## Admin and reporting gaps
+
+- **iPhone Duo and phones in landscape (web app):** the admin consoles show white bars down the sides where the screen has side insets, and the unfolded Duo uses the phone layout with a bottom tab bar. Two attempts (an edge-to-edge layout with a vertical menu, PR #21, and a see-through status bar with a right-hand menu when folded, PR #22) were tried and reverted at the owner's request on 2026-11-17. Deliberately deferred.
 
 - Archiving a club only hides it in the admin list. Members can still sign up to it and its staff can still log in. `api/courses/index.ts:332`
 - Flagrr Cash per Rand (`fb_per_rand`) cannot be changed from any screen, only directly in the database. `api/admin/index.ts:3522-3526`

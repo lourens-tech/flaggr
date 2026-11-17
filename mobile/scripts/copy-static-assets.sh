@@ -26,15 +26,7 @@ cp assets/playstore-icon-512.png dist/pwa-icon-512.png
 # Expo's generated index.html has no manifest link, theme-color, or service
 # worker registration — inject them post-export rather than fighting Metro's
 # web export for a custom HTML template.
-#
-# viewport-fit=cover lets the app draw under the notch and home indicator
-# (screens inset their own content; see navigation/motionOptions.tsx and
-# components/admin/AdminScope.tsx). Without it, Safari fills the side insets
-# of a phone or foldable held in landscape with the page background, which
-# was white. The page background is Fairway now in case anything shows.
 sed -i \
-  -e 's@shrink-to-fit=no"@shrink-to-fit=no, viewport-fit=cover"@' \
-  -e 's@</head>@<style>html,body{background-color:#1F4234}</style></head>@' \
   -e 's@<link rel="icon" href="/favicon.ico"/>@<link rel="icon" href="/favicon.ico"/><link rel="manifest" href="/manifest.json"/><link rel="apple-touch-icon" href="/pwa-icon-192.png"/><meta name="theme-color" content="#1F4234"/>@' \
   -e 's@</body>@<script>if("serviceWorker" in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("/sw.js")})}</script></body>@' \
   dist/index.html

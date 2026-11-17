@@ -50,11 +50,9 @@ const SUPPORT_AGENT_TABS: TabEntry[] = [
 ];
 
 // Phone and narrow-window tab bar for every admin role: a floating glass
-// capsule over the club's backdrop. `vertical` turns it into a rail on the
-// left for wide phone layouts (landscape, a foldable opened up). Desktop web
-// uses DesktopShell's sidebar instead (the tab navigators pass a null tab bar
-// there).
-export function AdminTabBar({ state, navigation, vertical = false }: BottomTabBarProps & { vertical?: boolean }) {
+// capsule over the club's backdrop. Desktop web uses DesktopShell's sidebar
+// instead (the tab navigators pass a null tab bar there).
+export function AdminTabBar({ state, navigation }: BottomTabBarProps) {
   const { c } = useAdminTheme();
   const { admin, unreadNotificationCount } = useAdmin();
   const insets = useSafeAreaInsets();
@@ -71,37 +69,6 @@ export function AdminTabBar({ state, navigation, vertical = false }: BottomTabBa
   const focused = state.routes[state.index]?.name;
   const onBar = new Set(entries.map((e) => e.route));
   const moreEntry = entries.find((e) => e.route.endsWith('More'));
-
-  if (vertical) {
-    // Icons only, with More pinned to the bottom (as on the iPhone Duo board).
-    const railEntry = (entry: TabEntry) => {
-      const isFocused = entry.route === focused || (entry === moreEntry && !!focused && !onBar.has(focused));
-      const badge = entry === moreEntry && admin.role === 'course_admin' ? unreadNotificationCount : 0;
-      return (
-        <PressableScale
-          key={entry.route}
-          onPress={() => navigation.navigate(entry.route as never)}
-          style={[styles.railTab, isFocused && { backgroundColor: c.sel }]}
-          pressedScale={0.92}
-          accessibilityRole="tab"
-          accessibilityLabel={badge ? `${entry.label}, ${badge} unread` : entry.label}
-          accessibilityState={{ selected: isFocused }}
-        >
-          <Ionicons name={entry.icon} size={22} color={isFocused ? c.ink : c.ink2} />
-          {badge ? <CountBadge count={badge} style={styles.railBadge} /> : null}
-        </PressableScale>
-      );
-    };
-    return (
-      <View style={[styles.railWrap, { paddingTop: Math.max(insets.top, 10), paddingBottom: Math.max(insets.bottom, 10) }]}>
-        <Glass radius={adminRadius.pill} style={styles.rail} accessibilityRole="tablist">
-          {entries.filter((e) => e !== moreEntry).map(railEntry)}
-          <View style={{ flex: 1 }} />
-          {moreEntry ? railEntry(moreEntry) : null}
-        </Glass>
-      </View>
-    );
-  }
 
   return (
     <View style={[styles.wrap, { paddingBottom: Math.max(insets.bottom, 10) }]}>
@@ -140,8 +107,4 @@ const styles = StyleSheet.create({
   tab: { flex: 1, height: '100%', borderRadius: adminRadius.pill, alignItems: 'center', justifyContent: 'center', gap: 2 },
   label: { ...adminFont.bodyMedium, fontSize: 11.5 },
   badge: { position: 'absolute', top: -6, right: -12 },
-  railWrap: { paddingLeft: 10, paddingRight: 2 },
-  rail: { flex: 1, width: 64, alignItems: 'center', paddingVertical: 8, gap: 6 },
-  railTab: { width: 48, height: 48, borderRadius: adminRadius.pill, alignItems: 'center', justifyContent: 'center' },
-  railBadge: { position: 'absolute', top: 0, right: -2 },
 });
