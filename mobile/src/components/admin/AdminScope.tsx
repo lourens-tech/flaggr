@@ -1,6 +1,5 @@
 import React from 'react';
-import { Platform, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Platform } from 'react-native';
 import { AdminThemeScope } from '../../context/ThemeContext';
 import { AdminSessionBackdrop } from './ui';
 import { ScreenFade } from '../motion';
@@ -23,39 +22,11 @@ export function withAdminScope<P extends object>(Screen: React.ComponentType<P>)
 // and the blurred cover photo. On desktop the DesktopShell fades only its
 // content area, so the sidebar doesn't flicker; phones on web get the same
 // whole-screen fade the member app uses (native-stack doesn't animate there).
-//
-// The backdrop runs edge to edge, under the notch and home indicator; the
-// content is inset from them. Phones in portrait have no side insets, and
-// their header and tab bar already handle top and bottom, so only the sides
-// are padded there; the desktop shell has neither, so it gets all four.
-//
-// React Navigation calls screenLayout as a plain function inside the
-// navigator's own render, once per screen in the stack, so it must not call
-// hooks itself (the count would change as screens are pushed and popped).
-// It returns an element; the hooks live in AdminScreenLayout.
 export function adminScreenLayout(isDesktop: boolean) {
-  return ({ children }: { children: React.ReactNode }) => <AdminScreenLayout isDesktop={isDesktop}>{children}</AdminScreenLayout>;
-}
-
-function AdminScreenLayout({ isDesktop, children }: { isDesktop: boolean; children: React.ReactNode }) {
-  const insets = useSafeAreaInsets();
   const fade = Platform.OS === 'web' && !isDesktop;
-  const content = fade ? <ScreenFade>{children}</ScreenFade> : children;
-  return (
-    <AdminSessionBackdrop>
-      <View
-        style={{
-          flex: 1,
-          paddingLeft: insets.left,
-          paddingRight: insets.right,
-          paddingTop: isDesktop ? insets.top : 0,
-          paddingBottom: isDesktop ? insets.bottom : 0,
-        }}
-      >
-        {content}
-      </View>
-    </AdminSessionBackdrop>
-  );
+  return function AdminScreenLayout({ children }: { children: React.ReactNode }) {
+    return <AdminSessionBackdrop>{fade ? <ScreenFade>{children}</ScreenFade> : children}</AdminSessionBackdrop>;
+  };
 }
 
 // Stack and tab scenes stay see-through so the backdrop shows behind them.
