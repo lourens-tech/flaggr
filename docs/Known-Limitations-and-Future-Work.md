@@ -150,3 +150,7 @@ See the table in `docs/Environment-and-Setup.md`. Open items from that check:
 - **`CONTACT_EMAIL` is not set**; the hard-coded personal address fallback is in use.
 - **Push credentials** (Apple key, Android FCM v1) still need checking in the Expo dashboard; the API cannot show them.
 - **Export My Data** has not been run on a physical phone.
+
+## Support: replies to member feedback tickets are not visible to the member (2026-11-17)
+
+A member's Give Feedback submission becomes a ticket in the support inbox, and agents can reply to it, but the member app has no screen or endpoint that shows ticket replies (only course admins and staff can read their ticket threads), and no notification or email is sent when an agent replies. Agents should not expect a member to see a reply. Fixing it needs a member-side "my feedback" thread view and a notification on reply.

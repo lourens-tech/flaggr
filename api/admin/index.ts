@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { sql } from '../_lib/db';
 import { getAuthedAdmin, hashPassword, verifyPassword, type AuthedAdmin } from '../_lib/auth';
-import { HttpError, withErrorHandling } from '../_lib/http';
+import { HttpError, uuidOrNotFound, withErrorHandling } from '../_lib/http';
 import { deltaPct, isStatsPeriod, periodWindow, type StatsPeriod } from '../_lib/periods';
 import { fillMonthlyByNumber } from '../_lib/monthly';
 import {
@@ -1569,7 +1569,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     }
 
     if (action === 'supportInboxThread' && req.method === 'GET') {
-      const id = typeof req.query.id === 'string' ? req.query.id : '';
+      const id = uuidOrNotFound(req.query.id, 'Ticket');
       const rows = (await sql`
         select t.id, t.requester_type, t.requester_name, t.requester_email, t.subject, t.status, t.priority,
                t.assigned_agent_id, a.first_name as assigned_agent_first_name, a.last_name as assigned_agent_last_name
@@ -1610,6 +1610,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       const { ticketId, message } = req.body as SupportTicketReplyBody;
       const body = message?.trim();
       if (!ticketId || !body) throw new HttpError(400, 'ticketId and message are required');
+      uuidOrNotFound(ticketId, 'Ticket');
       const owned = (await sql`select id from support_tickets where id = ${ticketId}`) as Array<{ id: string }>;
       if (owned.length === 0) throw new HttpError(404, 'Ticket not found');
       await addAgentMessage(ticketId, authedAdmin.id, body);
@@ -1622,6 +1623,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       if (!ticketId || !status || !SUPPORT_TICKET_STATUSES.includes(status)) {
         throw new HttpError(400, 'ticketId and a valid status are required');
       }
+      uuidOrNotFound(ticketId, 'Ticket');
       await sql`update support_tickets set status = ${status}, updated_at = now() where id = ${ticketId}`;
       res.status(200).json({ ok: true });
       return;
@@ -1635,6 +1637,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       if (!ticketId || !priority || !SUPPORT_TICKET_PRIORITIES.includes(priority)) {
         throw new HttpError(400, 'ticketId and a valid priority are required');
       }
+      uuidOrNotFound(ticketId, 'Ticket');
       await sql`update support_tickets set priority = ${priority} where id = ${ticketId}`;
       res.status(200).json({ ok: true });
       return;
@@ -1648,6 +1651,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     if (action === 'supportTicketClaim') {
       const { ticketId } = req.body as { ticketId?: string };
       if (!ticketId) throw new HttpError(400, 'ticketId is required');
+      uuidOrNotFound(ticketId, 'Ticket');
       const claimed = (await sql`
         update support_tickets set assigned_agent_id = ${authedAdmin.id}
         where id = ${ticketId} and assigned_agent_id is null
@@ -1661,6 +1665,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     if (action === 'supportTicketUnassign') {
       const { ticketId } = req.body as { ticketId?: string };
       if (!ticketId) throw new HttpError(400, 'ticketId is required');
+      uuidOrNotFound(ticketId, 'Ticket');
       await sql`update support_tickets set assigned_agent_id = null where id = ${ticketId}`;
       res.status(200).json({ ok: true });
       return;
@@ -3369,7 +3374,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
   }
 
   if (action === 'supportTicketThread' && req.method === 'GET') {
-    const id = typeof req.query.id === 'string' ? req.query.id : '';
+    const id = uuidOrNotFound(req.query.id, 'Ticket');
     const owned = (await sql`
       select id, status, subject from support_tickets where id = ${id} and requester_admin_id = ${authed.id}
     `) as Array<{ id: string; status: string; subject: string }>;
@@ -3420,6 +3425,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     const { ticketId, message } = req.body as SupportTicketReplyBody;
     const body = message?.trim();
     if (!ticketId || !body) throw new HttpError(400, 'ticketId and message are required');
+    uuidOrNotFound(ticketId, 'Ticket');
     const owned = (await sql`
       select id from support_tickets where id = ${ticketId} and requester_admin_id = ${authed.id}
     `) as Array<{ id: string }>;

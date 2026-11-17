@@ -31,6 +31,17 @@ export class HttpError extends Error {
   }
 }
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Returns the value if it is a well-formed UUID, otherwise throws a 404.
+ * Postgres rejects a malformed id in a `uuid` comparison with an error that
+ * would otherwise surface as a 500; a bad or tampered id should just read as
+ * "not found". */
+export function uuidOrNotFound(value: unknown, label: string): string {
+  if (typeof value !== 'string' || !UUID_PATTERN.test(value)) throw new HttpError(404, `${label} not found`);
+  return value;
+}
+
 type Handler = (req: VercelRequest, res: VercelResponse) => Promise<void>;
 
 /** Wraps a handler with preflight handling and uniform error responses. */
