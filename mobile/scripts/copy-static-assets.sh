@@ -32,16 +32,9 @@ cp assets/playstore-icon-512.png dist/pwa-icon-512.png
 # components/admin/AdminScope.tsx). Without it, Safari fills the side insets
 # of a phone or foldable held in landscape with the page background, which
 # was white. The page background is Fairway now in case anything shows.
-#
-# apple-mobile-web-app-status-bar-style=black-translucent: when the app is
-# opened from the home screen, iOS otherwise reserves the status-bar strip and
-# paints it solid with theme-color (a Fairway bar down the side of the iPhone
-# Duo, where the strip runs along the right edge). Translucent lets the
-# backdrop run under it; screens already inset their content from the status
-# bar, as they do in the native app.
 sed -i \
   -e 's@shrink-to-fit=no"@shrink-to-fit=no, viewport-fit=cover"@' \
   -e 's@</head>@<style>html,body{background-color:#1F4234}</style></head>@' \
-  -e 's@<link rel="icon" href="/favicon.ico"/>@<link rel="icon" href="/favicon.ico"/><link rel="manifest" href="/manifest.json"/><link rel="apple-touch-icon" href="/pwa-icon-192.png"/><meta name="theme-color" content="#1F4234"/><meta name="apple-mobile-web-app-capable" content="yes"/><meta name="mobile-web-app-capable" content="yes"/><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/><meta name="apple-mobile-web-app-title" content="Flagrr"/>@' \
+  -e 's@<link rel="icon" href="/favicon.ico"/>@<link rel="icon" href="/favicon.ico"/><link rel="manifest" href="/manifest.json"/><link rel="apple-touch-icon" href="/pwa-icon-192.png"/><meta name="theme-color" content="#1F4234"/>@' \
   -e 's@</body>@<script>if("serviceWorker" in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("/sw.js")})}</script></body>@' \
   dist/index.html

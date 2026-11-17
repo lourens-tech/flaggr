@@ -7,7 +7,6 @@ import { useAdminTheme } from '../../context/ThemeContext';
 import { useAdmin } from '../../context/AdminContext';
 import { adminFont, adminRadius } from '../../theme/admin';
 import { PressableScale } from '../motion';
-import type { SideRail } from '../../hooks/useIsDesktopNav';
 import { CountBadge, Glass } from './ui';
 
 type IconName = keyof typeof Ionicons.glyphMap;
@@ -51,12 +50,11 @@ const SUPPORT_AGENT_TABS: TabEntry[] = [
 ];
 
 // Phone and narrow-window tab bar for every admin role: a floating glass
-// capsule over the club's backdrop. `rail` turns it into a vertical rail on
-// that side (see useSideRail: left on wide phone layouts, right beside a
-// status strip down the right edge, as on the folded iPhone Duo). Desktop web
+// capsule over the club's backdrop. `vertical` turns it into a rail on the
+// left for wide phone layouts (landscape, a foldable opened up). Desktop web
 // uses DesktopShell's sidebar instead (the tab navigators pass a null tab bar
 // there).
-export function AdminTabBar({ state, navigation, rail = null }: BottomTabBarProps & { rail?: SideRail }) {
+export function AdminTabBar({ state, navigation, vertical = false }: BottomTabBarProps & { vertical?: boolean }) {
   const { c } = useAdminTheme();
   const { admin, unreadNotificationCount } = useAdmin();
   const insets = useSafeAreaInsets();
@@ -74,7 +72,7 @@ export function AdminTabBar({ state, navigation, rail = null }: BottomTabBarProp
   const onBar = new Set(entries.map((e) => e.route));
   const moreEntry = entries.find((e) => e.route.endsWith('More'));
 
-  if (rail) {
+  if (vertical) {
     // Icons only, with More pinned to the bottom (as on the iPhone Duo board).
     const railEntry = (entry: TabEntry) => {
       const isFocused = entry.route === focused || (entry === moreEntry && !!focused && !onBar.has(focused));
@@ -95,7 +93,7 @@ export function AdminTabBar({ state, navigation, rail = null }: BottomTabBarProp
       );
     };
     return (
-      <View style={[rail === 'right' ? styles.railWrapRight : styles.railWrap, { paddingTop: Math.max(insets.top, 10), paddingBottom: Math.max(insets.bottom, 10) }]}>
+      <View style={[styles.railWrap, { paddingTop: Math.max(insets.top, 10), paddingBottom: Math.max(insets.bottom, 10) }]}>
         <Glass radius={adminRadius.pill} style={styles.rail} accessibilityRole="tablist">
           {entries.filter((e) => e !== moreEntry).map(railEntry)}
           <View style={{ flex: 1 }} />
@@ -143,7 +141,6 @@ const styles = StyleSheet.create({
   label: { ...adminFont.bodyMedium, fontSize: 11.5 },
   badge: { position: 'absolute', top: -6, right: -12 },
   railWrap: { paddingLeft: 10, paddingRight: 2 },
-  railWrapRight: { paddingLeft: 2, paddingRight: 10 },
   rail: { flex: 1, width: 64, alignItems: 'center', paddingVertical: 8, gap: 6 },
   railTab: { width: 48, height: 48, borderRadius: adminRadius.pill, alignItems: 'center', justifyContent: 'center' },
   railBadge: { position: 'absolute', top: 0, right: -2 },

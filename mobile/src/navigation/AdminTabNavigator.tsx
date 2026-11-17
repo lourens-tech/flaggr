@@ -11,7 +11,7 @@ import { AdminStaffProfileScreen } from '../screens/admin/AdminStaffProfileScree
 import { AdminTabBar } from '../components/admin/AdminTabBar';
 import { AdminMoreScreen } from '../screens/admin/AdminMoreScreen';
 import { useAdmin } from '../context/AdminContext';
-import { useIsDesktopNav, useSideRail } from '../hooks/useIsDesktopNav';
+import { useIsDesktopNav, useIsSideRail } from '../hooks/useIsDesktopNav';
 import { tabSceneStyle } from '../components/admin/AdminScope';
 
 const Tab = createBottomTabNavigator<AdminTabParamList>();
@@ -19,16 +19,15 @@ const Tab = createBottomTabNavigator<AdminTabParamList>();
 export function AdminTabNavigator() {
   const { admin } = useAdmin();
   const isDesktop = useIsDesktopNav();
-  // Wide phone layouts (landscape, small tablets) get the tab bar as a
-  // vertical rail on the left; a screen with its status strip down the right
-  // edge (iPhone Duo folded) gets it on the right. See useSideRail.
-  const rail = useSideRail();
-  const sideRail = isDesktop ? null : rail;
+  // Wide phone layouts (landscape, foldables open, small tablets) get the
+  // tab bar as a vertical rail on the left.
+  const wide = useIsSideRail();
+  const sideRail = !isDesktop && wide;
   // Tabs crossfade on phones; on desktop the per-screen DesktopShell fades
   // its own content area instead, so the sidebar never flickers.
   const screenOptions = (props: Parameters<typeof tabSceneStyle>[0]) => ({
     headerShown: false,
-    tabBarPosition: isDesktop ? ('left' as const) : (sideRail ?? ('bottom' as const)),
+    tabBarPosition: isDesktop || sideRail ? ('left' as const) : ('bottom' as const),
     animation: isDesktop ? ('none' as const) : ('fade' as const),
     // See-through so the admin backdrop (AdminScope) shows behind every tab.
     sceneStyle: tabSceneStyle(props),
@@ -37,7 +36,7 @@ export function AdminTabNavigator() {
   // AdminDesktopFrame (see components/admin/desktop) — this bar would just
   // duplicate it, so it renders nothing there instead of its old plain
   // sidebar. Native app and narrow browser windows are unaffected.
-  const tabBar = isDesktop ? () => null : (props: BottomTabBarProps) => <AdminTabBar {...props} rail={sideRail} />;
+  const tabBar = isDesktop ? () => null : (props: BottomTabBarProps) => <AdminTabBar {...props} vertical={sideRail} />;
 
   // A `staff` account only gets the Vouchers tab (to validate member reward
   // redemptions) and a basic profile — every other tab is course_admin-only,
