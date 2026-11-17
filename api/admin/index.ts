@@ -45,6 +45,7 @@ import { getRosterStatus, replaceMemberRoster } from '../_lib/memberRoster';
 import { parseMemberRosterFile } from '../_lib/memberRosterFileParsing';
 import { logAudit } from '../_lib/auditLog';
 import { handleCourseAdminGolfAction, handleSuperAdminGolfAction, SUPER_ADMIN_GOLF_ACTIONS } from '../_lib/golfAdmin';
+import { handleCourseAdminGolfClubAction, handleSuperAdminGolfClubAction, SUPER_ADMIN_GOLF_CLUB_ACTIONS } from '../_lib/golfClub';
 import {
   applyApprovalEffects,
   applyFraudConfirmationEffects,
@@ -447,6 +448,7 @@ const SUPER_ADMIN_ALLOWED_ACTIONS = new Set([
   'supportAgentReactivate',
   'supportAgentDelete',
   ...SUPER_ADMIN_GOLF_ACTIONS,
+  ...SUPER_ADMIN_GOLF_CLUB_ACTIONS,
 ]);
 
 // A support_agent is a Flagrr-team account (created by a super_admin) that
@@ -1501,6 +1503,8 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
 
     // Course maps: scorecard photos from clubs, map import and publishing.
     if (authedAdmin.role === 'super_admin' && (await handleSuperAdminGolfAction(String(action), authedAdmin, req, res))) return;
+    // Golf: members' rounds and stats, every club or one club (read-only).
+    if (authedAdmin.role === 'super_admin' && (await handleSuperAdminGolfClubAction(String(action), req, res))) return;
 
     // --- Support Centre inbox — shared by super_admin and support_agent;
     // any agent can pick up and reply to any ticket. A ticket auto-assigns
@@ -3226,6 +3230,9 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
 
   // Course map: the GM's scorecard photo uploads (course_admin only).
   if (await handleCourseAdminGolfAction(String(action), authed, req, res)) return;
+  // Golf: the club's members' rounds on its course and their stats
+  // (course_admin only: not in STAFF_ALLOWED_ACTIONS).
+  if (await handleCourseAdminGolfClubAction(String(action), courseId, req, res)) return;
 
   if (action === 'dashboard' && req.method === 'GET') {
     const period: StatsPeriod = isStatsPeriod(req.query.period) ? req.query.period : 'month';

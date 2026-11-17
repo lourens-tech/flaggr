@@ -50,6 +50,9 @@ export type AdminStackParamList = {
   AdminCatalog: undefined;
   AdminCatalogItemEdit: { kind: 'product' | 'activity'; itemId?: string };
   AdminReportDetail: { report: CourseReportKind; label: string; period: 'month' | 'year' | 'all' };
+  AdminGolf: undefined;
+  AdminGolfMember: { userId: string };
+  AdminGolfScorecard: { roundId: string };
   TermsPrivacy: undefined;
 };
 
@@ -101,6 +104,10 @@ export type SuperAdminStackParamList = {
   SuperAdminCourseMaps: undefined;
   // A club's course map (clubId), or an away-only course map (golfCourseId).
   SuperAdminCourseMap: { clubId?: string; clubName?: string; golfCourseId?: string };
+  SuperAdminGolf: undefined;
+  SuperAdminGolfClub: { courseId: string; courseName?: string };
+  SuperAdminGolfMember: { userId: string };
+  SuperAdminGolfScorecard: { roundId: string };
   TermsPrivacy: undefined;
 };
 

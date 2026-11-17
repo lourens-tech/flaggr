@@ -433,8 +433,9 @@ create table scorecard_photos (
 create index scorecard_photos_course_id_idx on scorecard_photos(course_id);
 
 -- A member's golf settings: the Handicap Index they type in (Flagrr never
--- calculates its own), how they like to score, their club distances, and
--- whether they enter putts and fairways on the scorecard.
+-- calculates its own), how they like to score, their club distances,
+-- whether they enter putts and fairways on the scorecard, and whether their
+-- club can see their rounds.
 create table golf_profiles (
   user_id uuid primary key references users(id) on delete cascade,
   handicap_index numeric(3, 1) check (handicap_index between -10 and 54),
@@ -443,6 +444,9 @@ create table golf_profiles (
   allowance numeric(3, 2) not null default 0.95 check (allowance in (0.95, 1.00)),
   bag jsonb,
   track_stats boolean not null default false,
+  -- Whether the member's club can see their rounds on its course and the
+  -- stats from them (db/migrations/049_golf_share_with_club.sql).
+  share_with_club boolean not null default true,
   updated_at timestamptz not null default now()
 );
 
@@ -484,3 +488,4 @@ create table golf_rounds (
 create index golf_rounds_user_status_idx on golf_rounds(user_id, status, completed_at);
 -- One round in progress per member at a time.
 create unique index golf_rounds_one_in_progress_idx on golf_rounds(user_id) where status = 'in_progress';
+create index golf_rounds_course_completed_idx on golf_rounds(golf_course_id, completed_at) where status = 'completed';

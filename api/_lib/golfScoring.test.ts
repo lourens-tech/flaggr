@@ -13,6 +13,7 @@ import {
 } from '../../mobile/src/golf/scoring';
 import { computeGolfStats, type CompletedRound } from '../../mobile/src/golf/stats';
 import { checkCourseMap, playOptions, ratingFor, type CourseMapFile } from '../../mobile/src/golf/courseMap';
+import { clubSummary, latestRounds, memberRows, roundSeries, type ClubRound } from '../../mobile/src/golf/clubStats';
 
 const PAR = [4, 3, 5, 4, 3, 4, 5, 4, 4, 4, 4, 3, 5, 4, 3, 4, 5, 4];
 const SI = [9, 17, 3, 7, 13, 1, 5, 15, 11, 10, 4, 16, 2, 8, 18, 12, 6, 14];
@@ -192,4 +193,53 @@ test('My Golf stats from completed rounds', () => {
   assert.equal(s.toughestHoles!.rounds, 2);
   assert.equal(s.putting, null);
   assert.equal(s.recent[0].id, 'b');
+});
+
+// --- Golf on the admin dashboards (mobile/src/golf/clubStats.ts) ---
+
+const clubRound = (id: string, userId: string, day: number, scores: number[]): ClubRound => ({ ...round(id, day, scores), userId });
+const MEMBERS = [
+  { userId: 'u1', firstName: 'Ann', lastName: 'Bogey', handicapIndex: 18.2 },
+  { userId: 'u2', firstName: 'Ben', lastName: 'Par', handicapIndex: 2.1 },
+  { userId: 'u3', firstName: 'Cas', lastName: 'Nine', handicapIndex: null },
+];
+
+test('a club\'s Golf numbers: totals, member rows and latest rounds', () => {
+  const bogey = PAR.map((p) => p + 1);
+  const par = PAR.slice();
+  const nine: ClubRound = { ...clubRound('n', 'u3', 6, par.slice(0, 9)), holes: HOLES.slice(0, 9) };
+  const rounds = [clubRound('a', 'u1', 1, bogey), clubRound('b', 'u2', 2, par), clubRound('c', 'u1', 3, par), nine];
+  const { summary, stats } = clubSummary(rounds, 'c1');
+  assert.equal(summary.rounds, 4);
+  assert.equal(summary.membersPlaying, 3);
+  assert.equal(summary.basis, 18);
+  // 18-hole rounds only: 35 + 53 + 53 points; two of three reached 36.
+  assert.equal(summary.pointsAverage, (35 + 53 + 53) / 3);
+  assert.equal(Math.round(summary.playedToHandicapPct!), 67);
+  assert.equal(summary.puttsMembers, 0);
+
+  const rows = memberRows(rounds, MEMBERS, 'c1');
+  assert.deepEqual(rows.map((r) => r.userId), ['u2', 'u1', 'u3']); // 18-hole averages first, best first; nine-hole player last
+  assert.equal(rows[1].rounds, 2);
+  assert.equal(rows[1].bestPoints, 53);
+  assert.deepEqual(rows[1].trend, [35, 53]);
+  assert.equal(rows[1].lastPlayedAt, '2026-10-03T10:00:00Z');
+  assert.equal(rows[2].basis, 9);
+
+  const latest = latestRounds(stats, rounds, MEMBERS, 2);
+  assert.deepEqual(latest.map((r) => [r.id, r.memberName]), [['n', 'Cas Nine'], ['c', 'Ann Bogey']]);
+});
+
+test('rounds per day, month or year for the Golf chart', () => {
+  const now = new Date('2026-11-17T12:00:00Z');
+  const dates = ['2026-11-01T08:00:00Z', '2026-11-17T09:00:00Z', '2026-11-17T10:00:00Z', '2026-03-05T10:00:00Z', '2025-06-01T10:00:00Z'];
+  const month = roundSeries(dates, 'month', now);
+  assert.equal(month.length, 17);
+  assert.deepEqual([month[0], month[16]], [{ month: '1', value: 1 }, { month: '17', value: 2 }]);
+  const year = roundSeries(dates, 'year', now);
+  assert.equal(year.length, 11);
+  assert.equal(year[2].value, 1);
+  assert.equal(year[10].value, 3);
+  assert.deepEqual(roundSeries(dates, 'all', now), [{ month: '2025', value: 1 }, { month: '2026', value: 4 }]);
+  assert.deepEqual(roundSeries([], 'all', now), [{ month: '2026', value: 0 }]);
 });

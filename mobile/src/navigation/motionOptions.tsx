@@ -53,4 +53,10 @@ function WebScreenLayout({ route, children }: { route: { name: string }; childre
   );
 }
 
-export const webScreenLayout = Platform.OS === 'web' ? WebScreenLayout : undefined;
+// React Navigation calls screenLayout as a plain function inside the
+// navigator's render, so WebScreenLayout's hooks must run in a component of
+// their own: hand back an element rather than calling it.
+export const webScreenLayout =
+  Platform.OS === 'web'
+    ? (props: { route: { name: string }; children: React.ReactNode }) => <WebScreenLayout route={props.route}>{props.children}</WebScreenLayout>
+    : undefined;

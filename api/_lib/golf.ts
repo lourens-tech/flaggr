@@ -41,15 +41,16 @@ interface GolfProfileRow {
   allowance: string;
   bag: Club[] | null;
   track_stats: boolean;
+  share_with_club: boolean;
 }
 
 
 async function loadProfile(userId: string): Promise<GolfProfileDto> {
   const rows = (await sql`
-    select handicap_index, rating_gender, format, allowance, bag, track_stats from golf_profiles where user_id = ${userId}
+    select handicap_index, rating_gender, format, allowance, bag, track_stats, share_with_club from golf_profiles where user_id = ${userId}
   `) as GolfProfileRow[];
   const r = rows[0];
-  if (!r) return { handicapIndex: null, ratingGender: 'men', format: 'stableford', allowance: 0.95, bag: null, trackStats: false };
+  if (!r) return { handicapIndex: null, ratingGender: 'men', format: 'stableford', allowance: 0.95, bag: null, trackStats: false, shareWithClub: true };
   return {
     handicapIndex: r.handicap_index == null ? null : Number(r.handicap_index),
     ratingGender: r.rating_gender,
@@ -57,6 +58,7 @@ async function loadProfile(userId: string): Promise<GolfProfileDto> {
     allowance: Number(r.allowance) === 1 ? 1 : 0.95,
     bag: r.bag,
     trackStats: r.track_stats,
+    shareWithClub: r.share_with_club,
   };
 }
 
@@ -96,14 +98,15 @@ async function saveProfile(userId: string, body: Partial<GolfProfileDto>): Promi
   }
   if ('bag' in body) next.bag = parseBag(body.bag);
   if (body.trackStats !== undefined) next.trackStats = body.trackStats === true;
+  if (body.shareWithClub !== undefined) next.shareWithClub = body.shareWithClub === true;
 
   await sql`
-    insert into golf_profiles (user_id, handicap_index, rating_gender, format, allowance, bag, track_stats, updated_at)
+    insert into golf_profiles (user_id, handicap_index, rating_gender, format, allowance, bag, track_stats, share_with_club, updated_at)
     values (${userId}, ${next.handicapIndex}, ${next.ratingGender}, ${next.format}, ${next.allowance},
-      ${next.bag ? JSON.stringify(next.bag) : null}::jsonb, ${next.trackStats}, now())
+      ${next.bag ? JSON.stringify(next.bag) : null}::jsonb, ${next.trackStats}, ${next.shareWithClub}, now())
     on conflict (user_id) do update set handicap_index = excluded.handicap_index, rating_gender = excluded.rating_gender,
       format = excluded.format, allowance = excluded.allowance, bag = excluded.bag, track_stats = excluded.track_stats,
-      updated_at = now()
+      share_with_club = excluded.share_with_club, updated_at = now()
   `;
   return next;
 }
@@ -127,7 +130,7 @@ const courseSummary = (r: CourseSummaryRow, homeClubId: string): GolfCourseSumma
   logoUrl: r.logo_url,
 });
 
-interface RoundRow {
+export interface RoundRow {
   id: string;
   golf_course_id: string | null;
   course_name: string;
@@ -153,7 +156,7 @@ interface RoundRow {
 }
 
 
-const roundDto = (r: RoundRow): RoundDto => ({
+export const roundDto = (r: RoundRow): RoundDto => ({
   id: r.id,
   golfCourseId: r.golf_course_id,
   courseName: r.course_name,
@@ -178,7 +181,7 @@ const roundDto = (r: RoundRow): RoundDto => ({
   completedAt: r.completed_at,
 });
 
-const setupOf = (r: Pick<RoundRow, 'holes' | 'course_handicap' | 'playing_handicap'>): RoundSetup => ({
+export const setupOf = (r: Pick<RoundRow, 'holes' | 'course_handicap' | 'playing_handicap'>): RoundSetup => ({
   holes: r.holes,
   handicaps: r.course_handicap == null || r.playing_handicap == null ? null : { course: r.course_handicap, playing: r.playing_handicap },
 });
@@ -382,11 +385,13 @@ export async function handleGolfAction(action: string, req: VercelRequest, res: 
     res.status(200).json({
       period,
       clubName: home.clubName,
+      isPlaceholderClub: home.isPlaceholderClub,
       homeMapLive: home.homeGolfCourseId != null,
       anyCourseLive: anyLive[0]?.live ?? false,
       totalRounds: roundCount[0]?.n ?? 0,
       handicapIndex: profile.handicapIndex,
       trackStats: profile.trackStats,
+      shareWithClub: profile.shareWithClub,
       stats: computeGolfStats(rounds, home.homeGolfCourseId),
     });
     return true;

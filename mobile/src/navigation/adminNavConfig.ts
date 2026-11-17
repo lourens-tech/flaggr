@@ -48,6 +48,7 @@ export const ADMIN_NAV_GROUPS: DesktopNavGroup[] = [
       { key: 'AdminEnquiries', label: 'Enquiries', icon: 'chatbubble-outline', target: tab('AdminTabs', 'AdminEnquiries') },
       { key: 'AdminFraudOversight', label: 'Fraud Review', icon: 'flag-outline', target: stack('AdminFraudOversight') },
       { key: 'AdminMemberList', label: 'Member Roster', icon: 'people-outline', target: stack('AdminMemberList') },
+      { key: 'AdminGolf', label: 'Golf', icon: 'golf-outline', target: stack('AdminGolf') },
     ],
   },
   {
@@ -100,7 +101,10 @@ export const SUPER_ADMIN_NAV_GROUPS: DesktopNavGroup[] = [
   },
   {
     label: 'Insights',
-    items: [{ key: 'SuperAdminReports', label: 'Reports', icon: 'bar-chart-outline', target: tab('SuperAdminTabs', 'SuperAdminReports') }],
+    items: [
+      { key: 'SuperAdminReports', label: 'Reports', icon: 'bar-chart-outline', target: tab('SuperAdminTabs', 'SuperAdminReports') },
+      { key: 'SuperAdminGolf', label: 'Golf', icon: 'golf-outline', target: stack('SuperAdminGolf') },
+    ],
   },
   {
     label: 'Engagement',

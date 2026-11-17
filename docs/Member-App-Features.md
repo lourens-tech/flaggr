@@ -63,6 +63,7 @@ Built only from rounds the member has finished in the Course tab, at home or awa
 - **Points per round** chart (the last 20 rounds; tap a column for that round), **average score by par**, **score mix** per 18 holes and what doubles cost, **toughest holes** at the home course (or the course played most, once played twice), and **front nine against back nine**.
 - **Putting and ball striking:** putts and three-putts per 18 holes, greens in regulation (on the green in par minus two or fewer) and fairways hit, from the holes where putts and fairways were entered. Until then the card explains how to turn them on.
 - **Recent rounds**, with the best marked; tapping one opens its scorecard, where a score can be corrected on the map or the round deleted.
+- **Share my rounds with {club}** (a switch at the bottom of My Golf, on by default): while it is on, the member's club sees the rounds they finish on the club's own course, the scorecards and the stats from them on its admin Golf page. Turning it off hides all of them from the club straight away; rounds elsewhere are never shown to the club. Not shown for the placeholder club. The setting is in the member's data export.
 - Until the member has finished a round: **Coming soon** while their home club has no live map (with a link to play an away course if any is live), or **Play your first round** once it does.
 
 ## Earning Flagrr Cash
