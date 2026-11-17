@@ -10,7 +10,7 @@ import { SuperAdminProfileScreen } from '../screens/superadmin/SuperAdminProfile
 import { AdminTabBar } from '../components/admin/AdminTabBar';
 import { AdminMoreScreen } from '../screens/admin/AdminMoreScreen';
 import { useAdmin } from '../context/AdminContext';
-import { useIsDesktopNav, useIsSideRail } from '../hooks/useIsDesktopNav';
+import { useIsDesktopNav, useSideRail } from '../hooks/useIsDesktopNav';
 import { tabSceneStyle } from '../components/admin/AdminScope';
 
 const Tab = createBottomTabNavigator<SuperAdminTabParamList>();
@@ -18,15 +18,16 @@ const Tab = createBottomTabNavigator<SuperAdminTabParamList>();
 export function SuperAdminTabNavigator() {
   const { admin } = useAdmin();
   const isDesktop = useIsDesktopNav();
-  // Wide phone layouts (landscape, foldables open, small tablets) get the
-  // tab bar as a vertical rail on the left.
-  const wide = useIsSideRail();
-  const sideRail = !isDesktop && wide;
+  // Wide phone layouts (landscape, small tablets) get the tab bar as a
+  // vertical rail on the left; a screen with its status strip down the right
+  // edge (iPhone Duo folded) gets it on the right. See useSideRail.
+  const rail = useSideRail();
+  const sideRail = isDesktop ? null : rail;
   // Tabs crossfade on phones; on desktop the per-screen DesktopShell fades
   // its own content area instead, so the sidebar never flickers.
   const screenOptions = (props: Parameters<typeof tabSceneStyle>[0]) => ({
     headerShown: false,
-    tabBarPosition: isDesktop || sideRail ? ('left' as const) : ('bottom' as const),
+    tabBarPosition: isDesktop ? ('left' as const) : (sideRail ?? ('bottom' as const)),
     animation: isDesktop ? ('none' as const) : ('fade' as const),
     // See-through so the admin backdrop (AdminScope) shows behind every tab.
     sceneStyle: tabSceneStyle(props),
@@ -34,7 +35,7 @@ export function SuperAdminTabNavigator() {
   // On desktop web, each screen renders its own persistent sidebar/topbar via
   // SuperAdminDesktopFrame (see components/admin/desktop) — this bar would
   // just duplicate it. Native app and narrow browser windows are unaffected.
-  const tabBar = isDesktop ? () => null : (props: BottomTabBarProps) => <AdminTabBar {...props} vertical={sideRail} />;
+  const tabBar = isDesktop ? () => null : (props: BottomTabBarProps) => <AdminTabBar {...props} rail={sideRail} />;
 
   // A `support_agent` account only gets the Support inbox and a basic
   // profile — every other tab (Courses/Ads/Reports) is super_admin-only,
