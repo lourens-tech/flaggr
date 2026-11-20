@@ -57,6 +57,15 @@ The Hobby plan caps a project at 12 serverless functions, and this project uses 
 
 The Vercel project is `flagrr-loyalty` (production URL `https://flagrr-loyalty.vercel.app`). The marketing site is its own Vercel project.
 
+### Firewall (Vercel dashboard, not in the repo)
+
+One custom rule, **Login and password reset rate limit**, set up and published on 2026-11-20 (Vercel → `flagrr-loyalty` → Firewall → Rules). Changes apply without a redeploy.
+
+- **Matches** a request whose path is `/api/auth/login` (member sign-in, `forgotPassword` and `resetPassword`), **or** whose path is `/api/admin` and whose `action` query parameter is `login`, `adminForgotPassword` or `adminResetPassword`. Every other admin action is untouched.
+- **Limit**: fixed window, 10 requests per 60 seconds per IP address, then HTTP 429 until the window ends. Matching requests count together, so member and admin attempts from one IP share the 10.
+- Checked after publishing: from one IP, the 11th and 12th requests to `/api/auth/login` returned 429, `/api/admin?action=login` was then also 429, and `/api/admin?action=dashboard` and `/api/courses` still answered normally.
+- It sits in front of the API's own per-account and per-IP lockout (`api/_lib/loginThrottle.ts`). The firewall stops fast scripts; the API lockout stops slow guessing.
+
 ## Services and environment variables
 
 ### Backend (Vercel project environment)
