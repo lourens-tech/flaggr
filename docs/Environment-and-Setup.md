@@ -118,12 +118,13 @@ Known issues in `app.json`: it requests `android.permission.RECORD_AUDIO`, which
 ## Database
 
 - `db/schema.sql` is a **partial, older** snapshot. It does not include about 13 tables and many columns that later migrations added. Do not treat it as the current schema.
-- `db/migrations/001` to `049` are plain SQL files. There is **no migration runner and no tracking table**: apply them in numeric order by hand against Neon, and keep a record of which have been applied.
+- `db/migrations/001` to `050` are plain SQL files. There is **no migration runner and no tracking table**: apply them in numeric order by hand against Neon, and keep a record of which have been applied.
 - Migration `018_admin_broadcasts.sql` uses `create table` without `if not exists`, so it fails if the table already exists. Migrations `003` and `017` are destructive; read them before running on a database with data.
 - `db/seed.sql` no longer works as written: it inserts `golf_products` without `course_id`, which became `NOT NULL` in migration `042`, and uses `on conflict` on a table without a matching unique constraint.
 - Any new schema change needs a new numbered file in `db/migrations/`.
 - `048_course_guide_and_my_golf.sql` adds the Course Guide and My Golf tables. Until it is applied, the Course and My Golf tabs and the dashboard's Course map panel show load errors.
 - `049_golf_share_with_club.sql` adds `golf_profiles.share_with_club` (default true) and an index for the admin Golf pages. Apply it **before** deploying the code that uses it: until it is applied, the member Course and My Golf tabs, the member data export and the admin Golf pages fail with a missing-column error. It is additive and safe to run more than once.
+- `050_password_reset_events.sql` adds the `password_reset_events` table used to rate-limit and log password resets. Apply it **before** deploying the code that uses it: until it is applied, member and admin forgot password and reset fail with a server error. It is additive and safe to run more than once.
 
 ## Course maps
 

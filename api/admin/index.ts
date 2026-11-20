@@ -52,7 +52,15 @@ import {
   describeFraudReasons,
   resolveFlaggedReceipt,
 } from '../_lib/fraudChecks';
-import { consumePasswordResetCode, issuePasswordResetCode } from '../_lib/passwordReset';
+import {
+  consumePasswordResetCode,
+  guardResetAttempt,
+  guardResetRequest,
+  issuePasswordResetCode,
+  recordResetEvent,
+  rejectResetCode,
+  resetContext,
+} from '../_lib/passwordReset';
 import { renderBrandedEmailHtml, emailParagraph } from '../_lib/emailTemplate';
 
 // Every action for the course-admin side of the app lives in this one file,
@@ -1381,11 +1389,15 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     const identifier = (req.body as { identifier?: string }).identifier?.trim().toLowerCase();
     if (!identifier) throw new HttpError(400, 'identifier is required');
 
+    const ctx = resetContext(req, 'admin', identifier);
+    await guardResetRequest(ctx);
+
     const rows = (await sql`
       select id, first_name, email from admins
       where ((role = 'staff' and username = ${identifier}) or (role <> 'staff' and email = ${identifier}))
         and activated_at is not null and revoked_at is null
     `) as Array<{ id: string; first_name: string; email: string }>;
+    await recordResetEvent(ctx, 'code_requested', rows.length > 0 ? { adminId: rows[0].id } : null);
 
     if (rows.length > 0) {
       const found = rows[0];
@@ -1425,12 +1437,16 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         and activated_at is not null and revoked_at is null
     `) as Array<{ id: string }>;
 
-    if (rows.length === 0 || !(await consumePasswordResetCode({ adminId: rows[0].id }, code))) {
-      throw new HttpError(400, 'That code is invalid or has expired');
+    const owner = rows.length > 0 ? { adminId: rows[0].id } : null;
+    const ctx = resetContext(req, 'admin', identifier);
+    await guardResetAttempt(ctx, owner);
+    if (!owner || !(await consumePasswordResetCode(owner, code))) {
+      await rejectResetCode(ctx, owner);
     }
 
     const passwordHash = await hashPassword(newPassword);
     await sql`update admins set password_hash = ${passwordHash}, must_change_password = false where id = ${rows[0].id}`;
+    await recordResetEvent(ctx, 'password_reset', owner);
     res.status(200).json({ ok: true });
     return;
   }

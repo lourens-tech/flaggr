@@ -22,7 +22,7 @@ Flagrr is a golf loyalty app. Members earn **Flagrr Cash** (FC) by scanning rece
 |---|---|
 | **Platform** | React Native (Expo SDK 57). Deployed as a web export on Vercel. The native build configuration exists (EAS project, iOS bundle id and Android package `com.flagrr.loyalty`), but store distribution and push notifications are not confirmed live — see [Known Limitations](Known-Limitations-and-Future-Work). |
 | **Backend** | Vercel serverless functions (Node/TypeScript), 12 functions — the Vercel Hobby plan cap |
-| **Database** | Neon (serverless Postgres), multi-tenant by golf club ("course"). 48 migrations in `db/migrations/` |
+| **Database** | Neon (serverless Postgres), multi-tenant by golf club ("course"). 50 migrations in `db/migrations/` |
 | **Currency** | Flagrr Cash (FC) — formerly "Flagrr Bucks" |
 | **Tiers** | Bronze / Silver / Gold / Platinum, re-qualified every calendar quarter |
 | **Roles** | Member, club admin, club staff, support agent, super admin |

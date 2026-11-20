@@ -1,6 +1,6 @@
 # Known Limitations & Future Work
 
-_Last verified against code on 2026-11-17._
+_Last verified against code on 2026-11-20._
 
 Open issues found by reading the code, grouped by severity. Paths are relative to this repo unless a repo is named. Items marked **unverified** could not be confirmed from the code alone, for example because they depend on settings in Vercel, EAS or DNS.
 
@@ -20,7 +20,7 @@ Open issues found by reading the code, grouped by severity. Paths are relative t
 
 ## Security
 
-1. **No brute-force protection on password resets.** Codes are 6 digits, valid 30 minutes, with unlimited attempts and no rate limiting anywhere in `api/`. This covers members and every admin role, including super admin. A reset or password change does not end existing sessions, and members have no logout endpoint. `api/_lib/passwordReset.ts:40-58`, `api/admin/index.ts:1370-1436`
+1. **A password reset does not end existing sessions**, and members have no logout endpoint. (Reset codes are rate-limited and locked after 5 wrong codes since 2026-11-20, `api/_lib/resetThrottle.ts`; admin login itself is still not rate-limited.) The reset limits are counted in the database per email/username and per IP address, so someone rotating IP addresses can still request up to 3 codes per account every 30 minutes, and anyone can lock an account out of resetting for 30 minutes by entering 5 wrong codes.
 2. **Club admins can edit and delete super-admin ads.** The Ads tab was removed from the club-admin app, but the API still accepts `ads`, `adSave` and `adDelete`. Saving a multi-club ad runs `syncAdCourses(id, false, [courseId])`, which removes every other club from it. Deleting removes it for all clubs. None of this is audit-logged. `api/admin/index.ts:893-931, 3986-4002`
 3. **The temporary-password change is enforced only by the app.** An admin still on a temporary password can call every action. `api/_lib/auth.ts:97-127`
 4. **Voucher can be redeemed twice.** The update has no `and status = 'active'` condition, so two simultaneous scans both succeed. `api/admin/index.ts:4283-4286`
@@ -105,7 +105,7 @@ These need native code, so they wait for a new App Store / Play Store build (eve
 - **`db/seed.sql` fails on a current database:** it inserts `golf_products` without `course_id` (made NOT NULL by `042`), and its merchants insert uses `on conflict` with no unique constraint.
 - **Unused columns and tables:** `admins.invite_token` and `invite_expires_at` (the invite flow was never built), `golf_products.sku`, `barcode` and `points_value`, `golf_activities.points_value`, legacy `user_stats` counters, the `streaks` table (created at signup, never updated, so `exportMyData` returns stale zeros), `receipts.image_uri`, and `ads.course_id`.
 - **Timezones differ:** `monthly_points` buckets by server-local month, same-day dedupe uses South African time, and quarters use UTC.
-- **Nothing cleans up:** vouchers are never marked `expired`, and expired sessions and reset codes are never purged. The billing check is the only scheduled job.
+- **Nothing cleans up:** vouchers are never marked `expired`, and expired sessions, reset codes and `password_reset_events` rows are never purged. The billing check is the only scheduled job.
 
 ## Admin and reporting gaps
 
