@@ -19,9 +19,12 @@ Access checks on every request (`api/_lib/auth.ts`): the account must be activat
 
 - One login screen for every role. Staff enter their username; the others use email.
 - Sign-in, forgot-password and forced-change errors (for example a failed login, a failed reset or passwords that don’t match) show as a red banner on the card rather than a pop-up.
-- Accounts created by another admin get a **temporary password** (emailed) and `must_change_password = true`. The app then shows only the forced-change screen; staff also see a welcome screen afterwards. This is enforced by the app, not by the API (open issue, see [Known Limitations](Known-Limitations-and-Future-Work)).
+- Accounts created by another admin get a **temporary password** (emailed) and `must_change_password = true`. The app then shows only the forced-change screen; staff also see a welcome screen afterwards. The API enforces it too: until the password is changed, every action except `me`, `changePassword`, `logout` and `themePreference` returns 403 “Choose a new password before continuing.”
 - Forgot password sends a 6-digit code by email, valid 30 minutes (`adminForgotPassword` / `adminResetPassword`). It has the same limits as the member flow: at most 3 code requests per email or username in 30 minutes and 10 per IP address in an hour, and 5 wrong codes in 30 minutes locks the account out of resetting and cancels its open codes. A block shows “Too many password reset attempts. Please contact Flagrr support at Swing@flagrr.com or 071 759 9553.” in the red banner.
 - Super admins can reset a course admin's or support agent's password. A course admin setting a staff member's password clears that staff member's forced-change flag.
+- **Sign-in lockout** (`api/_lib/loginThrottle.ts`): 10 wrong passwords for one email or username within 15 minutes, or 30 from one IP address across all accounts (members and admins), and sign-in is refused for 15 minutes with “Too many sign-in attempts. Try again in 15 minutes, or reset your password.” in the red banner. The password is not checked while blocked. A successful sign-in or a completed password reset clears the count for that account. Every attempt is recorded in `login_events` (IP address and device; only a hash of the email/username).
+- **Sessions end** when an admin's password changes: a forgot-password reset, a super-admin reset or a course admin setting a staff password signs that account out everywhere; changing your own password signs out every other device. Revoking an account (course admin, support agent or staff) also deletes its sessions, so reactivating it later doesn't revive them.
+- **Super admin and support agent sessions** end after 12 hours without use and after 7 days at most, however active. Course admins and staff stay signed in for 30 days. When a session ends, the next app launch shows the sign-in screen.
 - In store builds (`EXPO_PUBLIC_STORE_BUILD=1`) the admin login entry points are hidden. Admin roles reach their login through the **web deployment** only.
 
 ## Layout
@@ -96,7 +99,6 @@ Super admin mutations and fraud confirm/approve decisions are logged (`api/_lib/
 ## Known gaps in the admin side
 
 - Course admins can still call the ad endpoints, and can edit or delete multi-club ads created by a super admin.
-- No rate limit on admin login (password reset codes are limited, see above).
 - A voucher can be redeemed twice if two staff scan at the same moment.
 - Archiving a club only hides it in the super-admin list; its members, admins and staff are unaffected.
 - Super admins can create course admins past the 2-per-club cap; course admins cannot.

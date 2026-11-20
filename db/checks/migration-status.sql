@@ -8,7 +8,7 @@ with checks(migration, tbl, col) as (values
   ('040','receipts','points_credited'), ('041','ad_impressions',null), ('042','golf_products','rand_value'),
   ('043','courses','is_placeholder'), ('044','support_tickets','category'), ('045','referral_redemptions',null),
   ('046','ad_courses',null), ('047','receipt_scan_cache',null), ('048','golf_courses',null),
-  ('049','golf_profiles','share_with_club'), ('050','password_reset_events',null))
+  ('049','golf_profiles','share_with_club'), ('050','password_reset_events',null), ('051','login_events',null))
 select migration, tbl || coalesce('.' || col, '') as checks_for,
   case when col is null then to_regclass('public.' || tbl) is not null
        else exists (select 1 from information_schema.columns c

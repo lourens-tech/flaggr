@@ -20,14 +20,13 @@ Open issues found by reading the code, grouped by severity. Paths are relative t
 
 ## Security
 
-1. **A password reset does not end existing sessions**, and members have no logout endpoint. (Reset codes are rate-limited and locked after 5 wrong codes since 2026-11-20, `api/_lib/resetThrottle.ts`; admin login itself is still not rate-limited.) The reset limits are counted in the database per email/username and per IP address, so someone rotating IP addresses can still request up to 3 codes per account every 30 minutes, and anyone can lock an account out of resetting for 30 minutes by entering 5 wrong codes.
+1. **Members have no logout endpoint**, so signing out of the member app leaves that session valid on the server until it expires (30 days). Since 2026-11-20 a password reset or change does end sessions, sign-in is locked after repeated wrong passwords (`api/_lib/loginThrottle.ts`), and reset codes are rate-limited (`api/_lib/resetThrottle.ts`). The sign-in lockout is counted per email/username, so anyone who knows an address can keep that account locked out by entering wrong passwords (10 every 15 minutes); the owner can get back in by resetting their password. Neither limit covers an attacker spreading guesses across many IP addresses and accounts; that needs a Vercel Firewall rate-limit rule (not set up, unverified). Session tokens are stored in plain text in `sessions` and `admin_sessions`. The reset limits are counted in the database per email/username and per IP address, so someone rotating IP addresses can still request up to 3 codes per account every 30 minutes, and anyone can lock an account out of resetting for 30 minutes by entering 5 wrong codes.
 2. **Club admins can edit and delete super-admin ads.** The Ads tab was removed from the club-admin app, but the API still accepts `ads`, `adSave` and `adDelete`. Saving a multi-club ad runs `syncAdCourses(id, false, [courseId])`, which removes every other club from it. Deleting removes it for all clubs. None of this is audit-logged. `api/admin/index.ts:893-931, 3986-4002`
-3. **The temporary-password change is enforced only by the app.** An admin still on a temporary password can call every action. `api/_lib/auth.ts:97-127`
-4. **Voucher can be redeemed twice.** The update has no `and status = 'active'` condition, so two simultaneous scans both succeed. `api/admin/index.ts:4283-4286`
-5. **Members can move between clubs freely** and keep their balance, tier and verified status. Editing date of birth lets a member claim the birthday bonus on any day. `api/profile/index.ts:491, 510`
-6. **Any receipt earns Flagrr Cash.** No merchant match or receipt date check is required, and repeated preview scans can call Claude with no rate limit. `api/_lib/pointsEngine.ts:233-292`
-7. **Receipt numbers are unique across all clubs.** Two clubs whose tills both print the same number will collide, and the second member is rejected as a duplicate. `db/schema.sql:401`, `api/_lib/fraudChecks.ts:44`
-8. **Redeeming is not atomic.** Points are deducted and the voucher is inserted in separate steps, so points are lost if the second fails. `api/redeem.ts:44`
+3. **Voucher can be redeemed twice.** The update has no `and status = 'active'` condition, so two simultaneous scans both succeed. `api/admin/index.ts:4283-4286`
+4. **Members can move between clubs freely** and keep their balance, tier and verified status. Editing date of birth lets a member claim the birthday bonus on any day. `api/profile/index.ts:491, 510`
+5. **Any receipt earns Flagrr Cash.** No merchant match or receipt date check is required, and repeated preview scans can call Claude with no rate limit. `api/_lib/pointsEngine.ts:233-292`
+6. **Receipt numbers are unique across all clubs.** Two clubs whose tills both print the same number will collide, and the second member is rejected as a duplicate. `db/schema.sql:401`, `api/_lib/fraudChecks.ts:44`
+7. **Redeeming is not atomic.** Points are deducted and the voucher is inserted in separate steps, so points are lost if the second fails. `api/redeem.ts:44`
 9. **Smaller items:**
    - Fraud claw-back can push a balance negative. `api/_lib/fraudChecks.ts:203`
    - Signup creates the user before its child rows, so a failure leaves a user whose `/api/me` returns 404.
@@ -105,7 +104,7 @@ These need native code, so they wait for a new App Store / Play Store build (eve
 - **`db/seed.sql` fails on a current database:** it inserts `golf_products` without `course_id` (made NOT NULL by `042`), and its merchants insert uses `on conflict` with no unique constraint.
 - **Unused columns and tables:** `admins.invite_token` and `invite_expires_at` (the invite flow was never built), `golf_products.sku`, `barcode` and `points_value`, `golf_activities.points_value`, legacy `user_stats` counters, the `streaks` table (created at signup, never updated, so `exportMyData` returns stale zeros), `receipts.image_uri`, and `ads.course_id`.
 - **Timezones differ:** `monthly_points` buckets by server-local month, same-day dedupe uses South African time, and quarters use UTC.
-- **Nothing cleans up:** vouchers are never marked `expired`, and expired sessions, reset codes and `password_reset_events` rows are never purged. The billing check is the only scheduled job.
+- **Nothing cleans up:** vouchers are never marked `expired`, and expired sessions, reset codes, `password_reset_events` and `login_events` rows are never purged. The billing check is the only scheduled job.
 
 ## Admin and reporting gaps
 

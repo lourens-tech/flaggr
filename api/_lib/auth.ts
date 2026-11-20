@@ -11,6 +11,21 @@ export function verifyPassword(password: string, hash: string): Promise<boolean>
   return bcrypt.compare(password, hash);
 }
 
+/** The raw bearer token from the Authorization header, or null. */
+export function bearerToken(req: Pick<VercelRequest, 'headers'>): string | null {
+  const header = req.headers.authorization;
+  if (!header?.startsWith('Bearer ')) return null;
+  return header.slice('Bearer '.length).trim() || null;
+}
+
+/** Signs an admin account out everywhere (except the session `keepToken`,
+ * if given). Used whenever a password changes or access is revoked, so a
+ * stolen or old session can't outlive it; without this, reactivating a
+ * revoked account would also have revived its old sessions. */
+export async function endAdminSessions(adminId: string, keepToken: string | null = null): Promise<void> {
+  await sql`delete from admin_sessions where admin_id = ${adminId} and token::text <> ${keepToken ?? ''}`;
+}
+
 export interface AuthedUser {
   id: string;
   courseId: string;
@@ -56,6 +71,31 @@ export async function requireAuthedUser(req: VercelRequest): Promise<AuthedUser>
   return user;
 }
 
+/** super_admin and support_agent can reach every club's data, so their
+ * sessions end after 12 idle hours (each request pushes the expiry out
+ * again) and after 7 days at most, however active. Club admins and staff
+ * keep the 30-day default from admin_sessions. */
+export const PRIVILEGED_ADMIN_ROLES = ['super_admin', 'support_agent'] as const;
+export const PRIVILEGED_SESSION_IDLE_HOURS = 12;
+export const PRIVILEGED_SESSION_MAX_DAYS = 7;
+
+export function isPrivilegedAdminRole(role: string): boolean {
+  return (PRIVILEGED_ADMIN_ROLES as readonly string[]).includes(role);
+}
+
+/** Creates an admin session and returns its token, with the shorter
+ * expiry for super_admin/support_agent. */
+export async function createAdminSession(adminId: string, role: string): Promise<string> {
+  const rows = (isPrivilegedAdminRole(role)
+    ? await sql`
+        insert into admin_sessions (admin_id, expires_at)
+        values (${adminId}, now() + make_interval(hours => ${PRIVILEGED_SESSION_IDLE_HOURS}))
+        returning token
+      `
+    : await sql`insert into admin_sessions (admin_id) values (${adminId}) returning token`) as Array<{ token: string }>;
+  return rows[0].token;
+}
+
 export interface AuthedAdmin {
   id: string;
   courseId: string | null; // null only for a super_admin, which isn't scoped to one club
@@ -91,15 +131,19 @@ export async function getAuthedAdmin(req: VercelRequest): Promise<AuthedAdmin | 
     must_change_password: boolean;
     theme_preference: 'system' | 'light' | 'dark';
     subscription_status: string | null;
+    expires_soon: boolean;
   }>;
   try {
     rows = (await sql`
       select a.id, a.course_id, a.role, a.first_name, a.last_name, a.email, a.username, a.must_change_password,
-             a.theme_preference, c.subscription_status
+             a.theme_preference, c.subscription_status,
+             s.expires_at < now() + make_interval(hours => ${PRIVILEGED_SESSION_IDLE_HOURS - 1}) as expires_soon
       from admin_sessions s
       join admins a on a.id = s.admin_id
       left join courses c on c.id = a.course_id
       where s.token = ${token} and s.expires_at > now() and a.activated_at is not null and a.revoked_at is null
+        and (a.role not in ('super_admin', 'support_agent')
+             or s.created_at > now() - make_interval(days => ${PRIVILEGED_SESSION_MAX_DAYS}))
     `) as typeof rows;
   } catch {
     return null;
@@ -107,6 +151,15 @@ export async function getAuthedAdmin(req: VercelRequest): Promise<AuthedAdmin | 
 
   if (rows.length === 0) return null;
   const r = rows[0];
+
+  // Sliding idle timeout for super_admin/support_agent: written at most once
+  // an hour per session, not on every request.
+  if (isPrivilegedAdminRole(r.role) && r.expires_soon) {
+    await sql`
+      update admin_sessions set expires_at = now() + make_interval(hours => ${PRIVILEGED_SESSION_IDLE_HOURS})
+      where token = ${token}
+    `;
+  }
 
   // Distinct from an invalid/expired session (which just returns null,
   // above) so the mobile app can show a specific explanation and log the

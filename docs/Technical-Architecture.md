@@ -75,7 +75,8 @@ Unit tests (`npm test`, which runs `tsx --test api/_lib/*.test.ts`) cover `match
 
 ## Authentication and roles
 
-- **Tokens**: opaque UUID bearer tokens stored in the database, valid for 30 days (`sessions.expires_at` and `admin_sessions.expires_at` default to `now() + interval '30 days'`).
+- **Tokens**: opaque UUID bearer tokens stored in the database, valid for 30 days (`sessions.expires_at` and `admin_sessions.expires_at` default to `now() + interval '30 days'`). `super_admin` and `support_agent` sessions are created with a 12-hour expiry that each request pushes out again (written at most once an hour), and are refused once 7 days old (`createAdminSession` / `getAuthedAdmin` in `api/_lib/auth.ts`).
+- **Ending sessions**: a member password reset deletes all that member's sessions; a member or admin changing their own password deletes every other session for the account; admin password resets (self-service or by another admin) and revoking an admin, support agent or staff account delete all of that account's sessions (`endAdminSessions`).
 - **Members**: `users` / `sessions`, checked in `api/_lib/auth.ts`.
 - **Admins**: a separate identity in `admins` / `admin_sessions`. A request is rejected if the account is not activated, is revoked, or its club's subscription is `canceled` (403).
 - **Roles**:
@@ -85,10 +86,12 @@ Unit tests (`npm test`, which runs `tsx --test api/_lib/*.test.ts`) cover `match
   - `staff`: one club, voucher redemption and support tickets only. Staff log in with a username, because several can share one email address.
 - Per-role action allow-lists are in `api/admin/index.ts` (`STAFF_ALLOWED_ACTIONS`, `SUPPORT_AGENT_ALLOWED_ACTIONS`, and the super-admin set).
 - Passwords are hashed with bcrypt (`bcryptjs`, cost 10). Admin accounts created by another admin start with a temporary password and `must_change_password`. Password resets use a 6-digit emailed code valid for 30 minutes (`api/_lib/passwordReset.ts`). Requests and wrong codes are rate-limited per email/username and per IP address and recorded in `password_reset_events` (`api/_lib/resetThrottle.ts` holds the limits); a block returns HTTP 429 with a message pointing to Flagrr support. Each event also writes one `[password-reset]` log line with the event, account id (if any), IP address and user agent, never the email address.
+- **Sign-in lockout** (`api/_lib/loginThrottle.ts` for the limits, `api/_lib/loginGuard.ts` for the database side), for `api/auth/login` and `api/admin?action=login`: 10 wrong passwords per email/username in 15 minutes (counted since the account's last successful sign-in or completed password reset, if later) or 30 per IP address in 15 minutes returns HTTP 429 without checking the password. Every attempt is stored in `login_events` and logged as one `[login]` line. A sign-in for an email with no account still runs a bcrypt check, so response time doesn't reveal which emails are registered. If migration `051` is missing, sign-in is allowed and an error is logged rather than failing.
+- **Forced password change**: an admin with `must_change_password` gets 403 on every action except `me`, `changePassword`, `logout` and `themePreference` (`api/admin/index.ts`).
 
 ## Database
 
-Full schema: `db/schema.sql`. Migrations are `db/migrations/001`–`050`, applied by hand in the Neon console. There is no migration runner or tracking table.
+Full schema: `db/schema.sql`. Migrations are `db/migrations/001`–`051`, applied by hand in the Neon console. There is no migration runner or tracking table.
 
 **Important:** `db/schema.sql` is behind the migrations and cannot rebuild the current database on its own (see [Known Limitations](Known-Limitations-and-Future-Work)). Treat the migrations, applied in order, as the source of truth.
 
@@ -97,6 +100,7 @@ Main groups of tables (some are created only by migrations):
 - **Members**: `users`, `sessions`, `points_accounts`, `user_stats`, `streaks`, `monthly_points`, `push_tokens`, notification preferences.
 - **Clubs and billing**: `courses` (includes `fb_per_rand`, PayFast token, subscription status, next billing date, past-due tracking), `pending_club_signups`, `member_roster` entries, `is_placeholder` club.
 - **Admins**: `admins`, `admin_sessions`, `password_reset_codes`, `admin_notifications`, `admin_broadcasts`, `audit_log`.
+- **Sign-in audit** (`051`): `login_events` (members and admins: `login_succeeded`, `login_failed` or `login_blocked`, SHA-256 hash of the email/username typed, matched `user_id` or `admin_id`, IP address, user agent, time). Used for the sign-in lockout and to trace where sign-ins came from.
 - **Password-reset audit** (`050`): `password_reset_events` (members and admins: event, SHA-256 hash of the email/username typed, matched `user_id` or `admin_id`, IP address, user agent, time). Used for the reset limits and to trace who requested a reset.
 - **Catalogue and vouchers**: `rewards`, `reward_variants`, `vouchers` (code format `FLGR-XXXX-XXXX`, 90-day expiry), `merchants`, `golf_products`, `golf_activities`.
 - **Receipts**: `receipts`, `receipt_items`, `receipt_scan_cache`, duplicate-attempt records.

@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { sql } from '../_lib/db';
-import { hashPassword, requireAuthedUser, verifyPassword } from '../_lib/auth';
+import { bearerToken, hashPassword, requireAuthedUser, verifyPassword } from '../_lib/auth';
 import { HttpError, withErrorHandling } from '../_lib/http';
 import { logAdClick, logAdImpression } from '../_lib/ads';
 import { registerPushToken, type PushPlatform } from '../_lib/pushNotifications';
@@ -477,6 +477,8 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     }
     const newHash = await hashPassword(newPassword);
     await sql`update users set password_hash = ${newHash} where id = ${authed.id}`;
+    // Sign out every other device; this one stays signed in.
+    await sql`delete from sessions where user_id = ${authed.id} and token::text <> ${bearerToken(req) ?? ''}`;
     res.status(200).json({ ok: true });
     return;
   }
