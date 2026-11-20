@@ -489,3 +489,21 @@ create index golf_rounds_user_status_idx on golf_rounds(user_id, status, complet
 -- One round in progress per member at a time.
 create unique index golf_rounds_one_in_progress_idx on golf_rounds(user_id) where status = 'in_progress';
 create index golf_rounds_course_completed_idx on golf_rounds(golf_course_id, completed_at) where status = 'completed';
+
+-- Password-reset audit trail and limits (migration 050). One row per
+-- "forgot password" request or wrong code, members and admins. Only a SHA-256
+-- hash of the email/username typed is kept, never the address itself.
+create table password_reset_events (
+  id uuid primary key default gen_random_uuid(),
+  account_type text not null check (account_type in ('member', 'admin')),
+  event text not null check (event in ('code_requested', 'request_blocked', 'code_failed', 'reset_blocked', 'password_reset')),
+  identifier_hash text not null,
+  user_id uuid references users(id) on delete set null,
+  admin_id uuid references admins(id) on delete set null,
+  ip text,
+  user_agent text,
+  created_at timestamptz not null default now()
+);
+
+create index password_reset_events_identifier_idx on password_reset_events(identifier_hash, created_at);
+create index password_reset_events_ip_idx on password_reset_events(ip, created_at);

@@ -84,11 +84,11 @@ Unit tests (`npm test`, which runs `tsx --test api/_lib/*.test.ts`) cover `match
   - `course_admin`: one club, up to 2 active per club.
   - `staff`: one club, voucher redemption and support tickets only. Staff log in with a username, because several can share one email address.
 - Per-role action allow-lists are in `api/admin/index.ts` (`STAFF_ALLOWED_ACTIONS`, `SUPPORT_AGENT_ALLOWED_ACTIONS`, and the super-admin set).
-- Passwords are hashed with bcrypt (`bcryptjs`, cost 10). Admin accounts created by another admin start with a temporary password and `must_change_password`. Password resets use a 6-digit emailed code valid for 30 minutes (`api/_lib/passwordReset.ts`).
+- Passwords are hashed with bcrypt (`bcryptjs`, cost 10). Admin accounts created by another admin start with a temporary password and `must_change_password`. Password resets use a 6-digit emailed code valid for 30 minutes (`api/_lib/passwordReset.ts`). Requests and wrong codes are rate-limited per email/username and per IP address and recorded in `password_reset_events` (`api/_lib/resetThrottle.ts` holds the limits); a block returns HTTP 429 with a message pointing to Flagrr support. Each event also writes one `[password-reset]` log line with the event, account id (if any), IP address and user agent, never the email address.
 
 ## Database
 
-Full schema: `db/schema.sql`. Migrations are `db/migrations/001`–`049`, applied by hand in the Neon console. There is no migration runner or tracking table.
+Full schema: `db/schema.sql`. Migrations are `db/migrations/001`–`050`, applied by hand in the Neon console. There is no migration runner or tracking table.
 
 **Important:** `db/schema.sql` is behind the migrations and cannot rebuild the current database on its own (see [Known Limitations](Known-Limitations-and-Future-Work)). Treat the migrations, applied in order, as the source of truth.
 
@@ -97,6 +97,7 @@ Main groups of tables (some are created only by migrations):
 - **Members**: `users`, `sessions`, `points_accounts`, `user_stats`, `streaks`, `monthly_points`, `push_tokens`, notification preferences.
 - **Clubs and billing**: `courses` (includes `fb_per_rand`, PayFast token, subscription status, next billing date, past-due tracking), `pending_club_signups`, `member_roster` entries, `is_placeholder` club.
 - **Admins**: `admins`, `admin_sessions`, `password_reset_codes`, `admin_notifications`, `admin_broadcasts`, `audit_log`.
+- **Password-reset audit** (`050`): `password_reset_events` (members and admins: event, SHA-256 hash of the email/username typed, matched `user_id` or `admin_id`, IP address, user agent, time). Used for the reset limits and to trace who requested a reset.
 - **Catalogue and vouchers**: `rewards`, `reward_variants`, `vouchers` (code format `FLGR-XXXX-XXXX`, 90-day expiry), `merchants`, `golf_products`, `golf_activities`.
 - **Receipts**: `receipts`, `receipt_items`, `receipt_scan_cache`, duplicate-attempt records.
 - **Earning**: `activity`, ledgers `birthday_rewards_granted`, `quarterly_tier_vouchers_granted`, `streak_rewards_granted`, `referrals`.

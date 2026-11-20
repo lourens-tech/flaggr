@@ -4,7 +4,15 @@ import { hashPassword, verifyPassword } from '../_lib/auth';
 import { HttpError, withErrorHandling } from '../_lib/http';
 import { getCurrentTierStatus } from '../_lib/tierRewards';
 import { sendEmail } from '../_lib/email';
-import { consumePasswordResetCode, issuePasswordResetCode } from '../_lib/passwordReset';
+import {
+  consumePasswordResetCode,
+  guardResetAttempt,
+  guardResetRequest,
+  issuePasswordResetCode,
+  recordResetEvent,
+  rejectResetCode,
+  resetContext,
+} from '../_lib/passwordReset';
 import { renderBrandedEmailHtml, emailParagraph } from '../_lib/emailTemplate';
 
 interface LoginBody {
@@ -41,10 +49,16 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     const email = (req.body as ForgotPasswordBody).email?.trim().toLowerCase();
     if (!email) throw new HttpError(400, 'email is required');
 
+    // Rate-limited per email and per IP, whether or not the email has an
+    // account, so the limit can't reveal which emails are registered.
+    const ctx = resetContext(req, 'member', email);
+    await guardResetRequest(ctx);
+
     const rows = (await sql`select id, first_name from users where email = ${email}`) as Array<{
       id: string;
       first_name: string;
     }>;
+    await recordResetEvent(ctx, 'code_requested', rows.length > 0 ? { userId: rows[0].id } : null);
     if (rows.length > 0) {
       const code = await issuePasswordResetCode({ userId: rows[0].id });
       await sendEmail({
@@ -73,12 +87,16 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     }
 
     const rows = (await sql`select id from users where email = ${email}`) as Array<{ id: string }>;
-    if (rows.length === 0 || !(await consumePasswordResetCode({ userId: rows[0].id }, code))) {
-      throw new HttpError(400, 'That code is invalid or has expired');
+    const owner = rows.length > 0 ? { userId: rows[0].id } : null;
+    const ctx = resetContext(req, 'member', email);
+    await guardResetAttempt(ctx, owner);
+    if (!owner || !(await consumePasswordResetCode(owner, code))) {
+      await rejectResetCode(ctx, owner);
     }
 
     const passwordHash = await hashPassword(newPassword);
     await sql`update users set password_hash = ${passwordHash} where id = ${rows[0].id}`;
+    await recordResetEvent(ctx, 'password_reset', owner);
     res.status(200).json({ ok: true });
     return;
   }

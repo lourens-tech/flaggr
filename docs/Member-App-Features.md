@@ -14,7 +14,7 @@ Everything below describes the app as it exists today for a signed-up member. Se
 - On successful sign-up the member is logged in immediately and receives a branded welcome email (club name, a short "how it works" summary, and a link back into the app).
 - If a valid referral code was entered, the referrer is credited (see [Referrals](#referrals)). An invalid code or a referrer at their cap never blocks the sign-up.
 - **Login** is email + password, with a "keep me logged in" option. The session token is a bearer token stored on-device (AsyncStorage, which is `localStorage` on the web build); unchecking the option keeps the session in memory for that app run only. Sessions last 30 days.
-- **Forgot password**: the member enters their email, receives a 6-digit code (valid 30 minutes, only the latest code works), then enters the code and a new password.
+- **Forgot password**: the member enters their email, receives a 6-digit code (valid 30 minutes, only the latest code works), then enters the code and a new password. Limits (`api/_lib/resetThrottle.ts`): at most 3 code requests per email or username in 30 minutes and 10 per IP address in an hour; 5 wrong codes for an account in 30 minutes locks it out of resetting for that window and cancels any open codes; 20 wrong codes from one IP address in an hour blocks code checks from that IP. A blocked request or code shows “Too many password reset attempts. Please contact Flagrr support at Swing@flagrr.com or 071 759 9553.” Blocks lift on their own when the window passes. Limits apply whether or not the email has an account, so they don’t reveal which emails are registered.
 
 ## Home Screen
 
