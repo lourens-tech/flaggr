@@ -1,7 +1,7 @@
 import crypto from 'node:crypto';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { sql } from '../_lib/db';
-import { getAuthedAdmin, hashPassword, verifyPassword, type AuthedAdmin } from '../_lib/auth';
+import { bearerToken, createAdminSession, endAdminSessions, getAuthedAdmin, hashPassword, verifyPassword, type AuthedAdmin } from '../_lib/auth';
 import { HttpError, uuidOrNotFound, withErrorHandling } from '../_lib/http';
 import { deltaPct, isStatsPeriod, periodWindow, type StatsPeriod } from '../_lib/periods';
 import { fillMonthlyByNumber } from '../_lib/monthly';
@@ -62,6 +62,7 @@ import {
   resetContext,
 } from '../_lib/passwordReset';
 import { renderBrandedEmailHtml, emailParagraph } from '../_lib/emailTemplate';
+import { guardLogin, loginContext, recordLoginEvent, spendPasswordCheckTime } from '../_lib/loginGuard';
 
 // Every action for the course-admin side of the app lives in this one file,
 // dispatched by ?action= (same pattern as api/profile/index.ts and
@@ -1306,6 +1307,10 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     // its own unique username instead. Both are checked here since one
     // login screen serves every role.
     const loginId = identifier.trim().toLowerCase();
+    // Refuses (429) after too many wrong passwords for this email/username or
+    // from this IP, before the password is even checked.
+    const loginCtx = loginContext(req, 'admin', loginId);
+    await guardLogin(loginCtx);
     const rows = (await sql`
       select a.id, a.course_id, a.role, a.first_name, a.last_name, a.email, a.username, a.password_hash,
         a.activated_at, a.must_change_password, a.revoked_at, a.theme_preference, c.subscription_status
@@ -1330,9 +1335,12 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
 
     const admin = rows[0];
     if (!admin || !admin.password_hash || !admin.activated_at) {
+      await spendPasswordCheckTime(password);
+      await recordLoginEvent(loginCtx, 'login_failed', admin ? { adminId: admin.id } : null);
       throw new HttpError(401, 'Invalid email/username or password');
     }
     if (!(await verifyPassword(password, admin.password_hash))) {
+      await recordLoginEvent(loginCtx, 'login_failed', { adminId: admin.id });
       throw new HttpError(401, 'Invalid email/username or password');
     }
     if (admin.revoked_at) {
@@ -1347,9 +1355,8 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       throw new HttpError(403, 'This account type is not supported yet');
     }
 
-    const sessionRows = (await sql`
-      insert into admin_sessions (admin_id) values (${admin.id}) returning token
-    `) as Array<{ token: string }>;
+    await recordLoginEvent(loginCtx, 'login_succeeded', { adminId: admin.id });
+    const sessionToken = await createAdminSession(admin.id, admin.role);
 
     // A super_admin/support_agent has no course_id — return the placeholder
     // shape instead of querying a course that doesn't exist.
@@ -1358,7 +1365,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         ? EMPTY_COURSE_DTO
         : await fetchCourse(admin.course_id as string);
     res.status(200).json({
-      token: sessionRows[0].token,
+      token: sessionToken,
       admin: {
         id: admin.id,
         firstName: admin.first_name,
@@ -1446,6 +1453,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
 
     const passwordHash = await hashPassword(newPassword);
     await sql`update admins set password_hash = ${passwordHash}, must_change_password = false where id = ${rows[0].id}`;
+    await endAdminSessions(rows[0].id);
     await recordResetEvent(ctx, 'password_reset', owner);
     res.status(200).json({ ok: true });
     return;
@@ -1488,8 +1496,19 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     }
     const newHash = await hashPassword(newPassword);
     await sql`update admins set password_hash = ${newHash}, must_change_password = false where id = ${authedAdmin.id}`;
+    // Sign out every other device; this one stays signed in.
+    await endAdminSessions(authedAdmin.id, bearerToken(req));
     res.status(200).json({ ok: true });
     return;
+  }
+
+  // An account still on a temporary password (new account, or reset by a
+  // super_admin) can only sign out, change its password and load its own
+  // profile until it picks its own password. The app already shows only the
+  // change-password screen in that state; this stops the temporary password
+  // (sent by email) being used directly against the API.
+  if (authedAdmin.mustChangePassword && action !== 'me') {
+    throw new HttpError(403, 'Choose a new password before continuing.');
   }
 
   // --- Support Centre agents + super-admin: cross-club actions, not scoped
@@ -2486,6 +2505,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         const tempPassword = generateTempPassword();
         const passwordHash = await hashPassword(tempPassword);
         await sql`update admins set password_hash = ${passwordHash}, must_change_password = true where id = ${id}`;
+        await endAdminSessions(id);
 
         const targetCourse = await fetchCourse(target.course_id);
         await sendEmail({
@@ -2520,6 +2540,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         const updated = (await sql`
           update admins set revoked_at = now() where id = ${id} and role = 'course_admin' returning email
         `) as Array<{ email: string }>;
+        if (updated.length > 0) await endAdminSessions(id);
         await logAudit({
           adminId: authedAdmin.id,
           adminName: `${authedAdmin.firstName} ${authedAdmin.lastName}`,
@@ -3110,6 +3131,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         const tempPassword = generateTempPassword();
         const passwordHash = await hashPassword(tempPassword);
         await sql`update admins set password_hash = ${passwordHash}, must_change_password = true where id = ${id}`;
+        await endAdminSessions(id);
 
         await sendEmail({
           to: target.email,
@@ -3143,6 +3165,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         const updated = (await sql`
           update admins set revoked_at = now() where id = ${id} and role = 'support_agent' returning email
         `) as Array<{ email: string }>;
+        if (updated.length > 0) await endAdminSessions(id);
         await logAudit({
           adminId: authedAdmin.id,
           adminName: `${authedAdmin.firstName} ${authedAdmin.lastName}`,
@@ -3724,6 +3747,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       returning id
     `) as Array<{ id: string }>;
     if (updated.length === 0) throw new HttpError(404, 'Admin not found');
+    await endAdminSessions(id);
     res.status(200).json({ ok: true });
     return;
   }
@@ -3914,6 +3938,7 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         returning id, first_name, last_name, email, username, must_change_password, revoked_at, created_at,
           (select count(*) from vouchers v where v.redeemed_by_admin_id = admins.id) as redemption_count
       `) as typeof updated;
+      await endAdminSessions(id);
     } else {
       updated = (await sql`
         update admins
@@ -3931,7 +3956,10 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
   if (action === 'staffRevoke') {
     const id = (req.body as StaffIdBody).id;
     if (!id) throw new HttpError(400, 'id is required');
-    await sql`update admins set revoked_at = now() where id = ${id} and course_id = ${courseId} and role = 'staff'`;
+    const revoked = (await sql`
+      update admins set revoked_at = now() where id = ${id} and course_id = ${courseId} and role = 'staff' returning id
+    `) as Array<{ id: string }>;
+    if (revoked.length > 0) await endAdminSessions(id);
     res.status(200).json({ ok: true });
     return;
   }

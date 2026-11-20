@@ -31,6 +31,11 @@ A practical checklist for manually testing the member-facing app end-to-end at h
 - [ ] Enter a wrong code 5 times: the 5th shows the same support message, and even the correct code is then refused until 30 minutes pass.
 - [ ] An email with no account gets the same responses (code “sent”, then the support message on the 4th request).
 - [ ] Each request and wrong code adds a row to `password_reset_events` with the IP address and device, and no email address.
+- [ ] Sign in on two devices, reset the password on one: the other is signed out at its next request or launch.
+- [ ] Change the password in Profile: the current device stays signed in, a second device is signed out.
+- [ ] Enter a wrong password 10 times for one email: the next attempt (and any within 15 minutes) shows “Too many sign-in attempts. Try again in 15 minutes, or reset your password.”, and even the right password is refused. Resetting the password lets the member sign in straight away.
+- [ ] An email with no account gets the same “Invalid email or password” and, after 10 tries, the same lockout message.
+- [ ] Each sign-in attempt adds a row to `login_events` with the IP address and device, and no email address.
 
 ## 3. Home Screen
 
@@ -213,7 +218,10 @@ Test each role (course admin, staff, super admin, support agent) at three widths
 - [ ] Activity (course admin): search and filters work, tapping an enquiry or receipt notification opens it, and Mark all as read clears every unread dot (and the More / bell count).
 - [ ] Club Settings: cover photo with Change cover photo…, logo with Change logo…, club name as the title; editing a detail and pressing Save changes (toolbar on desktop, under Details on phones) saves it; Change password… opens a sheet, an empty submit shows "Missing info" on top of the sheet, a valid change closes it; the subscription card shows the status; a past-due club sees the red "Your last payment failed." banner.
 - [ ] Super admin Reports (desktop): six KPI tiles in one row (three and three on narrower screens), the tier bar with legend, top rewards with photo and club name, the member search field and button on one line, and readable ad charts (every few days labelled, no overlapping numbers).
-- [ ] Sign-in: a wrong password shows a red banner on the card (no pop-up); forgot password and forced change show their errors the same way; the reset success message still returns to sign-in. Too many reset requests or wrong codes show the support message (Swing@flagrr.com or 071 759 9553) in the banner.
+- [ ] Sign-in: a wrong password shows a red banner on the card (no pop-up); forgot password and forced change show their errors the same way; the reset success message still returns to sign-in. Too many reset requests or wrong codes show the support message (Swing@flagrr.com or 071 759 9553) in the banner. 10 wrong passwords in 15 minutes show “Too many sign-in attempts. Try again in 15 minutes, or reset your password.” in the banner.
+- [ ] Temporary password: a new or reset admin account can only reach the forced-change screen, and calling any other action with its token (for example `?action=dashboard`) returns 403 “Choose a new password before continuing.” until the password is changed.
+- [ ] Sessions: a super admin resetting a course admin's password, or a course admin revoking a staff member, signs that account out on its next request. Changing your own admin password keeps you signed in and signs out your other devices.
+- [ ] Super admin / support agent: after 12 hours without use (or 7 days after signing in) the next app launch shows sign-in. Course admin and staff stay signed in.
 - [ ] Super admin Courses (desktop): the photo header and counts show; the table sorts by Club, Status, Members and Admins; filters and search work; each Manage link opens that club's page; the ⋯ menu archives, unarchives, cancels and reactivates, and Reactivate and Unarchive now ask first. Creating a club ends with "{club} has been created, and {admin} has been emailed their login details."
 - [ ] Super admin per-club pages show `Courses › {club} › {section}` in the breadcrumb, and the club catalogue offers Deactivate and a separate Delete permanently….
 - [ ] Super admin Push: sending asks "Send to <audience> — <club scope>?" first; Cancel sends nothing.

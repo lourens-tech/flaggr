@@ -14,6 +14,7 @@ import {
   resetContext,
 } from '../_lib/passwordReset';
 import { renderBrandedEmailHtml, emailParagraph } from '../_lib/emailTemplate';
+import { guardLogin, loginContext, recordLoginEvent, spendPasswordCheckTime } from '../_lib/loginGuard';
 
 interface LoginBody {
   email?: string;
@@ -96,6 +97,9 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
 
     const passwordHash = await hashPassword(newPassword);
     await sql`update users set password_hash = ${passwordHash} where id = ${rows[0].id}`;
+    // Sign out every device: whoever had the old password (or a stolen
+    // session) loses access the moment the owner resets it.
+    await sql`delete from sessions where user_id = ${rows[0].id}`;
     await recordResetEvent(ctx, 'password_reset', owner);
     res.status(200).json({ ok: true });
     return;
@@ -107,6 +111,11 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
   if (!email || !password) {
     throw new HttpError(400, 'email and password are required');
   }
+
+  // Refuses (429) after too many wrong passwords for this email or from this
+  // IP, before the password is even checked. See api/_lib/loginGuard.ts.
+  const loginCtx = loginContext(req, 'member', email);
+  await guardLogin(loginCtx);
 
   const rows = (await sql`
     select u.id, u.first_name, u.last_name, u.email, u.phone, u.password_hash,
@@ -128,13 +137,17 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
   }>;
 
   if (rows.length === 0) {
+    await spendPasswordCheckTime(password);
+    await recordLoginEvent(loginCtx, 'login_failed');
     throw new HttpError(401, 'Invalid email or password');
   }
   const user = rows[0];
   const valid = await verifyPassword(password, user.password_hash);
   if (!valid) {
+    await recordLoginEvent(loginCtx, 'login_failed', { userId: user.id });
     throw new HttpError(401, 'Invalid email or password');
   }
+  await recordLoginEvent(loginCtx, 'login_succeeded', { userId: user.id });
 
   const sessionRows = (await sql`
     insert into sessions (user_id) values (${user.id}) returning token

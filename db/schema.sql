@@ -507,3 +507,21 @@ create table password_reset_events (
 
 create index password_reset_events_identifier_idx on password_reset_events(identifier_hash, created_at);
 create index password_reset_events_ip_idx on password_reset_events(ip, created_at);
+
+-- Sign-in audit trail and lockout (migration 051). One row per member or
+-- admin sign-in attempt. Only a SHA-256 hash of the email/username typed is
+-- kept, never the address itself.
+create table login_events (
+  id uuid primary key default gen_random_uuid(),
+  account_type text not null check (account_type in ('member', 'admin')),
+  event text not null check (event in ('login_succeeded', 'login_failed', 'login_blocked')),
+  identifier_hash text not null,
+  user_id uuid references users(id) on delete set null,
+  admin_id uuid references admins(id) on delete set null,
+  ip text,
+  user_agent text,
+  created_at timestamptz not null default now()
+);
+
+create index login_events_identifier_idx on login_events(identifier_hash, created_at);
+create index login_events_ip_idx on login_events(ip, created_at);
