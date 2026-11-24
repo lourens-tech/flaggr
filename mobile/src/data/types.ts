@@ -221,6 +221,8 @@ export interface AppNotification {
   date: string;
   read: boolean;
   enquiryId: string | null;
+  // Set on "Reply to your feedback" notifications (API, migration 053); absent from older servers.
+  supportTicketId?: string | null;
 }
 
 export interface NotificationPreferences {
@@ -253,4 +255,35 @@ export interface MyEnquiryThread {
   status: EnquiryStatus;
   enquiryType: string;
   messages: EnquiryMessage[];
+}
+
+// My Feedback (owner decision 24 Nov 2026): the member's Give Feedback
+// submissions and the Flagrr team's replies. Read only.
+export type FeedbackCategory = 'bug' | 'general_feedback' | 'improvement';
+export type FeedbackStatus = 'open' | 'in_progress' | 'resolved';
+
+export interface MyFeedbackSummary {
+  id: string;
+  category: FeedbackCategory | null;
+  status: FeedbackStatus;
+  createdAt: string;
+  updatedAt: string;
+  lastMessage: string | null;
+  hasUnread: boolean;
+}
+
+export interface FeedbackMessage {
+  id: string;
+  // 'requester' is the member, 'agent' the Flagrr team.
+  senderType: 'requester' | 'agent';
+  body: string;
+  createdAt: string;
+}
+
+export interface MyFeedbackThread {
+  id: string;
+  category: FeedbackCategory | null;
+  status: FeedbackStatus;
+  createdAt: string;
+  messages: FeedbackMessage[];
 }

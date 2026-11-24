@@ -1,12 +1,18 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { sql } from '../_lib/db';
 import { bearerToken, hashPassword, requireAuthedUser, verifyPassword } from '../_lib/auth';
-import { HttpError, withErrorHandling } from '../_lib/http';
+import { HttpError, uuidOrNotFound, withErrorHandling } from '../_lib/http';
 import { logAdClick, logAdImpression } from '../_lib/ads';
 import { registerPushToken, type PushPlatform } from '../_lib/pushNotifications';
 import { notifyCourseAdmins } from '../_lib/adminNotifications';
 import { addMemberMessage, createEnquiry, listEnquiryMessages, markThreadReadByMember } from '../_lib/enquiries';
-import { createSupportTicket, SUPPORT_TICKET_CATEGORIES, type SupportTicketCategory } from '../_lib/supportTickets';
+import {
+  createSupportTicket,
+  fetchMemberFeedbackThread,
+  listMemberFeedback,
+  SUPPORT_TICKET_CATEGORIES,
+  type SupportTicketCategory,
+} from '../_lib/supportTickets';
 import { sendEmail } from '../_lib/email';
 import {
   getOrCreateReferralCode,
@@ -132,6 +138,21 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         hasUnread: r.has_unread,
       })),
     );
+    return;
+  }
+
+  // My Feedback: the member's own Give Feedback submissions and the Flagrr
+  // team's replies (owner decision 24 Nov 2026). Read only.
+  if (action === 'myFeedback' && req.method === 'GET') {
+    res.status(200).json(await listMemberFeedback(authed.id));
+    return;
+  }
+
+  if (action === 'feedbackThread' && req.method === 'GET') {
+    const id = uuidOrNotFound(req.query.id, 'Feedback');
+    const thread = await fetchMemberFeedbackThread(id, authed.id);
+    if (!thread) throw new HttpError(404, 'Feedback not found');
+    res.status(200).json(thread);
     return;
   }
 

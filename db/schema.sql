@@ -275,7 +275,10 @@ create table notifications (
   body text not null,
   date timestamptz not null default now(),
   read boolean not null default false,
-  enquiry_id uuid references enquiries(id) on delete cascade
+  enquiry_id uuid references enquiries(id) on delete cascade,
+  -- Set on "Reply to your feedback" notifications (migration 053, which also adds the
+  -- foreign key to support_tickets; that table comes from migration 025, not this file).
+  support_ticket_id uuid
 );
 
 -- Idempotency ledgers for the automatic tier perks (birthday bonus, once-a-

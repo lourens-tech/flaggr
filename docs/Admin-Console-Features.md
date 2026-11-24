@@ -92,6 +92,8 @@ Sidebar groups: Clubs (Courses, Course Maps) · Insights (Reports, Golf) · Enga
 
 Inbox and Profile only (sidebar and phone tabs). Cannot see clubs, ads, rewards, reports or agent management.
 
+Replying to a member's Give Feedback ticket (an agent or a super admin, `supportAgentReply`) also sends that member an in-app notification and a push under their "Support replies" setting: "Reply to your feedback", "Flagrr Support replied: {message}" (added 24 Nov 2026; the wording is new and waits for the owner's approval). Replies to course admin and staff tickets notify no member.
+
 ## Audit log
 
 Super admin mutations and fraud confirm/approve decisions are logged (`api/_lib/auditLog.ts`). Course-admin actions other than fraud decisions (rewards, catalogue, staff, co-admin changes, roster uploads, broadcasts, profile edits) are **not** logged yet.

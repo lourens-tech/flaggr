@@ -31,6 +31,7 @@ import { registerAdminPushToken, sendPushToAdmin, sendPushToUser, type PushPlatf
 import { sendEmail } from '../_lib/email';
 import {
   addAgentMessage,
+  notifyMemberOfAgentReply,
   addRequesterMessage,
   createSupportTicket,
   listSupportTicketMessages,
@@ -1653,6 +1654,8 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
       const owned = (await sql`select id from support_tickets where id = ${ticketId}`) as Array<{ id: string }>;
       if (owned.length === 0) throw new HttpError(404, 'Ticket not found');
       await addAgentMessage(ticketId, authedAdmin.id, body);
+      // A member's Give Feedback ticket: tell the member a reply is waiting.
+      await notifyMemberOfAgentReply(ticketId, body);
       res.status(200).json(await listSupportTicketMessages(ticketId));
       return;
     }

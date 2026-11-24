@@ -139,7 +139,7 @@ Known issues in `app.json`: it requests `android.permission.RECORD_AUDIO`, which
 ## Database
 
 - `db/schema.sql` is a **partial, older** snapshot. It does not include about 13 tables and many columns that later migrations added. Do not treat it as the current schema.
-- `db/migrations/001` to `052` are plain SQL files. There is **no migration runner and no tracking table**: apply them in numeric order by hand against Neon, and keep a record of which have been applied.
+- `db/migrations/001` to `053` are plain SQL files. There is **no migration runner and no tracking table**: apply them in numeric order by hand against Neon, and keep a record of which have been applied.
 - Migration `018_admin_broadcasts.sql` uses `create table` without `if not exists`, so it fails if the table already exists. Migrations `003` and `017` are destructive; read them before running on a database with data.
 - `db/seed.sql` no longer works as written: it inserts `golf_products` without `course_id`, which became `NOT NULL` in migration `042`, and uses `on conflict` on a table without a matching unique constraint.
 - Any new schema change needs a new numbered file in `db/migrations/`.
@@ -147,7 +147,8 @@ Known issues in `app.json`: it requests `android.permission.RECORD_AUDIO`, which
 - `049_golf_share_with_club.sql` adds `golf_profiles.share_with_club` (default true) and an index for the admin Golf pages. Apply it **before** deploying the code that uses it: until it is applied, the member Course and My Golf tabs, the member data export and the admin Golf pages fail with a missing-column error. It is additive and safe to run more than once.
 - `050_password_reset_events.sql` adds the `password_reset_events` table used to rate-limit and log password resets. Apply it **before** deploying the code that uses it: until it is applied, member and admin forgot password and reset fail with a server error. It is additive and safe to run more than once.
 - `051_login_events.sql` adds the `login_events` table used for the sign-in lockout and audit trail, and cuts existing super admin and support agent sessions to at most 12 hours. Apply it **before** deploying the code that uses it. If the code ships first, sign-in still works but has no lockout, and each sign-in logs `login_events table missing`. Safe to run more than once (running it again only shortens super admin and support sessions again).
-- `052_activity_receipt_id.sql` adds `activity.receipt_id`, so a "Receipt scanned" row in Reward Activity can open its receipt (1.1.0 member app). It can be applied before or after the deploy: until it is applied the API leaves the link out and logs `[activity] activity.receipt_id missing` (`api/_lib/activityReceiptLink.ts`), and rows written in that time stay unlinked. Rows from before the migration are not linked.
+- `052_activity_receipt_id.sql` adds `activity.receipt_id`, so a "Receipt scanned" row in Reward Activity can open its receipt (1.1.0 member app). It can be applied before or after the deploy: until it is applied the API leaves the link out and logs `[schema] activity.receipt_id missing` (`api/_lib/schemaColumns.ts`), and rows written in that time stay unlinked. Rows from before the migration are not linked.
+- `053_notification_support_ticket.sql` adds `notifications.support_ticket_id`, so a "Reply to your feedback" notification can open the member's feedback thread. Like 052 it can be applied before or after the deploy: until then the notification is sent without the link and the API logs `[schema] notifications.support_ticket_id missing` (`api/_lib/schemaColumns.ts`).
 
 ## Course maps
 

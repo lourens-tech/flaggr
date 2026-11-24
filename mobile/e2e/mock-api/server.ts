@@ -148,6 +148,17 @@ function fresh() {
       { id: 'n2', title: 'Your club replied', body: 'Thanks, we have booked your tee time.', date: daysAgo(2), read: false, enquiryId: 'e1' },
       { id: 'n3', title: 'Welcome to Flagrr', body: 'Scan your receipts after your round to earn Flagrr Cash.', date: daysAgo(30), read: true, enquiryId: null },
     ] as any[],
+    // Give Feedback submissions (support tickets, requester_type 'member') with the Flagrr team's replies,
+    // as api/profile ?action=myFeedback / feedbackThread return them (owner decision 24 Nov 2026).
+    feedback: [
+      {
+        id: 'fb1', category: 'improvement', status: 'in_progress', createdAt: daysAgo(4), updatedAt: daysAgo(1),
+        messages: [
+          { id: 'fm1', senderType: 'requester', body: 'Could the hole map show the distance to the back of the green too?', createdAt: daysAgo(4), readByRequester: true },
+          { id: 'fm2', senderType: 'agent', body: 'Thanks for the idea. We have passed it to the team working on the hole maps.', createdAt: daysAgo(1), readByRequester: false },
+        ],
+      },
+    ] as any[],
     enquiries: [
       { id: 'e1', enquiryType: 'Bookings', status: 'in_progress', createdAt: daysAgo(3), updatedAt: daysAgo(2), lastMessage: 'Thanks, we have booked your tee time.', hasUnread: true,
         messages: [
@@ -330,7 +341,23 @@ function route(p: string, method: string, q: URLSearchParams, body: any, authed:
         messages: [{ id: randomUUID(), senderType: 'member', body: body.message, createdAt: daysAgo(0) }] };
       s.enquiries.unshift(e); return [200, { ok: true, enquiryId: e.id }];
     }
-    if (action === 'feedbackCreate') return [200, { ok: true, ticketId: 't1' }];
+    if (action === 'feedbackCreate') {
+      const id = `fb${s.feedback.length + 1}`;
+      s.feedback.unshift({ id, category: body.category, status: 'open', createdAt: daysAgo(0), updatedAt: daysAgo(0), messages: [{ id: `${id}m1`, senderType: 'requester', body: String(body.message ?? '').trim(), createdAt: daysAgo(0), readByRequester: true }] });
+      return [200, { ok: true, ticketId: id }];
+    }
+    if (action === 'myFeedback') {
+      return [200, s.feedback.map((f) => ({
+        id: f.id, category: f.category, status: f.status, createdAt: f.createdAt, updatedAt: f.updatedAt,
+        lastMessage: f.messages[f.messages.length - 1]?.body ?? null, hasUnread: f.messages.some((m: any) => !m.readByRequester),
+      }))];
+    }
+    if (action === 'feedbackThread') {
+      const f = s.feedback.find((x) => x.id === q.get('id'));
+      if (!f) return [404, { error: 'Feedback not found' }];
+      f.messages.forEach((m: any) => { m.readByRequester = true; }); // opening the thread marks replies read, as the server does
+      return [200, { id: f.id, category: f.category, status: f.status, createdAt: f.createdAt, messages: f.messages.map(({ readByRequester, ...m }: any) => m) }];
+    }
     if (action === 'referralInfo') return [200, { code: 'FLG7K2', memberBonus: 15, courseBonus: 500, redeemedCount: 2, maxRedemptions: 10 }];
     if (action === 'myEnquiries') return [200, scenario.noEnquiries ? [] : s.enquiries.map(({ messages, ...rest }) => rest)];
     if (action === 'enquiryThread') { const e = s.enquiries.find((x) => x.id === q.get('id')); if (e) e.hasUnread = false; return e ? [200, { id: e.id, status: e.status, enquiryType: e.enquiryType, messages: e.messages }] : [404, { error: 'Enquiry not found' }]; }

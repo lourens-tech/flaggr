@@ -95,9 +95,9 @@ Vercel's Hobby plan allows **12 serverless functions**, and the API uses exactly
 | `api/redeem.ts` | Redeem a reward for a voucher |
 | `api/vouchers/index.ts` | A member's vouchers |
 | `api/activity/index.ts` | Earn/redeem ledger (last 100); each row has `voucherId` and `receiptId` (null when not linked) |
-| `api/notifications/index.ts` | In-app notifications, `?action=read` |
+| `api/notifications/index.ts` | In-app notifications, `?action=read`; each has `enquiryId` and `supportTicketId` (null when not linked) |
 | `api/receipts/index.ts` | List, `?action=scan` (preview), POST (confirm), `?action=image` |
-| `api/profile/index.ts` | Avatar upload (default), plus actions: `update`, `changeClub`, `contact`, `feedbackCreate`, `enquiryReply`, `myEnquiries`, `enquiryThread`, `adClick`, `adImpression`, `registerPushToken`, `themePreference`, `notificationPreferences`, `updateNotificationPreferences`, `changePassword`, `deleteAccount`, `exportMyData`, `referralInfo` |
+| `api/profile/index.ts` | Avatar upload (default), plus actions: `update`, `changeClub`, `contact`, `feedbackCreate`, `enquiryReply`, `myEnquiries`, `enquiryThread`, `adClick`, `adImpression`, `registerPushToken`, `themePreference`, `notificationPreferences`, `updateNotificationPreferences`, `changePassword`, `deleteAccount`, `exportMyData`, `referralInfo`, `myFeedback`, `feedbackThread` |
 | `api/courses/index.ts` | Public club list (GET), `?action=initiateSignup`, `?action=payfastNotify`, `?action=payfastGracePeriodCheck`, and the member Course / My Golf actions in `api/_lib/golf.ts`: `golfHome`, `golfCourse`, `golfProfile` (GET and POST), `golfRoundStart`, `golfRound`, `golfRoundSave`, `golfRoundFinish`, `golfRoundDelete`, `golfStats` |
 | `api/admin/index.ts` | Every admin, staff, support-agent and super-admin action (about 4,400 lines), dispatched by `?action=`. Course map actions live in `api/_lib/golfAdmin.ts`: course admin `courseMapStatus`, `scorecardPhoto`, `scorecardPhotoUpload`, `scorecardPhotoDelete`; super admin `superAdminGolfCourses`, `superAdminGolfCourse`, `superAdminScorecardPhotos`, `superAdminScorecardPhoto`, `superAdminGolfCourseImport`, `superAdminGolfCoursePublish`, `superAdminGolfCourseDelete`. The admin Golf pages live in `api/_lib/golfClub.ts` (read-only, GET): course admin `golfOverview`, `golfMember` (`userId`), `golfScorecard` (`id`); super admin `superAdminGolf`, `superAdminGolfClub` (`courseId`), `superAdminGolfMember`, `superAdminGolfScorecard`. They count completed rounds on a club's own course map by members of that club whose `golf_profiles.share_with_club` is not false; staff are refused |
 
@@ -129,7 +129,7 @@ Unit tests (`npm test`, which runs `tsx --test api/_lib/*.test.ts`) cover `match
 
 ## Database
 
-Full schema: `db/schema.sql`. Migrations are `db/migrations/001`–`052`, applied by hand in the Neon console. There is no migration runner or tracking table.
+Full schema: `db/schema.sql`. Migrations are `db/migrations/001`–`053`, applied by hand in the Neon console. There is no migration runner or tracking table.
 
 **Important:** `db/schema.sql` is behind the migrations and cannot rebuild the current database on its own (see [Known Limitations](Known-Limitations-and-Future-Work)). Treat the migrations, applied in order, as the source of truth.
 
@@ -184,6 +184,7 @@ Ads have a placement (including `home_top`), image or video media, a date range,
 
 ## Notifications and email
 
+- **My Feedback (API only so far, 24 Nov 2026)**: `api/profile?action=myFeedback` lists the member's own Give Feedback tickets (`support_tickets` with `requester_type = 'member'`), newest activity first, with the last message and whether a reply is unread; `?action=feedbackThread&id=` returns one thread and marks the team's replies read. Read only: members cannot reply in the thread. When an agent replies (`supportAgentReply`), `notifyMemberOfAgentReply` (`api/_lib/supportTickets.ts`) adds a notification with `support_ticket_id` (migration `053`) and sends a `supportReplies` push. The member screens are drawn for the owner's approval before they are built; until then the app shows the notification but has nowhere to open it.
 - **Push**: sent through the Expo push service, filtered by the member's notification preferences (`accountActivity`, `supportReplies`, `announcements`). Real delivery on a phone needs a native build, an EAS project, and the platform credentials (see Known Limitations).
 - **Email** (Resend): welcome email, password reset codes, club login emails, past-due billing reminders, and enquiry notifications. HTML is built with `emailTemplate.ts`.
 
