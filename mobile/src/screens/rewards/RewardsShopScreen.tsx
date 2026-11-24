@@ -211,7 +211,7 @@ export function RewardsShopScreen({ navigation }: Props) {
               onPress={() => setConfirm(null)}
               disabled={redeeming}
               accessibilityRole="button"
-              style={{ height: 44, marginTop: 4, alignItems: 'center', justifyContent: 'center', opacity: redeeming ? 0.45 : 1 }}
+              style={{ minHeight: 44, marginTop: 4, alignItems: 'center', justifyContent: 'center', opacity: redeeming ? 0.45 : 1 }}
             >
               <Text style={{ fontSize: 15, fontWeight: '600', color: t.muted }}>Cancel</Text>
             </Pressable>
@@ -242,7 +242,7 @@ function FilterPill({ label, active, onPress }: { label: string; active: boolean
       // 38 pt pill, 44 pt touch target (Filters board).
       hitSlop={{ top: 3, bottom: 3 }}
       style={{
-        height: 38,
+        minHeight: 38,
         paddingHorizontal: 16,
         borderRadius: 999,
         justifyContent: 'center',
@@ -305,7 +305,9 @@ function ShopCard({ reward, onRedeem }: { reward: Reward; onRedeem: (variantId: 
           ) : null}
           {reward.variants.length > 1 ? (
             <View accessibilityRole="radiogroup" accessibilityLabel={`${reward.title} options`} style={{ marginTop: 8 }}>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 5 }}>
+              {/* Chips wrap onto a second line rather than scrolling sideways, so every option stays
+                  visible on a narrow card (the board's single row hid options at 375 pt). */}
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 5 }}>
                 {reward.variants.map((v, i) => {
                   const on = i === selected;
                   return (
@@ -322,7 +324,7 @@ function ShopCard({ reward, onRedeem }: { reward: Reward; onRedeem: (variantId: 
                     </Pressable>
                   );
                 })}
-              </ScrollView>
+              </View>
             </View>
           ) : null}
           {/* Rows share one height: the cost and Redeem Now sit at the bottom of the card. */}
@@ -335,7 +337,7 @@ function ShopCard({ reward, onRedeem }: { reward: Reward; onRedeem: (variantId: 
             onPress={() => onRedeem(variant.id)}
             accessibilityRole="button"
             accessibilityLabel={`Redeem ${reward.title}${variant.label !== 'Standard' ? ` ${variant.label}` : ''}`}
-            style={{ height: 40, marginTop: 10, borderRadius: 999, backgroundColor: bentoBrand.lime, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+            style={{ minHeight: 40, marginTop: 10, borderRadius: 999, backgroundColor: bentoBrand.lime, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}
           >
             <Text style={{ fontSize: 14, fontWeight: '600', color: bentoBrand.fairway }}>Redeem Now</Text>
             <BentoIcon name="arrowUpRight" size={15} color={bentoBrand.fairway} strokeWidth={2} />
