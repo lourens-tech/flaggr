@@ -9,11 +9,13 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MainTabParamList, RootStackParamList } from '../../navigation/types';
 import { FlagrrLogo } from '../../components/common/FlagrrLogo';
 import { HeaderAvatar } from '../../components/common/HeaderAvatar';
-import { PillButton } from '../../components/common/PillButton';
+import { PillButton, bentoHeroStyle, bentoTileStyle, systemFonts, useBentoLegacy } from '../../components/bento/legacy';
+import { BentoScreen, BentoToggle, Eyebrow, H1, SegmentedControl } from '../../components/bento';
+import type { BentoTokens } from '../../theme/bento';
 import { FadeIn, PressableScale } from '../../components/motion';
 import { api } from '../../api/client';
 import { showAlert } from '../../utils/alert';
-import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
+import type { ThemeColors } from '../../context/ThemeContext';
 import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
 import type { GolfStatsDto } from '../../golf/dto';
 import { formatIndex, formatWhole } from '../../golf/scoring';
@@ -32,8 +34,10 @@ const dShort = (iso: string) => new Date(iso).toLocaleDateString('en-ZA', { day:
 // My Golf: how the member is playing, worked out (by the API) only from the
 // rounds they've finished in the Course tab — at home or away.
 export function MyGolfScreen({ navigation }: Props) {
-  const colors = useThemeColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  // Bento colours, type and tiles through the legacy bridge; the stats,
+  // charts and logic are unchanged.
+  const { colors, t: bt } = useBentoLegacy();
+  const styles = useMemo(() => systemFonts(createStyles(colors, bt)), [colors, bt]);
   const [period, setPeriod] = useState<StatsPeriod>('year');
   const [data, setData] = useState<GolfStatsDto | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -75,33 +79,17 @@ export function MyGolfScreen({ navigation }: Props) {
   const s = data?.stats;
   const par18 = s?.basis ? handicapPoints(s.basis) : 36;
 
-  const header = (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <View style={styles.topBar}>
-        <View style={styles.topBarLeft}>
-          <FlagrrLogo color="white" size={20} showTagline={false} />
-          <Text style={styles.topBarTitle}>My Golf</Text>
-        </View>
-        <TouchableOpacity onPress={() => navigation.navigate('Profile')} accessibilityLabel="Profile">
-          <HeaderAvatar size={32} />
-        </TouchableOpacity>
-      </View>
-    </SafeAreaView>
-  );
-
   const comingSoon = data && data.totalRounds === 0 && !data.homeMapLive;
   const noRoundsYet = data && data.totalRounds === 0 && data.homeMapLive;
 
   return (
-    <View style={styles.screen}>
-      <StatusBar barStyle="light-content" />
-      {header}
-      <ScrollView
-        contentContainerStyle={styles.scroll}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await load(period); setRefreshing(false); }} />}
-      >
-        <View style={styles.band}>
-          <Text style={styles.bandTitle}>Your game</Text>
+    <BentoScreen
+      tabBar
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await load(period); setRefreshing(false); }} />}
+    >
+        <View style={{ marginBottom: 4 }}>
+          <Eyebrow>Your game</Eyebrow>
+          <H1 style={{ marginTop: 6 }}>My Golf</H1>
           <Text style={styles.bandSub}>From the scorecards you’ve kept in Flagrr</Text>
         </View>
 
@@ -171,22 +159,15 @@ export function MyGolfScreen({ navigation }: Props) {
 
             <View style={styles.sectionHead}>
               <Text style={styles.sectionTitle}>Stats</Text>
-              <View style={styles.period} accessibilityRole="radiogroup">
-                {PERIODS.map((p) => (
-                  <TouchableOpacity
-                    key={p}
-                    onPress={() => {
-                      setTip(null);
-                      setPeriod(p);
-                    }}
-                    style={[styles.periodBtn, period === p && styles.periodBtnOn]}
-                    accessibilityRole="radio"
-                    accessibilityState={{ selected: period === p }}
-                  >
-                    <Text style={[styles.periodText, period === p && styles.periodTextOn]}>{PERIOD_LABELS[p]}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+              <SegmentedControl
+                value={period}
+                onChange={(p) => {
+                  setTip(null);
+                  setPeriod(p);
+                }}
+                options={PERIODS.map((p) => ({ value: p, label: PERIOD_LABELS[p] }))}
+                accessibilityLabel="Stats period"
+              />
             </View>
 
             {s.rounds === 0 ? (
@@ -390,19 +371,16 @@ export function MyGolfScreen({ navigation }: Props) {
                     : 'Your rounds are private. Your club can’t see your scorecards or golf stats.'}
                 </Text>
               </View>
-              <Switch
+              <BentoToggle
                 value={data.shareWithClub}
                 onValueChange={setShare}
                 disabled={sharing}
-                trackColor={{ true: colors.clubGreen, false: colors.border }}
-                thumbColor={colors.white}
                 accessibilityLabel={`Share my rounds with ${data.clubName || 'my club'}`}
               />
             </View>
           </View>
         ) : null}
-      </ScrollView>
-    </View>
+    </BentoScreen>
   );
 }
 
@@ -489,7 +467,7 @@ function PointsChart({
           {ticks.map((v) => (
             <React.Fragment key={v}>
               <Line x1={m.l} x2={W - m.r} y1={y(v)} y2={y(v)} stroke={colors.border} strokeWidth={1} />
-              <SvgText x={m.l - 6} y={y(v) + 3.5} textAnchor="end" fontSize={10} fontFamily={fontFamily.body} fill={colors.textMuted}>
+              <SvgText x={m.l - 6} y={y(v) + 3.5} textAnchor="end" fontSize={10}  fill={colors.textMuted}>
                 {v}
               </SvgText>
             </React.Fragment>
@@ -513,15 +491,15 @@ function PointsChart({
             y={y(data[best].points) - 5}
             textAnchor="middle"
             fontSize={10}
-            fontFamily={fontFamily.bodySemiBold}
+            fontWeight="600"
             fill={colors.textPrimary}
           >
             {data[best].points}
           </SvgText>
-          <SvgText x={m.l} y={H - 4} fontSize={10} fontFamily={fontFamily.body} fill={colors.textMuted}>
+          <SvgText x={m.l} y={H - 4} fontSize={10}  fill={colors.textMuted}>
             {dShort(data[0].completedAt)}
           </SvgText>
-          <SvgText x={W - m.r} y={H - 4} textAnchor="end" fontSize={10} fontFamily={fontFamily.body} fill={colors.textMuted}>
+          <SvgText x={W - m.r} y={H - 4} textAnchor="end" fontSize={10}  fill={colors.textMuted}>
             {dShort(data[data.length - 1].completedAt)}
           </SvgText>
           {data.map((d, i) => (
@@ -533,7 +511,7 @@ function PointsChart({
   );
 }
 
-function createStyles(colors: ThemeColors) {
+function createStyles(colors: ThemeColors, bt: BentoTokens) {
   return StyleSheet.create({
     screen: { flex: 1, backgroundColor: colors.background },
     safeArea: { backgroundColor: colors.clubGreen },
@@ -543,37 +521,37 @@ function createStyles(colors: ThemeColors) {
     scroll: { paddingBottom: 124, gap: spacing.sm + 4 },
     band: { backgroundColor: colors.clubGreen, paddingHorizontal: screenPadding, paddingTop: 4, paddingBottom: spacing.xxl - 4 },
     bandTitle: { fontFamily: fontFamily.heading, fontSize: fontSize.title, color: colors.white },
-    bandSub: { fontFamily: fontFamily.body, fontSize: fontSize.small, color: 'rgba(255,255,255,0.8)', marginTop: 2 },
-    lift: { marginTop: -spacing.xl - spacing.sm },
+    bandSub: { fontFamily: fontFamily.body, fontSize: 15, color: colors.textMuted, marginTop: 6 },
+    lift: {},
     body: { fontFamily: fontFamily.body, fontSize: 13, color: colors.textSecondary, lineHeight: 19 },
-    hero: { backgroundColor: colors.darkGreen, marginHorizontal: spacing.md, borderRadius: radius.lg, padding: spacing.md, gap: spacing.sm + 4 },
+    hero: { ...bentoHeroStyle(bt), gap: spacing.sm + 4 },
     heroTop: { flexDirection: 'row', justifyContent: 'space-between', gap: spacing.sm + 4 },
     heroSmall: { fontFamily: fontFamily.body, fontSize: 11, color: 'rgba(255,255,255,0.7)' },
-    heroBig: { fontFamily: fontFamily.heading, fontSize: 40, lineHeight: 46, color: colors.white },
+    heroBig: { fontFamily: 'Fraunces_700Bold', fontSize: 42, lineHeight: 46, color: colors.white },
     heroUnit: { fontFamily: fontFamily.bodyMedium, fontSize: 14, color: 'rgba(255,255,255,0.75)' },
     hcpPill: { backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 14, paddingHorizontal: 12, paddingVertical: 6, alignItems: 'flex-end', alignSelf: 'flex-start' },
     hcpVal: { fontFamily: fontFamily.bodySemiBold, fontSize: 18, color: colors.lime },
     heroRow: { flexDirection: 'row', gap: spacing.sm },
-    heroCell: { flex: 1, backgroundColor: colors.clubGreen, borderRadius: 14, paddingHorizontal: 12, paddingVertical: 9 },
+    heroCell: { flex: 1, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 16, paddingHorizontal: 12, paddingVertical: 9 },
     heroCellVal: { fontFamily: fontFamily.bodySemiBold, fontSize: 15, color: colors.white },
     heroCellLabel: { fontFamily: fontFamily.body, fontSize: 11, color: 'rgba(255,255,255,0.8)' },
-    sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: screenPadding - 4, paddingTop: spacing.sm, gap: spacing.sm },
-    sectionTitle: { fontFamily: fontFamily.heading, fontSize: 21, color: colors.textPrimary },
+    sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', paddingHorizontal: 4, paddingTop: spacing.sm, gap: spacing.sm },
+    sectionTitle: { fontFamily: fontFamily.heading, fontSize: 22, color: colors.textPrimary },
     period: { flexDirection: 'row', backgroundColor: colors.mintBg, borderRadius: radius.pill, padding: 3 },
     periodBtn: { borderRadius: radius.pill, paddingHorizontal: 11, paddingVertical: 5 },
     periodBtnOn: { backgroundColor: colors.clubGreen },
     periodText: { fontFamily: fontFamily.bodyMedium, fontSize: 12, color: colors.clubGreen },
     periodTextOn: { color: colors.white },
-    empty: { fontFamily: fontFamily.body, fontSize: 13, color: colors.textSecondary, marginHorizontal: spacing.md, padding: spacing.md, borderRadius: radius.md, borderWidth: 1.5, borderStyle: 'dashed', borderColor: colors.border, textAlign: 'center' },
-    tiles: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, paddingHorizontal: spacing.md },
-    tile: { width: '47%', flexGrow: 1, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, paddingHorizontal: 12, paddingVertical: 10, gap: 2 },
-    tileVal: { fontFamily: fontFamily.bodySemiBold, fontSize: 22, color: colors.textPrimary },
-    tileSub: { fontFamily: fontFamily.body, fontSize: 11, color: colors.textSecondary },
+    empty: { fontFamily: fontFamily.body, fontSize: 14, color: colors.textSecondary, padding: spacing.md, borderRadius: radius.md, borderWidth: 1.5, borderStyle: 'dashed', borderColor: colors.border, textAlign: 'center' },
+    tiles: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+    tile: { ...bentoTileStyle(bt, 14), width: '44%', flexGrow: 1, gap: 2 },
+    tileVal: { fontFamily: 'Fraunces_700Bold', fontSize: 26, color: colors.textPrimary },
+    tileSub: { fontFamily: fontFamily.body, fontSize: 12.5, color: colors.textSecondary },
     shareCard: { marginTop: spacing.md },
     shareRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-    card: { borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, marginHorizontal: spacing.md, padding: 14, gap: 8, backgroundColor: colors.surface },
-    cardTitle: { fontFamily: fontFamily.bodySemiBold, fontSize: 14.5, color: colors.textPrimary },
-    sub: { fontFamily: fontFamily.body, fontSize: 11.5, color: colors.textMuted, marginTop: -6 },
+    card: { ...bentoTileStyle(bt, 16), gap: 10 },
+    cardTitle: { fontFamily: fontFamily.bodySemiBold, fontSize: 16, color: colors.textPrimary },
+    sub: { fontFamily: fontFamily.body, fontSize: 13, lineHeight: 18, color: colors.textMuted, marginTop: -6 },
     tip: { fontFamily: fontFamily.bodyMedium, fontSize: 12, color: colors.textPrimary },
     tipHint: { fontFamily: fontFamily.body, fontSize: 11.5, color: colors.textMuted },
     insight: { fontFamily: fontFamily.body, fontSize: 12.5, color: colors.textSecondary, backgroundColor: colors.inputBg, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8, lineHeight: 18 },
@@ -589,9 +567,9 @@ function createStyles(colors: ThemeColors) {
     holeRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8 },
     rowSep: { borderTopWidth: 1, borderTopColor: colors.border },
     holeNo: { width: 30, height: 30, borderRadius: 9, backgroundColor: colors.darkGreen, alignItems: 'center', justifyContent: 'center' },
-    holeNoText: { fontFamily: fontFamily.headingBold, fontSize: 15, color: colors.lime },
-    rowTitle: { fontFamily: fontFamily.bodySemiBold, fontSize: 13, color: colors.textPrimary },
-    rowSub: { fontFamily: fontFamily.body, fontSize: 11, color: colors.textMuted },
+    holeNoText: { fontFamily: 'Fraunces_700Bold', fontSize: 15, color: colors.lime },
+    rowTitle: { fontFamily: fontFamily.bodySemiBold, fontSize: 15, color: colors.textPrimary },
+    rowSub: { fontFamily: fontFamily.body, fontSize: 12.5, color: colors.textMuted },
     nines: { flexDirection: 'row', gap: 10 },
     nine: { flex: 1, backgroundColor: colors.inputBg, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8 },
     nineVal: { fontFamily: fontFamily.bodySemiBold, fontSize: 18, color: colors.textPrimary },
@@ -606,7 +584,7 @@ function createStyles(colors: ThemeColors) {
     pb: { fontFamily: fontFamily.bodySemiBold, fontSize: 9.5, letterSpacing: 0.5, backgroundColor: colors.lime, color: colors.darkGreen, borderRadius: 10, overflow: 'hidden' },
     teeLine: { flexDirection: 'row', alignItems: 'center', gap: 5 },
     teeDot: { width: 8, height: 8, borderRadius: 4, borderWidth: 1, borderColor: 'rgba(0,0,0,0.3)' },
-    cup: { backgroundColor: colors.darkGreen, marginHorizontal: spacing.md, borderRadius: radius.md, padding: spacing.md, gap: spacing.sm },
+    cup: { ...bentoHeroStyle(bt), gap: spacing.sm },
     soonChip: { alignSelf: 'flex-start', backgroundColor: colors.lime, borderRadius: 20, paddingHorizontal: 9, paddingVertical: 2 },
     soonChipText: { fontFamily: fontFamily.bodySemiBold, fontSize: 10, letterSpacing: 0.8, textTransform: 'uppercase', color: colors.darkGreen },
     cupTitle: { fontFamily: fontFamily.heading, fontSize: 20, color: colors.white },

@@ -1,35 +1,35 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, Image, RefreshControl, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { ActivityIndicator, Image, Pressable, RefreshControl, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import type { CompositeScreenProps } from '@react-navigation/native';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MainTabParamList, RootStackParamList } from '../../navigation/types';
-import { FlagrrLogo } from '../../components/common/FlagrrLogo';
-import { HeaderAvatar } from '../../components/common/HeaderAvatar';
-import { PillButton } from '../../components/common/PillButton';
-import { FadeIn, PressableScale } from '../../components/motion';
 import { api } from '../../api/client';
 import { showAlert } from '../../utils/alert';
-import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
-import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
-import type { GolfCourseSummaryDto, GolfHomeDto } from '../../golf/dto';
-import { roundTotals } from '../../golf/scoring';
+import { useBento } from '../../context/ThemeContext';
+import { bentoBrand, bentoType } from '../../theme/bento';
+import type { GolfCourseSummaryDto, GolfHomeDto, GolfStatsDto } from '../../golf/dto';
+import { holeResult, roundTotals } from '../../golf/scoring';
+import { Appear, BentoButton, BentoField, BentoIcon, BentoScreen, BentoTile, Eyebrow, H1 } from '../../components/bento';
 
 type Props = CompositeScreenProps<BottomTabScreenProps<MainTabParamList, 'Course'>, NativeStackScreenProps<RootStackParamList>>;
+
+const dShort = (iso: string) => new Date(iso).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
 
 // The Course tab: resume a round in progress, start one at your own club (or
 // see that its map is coming soon), and search the other courses Flagrr has
 // mapped to play them as away courses.
 export function CourseHomeScreen({ navigation }: Props) {
-  const colors = useThemeColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { t } = useBento();
   const [home, setHome] = useState<GolfHomeDto | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [query, setQuery] = useState('');
+
+  // "Your game" tile: the same read My Golf makes. Best-effort; the tile
+  // is left out if it fails.
+  const [stats, setStats] = useState<GolfStatsDto | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -38,6 +38,7 @@ export function CourseHomeScreen({ navigation }: Props) {
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not load courses.');
     }
+    api.golfStats('year').then(setStats).catch(() => {});
   }, []);
 
   useFocusEffect(
@@ -91,191 +92,191 @@ export function CourseHomeScreen({ navigation }: Props) {
   const inProgress = home?.inProgress;
   const thru = inProgress ? roundTotals({ holes: inProgress.holes, handicaps: null }, inProgress.entries).holesPlayed : 0;
 
+  const progress = useMemo(() => {
+    if (!inProgress) return null;
+    const setup = {
+      holes: inProgress.holes,
+      handicaps: inProgress.courseHandicap == null || inProgress.playingHandicap == null ? null : { course: inProgress.courseHandicap, playing: inProgress.playingHandicap },
+    };
+    const next = inProgress.holes.findIndex((_, i) => !holeResult(setup, i, inProgress.entries[i]).played);
+    return { points: roundTotals(setup, inProgress.entries).points, nextHole: next === -1 ? null : inProgress.holes[next].n };
+  }, [inProgress]);
+  const recent = stats?.stats.recent.slice(0, 3) ?? [];
+
   return (
-    <View style={styles.screen}>
-      <StatusBar barStyle="light-content" />
-      <SafeAreaView style={styles.safeArea} edges={['top']}>
-        <View style={styles.topBar}>
-          <View style={styles.topBarLeft}>
-            <FlagrrLogo color="white" size={20} showTagline={false} />
-            <Text style={styles.topBarTitle}>Course</Text>
-          </View>
-          <TouchableOpacity onPress={() => navigation.navigate('Profile')} accessibilityLabel="Profile">
-            <HeaderAvatar size={32} />
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
+    <BentoScreen
+      tabBar
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await load(); setRefreshing(false); }} />}
+    >
+      <View>
+        {home?.clubName ? <Eyebrow numberOfLines={1}>{home.clubName}</Eyebrow> : null}
+        <H1 style={{ marginTop: 6 }}>Play a round</H1>
+        <Text style={[bentoType.body, { color: t.muted, marginTop: 6 }]}>Hole maps, distances and your scorecard</Text>
+      </View>
+      <View style={{ height: 4 }} />
 
-      <ScrollView
-        contentContainerStyle={styles.scroll}
-        keyboardShouldPersistTaps="handled"
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await load(); setRefreshing(false); }} />}
-      >
-        <View style={styles.band}>
-          <Text style={styles.bandTitle}>Play a round</Text>
-          <Text style={styles.bandSub}>Hole maps, distances and your scorecard</Text>
-        </View>
+      {!home && !error ? <ActivityIndicator color={t.accent} style={{ marginTop: 24 }} /> : null}
+      {error ? (
+        <BentoTile>
+          <Text style={[bentoType.body, { color: t.muted, marginBottom: 12 }]}>{error}</Text>
+          <BentoButton label="Try again" variant="secondary" onPress={load} />
+        </BentoTile>
+      ) : null}
 
-        {!home && !error ? <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} /> : null}
-        {error ? (
-          <View style={styles.card}>
-            <Text style={styles.cardBody}>{error}</Text>
-            <PillButton label="Try again" onPress={load} variant="outline" />
-          </View>
-        ) : null}
-
-        {home ? (
-          <>
-            {inProgress ? (
-              <FadeIn style={[styles.card, styles.resume]}>
-                <Text style={styles.kicker}>Round in progress</Text>
-                <Text style={styles.resumeTitle}>{inProgress.courseName}</Text>
-                <Text style={styles.resumeSub}>
-                  {inProgress.teeName} tees · thru {thru} of {inProgress.holes.length}
+      {home ? (
+        <>
+          {inProgress && progress ? (
+            <Appear>
+              <BentoTile tone="hero">
+                <Text style={[bentoType.eyebrow, { color: bentoBrand.lime }]}>Round in progress</Text>
+                <Text style={[bentoType.number, { fontSize: 30, lineHeight: 34, color: '#FFFFFF', marginTop: 8 }]}>
+                  {progress.nextHole ? `Hole ${progress.nextHole}` : 'All holes in'}
                 </Text>
-                <View style={styles.row}>
-                  <PillButton label="Resume round" onPress={() => navigation.navigate('CourseGuide', { roundId: inProgress.id })} />
-                  <TouchableOpacity onPress={discard} style={styles.textButton} accessibilityRole="button">
-                    <Text style={styles.textButtonLabel}>Discard</Text>
-                  </TouchableOpacity>
+                <Text style={{ fontSize: 15, color: t.onHeroMuted, marginTop: 2 }}>
+                  {progress.points} pts · thru {thru} of {inProgress.holes.length}
+                </Text>
+                <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.75)', marginTop: 6 }}>
+                  {inProgress.courseName} · {inProgress.teeName} tees
+                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 16 }}>
+                  <BentoButton label="Resume round" variant="lime" nub compact style={{ flex: 1 }} onPress={() => navigation.navigate('CourseGuide', { roundId: inProgress.id })} />
+                  <Pressable onPress={discard} accessibilityRole="button" style={{ paddingVertical: 12, paddingHorizontal: 10 }}>
+                    <Text style={{ fontSize: 15, fontWeight: '600', color: '#FFFFFF' }}>Discard</Text>
+                  </Pressable>
                 </View>
-              </FadeIn>
-            ) : null}
+              </BentoTile>
+            </Appear>
+          ) : null}
 
-            {home.homeCourse ? (
-              <FadeIn style={styles.card}>
-                <Text style={styles.kickerDark}>Your club</Text>
-                <CourseRow course={home.homeCourse} styles={styles} colors={colors} onPress={() => startAt(home.homeCourse!)} />
-                <PillButton label="Start a round" icon="flag-outline" onPress={() => startAt(home.homeCourse!)} />
-              </FadeIn>
-            ) : (
-              <FadeIn style={[styles.card, styles.soon]}>
-                <View style={styles.soonChip}>
-                  <Text style={styles.soonChipText}>Coming soon</Text>
+          {home.homeCourse ? (
+            <Appear>
+              <BentoTile>
+                <Eyebrow style={{ color: t.accent }}>Your club</Eyebrow>
+                <CourseRow course={home.homeCourse} onPress={() => startAt(home.homeCourse!)} />
+                <BentoButton label="Start a round" nub onPress={() => startAt(home.homeCourse!)} style={{ marginTop: 4 }} />
+              </BentoTile>
+            </Appear>
+          ) : (
+            <Appear>
+              <BentoTile>
+                <View style={{ alignSelf: 'flex-start', paddingVertical: 3, paddingHorizontal: 9, borderRadius: 999, backgroundColor: t.seg }}>
+                  <Text style={{ fontSize: 12, fontWeight: '600', color: t.muted }}>Coming soon</Text>
                 </View>
-                <Text style={styles.soonTitle}>
+                <Text style={[bentoType.number, { fontSize: 20, color: t.ink, marginTop: 10 }]}>
                   {home.isPlaceholderClub || !home.clubName ? 'Your club’s course map' : `${home.clubName}’s course map`}
                 </Text>
-                <Text style={styles.soonBody}>
+                <Text style={[bentoType.body, { color: t.muted, marginTop: 6 }]}>
                   {home.isPlaceholderClub
                     ? 'Your club isn’t on Flagrr yet. Once it joins, we’ll build its hole maps and scorecard here.'
                     : 'We build each club’s hole maps and scorecard from its official card. Yours is on the way.'}
                   {home.courses.length ? ' In the meantime you can play any course below.' : ''}
                 </Text>
-              </FadeIn>
-            )}
+              </BentoTile>
+            </Appear>
+          )}
 
-            <Text style={styles.sectionTitle}>Away courses</Text>
-            {home.courses.filter((c) => !c.isHome).length ? (
-              <>
-                <View style={styles.search}>
-                  <Ionicons name="search" size={16} color={colors.textMuted} />
-                  <TextInput
-                    value={query}
-                    onChangeText={setQuery}
-                    placeholder="Search courses"
-                    placeholderTextColor={colors.textMuted}
-                    style={styles.searchInput}
-                    autoCorrect={false}
-                    accessibilityLabel="Search courses"
-                  />
-                </View>
-                {away.length ? (
-                  <View style={styles.list}>
-                    {away.map((c) => (
-                      <CourseRow key={c.id} course={c} styles={styles} colors={colors} onPress={() => startAt(c)} recent={home.recentCourseIds.includes(c.id)} />
+          {/* Your game: the way into My Golf, with the latest rounds. */}
+          {stats && stats.totalRounds > 0 ? (
+            <Appear>
+              <BentoTile padding={0}>
+                <Pressable
+                  onPress={() => navigation.navigate('MyGolf')}
+                  accessibilityRole="button"
+                  accessibilityLabel="My Golf"
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, paddingHorizontal: 16 }}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 13, color: t.muted }}>Your game · Stableford average</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4, marginTop: 2 }}>
+                      <Text style={[bentoType.number, { fontSize: 28, lineHeight: 32, color: t.ink }]}>
+                        {stats.stats.pointsAverage == null ? '–' : stats.stats.pointsAverage.toFixed(1)}
+                      </Text>
+                      <Text style={{ fontSize: 14, color: t.muted }}>pts</Text>
+                    </View>
+                  </View>
+                  <Text style={{ fontSize: 15, fontWeight: '600', color: t.accent }}>My Golf</Text>
+                  <BentoIcon name="chevronRight" size={16} color={t.accent} />
+                </Pressable>
+                {recent.length ? (
+                  <View style={{ paddingHorizontal: 16, paddingBottom: 6 }}>
+                    <Eyebrow style={{ paddingTop: 10, paddingBottom: 4, borderTopWidth: 1, borderTopColor: t.hair }}>Played recently</Eyebrow>
+                    {recent.map((r, i) => (
+                      <Pressable
+                        key={r.id}
+                        onPress={() => navigation.navigate('RoundDetail', { roundId: r.id })}
+                        accessibilityRole="button"
+                        style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 11, borderTopWidth: i ? 1 : 0, borderTopColor: t.hair }}
+                      >
+                        <Text style={{ flex: 1, fontSize: 14, color: t.ink }} numberOfLines={1}>
+                          {dShort(r.completedAt)} · {r.courseName}
+                        </Text>
+                        <Text style={{ fontSize: 14, fontWeight: '600', color: t.ink }}>
+                          {r.points} pts{r.gross != null ? ` · ${r.gross} gross` : ''}
+                        </Text>
+                      </Pressable>
                     ))}
                   </View>
-                ) : (
-                  <Text style={styles.empty}>No mapped course matches “{query.trim()}”.</Text>
-                )}
-              </>
-            ) : (
-              <Text style={styles.empty}>
+                ) : null}
+              </BentoTile>
+            </Appear>
+          ) : null}
+
+          <Text accessibilityRole="header" style={{ fontFamily: 'Fraunces_600SemiBold', fontSize: 22, color: t.ink, marginTop: 8 }}>
+            Away courses
+          </Text>
+          {home.courses.filter((c) => !c.isHome).length ? (
+            <>
+              <BentoField value={query} onChangeText={setQuery} placeholder="Search courses" accessibilityLabel="Search courses" autoCorrect={false} rightIcon="search" />
+              {away.length ? (
+                <BentoTile padding={0}>
+                  <View style={{ paddingHorizontal: 16 }}>
+                    {away.map((c, i) => (
+                      <View key={c.id} style={{ borderTopWidth: i ? 1 : 0, borderTopColor: t.hair }}>
+                        <CourseRow course={c} onPress={() => startAt(c)} recent={home.recentCourseIds.includes(c.id)} />
+                      </View>
+                    ))}
+                  </View>
+                </BentoTile>
+              ) : (
+                <BentoTile>
+                  <Text style={[bentoType.body, { color: t.muted, textAlign: 'center' }]}>No mapped course matches “{query.trim()}”.</Text>
+                </BentoTile>
+              )}
+            </>
+          ) : (
+            <BentoTile>
+              <Text style={[bentoType.body, { color: t.muted, textAlign: 'center' }]}>
                 {home.homeCourse
                   ? 'No other courses are mapped yet. More are added as clubs join Flagrr.'
                   : 'Course maps are coming soon. We’re adding them as clubs join Flagrr.'}
               </Text>
-            )}
-            <Text style={styles.footnote}>Only courses Flagrr has mapped are listed, so every scorecard here matches the club’s official card.</Text>
-          </>
-        ) : null}
-      </ScrollView>
-    </View>
+            </BentoTile>
+          )}
+          <Text style={{ fontSize: 13, lineHeight: 19, color: t.muted, paddingHorizontal: 4 }}>
+            Only courses Flagrr has mapped are listed, so every scorecard here matches the club’s official card.
+          </Text>
+        </>
+      ) : null}
+    </BentoScreen>
   );
 }
 
-function CourseRow({
-  course,
-  styles,
-  colors,
-  onPress,
-  recent,
-}: {
-  course: GolfCourseSummaryDto;
-  styles: ReturnType<typeof createStyles>;
-  colors: ThemeColors;
-  onPress: () => void;
-  recent?: boolean;
-}) {
+function CourseRow({ course, onPress, recent }: { course: GolfCourseSummaryDto; onPress: () => void; recent?: boolean }) {
+  const { t } = useBento();
   return (
-    <PressableScale style={styles.courseRow} onPress={onPress} accessibilityLabel={`Play ${course.name}`} accessibilityRole="button">
-      {course.logoUrl ? (
-        <Image source={{ uri: course.logoUrl }} style={styles.logo} />
-      ) : (
-        <View style={[styles.logo, styles.logoFallback]}>
-          <Ionicons name="golf-outline" size={17} color={colors.clubGreen} />
-        </View>
-      )}
-      <View style={{ flex: 1 }}>
-        <Text style={styles.courseName} numberOfLines={1}>
+    <Pressable onPress={onPress} accessibilityLabel={`Play ${course.name}`} accessibilityRole="button" style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 }}>
+      <View style={{ width: 40, height: 40, borderRadius: 13, backgroundColor: t.accentSoft, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+        {course.logoUrl ? <Image source={{ uri: course.logoUrl }} style={{ width: 40, height: 40 }} /> : <BentoIcon name="golfFlag" size={20} color={t.accent} strokeWidth={1.8} />}
+      </View>
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text style={{ fontSize: 15, fontWeight: '600', color: t.ink }} numberOfLines={1}>
           {course.name}
         </Text>
-        <Text style={styles.courseMeta} numberOfLines={1}>
+        <Text style={{ fontSize: 13, color: t.muted, marginTop: 2 }} numberOfLines={1}>
           {[course.location, `${course.holeCount} holes`, recent ? 'Played recently' : null].filter(Boolean).join(' · ')}
         </Text>
       </View>
-      <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
-    </PressableScale>
+      <BentoIcon name="chevronRight" size={16} color={t.muted} />
+    </Pressable>
   );
-}
-
-function createStyles(colors: ThemeColors) {
-  return StyleSheet.create({
-    screen: { flex: 1, backgroundColor: colors.background },
-    safeArea: { backgroundColor: colors.clubGreen },
-    topBar: { height: 62, backgroundColor: colors.clubGreen, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: screenPadding },
-    topBarLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-    topBarTitle: { fontFamily: fontFamily.heading, fontSize: fontSize.title, color: colors.white },
-    scroll: { paddingBottom: 124, gap: spacing.sm + 4 },
-    band: { backgroundColor: colors.clubGreen, paddingHorizontal: screenPadding, paddingTop: 4, paddingBottom: spacing.xl + spacing.sm, marginBottom: -spacing.xl },
-    bandTitle: { fontFamily: fontFamily.heading, fontSize: fontSize.title, color: colors.white },
-    bandSub: { fontFamily: fontFamily.body, fontSize: fontSize.small, color: 'rgba(255,255,255,0.8)', marginTop: 2 },
-    card: { backgroundColor: colors.surface, borderRadius: radius.lg, marginHorizontal: spacing.md, padding: spacing.md, gap: spacing.sm + 2, borderWidth: 1, borderColor: colors.border },
-    cardBody: { fontFamily: fontFamily.body, fontSize: 13, color: colors.textSecondary },
-    resume: { backgroundColor: colors.darkGreen, borderColor: colors.darkGreen },
-    kicker: { fontFamily: fontFamily.bodySemiBold, fontSize: 10.5, letterSpacing: 0.8, textTransform: 'uppercase', color: colors.lime },
-    kickerDark: { fontFamily: fontFamily.bodySemiBold, fontSize: 10.5, letterSpacing: 0.8, textTransform: 'uppercase', color: colors.clubGreen },
-    resumeTitle: { fontFamily: fontFamily.heading, fontSize: 20, color: colors.white },
-    resumeSub: { fontFamily: fontFamily.body, fontSize: 12.5, color: 'rgba(255,255,255,0.8)', marginTop: -6 },
-    row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-    textButton: { paddingVertical: 8, paddingHorizontal: 4 },
-    textButtonLabel: { fontFamily: fontFamily.bodySemiBold, fontSize: 13, color: colors.white, textDecorationLine: 'underline' },
-    soon: { borderStyle: 'dashed', borderWidth: 1.5 },
-    soonChip: { alignSelf: 'flex-start', backgroundColor: colors.lime, borderRadius: 20, paddingHorizontal: 9, paddingVertical: 2 },
-    soonChipText: { fontFamily: fontFamily.bodySemiBold, fontSize: 10, letterSpacing: 0.8, textTransform: 'uppercase', color: colors.darkGreen },
-    soonTitle: { fontFamily: fontFamily.heading, fontSize: 18, color: colors.textPrimary },
-    soonBody: { fontFamily: fontFamily.body, fontSize: 13, color: colors.textSecondary, lineHeight: 19 },
-    sectionTitle: { fontFamily: fontFamily.heading, fontSize: 21, color: colors.textPrimary, marginHorizontal: screenPadding - 4, marginTop: spacing.sm },
-    search: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginHorizontal: spacing.md, backgroundColor: colors.inputBg, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.inputBorder, paddingHorizontal: 14, height: 44 },
-    searchInput: { flex: 1, fontFamily: fontFamily.body, fontSize: 14, color: colors.textPrimary, height: 44 },
-    list: { marginHorizontal: spacing.md, gap: spacing.sm },
-    courseRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm + 2, padding: spacing.sm + 4, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
-    logo: { width: 38, height: 38, borderRadius: 10 },
-    logoFallback: { backgroundColor: colors.mintBg, alignItems: 'center', justifyContent: 'center' },
-    courseName: { fontFamily: fontFamily.bodySemiBold, fontSize: 14, color: colors.textPrimary },
-    courseMeta: { fontFamily: fontFamily.body, fontSize: 11.5, color: colors.textMuted },
-    empty: { fontFamily: fontFamily.body, fontSize: 13, color: colors.textSecondary, marginHorizontal: spacing.md, padding: spacing.md, borderRadius: radius.md, borderWidth: 1.5, borderStyle: 'dashed', borderColor: colors.border, textAlign: 'center' },
-    footnote: { fontFamily: fontFamily.body, fontSize: 11.5, color: colors.textMuted, marginHorizontal: screenPadding - 4 },
-  });
 }

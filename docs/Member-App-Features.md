@@ -40,7 +40,9 @@ The tab bar has three tabs either side of the Scan button: **Home, Course, My Go
 
 - **Your club:** when the member's home club has a live course map, a card with **Start a round**. Until it does, a **Coming soon** card says the club's map is on its way (members of the "My Club Isn't Listed Yet" placeholder are told their club isn't on Flagrr yet).
 - **Away courses:** every other live course map, searchable by name or town, most recently played first. Only courses Flagrr has mapped are listed, so every card matches the club's official one. If no course is live at all, the section says maps are coming soon.
-- **Round in progress:** a card to resume it or discard it. A member can have one round in progress at a time.
+- **Round in progress:** a card to resume it or discard it. A member can have one round in progress at a time. Since 2026-11-24 (Bento) it is a fairway-green tile showing the next hole to play and the Stableford points so far ("Hole 2 · 2 pts · thru 1 of 18").
+- **Your game** (Bento, 2026-11-24): when the member has finished rounds, a tile with their Stableford average for the year, a **My Golf** link, and the three latest rounds under **Played recently** (each opens its scorecard). It uses the same stats read as My Golf and is left out if that read fails.
+- The tab's screens (Course, Start a Round, the hole view, its Scorecard / Your round / My bag sheets and the map layers, Round detail and My Golf) use the Bento look since 2026-11-24. Start a Round groups its choices into tiles (tees and holes; Handicap Index; format, allowance and putts and fairways; the handicap working). Round detail adds a header tile with the round's points and gross. Nothing about scoring, saving or the order of steps changed.
 
 ### Starting a round
 

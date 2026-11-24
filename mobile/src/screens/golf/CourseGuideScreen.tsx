@@ -7,12 +7,13 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/types';
 import { api, ApiError } from '../../api/client';
 import { showAlert } from '../../utils/alert';
-import { useTheme, useThemeColors, type ThemeColors } from '../../context/ThemeContext';
+import { useTheme, type ThemeColors } from '../../context/ThemeContext';
+import { PillButton, systemFonts, useBentoLegacy } from '../../components/bento/legacy';
+import { BentoToggle } from '../../components/bento';
 import { fontFamily } from '../../theme';
 import { GolfHoleMap, DARK_MAP, LIGHT_MAP, type GolfHoleMapHandle } from '../../components/golf/GolfHoleMap';
 import { GolfSheet, sheetText } from '../../components/golf/GolfSheet';
 import { Scorecard } from '../../components/golf/Scorecard';
-import { PillButton } from '../../components/common/PillButton';
 import type { GolfCourseDto, RoundDto } from '../../golf/dto';
 import type { Pt } from '../../golf/courseMap';
 import {
@@ -56,9 +57,11 @@ const shotsText = (st: number) => (st > 0 ? `${st} shot${st > 1 ? 's' : ''}` : s
 // with floating cards over it, and the score bar underneath. Scores save to
 // the server as they're entered, with a local copy in case the signal drops.
 export function CourseGuideScreen({ navigation, route }: Props) {
-  const colors = useThemeColors();
+  // Bento colours, type and tiles through the legacy bridge: this screen's
+  // layout and logic are unchanged.
+  const { colors, t: bento } = useBentoLegacy();
   const isDark = useTheme().scheme === 'dark';
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const styles = useMemo(() => systemFonts(createStyles(colors, bento.ring, bento.shadow)), [colors, bento]);
   const insets = useSafeAreaInsets();
   const roundId = route.params.roundId;
 
@@ -480,14 +483,14 @@ export function CourseGuideScreen({ navigation, route }: Props) {
                     <Text style={styles.layerTitle}>Distance arcs</Text>
                     <Text style={styles.layerSub}>Every 50 m from your ball</Text>
                   </View>
-                  <Switch value={rings} onValueChange={setRings} trackColor={{ true: colors.clubGreen, false: colors.border }} thumbColor={colors.white} />
+                  <BentoToggle value={rings} onValueChange={setRings} accessibilityLabel="Distance arcs" />
                 </View>
                 <View style={[styles.layerRow, styles.layerSep]}>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.layerTitle}>Hazard distances</Text>
                     <Text style={styles.layerSub}>Reach / carry, in metres</Text>
                   </View>
-                  <Switch value={hazards} onValueChange={setHazards} trackColor={{ true: colors.clubGreen, false: colors.border }} thumbColor={colors.white} />
+                  <BentoToggle value={hazards} onValueChange={setHazards} accessibilityLabel="Hazard distances" />
                 </View>
               </View>
             ) : null}
@@ -768,7 +771,7 @@ export function CourseGuideScreen({ navigation, route }: Props) {
 }
 
 function RoundInfo({ round, colors, teeName }: { round: RoundDto; colors: ThemeColors; teeName: string }) {
-  const t = sheetText(colors);
+  const t = systemFonts(sheetText(colors));
   const rows: Array<[string, string]> = [
     ['Course', round.courseName],
     ['Tees', `${teeName} · ${round.ratingGender === 'men' ? 'Men' : 'Ladies'} · CR ${round.courseRating.toFixed(1)} · Slope ${round.slope} · Par ${round.par}`],
@@ -795,8 +798,9 @@ function RoundInfo({ round, colors, teeName }: { round: RoundDto; colors: ThemeC
   );
 }
 
-function createStyles(colors: ThemeColors) {
-  const shadow = { shadowColor: '#0C2016', shadowOpacity: 0.18, shadowRadius: 10, shadowOffset: { width: 0, height: 6 }, elevation: 5 };
+function createStyles(colors: ThemeColors, ring: string, tileShadow: string) {
+  const shadow = { boxShadow: `0 0 0 1px ${ring}, 0 14px 30px -16px rgba(12,32,22,0.45)` };
+  void tileShadow;
   return StyleSheet.create({
     screen: { flex: 1, backgroundColor: colors.background },
     center: { alignItems: 'center', justifyContent: 'center', gap: 16 },
@@ -804,25 +808,25 @@ function createStyles(colors: ThemeColors) {
     muted: { color: colors.textMuted, fontFamily: fontFamily.body },
     top: { backgroundColor: colors.darkGreen, paddingHorizontal: 12, paddingBottom: 10, gap: 10, zIndex: 3 },
     topRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-    roundBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' },
+    roundBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(255,255,255,0.12)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center' },
     courseTitle: { flex: 1, minWidth: 0 },
-    courseName: { fontFamily: fontFamily.heading, fontSize: 16, color: colors.white },
-    saveState: { fontFamily: fontFamily.body, fontSize: 11, color: 'rgba(255,255,255,0.65)' },
-    hcpBtn: { height: 36, borderRadius: 18, borderWidth: 1, borderColor: 'rgba(255,255,255,0.28)', flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12 },
+    courseName: { fontFamily: fontFamily.bodySemiBold, fontSize: 17, color: colors.white },
+    saveState: { fontFamily: fontFamily.body, fontSize: 12, color: 'rgba(255,255,255,0.7)' },
+    hcpBtn: { height: 42, borderRadius: 21, borderWidth: 1, borderColor: 'rgba(255,255,255,0.28)', flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12 },
     teeDot: { width: 11, height: 11, borderRadius: 6, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.65)' },
     hcpSmall: { fontFamily: fontFamily.body, fontSize: 10, letterSpacing: 0.8, color: 'rgba(255,255,255,0.7)' },
     hcpValue: { fontFamily: fontFamily.bodySemiBold, fontSize: 13.5, color: colors.white },
-    bagBtn: { backgroundColor: colors.lime, borderRadius: 18, paddingVertical: 7, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 5 },
+    bagBtn: { backgroundColor: colors.lime, borderRadius: 21, minHeight: 42, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 5 },
     bagText: { fontFamily: fontFamily.bodySemiBold, fontSize: 12.5, color: colors.darkGreen },
     picker: { gap: 4, paddingRight: 4 },
-    pill: { minWidth: 36, height: 40, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
+    pill: { minWidth: 44, height: 44, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
     pillOn: { backgroundColor: colors.lime },
     pillNo: { fontFamily: fontFamily.bodySemiBold, fontSize: 15, color: colors.white, lineHeight: 17 },
     pillPar: { fontFamily: fontFamily.body, fontSize: 9.5, color: 'rgba(255,255,255,0.6)', lineHeight: 11 },
     pillTextOn: { color: colors.darkGreen },
     scoredDot: { position: 'absolute', top: 5, right: 5, width: 5, height: 5, borderRadius: 3, backgroundColor: colors.lime },
     map: { flex: 1, position: 'relative' },
-    card: { backgroundColor: colors.surface, borderRadius: 16, ...shadow },
+    card: { backgroundColor: colors.surface, borderRadius: 22, ...shadow },
     holeBadge: { position: 'absolute', left: 10, top: 10, flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 7, paddingLeft: 7, paddingRight: 14 },
     holeNo: { width: 40, height: 40, borderRadius: 12, backgroundColor: colors.darkGreen, alignItems: 'center', justifyContent: 'center' },
     holeNoText: { fontFamily: fontFamily.headingBold, fontSize: 21, color: colors.lime },
@@ -867,7 +871,7 @@ function createStyles(colors: ThemeColors) {
     why: { fontFamily: fontFamily.body, fontSize: 12.5, lineHeight: 18, color: colors.textSecondary },
     actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, alignItems: 'center' },
     toGo: { fontFamily: fontFamily.body, fontSize: 11.5, color: colors.textMuted },
-    secondaryBtn: { borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.inputBg },
+    secondaryBtn: { borderRadius: 999, minHeight: 40, justifyContent: 'center', paddingHorizontal: 16, paddingVertical: 8, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.inputBg },
     secondaryBtnText: { fontFamily: fontFamily.bodySemiBold, fontSize: 12.5, color: colors.textPrimary },
     extraBar: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.border, paddingHorizontal: 16, paddingTop: 8 },
     extraLabel: { fontFamily: fontFamily.bodyMedium, fontSize: 12, color: colors.textSecondary },
@@ -889,14 +893,14 @@ function createStyles(colors: ThemeColors) {
     good: { color: colors.clubGreen },
     over: { color: colors.warning },
     pickup: { fontFamily: fontFamily.bodySemiBold, fontSize: 11.5, color: colors.clubGreen, textDecorationLine: 'underline' },
-    stepper: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.inputBg, borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: 3 },
-    step: { width: 36, height: 38, alignItems: 'center', justifyContent: 'center', borderRadius: 12 },
+    stepper: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.inputBg, borderRadius: 999, padding: 3 },
+    step: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 22 },
     stepText: { fontFamily: fontFamily.bodyMedium, fontSize: 22, color: colors.textPrimary },
-    scoreVal: { width: 44, height: 42, borderRadius: 12, backgroundColor: colors.darkGreen, alignItems: 'center', justifyContent: 'center' },
+    scoreVal: { width: 46, height: 44, borderRadius: 16, backgroundColor: colors.darkGreen, alignItems: 'center', justifyContent: 'center' },
     scoreValEmpty: { backgroundColor: 'transparent', borderWidth: 1.5, borderStyle: 'dashed', borderColor: colors.textMuted },
     scoreValText: { fontFamily: fontFamily.headingBold, fontSize: 24, color: colors.lime },
     scoreValTextEmpty: { color: colors.textMuted },
-    cardBtn: { height: 46, borderRadius: 14, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, flexDirection: 'row', alignItems: 'center', gap: 7, paddingLeft: 9, paddingRight: 10 },
+    cardBtn: { height: 48, borderRadius: 16, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, flexDirection: 'row', alignItems: 'center', gap: 7, paddingLeft: 9, paddingRight: 10 },
     cardBtnReady: { backgroundColor: colors.lime, borderColor: colors.lime },
     cardBtnTotal: { fontFamily: fontFamily.bodySemiBold, fontSize: 14, color: colors.textPrimary },
     cardBtnThru: { fontFamily: fontFamily.body, fontSize: 10.5, color: colors.textMuted },

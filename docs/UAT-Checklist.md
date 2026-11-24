@@ -185,6 +185,7 @@ Needs migration `048` applied and at least one live course map.
 - [ ] Scorecard: Out / In / Total add up; Finish round only when every hole is in; Discard round deletes it.
 - [ ] Turn off the network, enter a score, see "Not saved yet · will retry", turn it back on and see it save; leave and resume the round and the scores are still there.
 - [ ] My Golf after a few rounds: the Month / Year / All toggle changes the numbers; tapping a chart column shows that round; Recent rounds opens the scorecard; Correct a score saves; Delete round removes it from the stats.
+- [ ] Bento golf screens: the Course tab shows the in-progress tile (next hole, points, thru), Your club with Start a round, and Your game with My Golf and Played recently (each opens its scorecard); Start a Round's tiles, toggles and Start round work; in the hole view the header buttons are at least 44 pt, the Scorecard, Your round and My bag sheets open and close (close button, backdrop, Done), and the map layers toggles switch arcs and hazard distances; Round detail shows points and gross; all of it in light and dark.
 - [ ] Export my data includes the golf profile and rounds.
 
 ## 15b. Club admin: Course map panel

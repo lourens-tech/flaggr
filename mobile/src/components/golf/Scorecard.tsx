@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
+import type { ThemeColors } from '../../context/ThemeContext';
+import { systemFonts, useBentoLegacy } from '../bento/legacy';
 import { fontFamily } from '../../theme';
 import { holeResult, roundTotals, toParText, type Format, type HoleEntry, type RoundSetup } from '../../golf/scoring';
 
@@ -25,8 +26,9 @@ export function Scorecard({
   current?: number;
   onPickHole?: (i: number) => void;
 }) {
-  const colors = useThemeColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  // Bento colours and type (member golf screens only).
+  const { colors } = useBentoLegacy();
+  const styles = useMemo(() => systemFonts(createStyles(colors)), [colors]);
   const stable = format === 'stableford';
   const holes = setup.holes;
 
