@@ -1,20 +1,17 @@
-import React, { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, RefreshControl, ScrollView, StatusBar, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import Svg, { Line, Path, Rect, Text as SvgText } from 'react-native-svg';
+import React, { useCallback, useState } from 'react';
+import { RefreshControl, Text, View, type TextStyle, type ViewStyle } from 'react-native';
+import Svg, { Line, Rect, Text as SvgText } from 'react-native-svg';
 import { useFocusEffect } from '@react-navigation/native';
 import type { StackScreenProps } from '@react-navigation/stack';
 import type { RootStackParamList } from '../../navigation/types';
-import { FlagrrLogo } from '../../components/common/FlagrrLogo';
-import { HeaderAvatar } from '../../components/common/HeaderAvatar';
-import { PillButton, bentoHeroStyle, bentoTileStyle, systemFonts, useBentoLegacy } from '../../components/bento/legacy';
-import { BentoScreen, BentoToggle, CountUp, Eyebrow, H1, SegmentedControl } from '../../components/bento';
-import type { BentoTokens } from '../../theme/bento';
-import { FadeIn, PressableScale } from '../../components/motion';
+import { Appear, BentoButton, BentoScreen, BentoTile, BentoToggle, CountUp, EmptyState, Eyebrow, H1, SegmentedControl, StatusPill } from '../../components/bento';
+import { GolfLoadError, GolfLoading } from '../../components/golf/GolfSheet';
+import { PressableScale } from '../../components/motion';
 import { api } from '../../api/client';
 import { showAlert } from '../../utils/alert';
-import type { ThemeColors } from '../../context/ThemeContext';
-import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
+import { friendlyError } from '../../utils/errors';
+import { useBento } from '../../context/ThemeContext';
+import { bentoBrand, bentoType, type BentoTokens } from '../../theme/bento';
 import type { GolfStatsDto } from '../../golf/dto';
 import { formatIndex, formatWhole } from '../../golf/scoring';
 import { handicapPoints } from '../../golf/stats';
@@ -29,13 +26,14 @@ const fmt1 = (x: number) => x.toFixed(1);
 const sign = (x: number) => (x >= 0 ? '+' : '−') + Math.abs(x).toFixed(2);
 const dShort = (iso: string) => new Date(iso).toLocaleDateString('en-ZA', { day: 'numeric', month: 'short' });
 
+// Fraunces numbers as on the boards (.fr: 700, -0.025em).
+const fr = (size: number): TextStyle => ({ ...bentoType.number, fontSize: size, lineHeight: Math.round(size * 1.1), letterSpacing: -0.025 * size });
+
 // My Golf: how the member is playing, worked out (by the API) only from the
 // rounds they've finished in the Course tab — at home or away.
+// Boards: AppMyGolf, AppMyGolfEmpty, G-D-MyGolf*.
 export function MyGolfScreen({ navigation }: Props) {
-  // Bento colours, type and tiles through the legacy bridge; the stats,
-  // charts and logic are unchanged.
-  const { colors, t: bt } = useBentoLegacy();
-  const styles = useMemo(() => systemFonts(createStyles(colors, bt)), [colors, bt]);
+  const { t, scheme } = useBento();
   const [period, setPeriod] = useState<StatsPeriod>('year');
   const [data, setData] = useState<GolfStatsDto | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -53,7 +51,7 @@ export function MyGolfScreen({ navigation }: Props) {
       await api.saveGolfProfile({ shareWithClub: on });
     } catch (e) {
       setData((d) => (d ? { ...d, shareWithClub: !on } : d));
-      showAlert('Couldn’t save that', e instanceof Error ? e.message : 'Try again.');
+      showAlert('Couldn’t save that', friendlyError(e, 'Try again.'));
     } finally {
       setSharing(false);
     }
@@ -64,7 +62,7 @@ export function MyGolfScreen({ navigation }: Props) {
       setData(await api.golfStats(p));
       setError(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not load your stats.');
+      setError(friendlyError(e, 'Could not load your stats.'));
     }
   }, []);
 
@@ -79,356 +77,433 @@ export function MyGolfScreen({ navigation }: Props) {
 
   const comingSoon = data && data.totalRounds === 0 && !data.homeMapLive;
   const noRoundsYet = data && data.totalRounds === 0 && data.homeMapLive;
+  const hasRounds = Boolean(data && s && data.totalRounds > 0);
+  const goToCourse = () => navigation.popTo('Main', { screen: 'Course' });
+
+  const label13: TextStyle = { fontSize: 13, fontWeight: '600', color: t.ink };
+  const sub12: TextStyle = { fontSize: 12, color: t.muted };
+  const title16: TextStyle = { fontSize: 16, fontWeight: '600', color: t.ink };
+  const mut13: TextStyle = { fontSize: 13, lineHeight: 19, color: t.muted };
+  const insight: TextStyle = { fontSize: 14, lineHeight: 20, color: t.ink };
+  const h2: TextStyle = { ...bentoType.number, fontSize: 22, lineHeight: 24, letterSpacing: -0.44, color: t.ink, marginTop: 4 };
 
   return (
     <BentoScreen
       tabBar
       onBack={() => navigation.goBack()}
       scrollTitle="My Golf"
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await load(period); setRefreshing(false); }} />}
+      headerRight={
+        hasRounds ? (
+          <SegmentedControl
+            value={period}
+            onChange={(p) => {
+              setTip(null);
+              setPeriod(p);
+            }}
+            options={PERIODS.map((p) => ({ value: p, label: PERIOD_LABELS[p] }))}
+            accessibilityLabel="Stats period"
+          />
+        ) : undefined
+      }
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={async () => {
+            setRefreshing(true);
+            await load(period);
+            setRefreshing(false);
+          }}
+        />
+      }
     >
-        <View style={{ marginBottom: 4 }}>
-          <Eyebrow>Your game</Eyebrow>
-          <H1 style={{ marginTop: 6 }}>My Golf</H1>
-          <Text style={styles.bandSub}>From the scorecards you’ve kept in Flagrr</Text>
-        </View>
+      <View style={{ height: 6 }} />
+      <View>
+        <Eyebrow>Your game</Eyebrow>
+        <H1 style={{ marginTop: 6, fontSize: 36, lineHeight: Math.round(36 * 1.04), letterSpacing: -0.025 * 36 }}>My Golf</H1>
+      </View>
+      <Text style={{ fontSize: 14, color: t.muted, marginTop: -4, marginBottom: 4 }}>From the scorecards you’ve kept in Flagrr</Text>
 
-        {!data && !error ? <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl + spacing.md }} /> : null}
-        {error ? (
-          <View style={[styles.card, styles.lift]}>
-            <Text style={styles.body}>{error}</Text>
-            <PillButton label="Try again" onPress={() => load(period)} variant="outline" />
-          </View>
-        ) : null}
+      {!data && !error ? <GolfLoading /> : null}
+      {error ? <GolfLoadError message={error} onRetry={() => load(period)} /> : null}
 
-        {comingSoon ? (
-          <FadeIn style={[styles.cup, styles.lift]}>
-            <View style={styles.soonChip}>
-              <Text style={styles.soonChipText}>Coming soon</Text>
-            </View>
-            <Text style={styles.cupTitle}>My Golf</Text>
-            <Text style={styles.cupBody}>
-              {data!.clubName ? `${data!.clubName}’s course map is on its way.` : 'Your club’s course map is on its way.'} Once you’ve kept a scorecard on a
-              Flagrr course map, your Stableford average, scoring by par, toughest holes and more appear here.
+      {comingSoon ? (
+        <Appear>
+          <BentoTile padding={18}>
+            <StatusPill label="Coming soon" tone="muted" />
+            <Text style={[fr(22), { color: t.ink, marginTop: 10 }]}>My Golf</Text>
+            <Text style={{ fontSize: 14, lineHeight: 20, color: t.muted, marginTop: 6 }}>
+              {data!.clubName ? `${data!.clubName}’s course map is on its way.` : 'Your club’s course map is on its way.'} Once you’ve kept a scorecard on a Flagrr course map, your Stableford average,
+              scoring by par, toughest holes and more appear here.
             </Text>
-            {data!.anyCourseLive ? <PillButton label="Play an away course" onPress={() => navigation.popTo('Main', { screen: 'Course' })} variant="primary" /> : null}
-          </FadeIn>
-        ) : null}
+            {data!.anyCourseLive ? <BentoButton label="Play an away course" nub compact onPress={goToCourse} style={{ marginTop: 14 }} /> : null}
+          </BentoTile>
+        </Appear>
+      ) : null}
 
-        {noRoundsYet ? (
-          <FadeIn style={[styles.card, styles.lift]}>
-            <Text style={styles.cardTitle}>Play your first round</Text>
-            <Text style={styles.body}>Keep your scorecard in the Course tab and your stats appear here when you finish.</Text>
-            <PillButton label="Go to Course" onPress={() => navigation.popTo('Main', { screen: 'Course' })} />
-          </FadeIn>
-        ) : null}
+      {noRoundsYet ? (
+        <Appear>
+          <EmptyState
+            icon="golfStatsBars"
+            title="Play your first round"
+            body="Keep your scorecard in the Course tab and your stats appear here when you finish."
+            actionLabel="Go to Course"
+            onAction={goToCourse}
+          />
+        </Appear>
+      ) : null}
 
-        {data && s && data.totalRounds > 0 ? (
-          <>
-            <FadeIn style={[styles.hero, styles.lift]}>
-              <View style={styles.heroTop}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.heroSmall}>Stableford average</Text>
-                  <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
-                    <CountUp value={s.pointsAverage == null ? '–' : fmt1(s.pointsAverage)} style={styles.heroBig} />
-                    <Text style={styles.heroUnit}> pts</Text>
+      {data && s && hasRounds ? (
+        <>
+          <Appear>
+            <BentoTile tone="hero" padding={18}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 10 }}>
+                <View style={{ flexShrink: 1 }}>
+                  <Text style={{ fontSize: 14, color: t.onHeroMuted }}>Stableford average</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4, marginTop: 6 }}>
+                    <CountUp value={s.pointsAverage == null ? '–' : fmt1(s.pointsAverage)} style={[bentoType.number, { fontSize: 56, lineHeight: 58, letterSpacing: -1.4, color: '#FFFFFF' }]} />
+                    <Text style={{ fontSize: 16, fontWeight: '500', color: '#FFFFFF' }}>pts</Text>
                   </View>
-                  <Text style={styles.heroSmall}>
-                    {s.basisRounds
-                      ? `${s.basisRounds} ${s.basis}-hole round${s.basisRounds === 1 ? '' : 's'} ${PERIOD_TEXT[period]}`
-                      : `No rounds ${PERIOD_TEXT[period]}`}
+                  <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.85)', marginTop: 6 }}>
+                    {s.basisRounds ? `${s.basisRounds} ${s.basis}-hole round${s.basisRounds === 1 ? '' : 's'} ${PERIOD_TEXT[period]}` : `No rounds ${PERIOD_TEXT[period]}`}
                   </Text>
                 </View>
-                <View style={styles.hcpPill}>
-                  <Text style={styles.heroSmall}>Handicap Index</Text>
-                  <Text style={styles.hcpVal}>{data.handicapIndex == null ? '–' : formatIndex(data.handicapIndex)}</Text>
-                  <Text style={styles.heroSmall}>as entered</Text>
+                <View style={{ alignItems: 'flex-end' }}>
+                  <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)' }}>Handicap Index</Text>
+                  <Text style={[fr(26), { color: bentoBrand.lime, marginTop: 4 }]}>{data.handicapIndex == null ? '–' : formatIndex(data.handicapIndex)}</Text>
+                  <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.75)' }}>as entered</Text>
                 </View>
               </View>
-              <View style={styles.heroRow}>
-                <View style={styles.heroCell}>
-                  <Text style={styles.heroCellVal}>{s.basisRounds ? `${s.playedToHandicap} of ${s.basisRounds}` : '–'}</Text>
-                  <Text style={styles.heroCellLabel}>played to handicap ({par18}+ pts)</Text>
-                </View>
-                <View style={styles.heroCell}>
-                  <Text style={styles.heroCellVal}>{s.bestPoints ? `${s.bestPoints.points} pts` : '–'}</Text>
-                  <Text style={styles.heroCellLabel}>{s.bestPoints ? `best · ${dShort(s.bestPoints.completedAt)}` : 'best round'}</Text>
-                </View>
+              <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
+                <HeroCell value={s.basisRounds ? `${s.playedToHandicap} of ${s.basisRounds}` : '–'} label={`played to handicap (${par18}+ pts)`} />
+                <HeroCell value={s.bestPoints ? `${s.bestPoints.points} pts` : '–'} label={s.bestPoints ? `best · ${dShort(s.bestPoints.completedAt)}` : 'best round'} />
               </View>
-            </FadeIn>
-
-            <View style={styles.sectionHead}>
-              <Text style={styles.sectionTitle}>Stats</Text>
-              <SegmentedControl
-                value={period}
-                onChange={(p) => {
-                  setTip(null);
-                  setPeriod(p);
-                }}
-                options={PERIODS.map((p) => ({ value: p, label: PERIOD_LABELS[p] }))}
-                accessibilityLabel="Stats period"
-              />
-            </View>
-
-            {s.rounds === 0 ? (
-              <Text style={styles.empty}>No rounds {PERIOD_TEXT[period]}. Pick Year or All to see earlier rounds.</Text>
-            ) : (
-              <>
-                <View style={styles.tiles}>
-                  <Tile styles={styles} label="Rounds" value={String(s.rounds)} sub={`${s.holesPlayed} holes`} />
-                  <Tile styles={styles} label="Scoring average" value={s.scoringAverage == null ? '–' : fmt1(s.scoringAverage)} sub={`handicap score, ${s.basis} holes`} />
-                  <Tile styles={styles} label="Best score" value={s.bestGross ? String(s.bestGross.gross) : '–'} sub={s.bestGross ? dShort(s.bestGross.completedAt) : 'no round without a pick-up'} />
-                  <Tile styles={styles} label="Doubles or worse" value={s.mixPer18 ? fmt1(s.mixPer18.doubleOrWorse) : '–'} sub="per 18 holes" />
-                </View>
-
-                {s.pointsTrend.length ? (
-                  <View style={styles.card}>
-                    <Text style={styles.cardTitle}>Points per round</Text>
-                    <Text style={styles.sub}>
-                      Stableford, {s.pointsTrend.length >= 20 ? 'your last 20 rounds' : 'oldest to newest'}. The line at {par18} is playing to your handicap.
-                    </Text>
-                    <PointsChart data={s.pointsTrend} refLine={par18} colors={colors} tip={tip} onTip={setTip} />
-                    {tip != null && s.pointsTrend[tip] ? (
-                      <Text style={styles.tip}>
-                        {s.pointsTrend[tip].points} pts{s.pointsTrend[tip].gross != null ? ` · ${s.pointsTrend[tip].gross} gross` : ''} · {dShort(s.pointsTrend[tip].completedAt)} · {s.pointsTrend[tip].courseName}
-                      </Text>
-                    ) : (
-                      <Text style={styles.tipHint}>Tap a column for that round.</Text>
-                    )}
+              {s.rounds > 0 && s.pointsTrend.length ? (
+                <>
+                  <Text style={{ fontSize: 14, fontWeight: '600', color: '#FFFFFF', marginTop: 18 }}>Points per round</Text>
+                  <Text style={{ fontSize: 12, lineHeight: 17, color: 'rgba(255,255,255,0.8)', marginTop: 2 }}>
+                    Stableford, {s.pointsTrend.length >= 20 ? 'your last 20 rounds' : 'oldest to newest'}. The line at {par18} is playing to your handicap.
+                  </Text>
+                  <PointsChart data={s.pointsTrend} refLine={par18} tip={tip} onTip={setTip} />
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 }}>
+                    <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.75)' }}>{dShort(s.pointsTrend[0].completedAt)}</Text>
+                    <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.75)' }}>{dShort(s.pointsTrend[s.pointsTrend.length - 1].completedAt)}</Text>
                   </View>
-                ) : null}
+                  {tip != null && s.pointsTrend[tip] ? (
+                    <Text style={{ fontSize: 13, fontWeight: '600', color: bentoBrand.lime, marginTop: 8 }}>
+                      {s.pointsTrend[tip].points} pts{s.pointsTrend[tip].gross != null ? ` · ${s.pointsTrend[tip].gross} gross` : ''} · {dShort(s.pointsTrend[tip].completedAt)} · {s.pointsTrend[tip].courseName}
+                    </Text>
+                  ) : (
+                    <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)', marginTop: 8 }}>Tap a column for that round.</Text>
+                  )}
+                </>
+              ) : null}
+            </BentoTile>
+          </Appear>
 
-                {s.parAverages.length ? (
-                  <View style={styles.card}>
-                    <Text style={styles.cardTitle}>Average score by par</Text>
-                    <Text style={styles.sub}>Strokes per hole, with pick-ups counted as net double bogey</Text>
+          <Text accessibilityRole="header" style={h2}>
+            Stats
+          </Text>
+
+          {s.rounds === 0 ? (
+            <BentoTile>
+              <Text style={insight}>No rounds {PERIOD_TEXT[period]}. Pick Year or All to see earlier rounds.</Text>
+            </BentoTile>
+          ) : (
+            <>
+              <Appear>
+                <BentoTile>
+                  <Grid2
+                    t={t}
+                    cells={[
+                      { value: String(s.rounds), label: 'Rounds', sub: `${s.holesPlayed} holes` },
+                      { value: s.scoringAverage == null ? '–' : fmt1(s.scoringAverage), label: 'Scoring average', sub: `handicap score, ${s.basis} holes` },
+                      { value: s.bestGross ? String(s.bestGross.gross) : '–', label: 'Best score', sub: s.bestGross ? dShort(s.bestGross.completedAt) : 'no round without a pick-up' },
+                      { value: s.mixPer18 ? fmt1(s.mixPer18.doubleOrWorse) : '–', label: 'Doubles or worse', sub: 'per 18 holes' },
+                    ]}
+                    labelStyle={label13}
+                    subStyle={sub12}
+                  />
+                </BentoTile>
+              </Appear>
+
+              {s.parAverages.length ? (
+                <Appear>
+                  <BentoTile>
+                    <Text style={title16}>Average score by par</Text>
+                    <Text style={[mut13, { marginTop: 2, marginBottom: 8 }]}>Strokes per hole, with pick-ups counted as net double bogey</Text>
                     {s.parAverages.map((p) => (
-                      <View key={p.par} style={styles.parRow}>
-                        <Text style={styles.parLabel}>Par {p.par}</Text>
-                        <View style={styles.track}>
-                          <View style={[styles.fill, { width: `${Math.min(100, (Math.max(0, p.average - p.par) / 2) * 100)}%` }]} />
+                      <View key={p.par} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8, borderTopWidth: 1, borderTopColor: t.hair }}>
+                        <Text style={{ width: 44, fontSize: 14, fontWeight: '600', color: t.ink }}>Par {p.par}</Text>
+                        <View style={{ flex: 1, height: 10, borderRadius: 5, backgroundColor: t.seg, overflow: 'hidden' }}>
+                          <View style={{ height: '100%', width: `${Math.min(100, (Math.max(0, p.average - p.par) / 2) * 100)}%`, borderRadius: 5, backgroundColor: t.accent }} />
                         </View>
-                        <Text style={styles.parVal}>
-                          <Text style={styles.bold}>{p.average.toFixed(2)}</Text> <Text style={styles.muted}>{sign(p.average - p.par)}</Text>
+                        <Text style={{ width: 88, textAlign: 'right' }}>
+                          <Text style={{ fontSize: 15, fontWeight: '700', color: t.ink, fontVariant: ['tabular-nums'] }}>{p.average.toFixed(2)}</Text>
+                          <Text style={{ fontSize: 13, color: t.muted, fontVariant: ['tabular-nums'] }}>{`  ${sign(p.average - p.par)}`}</Text>
                         </Text>
                       </View>
                     ))}
                     {(() => {
                       const worst = s.parAverages.reduce((a, b) => (b.overParPerRound > a.overParPerRound ? b : a));
                       return worst.overParPerRound > 0 ? (
-                        <Text style={styles.insight}>
-                          Par {worst.par}s cost you the most: <Text style={styles.bold}>{fmt1(worst.overParPerRound)} shots a round</Text> over par.
+                        <Text style={[insight, { marginTop: 10 }]}>
+                          Par {worst.par}s cost you the most: {fmt1(worst.overParPerRound)} shots a round over par.
                         </Text>
                       ) : null;
                     })()}
-                  </View>
-                ) : null}
+                  </BentoTile>
+                </Appear>
+              ) : null}
 
-                {s.mixPer18 ? (
-                  <View style={styles.card}>
-                    <Text style={styles.cardTitle}>Score mix</Text>
-                    <Text style={styles.sub}>Holes per 18</Text>
-                    <MixBar mix={s.mixPer18} colors={colors} styles={styles} />
+              {s.mixPer18 ? (
+                <Appear>
+                  <BentoTile>
+                    <MixCard mix={s.mixPer18} t={t} dark={scheme === 'dark'} />
                     {s.doubleCostPer18 ? (
-                      <Text style={styles.insight}>
-                        Doubles cost you <Text style={styles.bold}>{fmt1(s.doubleCostPer18)} shots per 18</Text> more than bogeys would. Turning half of them into
-                        bogeys is worth about {fmt1(s.doubleCostPer18 / 2)} shots.
+                      <Text style={[insight, { marginTop: 12 }]}>
+                        Doubles cost you {fmt1(s.doubleCostPer18)} shots per 18 more than bogeys would. Turning half of them into bogeys is worth about {fmt1(s.doubleCostPer18 / 2)} shots.
                       </Text>
                     ) : null}
-                  </View>
-                ) : null}
+                  </BentoTile>
+                </Appear>
+              ) : null}
 
-                {s.toughestHoles ? (
-                  <View style={styles.card}>
-                    <Text style={styles.cardTitle}>Your toughest holes</Text>
-                    <Text style={styles.sub}>
+              {s.toughestHoles ? (
+                <Appear>
+                  <BentoTile>
+                    <Text style={title16}>Your toughest holes</Text>
+                    <Text style={[mut13, { marginTop: 2, marginBottom: 6 }]}>
                       At {s.toughestHoles.courseName} · {s.toughestHoles.rounds} rounds
                     </Text>
-                    {s.toughestHoles.holes.map((hh, i) => (
-                      <View key={hh.n} style={[styles.holeRow, i > 0 && styles.rowSep]}>
-                        <View style={styles.holeNo}>
-                          <Text style={styles.holeNoText}>{hh.n}</Text>
+                    {s.toughestHoles.holes.map((hh) => (
+                      <View key={hh.n} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderTopWidth: 1, borderTopColor: t.hair }}>
+                        <View style={{ width: 34, height: 34, borderRadius: 11, backgroundColor: t.seg, alignItems: 'center', justifyContent: 'center' }}>
+                          <Text style={[fr(16), { color: t.ink }]}>{hh.n}</Text>
                         </View>
                         <View style={{ flex: 1 }}>
-                          <Text style={styles.rowTitle}>
+                          <Text style={{ fontSize: 15, fontWeight: '600', color: t.ink }}>
                             Par {hh.par} · Stroke index {hh.si}
                           </Text>
-                          <Text style={styles.rowSub}>{fmt1(hh.points)} points on average</Text>
+                          <Text style={mut13}>{fmt1(hh.points)} points on average</Text>
                         </View>
                         <View style={{ alignItems: 'flex-end' }}>
-                          <Text style={styles.rowTitle}>{sign(hh.overPar)}</Text>
-                          <Text style={styles.rowSub}>avg over par</Text>
+                          <Text style={{ fontSize: 16, fontWeight: '700', color: t.negative, fontVariant: ['tabular-nums'] }}>{sign(hh.overPar)}</Text>
+                          <Text style={sub12}>avg over par</Text>
                         </View>
                       </View>
                     ))}
-                  </View>
-                ) : null}
+                  </BentoTile>
+                </Appear>
+              ) : null}
 
-                {s.nines ? (
-                  <View style={styles.card}>
-                    <Text style={styles.cardTitle}>Front nine and back nine</Text>
-                    <View style={styles.nines}>
-                      <View style={styles.nine}>
-                        <Text style={styles.rowSub}>Front nine</Text>
-                        <Text style={styles.nineVal}>{fmt1(s.nines.front)}</Text>
+              {s.nines ? (
+                <Appear>
+                  <BentoTile>
+                    <Text style={title16}>Front nine and back nine</Text>
+                    <View style={{ flexDirection: 'row', marginTop: 10 }}>
+                      <View style={{ flex: 1, paddingTop: 2, paddingBottom: 4 }}>
+                        <Text style={[fr(26), { color: t.ink }]}>{fmt1(s.nines.front)}</Text>
+                        <Text style={mut13}>Front nine</Text>
                       </View>
-                      <View style={styles.nine}>
-                        <Text style={styles.rowSub}>Back nine</Text>
-                        <Text style={styles.nineVal}>{fmt1(s.nines.back)}</Text>
+                      <View style={{ flex: 1, paddingTop: 2, paddingBottom: 4, paddingLeft: 16, borderLeftWidth: 1, borderLeftColor: t.hair }}>
+                        <Text style={[fr(26), { color: t.ink }]}>{fmt1(s.nines.back)}</Text>
+                        <Text style={mut13}>Back nine</Text>
                       </View>
                     </View>
-                    <Text style={styles.insight}>
-                      {Math.abs(s.nines.front - s.nines.back) < 0.5 ? (
-                        'You score about the same on both nines.'
-                      ) : (
-                        <>
-                          You average <Text style={styles.bold}>{fmt1(Math.abs(s.nines.front - s.nines.back))} more on the {s.nines.front > s.nines.back ? 'front' : 'back'} nine</Text>
-                          {s.nines.front > s.nines.back ? '. A proper warm-up could help.' : '. Watch for fatigue and a slipping routine late in the round.'}
-                        </>
-                      )}
+                    <Text style={[insight, { marginTop: 10 }]}>
+                      {Math.abs(s.nines.front - s.nines.back) < 0.5
+                        ? 'You score about the same on both nines.'
+                        : `You average ${fmt1(Math.abs(s.nines.front - s.nines.back))} more on the ${s.nines.front > s.nines.back ? 'front' : 'back'} nine${
+                            s.nines.front > s.nines.back ? '. A proper warm-up could help.' : '. Watch for fatigue and a slipping routine late in the round.'
+                          }`}
                     </Text>
-                  </View>
-                ) : null}
+                  </BentoTile>
+                </Appear>
+              ) : null}
 
-                <View style={styles.card}>
-                  <Text style={styles.cardTitle}>Putting and ball striking</Text>
+              <Appear>
+                <BentoTile>
+                  <Text style={title16}>Putting and ball striking</Text>
                   {s.putting ? (
                     <>
-                      <Text style={styles.sub}>From the {s.putting.holes} holes where you entered putts</Text>
-                      <View style={styles.statGrid}>
-                        <Stat styles={styles} label="Putts" value={fmt1(s.putting.puttsPer18)} sub="per 18 holes" />
-                        <Stat styles={styles} label="Three-putts" value={fmt1(s.putting.threePuttsPer18)} sub="per 18 holes" />
-                        <Stat styles={styles} label="Greens in reg." value={`${Math.round(s.putting.girPct)}%`} sub="of holes" />
-                        <Stat
-                          styles={styles}
-                          label="Fairways"
-                          value={s.putting.fairwayPct == null ? '–' : `${Math.round(s.putting.fairwayPct)}%`}
-                          sub={
-                            s.putting.fairwayPct == null
-                              ? 'enter fairways on par 4s and 5s'
-                              : `missed ${Math.round(s.putting.missLeftPct ?? 0)}% left · ${Math.round(s.putting.missRightPct ?? 0)}% right`
-                          }
-                        />
-                      </View>
+                      <Text style={[mut13, { marginTop: 2, marginBottom: 10 }]}>From the {s.putting.holes} holes where you entered putts</Text>
+                      <Grid2
+                        t={t}
+                        cells={[
+                          { value: fmt1(s.putting.puttsPer18), label: 'Putts', sub: 'per 18 holes' },
+                          { value: fmt1(s.putting.threePuttsPer18), label: 'Three-putts', sub: 'per 18 holes' },
+                          { value: `${Math.round(s.putting.girPct)}%`, label: 'Greens in reg.', sub: 'of holes' },
+                          {
+                            value: s.putting.fairwayPct == null ? '–' : `${Math.round(s.putting.fairwayPct)}%`,
+                            label: 'Fairways',
+                            sub:
+                              s.putting.fairwayPct == null
+                                ? 'enter fairways on par 4s and 5s'
+                                : `missed ${Math.round(s.putting.missLeftPct ?? 0)}% left · ${Math.round(s.putting.missRightPct ?? 0)}% right`,
+                          },
+                        ]}
+                        labelStyle={label13}
+                        subStyle={sub12}
+                      />
                     </>
                   ) : (
                     <>
-                      <Text style={styles.sub}>Turn on “Putts and fairways” when you start a round to unlock these</Text>
-                      <View style={styles.locked}>
+                      <Text style={[mut13, { marginTop: 2 }]}>Turn on “Putts and fairways” when you start a round to unlock these</Text>
+                      <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
                         {['Putts', 'Fairways', 'Greens in reg.'].map((l) => (
-                          <View key={l} style={styles.lockedCell}>
-                            <Text style={styles.rowSub}>{l}</Text>
-                            <Text style={[styles.nineVal, styles.muted]}>–</Text>
+                          <View key={l} style={{ flex: 1, borderRadius: 14, borderWidth: 1.5, borderStyle: 'dashed', borderColor: t.hair, padding: 10, alignItems: 'center' }}>
+                            <Text style={[fr(22), { color: t.muted }]}>–</Text>
+                            <Text style={sub12}>{l}</Text>
                           </View>
                         ))}
                       </View>
                     </>
                   )}
-                </View>
+                </BentoTile>
+              </Appear>
 
-                <View style={styles.card}>
-                  <Text style={styles.cardTitle}>Recent rounds</Text>
-                  {s.recent.slice(0, 8).map((r, i) => (
-                    <PressableScale key={r.id} style={[styles.roundRow, i > 0 && styles.rowSep]} onPress={() => navigation.navigate('RoundDetail', { roundId: r.id })} accessibilityRole="button">
-                      <View style={styles.date}>
-                        <Text style={styles.dateDay}>{new Date(r.completedAt).getDate()}</Text>
-                        <Text style={styles.dateMonth}>{new Date(r.completedAt).toLocaleDateString('en-ZA', { month: 'short' })}</Text>
-                      </View>
-                      <View style={{ flex: 1, minWidth: 0 }}>
-                        <Text style={styles.rowTitle} numberOfLines={1}>
-                          {r.courseName}
-                          {r.isBest ? '  ' : ''}
-                          {r.isBest ? <Text style={styles.pb}> BEST </Text> : null}
-                        </Text>
-                        <View style={styles.teeLine}>
-                          <View style={[styles.teeDot, { backgroundColor: r.teeColor }]} />
-                          <Text style={styles.rowSub} numberOfLines={1}>
-                            {r.teeName} tees · {r.holeCount === 18 ? '18 holes' : `holes ${r.firstHole}–${r.firstHole + r.holeCount - 1}`}
-                            {r.playingHandicap != null ? ` · playing ${formatWhole(r.playingHandicap)}` : ''}
-                          </Text>
+              <Text accessibilityRole="header" style={h2}>
+                Recent rounds
+              </Text>
+              <Appear>
+                <BentoTile padding={0}>
+                  <View style={{ paddingHorizontal: 16 }}>
+                    {s.recent.slice(0, 8).map((r, i) => (
+                      <PressableScale
+                        key={r.id}
+                        style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 11, borderTopWidth: i ? 1 : 0, borderTopColor: t.hair }}
+                        onPress={() => navigation.navigate('RoundDetail', { roundId: r.id })}
+                        accessibilityRole="button"
+                      >
+                        <View style={{ width: 44, height: 46, borderRadius: 13, backgroundColor: t.seg, alignItems: 'center', justifyContent: 'center' }}>
+                          <Text style={[bentoType.number, { fontSize: 17, lineHeight: 18, color: t.ink }]}>{new Date(r.completedAt).getDate()}</Text>
+                          <Text style={sub12}>{new Date(r.completedAt).toLocaleDateString('en-ZA', { month: 'short' })}</Text>
                         </View>
-                      </View>
-                      <View style={{ alignItems: 'flex-end' }}>
-                        <Text style={styles.rowTitle}>{r.points} pts</Text>
-                        <Text style={styles.rowSub}>{r.gross != null ? `${r.gross} gross` : `${r.adjusted} adj.`}</Text>
-                      </View>
-                    </PressableScale>
-                  ))}
-                </View>
-              </>
-            )}
-          </>
-        ) : null}
+                        <View style={{ flex: 1, minWidth: 0 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <Text style={{ fontSize: 15, fontWeight: '600', color: t.ink, flexShrink: 1 }} numberOfLines={1}>
+                              {r.courseName}
+                            </Text>
+                            {r.isBest ? (
+                              <View style={{ marginLeft: 6, height: 20, paddingHorizontal: 9, borderRadius: 999, backgroundColor: bentoBrand.lime, justifyContent: 'center' }}>
+                                <Text style={{ fontSize: 12, fontWeight: '600', color: bentoBrand.fairway }}>BEST</Text>
+                              </View>
+                            ) : null}
+                          </View>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                            <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: r.teeColor, boxShadow: '0 0 0 1.5px rgba(255,255,255,0.55)' }} />
+                            <Text style={[mut13, { flexShrink: 1 }]}>
+                              {r.teeName} tees · {r.holeCount === 18 ? '18 holes' : `holes ${r.firstHole}–${r.firstHole + r.holeCount - 1}`}
+                              {r.playingHandicap != null ? ` · playing ${formatWhole(r.playingHandicap)}` : ''}
+                            </Text>
+                          </View>
+                        </View>
+                        <View style={{ alignItems: 'flex-end' }}>
+                          <Text style={{ fontSize: 16, fontWeight: '700', color: t.ink, fontVariant: ['tabular-nums'] }}>{r.points} pts</Text>
+                          <Text style={sub12}>{r.gross != null ? `${r.gross} gross` : `${r.adjusted} adj.`}</Text>
+                        </View>
+                      </PressableScale>
+                    ))}
+                  </View>
+                </BentoTile>
+              </Appear>
+            </>
+          )}
+        </>
+      ) : null}
 
-        {data && !data.isPlaceholderClub ? (
-          <View style={[styles.card, styles.shareCard]}>
-            <View style={styles.shareRow}>
+      {data && !data.isPlaceholderClub ? (
+        <Appear>
+          <BentoTile>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.cardTitle}>Share my rounds with {data.clubName || 'my club'}</Text>
-                <Text style={styles.body}>
+                <Text style={{ fontSize: 15, fontWeight: '600', color: t.ink }}>Share my rounds with {data.clubName || 'my club'}</Text>
+                <Text style={[mut13, { marginTop: 4 }]}>
                   {data.shareWithClub
                     ? 'Your club can see the rounds you play on its course, your scorecards and the stats from them. Turn this off to keep them to yourself.'
                     : 'Your rounds are private. Your club can’t see your scorecards or golf stats.'}
                 </Text>
               </View>
-              <BentoToggle
-                value={data.shareWithClub}
-                onValueChange={setShare}
-                disabled={sharing}
-                accessibilityLabel={`Share my rounds with ${data.clubName || 'my club'}`}
-              />
+              <BentoToggle value={data.shareWithClub} onValueChange={setShare} disabled={sharing} accessibilityLabel={`Share my rounds with ${data.clubName || 'my club'}`} />
             </View>
-          </View>
-        ) : null}
+          </BentoTile>
+        </Appear>
+      ) : null}
     </BentoScreen>
   );
 }
 
-function Tile({ styles, label, value, sub }: { styles: ReturnType<typeof createStyles>; label: string; value: string; sub: string }) {
+function HeroCell({ value, label }: { value: string; label: string }) {
   return (
-    <View style={styles.tile}>
-      <Text style={styles.rowSub}>{label}</Text>
-      <CountUp value={value} style={styles.tileVal} />
-      <Text style={styles.tileSub}>{sub}</Text>
+    <View style={{ flex: 1, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.10)', paddingVertical: 10, paddingHorizontal: 12 }}>
+      <Text style={[fr(20), { color: '#FFFFFF' }]}>{value}</Text>
+      <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.8)', marginTop: 2 }}>{label}</Text>
     </View>
   );
 }
 
-function Stat({ styles, label, value, sub }: { styles: ReturnType<typeof createStyles>; label: string; value: string; sub: string }) {
+// Two-by-two stat grid (Stats and Putting tiles): a hairline between the columns.
+function Grid2({
+  t,
+  cells,
+  labelStyle,
+  subStyle,
+}: {
+  t: BentoTokens;
+  cells: Array<{ value: string; label: string; sub: string }>;
+  labelStyle: TextStyle;
+  subStyle: TextStyle;
+}) {
   return (
-    <View style={styles.statCell}>
-      <Text style={styles.rowSub}>{label}</Text>
-      <CountUp value={value} style={styles.nineVal} />
-      <Text style={styles.tileSub}>{sub}</Text>
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+      {cells.map((c, i) => {
+        const right = i % 2 === 1;
+        const cell: ViewStyle = { width: '50%', paddingTop: i > 1 ? 14 : 2, paddingBottom: 4, paddingLeft: right ? 16 : 0, borderLeftWidth: right ? 1 : 0, borderLeftColor: t.hair };
+        return (
+          <View key={c.label} style={cell}>
+            <CountUp value={c.value} style={[fr(26), { color: t.ink }]} />
+            <Text style={labelStyle}>{c.label}</Text>
+            <Text style={subStyle}>{c.sub}</Text>
+          </View>
+        );
+      })}
     </View>
   );
 }
 
-function MixBar({ mix, colors, styles }: { mix: NonNullable<GolfStatsDto['stats']['mixPer18']>; colors: ThemeColors; styles: ReturnType<typeof createStyles> }) {
-  // Four categorical colours from the brand-neutral chart palette, ordered best to worst.
+function MixCard({ mix, t, dark }: { mix: NonNullable<GolfStatsDto['stats']['mixPer18']>; t: BentoTokens; dark: boolean }) {
+  // Board colours (AppMyGolf light / dark), best to worst.
   const parts = [
-    { name: 'Birdie or better', v: mix.birdieOrBetter, c: '#2a78d6' },
-    { name: 'Par', v: mix.par, c: '#1baf7a' },
-    { name: 'Bogey', v: mix.bogey, c: '#eda100' },
-    { name: 'Double+', v: mix.doubleOrWorse, c: '#e87ba4' },
+    { name: 'Birdie or better', v: mix.birdieOrBetter, c: dark ? '#CDDE5C' : '#00704F' },
+    { name: 'Par', v: mix.par, c: dark ? '#8FBF6A' : '#5FA36F' },
+    { name: 'Bogey', v: mix.bogey, c: '#C9B36A' },
+    { name: 'Double+', v: mix.doubleOrWorse, c: '#B5643F' },
   ];
   return (
     <>
-      <View style={styles.mixBar} accessibilityLabel={parts.map((p) => `${p.name} ${fmt1(p.v)}`).join(', ')}>
-        {parts.filter((p) => p.v > 0).map((p) => (
-          <View key={p.name} style={{ flex: p.v, backgroundColor: p.c, height: '100%' }} />
-        ))}
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
+        <Text style={{ fontSize: 16, fontWeight: '600', color: t.ink }}>Score mix</Text>
+        <Text style={{ fontSize: 13, color: t.muted }}>Holes per 18</Text>
       </View>
-      <View style={styles.mixLegend}>
+      <View
+        accessibilityRole="image"
+        accessibilityLabel={parts.map((p) => `${p.name} ${fmt1(p.v)}`).join(', ')}
+        style={{ flexDirection: 'row', height: 14, borderRadius: 7, overflow: 'hidden', marginTop: 12 }}
+      >
+        {parts
+          .filter((p) => p.v > 0)
+          .map((p) => (
+            <View key={p.name} style={{ flex: p.v, backgroundColor: p.c, height: '100%' }} />
+          ))}
+      </View>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', rowGap: 6, columnGap: 14, marginTop: 12 }}>
         {parts.map((p) => (
-          <View key={p.name} style={{ flex: 1 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-              <View style={{ width: 9, height: 9, borderRadius: 3, backgroundColor: p.c }} />
-              <Text style={[styles.tileSub, { color: colors.textSecondary }]} numberOfLines={1}>
-                {p.name}
-              </Text>
-            </View>
-            <Text style={styles.nineVal}>{fmt1(p.v)}</Text>
+          <View key={p.name} style={{ width: '46%', flexGrow: 1, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <View style={{ width: 10, height: 10, borderRadius: 3, backgroundColor: p.c }} />
+            <Text style={{ flex: 1, fontSize: 13, color: t.ink }} numberOfLines={1}>
+              {p.name}
+            </Text>
+            <Text style={{ fontSize: 13, fontWeight: '700', color: t.ink, fontVariant: ['tabular-nums'] }}>{fmt1(p.v)}</Text>
           </View>
         ))}
       </View>
@@ -436,74 +511,68 @@ function MixBar({ mix, colors, styles }: { mix: NonNullable<GolfStatsDto['stats'
   );
 }
 
+// Points per round, drawn in the hero tile as on the boards: a bar per round
+// (lime at or above the handicap line), faint lines every 10 points, the
+// dashed line at playing-to-handicap, the best round labelled. Tap a column to
+// see that round; tap it again to hide it.
+const CHART_H = 120;
+const LABEL_SPACE = 18;
+const BAR_GAP = 4;
+// Left gutter for the 0 / 10 / 20 / 30 / 40 values (kept from the earlier chart; not on the boards).
+const AXIS_W = 20;
+
 function PointsChart({
   data,
   refLine,
-  colors,
   tip,
   onTip,
 }: {
   data: GolfStatsDto['stats']['pointsTrend'];
   refLine: number;
-  colors: ThemeColors;
   tip: number | null;
   onTip: (i: number | null) => void;
 }) {
   const [W, setW] = useState(0);
-  const H = 150;
-  const m = { l: 24, r: 6, t: 12, b: 20 };
-  const iw = Math.max(1, W - m.l - m.r);
-  const ih = H - m.t - m.b;
+  const ih = CHART_H - LABEL_SPACE;
   const yMax = Math.max(refLine + 9, ...data.map((d) => d.points + 2));
-  const y = (v: number) => m.t + ih - (v / yMax) * ih;
-  const slot = iw / data.length;
-  const bw = Math.min(24, Math.max(6, slot * 0.62));
+  const y = (v: number) => CHART_H - (v / yMax) * ih;
+  const plotW = Math.max(1, W - AXIS_W);
+  const bw = Math.max(2, (plotW - BAR_GAP * (data.length - 1)) / data.length);
+  const slot = bw + BAR_GAP;
+  const bx = (i: number) => AXIS_W + i * slot;
   const best = data.reduce((a, b, i) => (b.points > data[a].points ? i : a), 0);
-  const ticks = [0, 10, 20, 30, 40].filter((v) => v <= yMax);
+  const grid = [0, 10, 20, 30, 40].filter((v) => v < yMax);
   return (
-    <View onLayout={(e) => setW(e.nativeEvent.layout.width)} accessibilityLabel={`Stableford points for ${data.length} rounds`}>
+    <View onLayout={(e) => setW(e.nativeEvent.layout.width)} accessibilityLabel={`Stableford points for ${data.length} rounds`} style={{ height: CHART_H, marginTop: 10 }}>
       {W > 0 ? (
-        <Svg width={W} height={H}>
-          {ticks.map((v) => (
+        <Svg width={W} height={CHART_H}>
+          {grid.map((v) => (
             <React.Fragment key={v}>
-              <Line x1={m.l} x2={W - m.r} y1={y(v)} y2={y(v)} stroke={colors.border} strokeWidth={1} />
-              <SvgText x={m.l - 6} y={y(v) + 3.5} textAnchor="end" fontSize={10}  fill={colors.textMuted}>
+              <Line x1={AXIS_W} x2={W} y1={y(v)} y2={y(v)} stroke="rgba(255,255,255,0.10)" strokeWidth={1} />
+              <SvgText x={AXIS_W - 6} y={Math.min(y(v) + 3.5, CHART_H - 1)} textAnchor="end" fontSize={10} fill="rgba(255,255,255,0.6)">
                 {v}
               </SvgText>
             </React.Fragment>
           ))}
           {data.map((d, i) => {
-            const x = m.l + slot * i + (slot - bw) / 2;
             const top = y(d.points);
-            const h = m.t + ih - top;
-            const rad = Math.min(4, h / 2);
-            return (
-              <Path
-                key={d.id}
-                d={`M${x} ${m.t + ih}V${top + rad}Q${x} ${top} ${x + rad} ${top}H${x + bw - rad}Q${x + bw} ${top} ${x + bw} ${top + rad}V${m.t + ih}Z`}
-                fill={tip === i ? colors.darkGreen : colors.clubGreen}
-              />
-            );
+            const h = Math.max(0, CHART_H - top);
+            const fill = tip === i ? '#FFFFFF' : d.points >= refLine ? bentoBrand.lime : 'rgba(255,255,255,0.18)';
+            return <Rect key={d.id} x={bx(i)} y={top} width={bw} height={h} rx={Math.min(5, bw / 2, h / 2)} fill={fill} />;
           })}
-          <Line x1={m.l} x2={W - m.r} y1={y(refLine)} y2={y(refLine)} stroke={colors.textSecondary} strokeWidth={1} />
+          <Line x1={AXIS_W} x2={W} y1={y(refLine)} y2={y(refLine)} stroke="rgba(205,222,92,0.75)" strokeWidth={1.5} strokeDasharray="4 3" />
           <SvgText
-            x={Math.min(Math.max(m.l + slot * best + slot / 2, m.l + 30), W - 40)}
+            x={Math.min(Math.max(bx(best) + bw / 2, AXIS_W + 10), W - 10)}
             y={y(data[best].points) - 5}
             textAnchor="middle"
-            fontSize={10}
-            fontWeight="600"
-            fill={colors.textPrimary}
+            fontSize={12}
+            fontWeight="700"
+            fill="#FFFFFF"
           >
             {data[best].points}
           </SvgText>
-          <SvgText x={m.l} y={H - 4} fontSize={10}  fill={colors.textMuted}>
-            {dShort(data[0].completedAt)}
-          </SvgText>
-          <SvgText x={W - m.r} y={H - 4} textAnchor="end" fontSize={10}  fill={colors.textMuted}>
-            {dShort(data[data.length - 1].completedAt)}
-          </SvgText>
           {data.map((d, i) => (
-            <Rect key={`hit${d.id}`} x={m.l + slot * i} y={m.t} width={slot} height={ih} fill="transparent" onPress={() => onTip(tip === i ? null : i)} />
+            <Rect key={`hit${d.id}`} x={bx(i) - BAR_GAP / 2} y={0} width={slot} height={CHART_H} fill="transparent" onPress={() => onTip(tip === i ? null : i)} />
           ))}
         </Svg>
       ) : null}
@@ -511,83 +580,3 @@ function PointsChart({
   );
 }
 
-function createStyles(colors: ThemeColors, bt: BentoTokens) {
-  return StyleSheet.create({
-    screen: { flex: 1, backgroundColor: colors.background },
-    safeArea: { backgroundColor: colors.clubGreen },
-    topBar: { height: 62, backgroundColor: colors.clubGreen, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: screenPadding },
-    topBarLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-    topBarTitle: { fontFamily: fontFamily.heading, fontSize: fontSize.title, color: colors.white },
-    scroll: { paddingBottom: 124, gap: spacing.sm + 4 },
-    band: { backgroundColor: colors.clubGreen, paddingHorizontal: screenPadding, paddingTop: 4, paddingBottom: spacing.xxl - 4 },
-    bandTitle: { fontFamily: fontFamily.heading, fontSize: fontSize.title, color: colors.white },
-    bandSub: { fontFamily: fontFamily.body, fontSize: 15, color: colors.textMuted, marginTop: 6 },
-    lift: {},
-    body: { fontFamily: fontFamily.body, fontSize: 13, color: colors.textSecondary, lineHeight: 19 },
-    hero: { ...bentoHeroStyle(bt), gap: spacing.sm + 4 },
-    heroTop: { flexDirection: 'row', justifyContent: 'space-between', gap: spacing.sm + 4 },
-    heroSmall: { fontFamily: fontFamily.body, fontSize: 11, color: 'rgba(255,255,255,0.7)' },
-    heroBig: { fontFamily: 'Fraunces_700Bold', fontSize: 42, lineHeight: 46, color: colors.white },
-    heroUnit: { fontFamily: fontFamily.bodyMedium, fontSize: 14, color: 'rgba(255,255,255,0.75)' },
-    hcpPill: { backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 14, paddingHorizontal: 12, paddingVertical: 6, alignItems: 'flex-end', alignSelf: 'flex-start' },
-    hcpVal: { fontFamily: fontFamily.bodySemiBold, fontSize: 18, color: colors.lime },
-    heroRow: { flexDirection: 'row', gap: spacing.sm },
-    heroCell: { flex: 1, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 16, paddingHorizontal: 12, paddingVertical: 9 },
-    heroCellVal: { fontFamily: fontFamily.bodySemiBold, fontSize: 15, color: colors.white },
-    heroCellLabel: { fontFamily: fontFamily.body, fontSize: 11, color: 'rgba(255,255,255,0.8)' },
-    sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', paddingHorizontal: 4, paddingTop: spacing.sm, gap: spacing.sm },
-    sectionTitle: { fontFamily: fontFamily.heading, fontSize: 22, color: colors.textPrimary },
-    period: { flexDirection: 'row', backgroundColor: colors.mintBg, borderRadius: radius.pill, padding: 3 },
-    periodBtn: { borderRadius: radius.pill, paddingHorizontal: 11, paddingVertical: 5 },
-    periodBtnOn: { backgroundColor: colors.clubGreen },
-    periodText: { fontFamily: fontFamily.bodyMedium, fontSize: 12, color: colors.clubGreen },
-    periodTextOn: { color: colors.white },
-    empty: { fontFamily: fontFamily.body, fontSize: 14, color: colors.textSecondary, padding: spacing.md, borderRadius: radius.md, borderWidth: 1.5, borderStyle: 'dashed', borderColor: colors.border, textAlign: 'center' },
-    tiles: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-    tile: { ...bentoTileStyle(bt, 14), width: '44%', flexGrow: 1, gap: 2 },
-    tileVal: { fontFamily: 'Fraunces_700Bold', fontSize: 26, color: colors.textPrimary },
-    tileSub: { fontFamily: fontFamily.body, fontSize: 12.5, color: colors.textSecondary },
-    shareCard: { marginTop: spacing.md },
-    shareRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-    card: { ...bentoTileStyle(bt, 16), gap: 10 },
-    cardTitle: { fontFamily: fontFamily.bodySemiBold, fontSize: 16, color: colors.textPrimary },
-    sub: { fontFamily: fontFamily.body, fontSize: 13, lineHeight: 18, color: colors.textMuted, marginTop: -6 },
-    tip: { fontFamily: fontFamily.bodyMedium, fontSize: 12, color: colors.textPrimary },
-    tipHint: { fontFamily: fontFamily.body, fontSize: 11.5, color: colors.textMuted },
-    insight: { fontFamily: fontFamily.body, fontSize: 12.5, color: colors.textSecondary, backgroundColor: colors.inputBg, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8, lineHeight: 18 },
-    bold: { fontFamily: fontFamily.bodySemiBold, color: colors.textPrimary },
-    muted: { color: colors.textMuted },
-    parRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-    parLabel: { width: 44, fontFamily: fontFamily.body, fontSize: 12.5, color: colors.textPrimary },
-    track: { flex: 1, height: 14, borderRadius: 4, backgroundColor: colors.inputBg, overflow: 'hidden' },
-    fill: { height: '100%', backgroundColor: colors.clubGreen, borderTopRightRadius: 4, borderBottomRightRadius: 4 },
-    parVal: { width: 86, textAlign: 'right', fontFamily: fontFamily.body, fontSize: 12.5, color: colors.textPrimary },
-    mixBar: { flexDirection: 'row', gap: 2, height: 18, borderRadius: 4, overflow: 'hidden' },
-    mixLegend: { flexDirection: 'row', gap: 4 },
-    holeRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8 },
-    rowSep: { borderTopWidth: 1, borderTopColor: colors.border },
-    holeNo: { width: 30, height: 30, borderRadius: 9, backgroundColor: colors.darkGreen, alignItems: 'center', justifyContent: 'center' },
-    holeNoText: { fontFamily: 'Fraunces_700Bold', fontSize: 15, color: colors.lime },
-    rowTitle: { fontFamily: fontFamily.bodySemiBold, fontSize: 15, color: colors.textPrimary },
-    rowSub: { fontFamily: fontFamily.body, fontSize: 12.5, color: colors.textMuted },
-    nines: { flexDirection: 'row', gap: 10 },
-    nine: { flex: 1, backgroundColor: colors.inputBg, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8 },
-    nineVal: { fontFamily: fontFamily.bodySemiBold, fontSize: 18, color: colors.textPrimary },
-    statGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-    statCell: { width: '47%', flexGrow: 1, backgroundColor: colors.inputBg, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8 },
-    locked: { flexDirection: 'row', gap: 8 },
-    lockedCell: { flex: 1, borderWidth: 1.5, borderStyle: 'dashed', borderColor: colors.border, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 8 },
-    roundRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 9 },
-    date: { width: 44, alignItems: 'center', backgroundColor: colors.mintBgAlt, borderWidth: 1, borderColor: colors.border, borderRadius: 10, paddingVertical: 4 },
-    dateDay: { fontFamily: fontFamily.bodySemiBold, fontSize: 15, color: colors.textPrimary, lineHeight: 18 },
-    dateMonth: { fontFamily: fontFamily.body, fontSize: 9.5, textTransform: 'uppercase', letterSpacing: 0.6, color: colors.textMuted },
-    pb: { fontFamily: fontFamily.bodySemiBold, fontSize: 9.5, letterSpacing: 0.5, backgroundColor: colors.lime, color: colors.darkGreen, borderRadius: 10, overflow: 'hidden' },
-    teeLine: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-    teeDot: { width: 8, height: 8, borderRadius: 4, borderWidth: 1, borderColor: 'rgba(0,0,0,0.3)' },
-    cup: { ...bentoHeroStyle(bt), gap: spacing.sm },
-    soonChip: { alignSelf: 'flex-start', backgroundColor: colors.lime, borderRadius: 20, paddingHorizontal: 9, paddingVertical: 2 },
-    soonChipText: { fontFamily: fontFamily.bodySemiBold, fontSize: 10, letterSpacing: 0.8, textTransform: 'uppercase', color: colors.darkGreen },
-    cupTitle: { fontFamily: fontFamily.heading, fontSize: 20, color: colors.white },
-    cupBody: { fontFamily: fontFamily.body, fontSize: 13, color: 'rgba(255,255,255,0.85)', lineHeight: 19 },
-  });
-}

@@ -1,13 +1,15 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Text, View, type TextStyle } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/types';
-import { BentoButton, BentoScreen, BentoTile, BentoToggle } from '../../components/bento';
-import { systemFonts, useBentoLegacy } from '../../components/bento/legacy';
+import { BentoButton, BentoField, BentoScreen, BentoTile, BentoToggle, H1, SegmentedControl } from '../../components/bento';
+import { GolfLoading } from '../../components/golf/GolfSheet';
+import { PressableScale } from '../../components/motion';
 import { api, ApiError } from '../../api/client';
 import { showAlert } from '../../utils/alert';
-import type { ThemeColors } from '../../context/ThemeContext';
-import { fontFamily, radius, spacing } from '../../theme';
+import { friendlyError } from '../../utils/errors';
+import { useBento } from '../../context/ThemeContext';
+import type { BentoTokens } from '../../theme/bento';
 import type { GolfCourseDto, GolfProfileDto } from '../../golf/dto';
 import { layoutHoleIndexes, playOptions, ratingFor, type Gender, type Layout } from '../../golf/courseMap';
 import { computeHandicaps, formatIndex, formatWhole, parseIndexText, type Format } from '../../golf/scoring';
@@ -17,11 +19,10 @@ type Props = NativeStackScreenProps<RootStackParamList, 'RoundSetup'>;
 const num = (x: number) => x.toFixed(2).replace('-', '−');
 
 // Before a round: tees, men's or ladies' ratings, which holes, the member's
-// Handicap Index and format. The handicaps worked out here are fixed for the
+// Handicap Index and format (boards: AppRoundSetup, G-D-Setup*). The handicaps worked out here are fixed for the
 // round once it starts (the API recomputes them the same way).
 export function RoundSetupScreen({ navigation, route }: Props) {
-  const { colors, t: bt } = useBentoLegacy();
-  const styles = useMemo(() => systemFonts(createStyles(colors, bt.segOn, bt.seg)), [colors, bt]);
+  const { t: bt } = useBento();
   const [course, setCourse] = useState<GolfCourseDto | null>(null);
   const [profile, setProfile] = useState<GolfProfileDto | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -51,7 +52,7 @@ export function RoundSetupScreen({ navigation, route }: Props) {
         setAllowance(p.allowance);
         setTrackStats(p.trackStats);
       } catch (e) {
-        setError(e instanceof Error ? e.message : 'Could not load this course.');
+        setError(friendlyError(e, 'Could not load this course.'));
       }
     })();
   }, [route.params.golfCourseId]);
@@ -105,7 +106,7 @@ export function RoundSetupScreen({ navigation, route }: Props) {
             await api.golfRoundDelete(round.id);
             start();
           } catch (err) {
-            showAlert('Could not discard the round', err instanceof Error ? err.message : undefined);
+            showAlert('Could not discard the round', friendlyError(err));
           }
         },
       },
@@ -123,7 +124,7 @@ export function RoundSetupScreen({ navigation, route }: Props) {
       navigation.replace('CourseGuide', { roundId: round.id });
     } catch (e) {
       if (e instanceof ApiError && e.status === 409) await offerInProgress();
-      else showAlert('Could not start the round', e instanceof Error ? e.message : undefined);
+      else showAlert('Could not start the round', friendlyError(e));
     } finally {
       startingRef.current = false;
       setStarting(false);
@@ -131,26 +132,26 @@ export function RoundSetupScreen({ navigation, route }: Props) {
   };
 
   const tee = (id: string) => course?.map.tees.find((t) => t.id === id);
+  const labelStyle: TextStyle = { fontSize: 14, fontWeight: '600', color: bt.ink, marginBottom: 8 };
+  const hint: TextStyle = { fontSize: 13, lineHeight: 19, color: bt.muted };
 
   return (
     <BentoScreen title="Start a Round" onBack={() => navigation.goBack()}>
-      {!course && !error ? <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} /> : null}
-      {error ? <Text style={styles.body}>{error}</Text> : null}
+      {!course && !error ? <GolfLoading /> : null}
+      {error ? <Text style={{ fontSize: 15, lineHeight: 22, color: bt.ink, textAlign: 'center', paddingHorizontal: 12, marginTop: 42 }}>{error}</Text> : null}
       {course ? (
         <>
-          <View style={{ marginTop: 4 }}>
-            <Text style={styles.courseName} accessibilityRole="header">
-              {course.name}
-            </Text>
-            <Text style={styles.muted}>{[course.location, `${course.holeCount} holes`].filter(Boolean).join(' · ')}</Text>
+          <View style={{ marginTop: 16, gap: 12 }}>
+            <H1 style={{ fontSize: 28, lineHeight: Math.round(28 * 1.04), letterSpacing: -0.7 }}>{course.name}</H1>
+            <Text style={{ fontSize: 14, color: bt.muted }}>{[course.location, `${course.holeCount} holes`].filter(Boolean).join(' · ')}</Text>
           </View>
 
-          <BentoTile padding={18} innerStyle={{ gap: 12 }}>
+          <BentoTile padding={18}>
             {genders.length > 1 ? (
-              <View style={{ gap: 8 }}>
-                <Text style={styles.label}>Rating</Text>
-                <Seg
-                  styles={styles}
+              <>
+                <Text style={labelStyle}>Rating</Text>
+                <SegmentedControl
+                  fill
                   value={gender}
                   options={genders.map((g) => ({ value: g, label: g === 'men' ? 'Men' : 'Ladies' }))}
                   onChange={(g) => {
@@ -159,84 +160,106 @@ export function RoundSetupScreen({ navigation, route }: Props) {
                     if (!forG.some((o) => o.teeId === teeId)) setTeeId(forG[0]?.teeId ?? null);
                   }}
                 />
-              </View>
+              </>
             ) : null}
 
-            <Text style={styles.label}>Tees</Text>
-            <View style={styles.teeGrid}>
+            <Text style={[labelStyle, genders.length > 1 ? { marginTop: 16 } : null]}>Tees</Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
               {teesForGender.map((o) => {
                 const t = tee(o.teeId)!;
                 const r = t.ratings[gender]!.full;
                 const total = t.lengths.reduce<number>((s, l) => s + (l ?? 0), 0);
                 const on = o.teeId === teeId;
+                const len = `${total.toLocaleString('en-ZA')} m`;
+                const meta = `CR ${r.cr.toFixed(1)} · ${r.slope}`;
                 return (
-                  <TouchableOpacity
+                  <PressableScale
                     key={o.teeId}
-                    style={[styles.teeOpt, on && styles.teeOptOn]}
                     onPress={() => setTeeId(o.teeId)}
                     accessibilityRole="button"
+                    accessibilityLabel={`${t.name} ${len} · ${meta}`}
                     accessibilityState={{ selected: on }}
+                    style={{
+                      flexGrow: 1,
+                      flexBasis: '30%',
+                      minWidth: 0,
+                      borderRadius: 16,
+                      paddingTop: 10,
+                      paddingHorizontal: 10,
+                      paddingBottom: 11,
+                      backgroundColor: on ? bt.accentSoft : bt.tile,
+                      boxShadow: on ? `0 0 0 2px ${bt.accent}` : `0 0 0 1px ${bt.hair}`,
+                    }}
                   >
-                    <View style={[styles.teeDot, { backgroundColor: t.color }]} />
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.teeName}>{t.name}</Text>
-                      <Text style={styles.teeMeta}>
-                        {total.toLocaleString('en-ZA')} m · CR {r.cr.toFixed(1)} · {r.slope}
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
+                      <View style={{ width: 11, height: 11, borderRadius: 6, backgroundColor: t.color, boxShadow: `0 0 0 1px ${bt.hair}` }} />
+                      <Text style={{ fontSize: 15, fontWeight: '600', color: bt.ink, flexShrink: 1 }} numberOfLines={1}>
+                        {t.name}
                       </Text>
                     </View>
-                  </TouchableOpacity>
+                    <Text style={{ fontSize: 12, color: bt.muted, marginTop: 5 }}>{len}</Text>
+                    <Text style={{ fontSize: 12, color: bt.muted }}>{meta}</Text>
+                  </PressableScale>
                 );
               })}
             </View>
 
-            <View style={{ gap: 8, marginTop: 4 }}>
-              <Text style={styles.label}>Holes</Text>
-              {layouts.length > 1 ? (
-                <Seg
-                  styles={styles}
-                  value={effectiveLayout}
-                  options={layouts.map((l) => ({ value: l, label: l === 'full' ? `${course.holeCount} holes` : l === 'front9' ? 'Front 9' : 'Back 9' }))}
-                  onChange={setLayout}
-                />
-              ) : (
-                <Text style={styles.value}>{course.holeCount} holes</Text>
-              )}
-            </View>
+            <Text style={[labelStyle, { marginTop: 16 }]}>Holes</Text>
+            {layouts.length > 1 ? (
+              <SegmentedControl
+                fill
+                value={effectiveLayout}
+                options={layouts.map((l) => ({ value: l, label: l === 'full' ? `${course.holeCount} holes` : l === 'front9' ? 'Front 9' : 'Back 9' }))}
+                onChange={setLayout}
+              />
+            ) : (
+              <Text style={{ fontSize: 15, color: bt.ink }}>{course.holeCount} holes</Text>
+            )}
             {course.holeCount === 18 && layouts.length === 1 ? (
-              <Text style={styles.hint}>This course’s card has no separate nine-hole ratings yet, so only full rounds can be scored.</Text>
+              <Text style={[hint, { marginTop: 6 }]}>This course’s card has no separate nine-hole ratings yet, so only full rounds can be scored.</Text>
             ) : null}
           </BentoTile>
 
-          <BentoTile padding={18} innerStyle={{ gap: 8 }}>
-            <Text style={styles.label}>Handicap Index</Text>
-            <TextInput
+          <BentoTile padding={18}>
+            <BentoField
+              label="Handicap Index"
               value={indexText}
               onChangeText={setIndexText}
               placeholder="14.2"
-              placeholderTextColor={colors.textMuted}
               keyboardType="numbers-and-punctuation"
-              style={[styles.input, indexInvalid && styles.inputError]}
               accessibilityLabel="Handicap Index"
               maxLength={5}
+              error={indexInvalid ? 'Enter a number from +10.0 to 54.0, like 14.2.' : undefined}
             />
-            {indexInvalid ? <Text style={styles.error}>Enter a number from +10.0 to 54.0, like 14.2.</Text> : null}
-            <Text style={styles.hint}>As it shows on GolfRSA. For a plus handicap start with +, like +1.4. Leave it empty to play off scratch.</Text>
+            <Text style={[hint, { marginTop: 8 }]}>As it shows on GolfRSA. For a plus handicap start with +, like +1.4. Leave it empty to play off scratch.</Text>
           </BentoTile>
 
-          <BentoTile padding={18} innerStyle={{ gap: 12 }}>
-            <View style={{ gap: 8 }}>
-              <Text style={styles.label}>Format</Text>
-              <Seg styles={styles} value={format} options={[{ value: 'stableford', label: 'Stableford' }, { value: 'stroke', label: 'Stroke play' }]} onChange={setFormat} />
-            </View>
-            <View style={{ gap: 8 }}>
-              <Text style={styles.label}>Allowance</Text>
-              <Seg styles={styles} value={allowance} options={[{ value: 0.95, label: '95%' }, { value: 1, label: '100%' }]} onChange={setAllowance} />
-              <Text style={styles.hint}>95% is the World Handicap System default for individual Stableford and stroke play. A committee may use 100% for fields under 30.</Text>
-            </View>
-            <View style={styles.toggleRow}>
+          <BentoTile padding={18}>
+            <Text style={labelStyle}>Format</Text>
+            <SegmentedControl
+              fill
+              value={format}
+              options={[
+                { value: 'stableford', label: 'Stableford' },
+                { value: 'stroke', label: 'Stroke play' },
+              ]}
+              onChange={setFormat}
+            />
+            <Text style={[labelStyle, { marginTop: 16 }]}>Allowance</Text>
+            <SegmentedControl
+              fill
+              value={allowance === 1 ? '1' : '0.95'}
+              options={[
+                { value: '0.95', label: '95%' },
+                { value: '1', label: '100%' },
+              ]}
+              onChange={(v) => setAllowance(v === '1' ? 1 : 0.95)}
+            />
+            <Text style={[hint, { marginTop: 8 }]}>95% is the World Handicap System default for individual Stableford and stroke play. A committee may use 100% for fields under 30.</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 16 }}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.label}>Putts and fairways</Text>
-                <Text style={styles.hint}>Add putts and fairway hits on each hole for putting, fairway and greens in regulation stats in My Golf.</Text>
+                <Text style={{ fontSize: 15, fontWeight: '600', color: bt.ink }}>Putts and fairways</Text>
+                <Text style={[hint, { marginTop: 2 }]}>Add putts and fairway hits on each hole for putting, fairway and greens in regulation stats in My Golf.</Text>
               </View>
               <BentoToggle value={trackStats} onValueChange={setTrackStats} accessibilityLabel="Enter putts and fairways" />
             </View>
@@ -244,24 +267,24 @@ export function RoundSetupScreen({ navigation, route }: Props) {
 
           {calc ? (
             <BentoTile padding={18}>
-              <CalcRow styles={styles} label="Rating" value={`${tee(option!.teeId)?.name} · ${gender === 'men' ? 'Men' : 'Ladies'} · CR ${calc.rating.cr.toFixed(1)} · Slope ${calc.rating.slope} · Par ${calc.par}`} />
+              <CalcRow t={bt} label="Rating" value={`${tee(option!.teeId)?.name} · ${gender === 'men' ? 'Men' : 'Ladies'} · CR ${calc.rating.cr.toFixed(1)} · Slope ${calc.rating.slope} · Par ${calc.par}`} />
               {calc.h ? (
                 <>
-                  <CalcRow styles={styles} label={`Course handicap (${calc.holes} holes)`} value={formatWhole(calc.h.course)} />
-                  <CalcRow styles={styles} label={`Playing handicap (${Math.round(allowance * 100)}%)`} value={formatWhole(calc.h.playing)} />
-                  <Text style={styles.calcNote}>
+                  <CalcRow t={bt} label={`Course handicap (${calc.holes} holes)`} value={formatWhole(calc.h.course)} />
+                  <CalcRow t={bt} label={`Playing handicap (${Math.round(allowance * 100)}%)`} value={formatWhole(calc.h.playing)} />
+                  <Text style={[hint, { marginTop: 10 }]}>
                     {calc.holes === 18 ? formatIndex(index as number) : `${formatIndex(index as number)} ÷ 2 = ${formatIndex(calc.h.idx)},`} × {calc.rating.slope} ÷ 113 + ({calc.rating.cr.toFixed(1)} − {calc.par}) ={' '}
                     {num(calc.h.raw)} → {formatWhole(calc.h.course)}. Playing: {num(calc.h.raw)} × {Math.round(allowance * 100)}% = {num(calc.h.raw * allowance)} →{' '}
                     {formatWhole(calc.h.playing)}.
                   </Text>
                 </>
               ) : (
-                <Text style={styles.calcNote}>Without a Handicap Index you get no shots, and points are scored against par.</Text>
+                <Text style={[hint, { marginTop: 10 }]}>Without a Handicap Index you get no shots, and points are scored against par.</Text>
               )}
             </BentoTile>
           ) : null}
 
-          <Text style={[styles.hint, { paddingHorizontal: 4 }]}>Flagrr never works out your handicap itself; it uses the index you enter here.</Text>
+          <Text style={[hint, { textAlign: 'center', paddingVertical: 2, paddingHorizontal: 8 }]}>Flagrr never works out your handicap itself; it uses the index you enter here.</Text>
           <BentoButton label="Start round" nub onPress={start} loading={starting} disabled={!option || indexInvalid || starting} />
         </>
       ) : null}
@@ -269,69 +292,11 @@ export function RoundSetupScreen({ navigation, route }: Props) {
   );
 }
 
-function Seg<T extends string | number>({
-  styles,
-  value,
-  options,
-  onChange,
-}: {
-  styles: ReturnType<typeof createStyles>;
-  value: T;
-  options: Array<{ value: T; label: string }>;
-  onChange: (v: T) => void;
-}) {
+function CalcRow({ t, label, value }: { t: BentoTokens; label: string; value: string }) {
   return (
-    <View style={styles.seg} accessibilityRole="radiogroup">
-      {options.map((o) => (
-        <TouchableOpacity
-          key={String(o.value)}
-          onPress={() => onChange(o.value)}
-          style={[styles.segBtn, o.value === value && styles.segBtnOn]}
-          accessibilityRole="radio"
-          accessibilityState={{ selected: o.value === value }}
-        >
-          <Text style={[styles.segText, o.value === value && styles.segTextOn]}>{o.label}</Text>
-        </TouchableOpacity>
-      ))}
+    <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 12, paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: t.hair }}>
+      <Text style={{ fontSize: 14, color: t.muted }}>{label}</Text>
+      <Text style={{ fontSize: 14, fontWeight: '600', color: t.ink, flexShrink: 1, textAlign: 'right' }}>{value}</Text>
     </View>
   );
-}
-
-function CalcRow({ styles, label, value }: { styles: ReturnType<typeof createStyles>; label: string; value: string }) {
-  return (
-    <View style={styles.calcRow}>
-      <Text style={styles.calcLabel}>{label}</Text>
-      <Text style={styles.calcValue}>{value}</Text>
-    </View>
-  );
-}
-
-function createStyles(colors: ThemeColors, segOn: string, seg: string) {
-  return StyleSheet.create({
-    courseName: { fontFamily: 'Fraunces_700Bold', fontSize: 28, lineHeight: 30, letterSpacing: -0.7, color: colors.textPrimary },
-    body: { fontFamily: fontFamily.body, fontSize: 15, color: colors.textSecondary },
-    muted: { fontFamily: fontFamily.body, fontSize: 14, color: colors.textMuted, marginTop: 4 },
-    label: { fontFamily: fontFamily.bodySemiBold, fontSize: 14, color: colors.textPrimary },
-    value: { fontFamily: fontFamily.bodySemiBold, fontSize: 15, color: colors.textPrimary },
-    hint: { fontFamily: fontFamily.body, fontSize: 13, color: colors.textMuted, lineHeight: 18 },
-    error: { fontFamily: fontFamily.body, fontSize: 13, color: colors.negative },
-    toggleRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingTop: 14, borderTopWidth: 1, borderTopColor: colors.border },
-    seg: { flexDirection: 'row', backgroundColor: seg, borderRadius: 999, padding: 3, gap: 2 },
-    segBtn: { flex: 1, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 10, alignItems: 'center' },
-    segBtnOn: { backgroundColor: segOn, boxShadow: '0 1px 3px rgba(17,20,18,0.12)' },
-    segText: { fontFamily: fontFamily.bodySemiBold, fontSize: 14, color: colors.textSecondary },
-    segTextOn: { color: colors.textPrimary },
-    teeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: -4 },
-    teeOpt: { flexGrow: 1, flexBasis: 140, minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 16, borderWidth: 1.5, borderColor: colors.border, backgroundColor: colors.surface },
-    teeOptOn: { borderColor: colors.clubGreen, backgroundColor: colors.mintBg },
-    teeDot: { width: 16, height: 16, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(0,0,0,0.25)' },
-    teeName: { fontFamily: fontFamily.bodySemiBold, fontSize: 15, color: colors.textPrimary },
-    teeMeta: { fontFamily: fontFamily.body, fontSize: 12, color: colors.textSecondary },
-    input: { minHeight: 52, paddingHorizontal: 16, borderRadius: 16, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, color: colors.textPrimary, fontFamily: fontFamily.body, fontSize: 16 },
-    inputError: { borderColor: colors.negative },
-    calcRow: { flexDirection: 'row', justifyContent: 'space-between', gap: spacing.md, paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: colors.border },
-    calcLabel: { fontFamily: fontFamily.body, fontSize: 14, color: colors.textSecondary },
-    calcValue: { fontFamily: fontFamily.bodySemiBold, fontSize: 14, color: colors.textPrimary, flexShrink: 1, textAlign: 'right' },
-    calcNote: { fontFamily: fontFamily.body, fontSize: 13, color: colors.textMuted, marginTop: 10, lineHeight: 18 },
-  });
 }

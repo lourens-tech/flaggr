@@ -2,7 +2,6 @@ import React, { forwardRef, memo, useCallback, useEffect, useImperativeHandle, u
 import { PanResponder, Platform, StyleSheet, View, type GestureResponderEvent, type LayoutChangeEvent } from 'react-native';
 import type { ViewInstance } from 'react-native';
 import Svg, { Circle, Ellipse, G, Line, Path, Rect, Text as SvgText } from 'react-native-svg';
-import { fontFamily } from '../../theme';
 import type { Pt, TeeDef } from '../../golf/courseMap';
 import { dist, hazardLabels, lengthSpread, onGreen, spread, type HoleView } from '../../golf/holeGeometry';
 
@@ -43,24 +42,26 @@ export const LIGHT_MAP: MapPalette = {
   tree: '#2E5B35',
   shade: 'rgba(10,30,15,0.22)',
   scrub: '#5E8A43',
-  path: '#D9D3BF',
+  path: '#C9C2A6',
 };
 
+// Board colours (G-D-Hole* boards, light and dark map palettes). Scrub and
+// shade are not on the boards and keep their earlier values.
 export const DARK_MAP: MapPalette = {
-  rough: '#34512D',
-  semi: '#3B5B32',
-  fairway: '#4B723A',
-  green: '#5E8D49',
-  fringe: '#548243',
-  tee: '#578540',
-  sand: '#BFB18A',
-  sandEdge: '#9C8D66',
-  water: '#2F6C8D',
-  waterEdge: '#245873',
-  tree: '#1B3521',
+  rough: '#253F28',
+  semi: '#2E4D31',
+  fairway: '#386038',
+  green: '#53884B',
+  fringe: '#447541',
+  tee: '#41723D',
+  sand: '#8A7F62',
+  sandEdge: '#6B634D',
+  water: '#2A5D78',
+  waterEdge: '#214B62',
+  tree: '#142A1A',
   shade: 'rgba(0,0,0,0.35)',
   scrub: '#2E4A27',
-  path: '#6E6A5A',
+  path: '#5F5A49',
 };
 
 interface View2D {
@@ -94,7 +95,8 @@ const f = (v: number) => v.toFixed(1);
 const openPath = (pts: Pt[]) => 'M' + pts.map(([x, y]) => `${f(x)} ${f(-y)}`).join('L');
 const ringsPath = (rings: Pt[][]) => rings.map((r) => openPath(r) + 'Z').join('');
 const D2R = Math.PI / 180;
-const LABEL_FONT = fontFamily.bodySemiBold;
+// The platform system font, as on the boards (not the old Poppins).
+const LABEL_FONT = Platform.select({ ios: 'System', android: 'sans-serif', default: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif' });
 
 /** The static drawing of a hole in world units (metres, y flipped). */
 const HoleArt = memo(function HoleArt({ hole, tees, palette }: { hole: HoleView; tees: TeeDef[]; palette: MapPalette }) {
@@ -158,16 +160,25 @@ const HoleArt = memo(function HoleArt({ hole, tees, palette }: { hole: HoleView;
   );
 });
 
-const pillW = (text: string, big: boolean) => text.length * (big ? 6.6 : 5.9) + (big ? 16 : 12);
+// Map labels as on the boards (13 pt): leg distances (24 tall, dark glass,
+// semibold), hazard reach / carry (26 tall, regular) and the lime "Drag me".
+type PillKind = 'leg' | 'hazard' | 'drag';
+const PILL: Record<PillKind, { h: number; fill: string; ink: string; weight: '400' | '600' | '700' }> = {
+  leg: { h: 24, fill: 'rgba(16,34,24,0.78)', ink: '#FFFFFF', weight: '600' },
+  hazard: { h: 26, fill: 'rgba(16,34,24,0.76)', ink: '#F4F7F1', weight: '400' },
+  drag: { h: 26, fill: '#CDDE5C', ink: '#1F4234', weight: '700' },
+};
+const pillW = (text: string, kind: PillKind) => text.length * (kind === 'hazard' ? 7.1 : 7.4) + 16;
+const pillH = (kind: PillKind) => PILL[kind].h;
 const hit = (a: number[], b: number[]) => a[0] < b[2] && b[0] < a[2] && a[1] < b[3] && b[1] < a[3];
 
-function Pill({ x, y, text, big }: { x: number; y: number; text: string; big: boolean }) {
-  const w = pillW(text, big);
-  const hh = big ? 22 : 18;
+function Pill({ x, y, text, kind }: { x: number; y: number; text: string; kind: PillKind }) {
+  const w = pillW(text, kind);
+  const { h: hh, fill, ink, weight } = PILL[kind];
   return (
     <G transform={`translate(${f(x)} ${f(y)})`}>
-      <Rect x={-w / 2} y={-hh / 2} width={w} height={hh} rx={hh / 2} fill={big ? '#1F4234' : 'rgba(16,34,24,0.72)'} />
-      <SvgText x={0} y={big ? 4 : 3.6} textAnchor="middle" fontFamily={LABEL_FONT} fontSize={big ? 11.5 : 10} fill={big ? '#FFFFFF' : '#F4F7F1'}>
+      <Rect x={-w / 2} y={-hh / 2} width={w} height={hh} rx={hh / 2} fill={fill} />
+      <SvgText x={0} y={4.5} textAnchor="middle" fontFamily={LABEL_FONT} fontSize={13} fontWeight={weight} fill={ink}>
         {text}
       </SvgText>
     </G>
@@ -372,11 +383,11 @@ export const GolfHoleMap = forwardRef<GolfHoleMapHandle, Props>(function GolfHol
         const p0 = [B[0] + R * Math.cos(a0), B[1] - R * Math.sin(a0)];
         const p1 = [B[0] + R * Math.cos(a1), B[1] - R * Math.sin(a1)];
         overlay.push(
-          <Path key={`ring${r}`} d={`M${f(p0[0])} ${f(p0[1])}A${f(R)} ${f(R)} 0 0 0 ${f(p1[0])} ${f(p1[1])}`} fill="none" stroke="#FFFFFF" strokeOpacity={0.5} strokeWidth={1} strokeDasharray="1 4" strokeLinecap="round" />,
-          <SvgText key={`ringh${r}`} x={p1[0] - 3} y={p1[1] + 3.5} textAnchor="end" fontFamily={LABEL_FONT} fontSize={9.5} fill="none" stroke="rgba(0,0,0,0.35)" strokeWidth={2.5}>
+          <Path key={`ring${r}`} d={`M${f(p0[0])} ${f(p0[1])}A${f(R)} ${f(R)} 0 0 0 ${f(p1[0])} ${f(p1[1])}`} fill="none" stroke="#FFFFFF" strokeOpacity={0.6} strokeWidth={1.3} strokeDasharray="1 4" strokeLinecap="round" />,
+          <SvgText key={`ringh${r}`} x={p0[0] + 4} y={p0[1] + 6} fontFamily={LABEL_FONT} fontSize={13} fill="none" stroke="rgba(0,0,0,0.35)" strokeWidth={2.5}>
             {r}
           </SvgText>,
-          <SvgText key={`ringt${r}`} x={p1[0] - 3} y={p1[1] + 3.5} textAnchor="end" fontFamily={LABEL_FONT} fontSize={9.5} fill="#FFFFFF" fillOpacity={0.9}>
+          <SvgText key={`ringt${r}`} x={p0[0] + 4} y={p0[1] + 6} fontFamily={LABEL_FONT} fontSize={13} fill="#FFFFFF" fillOpacity={0.95}>
             {r}
           </SvgText>,
         );
@@ -419,19 +430,20 @@ export const GolfHoleMap = forwardRef<GolfHoleMapHandle, Props>(function GolfHol
     if (dT > 12) legs.push([(B[0] + T[0]) / 2, (B[1] + T[1]) / 2, `${Math.round(dT)} m`]);
     if (dTP > 12) legs.push([(T[0] + P[0]) / 2, (T[1] + P[1]) / 2, `${Math.round(dTP)} m`]);
     for (const [x, y, t] of legs) {
-      const w = pillW(t, true) / 2;
-      taken.push([x - w, y - 11, x + w, y + 11]);
+      const w = pillW(t, 'leg') / 2;
+      taken.push([x - w, y - pillH('leg') / 2, x + w, y + pillH('leg') / 2]);
     }
     if (showHazards) {
       for (const { hz, lo, hi } of hazardLabels(hole, ball)) {
         const c = toScreen([hz.x, hz.y]);
         const text = `${Math.round(lo)} / ${Math.round(hi)}`;
-        const w = pillW(text, false);
-        for (const [ox, oy] of [[0, 0], [w / 2 + 10, 0], [-w / 2 - 10, 0], [0, -20], [0, 20]]) {
-          const r = [c[0] + ox - w / 2, c[1] + oy - 9, c[0] + ox + w / 2, c[1] + oy + 9];
+        const w = pillW(text, 'hazard');
+        const hh = pillH('hazard') / 2;
+        for (const [ox, oy] of [[0, 0], [w / 2 + 10, 0], [-w / 2 - 10, 0], [0, -28], [0, 28]]) {
+          const r = [c[0] + ox - w / 2, c[1] + oy - hh, c[0] + ox + w / 2, c[1] + oy + hh];
           if (taken.some((t) => hit(t, r))) continue;
           taken.push(r);
-          overlay.push(<Pill key={`hz${hz.x}-${hz.y}`} x={c[0] + ox} y={c[1] + oy} text={text} big={false} />);
+          overlay.push(<Pill key={`hz${hz.x}-${hz.y}`} x={c[0] + ox} y={c[1] + oy} text={text} kind="hazard" />);
           break;
         }
       }
@@ -440,11 +452,11 @@ export const GolfHoleMap = forwardRef<GolfHoleMapHandle, Props>(function GolfHol
     overlay.push(
       <G key="flag">
         <Ellipse cx={P[0]} cy={P[1]} rx={3} ry={1.6} fill="#10241A" />
-        <Line x1={P[0]} y1={P[1]} x2={P[0]} y2={P[1] - 26} stroke="#1F4234" strokeWidth={2} />
-        <Path d={`M${f(P[0])} ${f(P[1] - 26)}l14 4.5-14 4.5z`} fill="#CDDE5C" stroke="#1F4234" strokeWidth={1} />
+        <Line x1={P[0]} y1={P[1]} x2={P[0]} y2={P[1] - 28} stroke="#FFFFFF" strokeWidth={1.6} />
+        <Path d={`M${f(P[0])} ${f(P[1] - 28)}l14 5-14 5z`} fill="#CDDE5C" />
       </G>,
     );
-    legs.forEach(([x, y, t], i) => overlay.push(<Pill key={`leg${i}`} x={x} y={y} text={t} big />));
+    legs.forEach(([x, y, t], i) => overlay.push(<Pill key={`leg${i}`} x={x} y={y} text={t} kind="leg" />));
     if (dTP > 3) {
       overlay.push(
         <G key="target">
@@ -456,12 +468,10 @@ export const GolfHoleMap = forwardRef<GolfHoleMapHandle, Props>(function GolfHol
     }
     overlay.push(
       <G key="ball">
-        <Circle cx={B[0]} cy={B[1]} r={13} fill="#FFFFFF" fillOpacity={0.3} />
-        <Circle cx={B[0] + 1.2} cy={B[1] + 1.5} r={7.5} fill="rgba(0,0,0,0.28)" />
-        <Circle cx={B[0]} cy={B[1]} r={7.5} fill="#FFFFFF" stroke="rgba(0,0,0,0.25)" />
+        <Circle cx={B[0]} cy={B[1]} r={6.5} fill="#FFFFFF" stroke="rgba(0,0,0,0.35)" strokeWidth={1.5} />
       </G>,
     );
-    if (!draggedBall) overlay.push(<Pill key="drag-me" x={B[0] + 50} y={B[1]} text="Drag me" big />);
+    if (!draggedBall) overlay.push(<Pill key="drag-me" x={B[0] + 52} y={B[1]} text="Drag me" kind="drag" />);
   }
 
   const worldTransform = `translate(${f(W / 2)} ${f(H / 2)}) scale(${view.s.toFixed(4)}) translate(${f(-view.cx)} ${f(view.cy)})`;
