@@ -163,6 +163,10 @@ test.describe('Course tab', () => {
     }
     await expect(page.getByText('No other courses are mapped yet. More are added as clubs join Flagrr.')).toBeVisible();
     await expect(page.getByPlaceholder('Search courses')).toHaveCount(0);
+    // Review fix (phase 3): with the home course live and no away course there is no search field at all
+    // (not even a greyed-out one) and no "Coming soon" chip.
+    await expect(page.getByText('Search courses')).toHaveCount(0);
+    await expect(page.getByText('Coming soon')).toHaveCount(0);
     await expect(page.getByText('Only courses Flagrr has mapped are listed, so every scorecard here matches the club’s official card.')).toBeVisible();
     await expect(page.getByText('Round in progress')).toHaveCount(0);
   });

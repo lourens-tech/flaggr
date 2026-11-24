@@ -375,7 +375,8 @@ export function CourseGuideScreen({ navigation, route }: Props) {
 
   return (
     <View style={{ flex: 1, backgroundColor: hasMap ? (isDark ? DARK_MAP : LIGHT_MAP).rough : t.ground }}>
-      <StatusBar barStyle="light-content" />
+      {/* Light icons over the map and its dark header card; on the plain ground (no map) in light theme, dark icons. */}
+      <StatusBar barStyle={hasMap || isDark ? 'light-content' : 'dark-content'} />
 
       {view && course ? (
         <View style={StyleSheet.absoluteFill}>

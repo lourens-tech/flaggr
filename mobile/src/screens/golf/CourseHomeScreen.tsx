@@ -301,7 +301,6 @@ export function CourseHomeScreen({ navigation }: Props) {
                 <Text accessibilityRole="header" style={{ fontSize: 16, fontWeight: '600', color: t.ink }}>
                   Away courses
                 </Text>
-                {!hasAway && home.homeCourse ? <StatusPill label="Coming soon" tone="muted" /> : null}
               </View>
               {hasAway ? (
                 <>
@@ -319,14 +318,8 @@ export function CourseHomeScreen({ navigation }: Props) {
                   )}
                 </>
               ) : home.homeCourse ? (
-                <>
-                  {/* Nothing to search yet: the board shows the field greyed out. */}
-                  <View aria-hidden style={{ flexDirection: 'row', alignItems: 'center', gap: 10, height: 48, marginTop: 12, paddingHorizontal: 14, borderRadius: 14, backgroundColor: t.seg, opacity: 0.7 }}>
-                    <BentoIcon name="golfSearch" size={18} color={t.muted} strokeWidth={1.8} />
-                    <Text style={{ fontSize: 15, color: t.muted }}>Search courses</Text>
-                  </View>
-                  <Text style={[muted13, { marginTop: 10 }]}>No other courses are mapped yet. More are added as clubs join Flagrr.</Text>
-                </>
+                // No away course yet: no search field and no "Coming soon" chip (as before the restyle).
+                <Text style={[muted13, { marginTop: 10 }]}>No other courses are mapped yet. More are added as clubs join Flagrr.</Text>
               ) : (
                 <Text style={{ fontSize: 14, lineHeight: 20, color: t.ink, marginTop: 12 }}>Course maps are coming soon. We’re adding them as clubs join Flagrr.</Text>
               )}

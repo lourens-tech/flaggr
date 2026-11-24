@@ -518,6 +518,8 @@ function MixCard({ mix, t, dark }: { mix: NonNullable<GolfStatsDto['stats']['mix
 const CHART_H = 120;
 const LABEL_SPACE = 18;
 const BAR_GAP = 4;
+// Left gutter for the 0 / 10 / 20 / 30 / 40 values (kept from the earlier chart; not on the boards).
+const AXIS_W = 20;
 
 function PointsChart({
   data,
@@ -534,26 +536,33 @@ function PointsChart({
   const ih = CHART_H - LABEL_SPACE;
   const yMax = Math.max(refLine + 9, ...data.map((d) => d.points + 2));
   const y = (v: number) => CHART_H - (v / yMax) * ih;
-  const bw = Math.max(2, (W - BAR_GAP * (data.length - 1)) / data.length);
+  const plotW = Math.max(1, W - AXIS_W);
+  const bw = Math.max(2, (plotW - BAR_GAP * (data.length - 1)) / data.length);
   const slot = bw + BAR_GAP;
+  const bx = (i: number) => AXIS_W + i * slot;
   const best = data.reduce((a, b, i) => (b.points > data[a].points ? i : a), 0);
-  const grid = [10, 20, 30, 40].filter((v) => v < yMax);
+  const grid = [0, 10, 20, 30, 40].filter((v) => v < yMax);
   return (
     <View onLayout={(e) => setW(e.nativeEvent.layout.width)} accessibilityLabel={`Stableford points for ${data.length} rounds`} style={{ height: CHART_H, marginTop: 10 }}>
       {W > 0 ? (
         <Svg width={W} height={CHART_H}>
           {grid.map((v) => (
-            <Line key={v} x1={0} x2={W} y1={y(v)} y2={y(v)} stroke="rgba(255,255,255,0.10)" strokeWidth={1} />
+            <React.Fragment key={v}>
+              <Line x1={AXIS_W} x2={W} y1={y(v)} y2={y(v)} stroke="rgba(255,255,255,0.10)" strokeWidth={1} />
+              <SvgText x={AXIS_W - 6} y={Math.min(y(v) + 3.5, CHART_H - 1)} textAnchor="end" fontSize={10} fill="rgba(255,255,255,0.6)">
+                {v}
+              </SvgText>
+            </React.Fragment>
           ))}
           {data.map((d, i) => {
             const top = y(d.points);
             const h = Math.max(0, CHART_H - top);
             const fill = tip === i ? '#FFFFFF' : d.points >= refLine ? bentoBrand.lime : 'rgba(255,255,255,0.18)';
-            return <Rect key={d.id} x={i * slot} y={top} width={bw} height={h} rx={Math.min(5, bw / 2, h / 2)} fill={fill} />;
+            return <Rect key={d.id} x={bx(i)} y={top} width={bw} height={h} rx={Math.min(5, bw / 2, h / 2)} fill={fill} />;
           })}
-          <Line x1={0} x2={W} y1={y(refLine)} y2={y(refLine)} stroke="rgba(205,222,92,0.75)" strokeWidth={1.5} strokeDasharray="4 3" />
+          <Line x1={AXIS_W} x2={W} y1={y(refLine)} y2={y(refLine)} stroke="rgba(205,222,92,0.75)" strokeWidth={1.5} strokeDasharray="4 3" />
           <SvgText
-            x={Math.min(Math.max(best * slot + bw / 2, 10), W - 10)}
+            x={Math.min(Math.max(bx(best) + bw / 2, AXIS_W + 10), W - 10)}
             y={y(data[best].points) - 5}
             textAnchor="middle"
             fontSize={12}
@@ -563,7 +572,7 @@ function PointsChart({
             {data[best].points}
           </SvgText>
           {data.map((d, i) => (
-            <Rect key={`hit${d.id}`} x={i * slot - BAR_GAP / 2} y={0} width={slot} height={CHART_H} fill="transparent" onPress={() => onTip(tip === i ? null : i)} />
+            <Rect key={`hit${d.id}`} x={bx(i) - BAR_GAP / 2} y={0} width={slot} height={CHART_H} fill="transparent" onPress={() => onTip(tip === i ? null : i)} />
           ))}
         </Svg>
       ) : null}
