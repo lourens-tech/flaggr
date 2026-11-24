@@ -57,8 +57,9 @@ export function LandingScreen({ navigation }: Props) {
             <Pressable
               onPress={() => navigation.navigate('AdminLogin')}
               accessibilityRole="button"
-              hitSlop={12}
-              style={{ alignSelf: 'center', marginTop: 8 }}
+              // Padding, not hitSlop: react-native-web's Pressable ignores hitSlop, and this link is
+              // web only. 12 pt all round gives a 44 pt target; the negative margins keep it where the board draws it.
+              style={{ alignSelf: 'center', marginTop: -4, marginBottom: -12, padding: 12 }}
             >
               <Text style={{ fontSize: 13, color: t.muted }}>Golf Course Admin Login</Text>
             </Pressable>
