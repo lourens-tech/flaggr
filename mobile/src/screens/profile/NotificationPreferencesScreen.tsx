@@ -1,16 +1,12 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, StatusBar, StyleSheet, Switch, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import React, { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/types';
-import { ScreenHeader } from '../../components/common/ScreenHeader';
 import { useApp } from '../../context/AppContext';
-import { ApiError } from '../../api/client';
+import { useBento } from '../../context/ThemeContext';
 import { showAlert } from '../../utils/alert';
-import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
-import type { ThemeColors } from '../../context/ThemeContext';
-import { systemFonts, useBentoLegacy } from '../../components/bento/legacy';
-import { BentoToggle } from '../../components/bento';
+import { friendlyError } from '../../utils/errors';
+import { Appear, BentoScreen, BentoTile, BentoToggle, LoadError } from '../../components/bento';
 import type { NotificationPreferences } from '../../data/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'NotificationPreferences'>;
@@ -34,24 +30,30 @@ const ROWS: Array<{ key: keyof NotificationPreferences; label: string; descripti
 ];
 
 export function NotificationPreferencesScreen({ navigation }: Props) {
-  const { colors, scheme } = useBentoLegacy();
-  const styles = useMemo(() => systemFonts(createStyles(colors), { minFontSize: 12 }), [colors]);
+  const { t } = useBento();
   const { getNotificationPreferences, updateNotificationPreferences } = useApp();
   const [prefs, setPrefs] = useState<NotificationPreferences | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [savingKey, setSavingKey] = useState<keyof NotificationPreferences | null>(null);
 
+  // Owner decision (24 Nov 2026): a failed load shows a message with Try again, which runs the same load
+  // (it used to leave the spinner turning forever).
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      setPrefs(await getNotificationPreferences());
+    } catch (err) {
+      setError(friendlyError(err));
+    } finally {
+      setLoading(false);
+    }
+  }, [getNotificationPreferences]);
+
   useEffect(() => {
-    (async () => {
-      try {
-        setPrefs(await getNotificationPreferences());
-      } catch (err) {
-        const message = err instanceof ApiError ? err.message : 'Something went wrong. Please try again.';
-        showAlert('Couldn’t load preferences', message);
-      } finally {
-        setLoading(false);
-      }
-    })();
+    load();
+    // Once on open, as before.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -64,64 +66,46 @@ export function NotificationPreferencesScreen({ navigation }: Props) {
       await updateNotificationPreferences(next);
     } catch (err) {
       setPrefs(prefs); // revert on failure
-      const message = err instanceof ApiError ? err.message : 'Something went wrong. Please try again.';
-      showAlert('Couldn’t update preferences', message);
+      showAlert('Couldn’t update preferences', friendlyError(err));
     } finally {
       setSavingKey(null);
     }
   };
 
   return (
-    <View style={styles.screen}>
-      <StatusBar barStyle={scheme === 'dark' ? 'light-content' : 'dark-content'} />
-      <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
-        <ScreenHeader title="Notification Preferences" onBack={() => navigation.goBack()} />
-      </SafeAreaView>
-
-      {loading || !prefs ? (
-        <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
-      ) : (
-        <View style={styles.card}>
-          {ROWS.map((row, i) => (
-            <View key={row.key} style={[styles.row, i > 0 && styles.rowDivider]}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.rowLabel}>{row.label}</Text>
-                <Text style={styles.rowDescription}>{row.description}</Text>
-              </View>
-              {savingKey === row.key ? (
-                <ActivityIndicator color={colors.clubGreen} size="small" />
-              ) : (
-                <BentoToggle
-                  value={prefs[row.key]}
-                  onValueChange={(value) => handleToggle(row.key, value)}
-                  accessibilityLabel={row.label}
-                />
-              )}
-            </View>
-          ))}
+    <BentoScreen title="Notification Preferences" onBack={() => navigation.goBack()}>
+      <View style={{ height: 4 }} />
+      {loading ? (
+        <View style={{ alignItems: 'center', paddingVertical: 36 }}>
+          <ActivityIndicator size="large" color={t.accent} />
         </View>
+      ) : error || !prefs ? (
+        <LoadError title="Couldn’t load preferences" body={error ?? undefined} onRetry={load} />
+      ) : (
+        <Appear>
+          <BentoTile padding={0} innerStyle={{ paddingHorizontal: 16 }}>
+            {ROWS.map((row, i) => (
+              <View
+                key={row.key}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 16, borderTopWidth: i ? 1 : 0, borderTopColor: t.hair }}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 15, fontWeight: '600', color: t.ink }}>{row.label}</Text>
+                  <Text style={{ fontSize: 13, lineHeight: 18, color: t.muted, marginTop: 2 }}>{row.description}</Text>
+                </View>
+                {savingKey === row.key ? (
+                  // Saving: a spinner where the switch was (G-E-NotifSaving).
+                  <View style={{ width: 52, alignItems: 'center' }}>
+                    <ActivityIndicator color={t.accent} size="small" />
+                  </View>
+                ) : (
+                  <BentoToggle value={prefs[row.key]} onValueChange={(value) => handleToggle(row.key, value)} accessibilityLabel={row.label} />
+                )}
+              </View>
+            ))}
+          </BentoTile>
+        </Appear>
       )}
-    </View>
+    </BentoScreen>
   );
-}
-
-function createStyles(colors: ThemeColors) {
-  return StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.background },
-  headerSafeArea: { backgroundColor: colors.background },
-  card: {
-    margin: screenPadding,
-    backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 23,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-  },
-  rowDivider: { borderTopWidth: 1, borderTopColor: colors.border },
-  rowLabel: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.small, color: colors.textPrimary },
-  rowDescription: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary, marginTop: 2 },
-});
 }

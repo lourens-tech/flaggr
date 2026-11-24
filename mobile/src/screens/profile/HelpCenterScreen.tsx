@@ -1,23 +1,19 @@
 import React, { useMemo, useState } from 'react';
-import { ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/types';
-import { ScreenHeader } from '../../components/common/ScreenHeader';
-import { TextField } from '../../components/common/TextField';
 import { FaqAccordion } from '../../components/common/FaqAccordion';
 import { useApp } from '../../context/AppContext';
+import { useBento } from '../../context/ThemeContext';
 import { articles, faqs } from '../../data/faqData';
-import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
-import type { ThemeColors } from '../../context/ThemeContext';
-import { systemFonts, useBentoLegacy } from '../../components/bento/legacy';
+import { bentoBrand, bentoType } from '../../theme/bento';
+import { Appear, BentoField, BentoIcon, BentoRow, BentoRowGroup, BentoScreen, BentoTile } from '../../components/bento';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'HelpCenter'>;
 
+// Layout from G-E-HelpLive / HelpSearch / HelpNoResults. Copy is unchanged (the owner approves new text separately).
 export function HelpCenterScreen({ navigation }: Props) {
-  const { colors, scheme } = useBentoLegacy();
-  const styles = useMemo(() => systemFonts(createStyles(colors), { minFontSize: 12 }), [colors]);
+  const { t } = useBento();
   const { user } = useApp();
   const [query, setQuery] = useState('');
 
@@ -25,105 +21,72 @@ export function HelpCenterScreen({ navigation }: Props) {
   const filteredArticles = useMemo(
     () =>
       normalizedQuery
-        ? articles.filter(
-            (a) => a.title.toLowerCase().includes(normalizedQuery) || a.summary.toLowerCase().includes(normalizedQuery),
-          )
+        ? articles.filter((a) => a.title.toLowerCase().includes(normalizedQuery) || a.summary.toLowerCase().includes(normalizedQuery))
         : articles,
     [normalizedQuery],
   );
   const filteredFaqs = useMemo(
     () =>
       normalizedQuery
-        ? faqs.filter(
-            (f) => f.question.toLowerCase().includes(normalizedQuery) || f.answer.toLowerCase().includes(normalizedQuery),
-          )
+        ? faqs.filter((f) => f.question.toLowerCase().includes(normalizedQuery) || f.answer.toLowerCase().includes(normalizedQuery))
         : faqs,
     [normalizedQuery],
   );
 
   return (
-    <View style={styles.screen}>
-      <StatusBar barStyle={scheme === 'dark' ? 'light-content' : 'dark-content'} />
-      <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
-        <ScreenHeader title="Help Center" onBack={() => navigation.goBack()} />
-        <View style={styles.heroContent}>
-          <Text style={styles.welcome}>Hello, {user.firstName}</Text>
-          <Text style={styles.heroTitle}>How can we help you today?</Text>
-          <TextField icon="search" placeholder="Search" variant="onLight" value={query} onChangeText={setQuery} />
-        </View>
-      </SafeAreaView>
+    <BentoScreen title="Help Center" onBack={() => navigation.goBack()}>
+      <View style={{ height: 2 }} />
+      <Text style={{ fontSize: 15, color: t.muted }}>Hello, {user.firstName}</Text>
+      <Text accessibilityRole="header" style={[bentoType.h1, { fontSize: 30, lineHeight: 31, color: t.ink }]}>
+        How can we help you today?
+      </Text>
+      <BentoField placeholder="Search" accessibilityLabel="Search" rightIcon="search" value={query} onChangeText={setQuery} autoCorrect={false} />
 
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <TouchableOpacity style={styles.supportRow} onPress={() => navigation.navigate('Contact')} activeOpacity={0.85}>
-          <Ionicons name="headset-outline" size={20} color={colors.clubGreen} />
-          <View style={{ flex: 1 }}>
-            <Text style={styles.supportTitle}>Contact Your Club</Text>
-            <Text style={styles.supportSubtitle}>Send a message and chat with your club's team</Text>
+      {/* Never filtered by the search. */}
+      <Appear>
+        <BentoTile tone="hero" padding={18} onPress={() => navigation.navigate('Contact')} accessibilityLabel="Contact Your Club">
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+            <View style={{ width: 48, height: 48, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' }}>
+              <BentoIcon name="chatBubble" size={22} color={bentoBrand.lime} strokeWidth={1.8} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 16, fontWeight: '600', color: t.onHero }}>Contact Your Club</Text>
+              <Text style={{ fontSize: 13, color: t.onHeroMuted, marginTop: 2 }}>Send a message and chat with your club's team</Text>
+            </View>
+            <BentoIcon name="chevronRight" size={16} color="rgba(255,255,255,0.8)" strokeWidth={1.8} />
           </View>
-          <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
-        </TouchableOpacity>
+        </BentoTile>
+      </Appear>
 
-        {filteredArticles.length > 0 ? (
-          <>
-            <Text style={styles.sectionLabel}>Latest Articles</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing.sm }}>
+      {/* Hidden when no article matches. Articles are information only: they open nothing. */}
+      {filteredArticles.length > 0 ? (
+        <>
+          <Heading>Latest Articles</Heading>
+          <Appear>
+            <BentoRowGroup>
               {filteredArticles.map((article) => (
-                <View key={article.title} style={styles.articleCard}>
-                  <View style={styles.articleAccent} />
-                  <Text style={styles.articleTitle} numberOfLines={2}>{article.title}</Text>
-                  <Text style={styles.articleSummary} numberOfLines={3}>{article.summary}</Text>
-                </View>
+                <BentoRow key={article.title} icon="docText" label={article.title} sublabel={article.summary} />
               ))}
-            </ScrollView>
-          </>
-        ) : null}
+            </BentoRowGroup>
+          </Appear>
+        </>
+      ) : null}
 
-        <Text style={[styles.sectionLabel, { marginTop: spacing.xl }]}>Frequently Asked Questions</Text>
-        {filteredFaqs.length > 0 ? (
-          <FaqAccordion items={filteredFaqs} />
-        ) : (
-          <Text style={styles.emptyText}>No results for "{query.trim()}" — try a different search.</Text>
-        )}
-
-        <View style={{ height: 120 }} />
-      </ScrollView>
-    </View>
+      <Heading>Frequently Asked Questions</Heading>
+      {filteredFaqs.length > 0 ? (
+        <FaqAccordion items={filteredFaqs} />
+      ) : (
+        <Text style={{ fontSize: 14, lineHeight: 21, color: t.muted }}>No results for "{query.trim()}" — try a different search.</Text>
+      )}
+    </BentoScreen>
   );
 }
 
-function createStyles(colors: ThemeColors) {
-  return StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.background },
-  headerSafeArea: { backgroundColor: colors.background },
-  heroContent: { paddingHorizontal: screenPadding, paddingBottom: spacing.xl, paddingTop: spacing.sm },
-  welcome: { fontFamily: fontFamily.bodyMedium, fontSize: fontSize.body, color: colors.textSecondary },
-  heroTitle: { fontFamily: 'Fraunces_700Bold', fontSize: 30, color: colors.textPrimary, marginVertical: spacing.md, lineHeight: 32 },
-  content: { padding: screenPadding },
-  supportRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 23,
-    padding: spacing.md,
-    marginBottom: spacing.xl,
-  },
-  supportTitle: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.textPrimary },
-  supportSubtitle: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary, marginTop: 2 },
-  sectionLabel: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.small, color: colors.textPrimary, marginBottom: spacing.sm },
-  emptyText: { fontFamily: fontFamily.body, fontSize: fontSize.small, color: colors.textSecondary },
-  articleCard: {
-    width: 190,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 20,
-    padding: 14,
-  },
-  articleAccent: { width: 24, height: 3, backgroundColor: colors.clubGreen, borderRadius: 2, marginBottom: spacing.sm },
-  articleTitle: { fontFamily: fontFamily.bodySemiBold, fontSize: 14, lineHeight: 18, color: colors.textPrimary },
-  articleSummary: { fontFamily: fontFamily.body, fontSize: 12.5, lineHeight: 17, color: colors.textSecondary, marginTop: 4 },
-});
+function Heading({ children }: { children: string }) {
+  const { t } = useBento();
+  return (
+    <Text accessibilityRole="header" style={[bentoType.h1, { fontSize: 22, lineHeight: 24, letterSpacing: -0.44, color: t.ink }]}>
+      {children}
+    </Text>
+  );
 }

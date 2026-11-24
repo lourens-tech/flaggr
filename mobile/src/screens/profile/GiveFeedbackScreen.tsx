@@ -1,33 +1,29 @@
-import React, { useMemo, useState } from 'react';
-import { ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import React, { useState } from 'react';
+import { Pressable, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/types';
-import { ScreenHeader } from '../../components/common/ScreenHeader';
-import { PillButton } from '../../components/common/PillButton';
 import { useApp } from '../../context/AppContext';
-import { ApiError } from '../../api/client';
+import { useBento } from '../../context/ThemeContext';
 import type { FeedbackCategory } from '../../api/client';
 import { showAlert } from '../../utils/alert';
-import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
-import type { ThemeColors } from '../../context/ThemeContext';
-import { systemFonts, useBentoLegacy } from '../../components/bento/legacy';
+import { friendlyError } from '../../utils/errors';
+import { haptic } from '../../utils/haptics';
+import { bentoType } from '../../theme/bento';
+import { BentoButton, BentoField, BentoIcon, BentoScreen, type BentoIconName } from '../../components/bento';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'GiveFeedback'>;
 
-const CATEGORIES: Array<{ value: FeedbackCategory; label: string; icon: keyof typeof Ionicons.glyphMap }> = [
-  { value: 'bug', label: 'Bug Found', icon: 'bug-outline' },
-  { value: 'general_feedback', label: 'General Feedback', icon: 'chatbox-ellipses-outline' },
-  { value: 'improvement', label: 'Improvement Idea', icon: 'bulb-outline' },
+const CATEGORIES: Array<{ value: FeedbackCategory; label: string; icon: BentoIconName }> = [
+  { value: 'bug', label: 'Bug Found', icon: 'alertTriangle' },
+  { value: 'general_feedback', label: 'General Feedback', icon: 'chatBubble' },
+  { value: 'improvement', label: 'Improvement Idea', icon: 'sparkle' },
 ];
 
 // Goes straight to the Flagrr team (as an email + a Support Centre ticket),
 // not the member's own club — see ContactScreen for the club-routed enquiry
-// flow this is deliberately separate from.
+// flow this is deliberately separate from. Layout from AppFeedback / G-E-FeedbackSending.
 export function GiveFeedbackScreen({ navigation }: Props) {
-  const { colors, scheme } = useBentoLegacy();
-  const styles = useMemo(() => systemFonts(createStyles(colors), { minFontSize: 12 }), [colors]);
+  const { t } = useBento();
   const { sendFeedback } = useApp();
   const [category, setCategory] = useState<FeedbackCategory | null>(null);
   const [message, setMessage] = useState('');
@@ -45,100 +41,55 @@ export function GiveFeedbackScreen({ navigation }: Props) {
     setSubmitting(true);
     try {
       await sendFeedback({ category, message: message.trim() });
-      showAlert('Thanks for the feedback!', 'The Flagrr team has received it.', [
-        { text: 'Back', onPress: () => navigation.goBack() },
-      ]);
+      showAlert('Thanks for the feedback!', 'The Flagrr team has received it.', [{ text: 'Back', onPress: () => navigation.goBack() }]);
     } catch (err) {
-      const errMessage = err instanceof ApiError ? err.message : 'Something went wrong. Please try again.';
-      showAlert('Couldn’t send feedback', errMessage);
+      showAlert('Couldn’t send feedback', friendlyError(err));
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <View style={styles.screen}>
-      <StatusBar barStyle={scheme === 'dark' ? 'light-content' : 'dark-content'} />
-      <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
-        <ScreenHeader title="Give Feedback" onBack={() => navigation.goBack()} />
-        <View style={styles.heroContent}>
-          <Text style={styles.heroTitle}>Help Us Improve Flagrr</Text>
-        </View>
-      </SafeAreaView>
-
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={styles.sectionLabel}>What kind of feedback is this?</Text>
-        <View style={styles.categoryList}>
-          {CATEGORIES.map((c) => {
-            const active = category === c.value;
-            return (
-              <TouchableOpacity
-                key={c.value}
-                style={[styles.categoryChip, active && styles.categoryChipActive]}
-                onPress={() => setCategory(c.value)}
-                activeOpacity={0.8}
-              >
-                <Ionicons name={c.icon} size={16} color={active ? colors.lime : colors.clubGreen} />
-                <Text style={[styles.categoryChipText, active && styles.categoryChipTextActive]}>{c.label}</Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-
-        <View style={{ height: spacing.lg }} />
-        <Text style={styles.sectionLabel}>Your message</Text>
-        <TextInput
-          placeholder="What's on your mind?"
-          placeholderTextColor={colors.textSecondary}
-          value={message}
-          onChangeText={setMessage}
-          multiline
-          style={styles.messageInput}
-        />
-
-        <View style={{ height: spacing.xl }} />
-        <PillButton label="Send Feedback" onPress={handleSubmit} loading={submitting} />
-
-        <View style={{ height: 60 }} />
-      </ScrollView>
-    </View>
+    <BentoScreen title="Give Feedback" onBack={() => navigation.goBack()}>
+      <View style={{ height: 4 }} />
+      <Text accessibilityRole="header" style={[bentoType.h1, { fontSize: 30, lineHeight: 31, color: t.ink }]}>
+        Help Us Improve Flagrr
+      </Text>
+      <Text style={[bentoType.label, { color: t.ink }]}>What kind of feedback is this?</Text>
+      <View accessibilityRole="radiogroup" accessibilityLabel="What kind of feedback is this?" style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+        {CATEGORIES.map((c) => {
+          const on = category === c.value;
+          return (
+            <Pressable
+              key={c.value}
+              onPress={() => {
+                if (!on) haptic.selection();
+                setCategory(c.value);
+              }}
+              accessibilityRole="radio"
+              accessibilityState={{ checked: on, selected: on }}
+              aria-checked={on}
+              style={({ pressed }) => ({
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 8,
+                height: 44,
+                paddingHorizontal: 15,
+                borderRadius: 999,
+                backgroundColor: on ? t.accent : t.tile,
+                boxShadow: on ? undefined : `0 0 0 1px ${t.hair}`,
+                opacity: pressed ? 0.8 : 1,
+              })}
+            >
+              <BentoIcon name={c.icon} size={18} color={on ? t.accentInk : t.ink} strokeWidth={1.8} />
+              <Text style={{ fontSize: 14, fontWeight: '600', color: on ? t.accentInk : t.ink }}>{c.label}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+      <BentoField label="Your message" placeholder="What's on your mind?" value={message} onChangeText={setMessage} multiline />
+      <View style={{ height: 4 }} />
+      <BentoButton label="Send Feedback" nub onPress={handleSubmit} loading={submitting} />
+    </BentoScreen>
   );
-}
-
-function createStyles(colors: ThemeColors) {
-  return StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.background },
-  headerSafeArea: { backgroundColor: colors.background },
-  heroContent: { paddingHorizontal: screenPadding, paddingBottom: spacing.xl, paddingTop: spacing.md },
-  heroTitle: { fontFamily: 'Fraunces_700Bold', fontSize: 30, lineHeight: 32, letterSpacing: -0.6, color: colors.textPrimary },
-  content: { padding: screenPadding },
-  sectionLabel: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.small, color: colors.textPrimary, marginBottom: spacing.sm },
-  categoryList: { gap: spacing.sm },
-  categoryChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.inputBorder,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm + 4,
-  },
-  categoryChipActive: { backgroundColor: colors.darkGreen, borderColor: colors.darkGreen },
-  categoryChipText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.textPrimary },
-  categoryChipTextActive: { color: colors.white },
-  messageInput: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.inputBorder,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    minHeight: 140,
-    fontFamily: fontFamily.body,
-    fontSize: fontSize.body,
-    color: colors.textPrimary,
-    textAlignVertical: 'top',
-  },
-});
 }
