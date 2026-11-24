@@ -46,7 +46,16 @@ export function RewardsActivityScreen({ navigation }: Props) {
   const [filter, setFilter] = useState<Filter>('all');
   const visible = useMemo(() => (filter === 'all' ? activity : activity.filter((e) => e.type === filter)), [activity, filter]);
 
+  // Owner decision (24 Nov 2026): a "Receipt scanned" row opens that receipt in Receipt History.
+  // The server links new rows to their receipt (activity.receipt_id, migration 052); older rows,
+  // bonus rows and a server without the migration have no receiptId and stay plain.
+  const opensReceipt = (entry: ActivityEntry) => entry.type === 'earn' && !!entry.receiptId;
+
   const handleEntryPress = (entry: ActivityEntry) => {
+    if (opensReceipt(entry)) {
+      navigation.navigate('ReceiptHistory', { receiptId: entry.receiptId! });
+      return;
+    }
     if (entry.type !== 'redeem' || !entry.voucherId) return;
     const voucher = vouchers.find((v) => v.id === entry.voucherId);
     if (!voucher) {
@@ -122,9 +131,8 @@ export function RewardsActivityScreen({ navigation }: Props) {
             <View style={{ paddingHorizontal: 16 }}>
               {group.entries.map((entry, i) => {
                 const isEarn = entry.type === 'earn';
-                // Only voucher rows open something. "Receipt scanned" rows stay inert for now
-                // (the Receipt History link waits for a receipt id from the server).
-                const isTappable = entry.type === 'redeem' && !!entry.voucherId;
+                // Voucher rows open the voucher; "Receipt scanned" rows with a receipt id open that receipt.
+                const isTappable = (entry.type === 'redeem' && !!entry.voucherId) || opensReceipt(entry);
                 const pill = statusPill(entry);
                 return (
                   <Pressable

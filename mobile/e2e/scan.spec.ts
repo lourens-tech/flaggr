@@ -319,9 +319,9 @@ test.describe('Scan Receipt', () => {
 
   const scanErrors: [string, () => [number, unknown, string?], string][] = [
     ['500 shows the friendly server message', () => [500, { error: 'Internal server error' }], SERVER_MESSAGE], // Friendly errors (owner decision 24 Nov 2026): utils/errors.ts friendlyError.
-    ['401 shows “Not authenticated”', () => [401, { error: 'Not authenticated' }], 'Not authenticated'],
+    ['401 asks to log in again', () => [401, { error: 'Not authenticated' }], 'Your session has ended. Please log in again.'], // Friendly errors (owner decision 24 Nov 2026): an expired session (401 "Not authenticated") asks the member to log in again; technical text (camelCase field names, "data URI") gets the screen's fallback.
     ['400 shows “Image is too large”', () => [400, { error: 'Image is too large' }], 'Image is too large'],
-    ['400 shows “imageBase64 must be a jpeg/png/webp data URI”', () => [400, { error: 'imageBase64 must be a jpeg/png/webp data URI' }], 'imageBase64 must be a jpeg/png/webp data URI'],
+    ['400 technical image message shows the scan fallback', () => [400, { error: 'imageBase64 must be a jpeg/png/webp data URI' }], 'Something went wrong scanning that receipt.'], // Friendly errors (owner decision 24 Nov 2026): an expired session (401 "Not authenticated") asks the member to log in again; technical text (camelCase field names, "data URI") gets the screen's fallback.
     ['non-JSON (timeout) shows the friendly server message', () => [504, '<html>An error occurred with your deployment FUNCTION_INVOCATION_TIMEOUT</html>', 'text/html'], SERVER_MESSAGE], // Friendly errors (owner decision 24 Nov 2026): utils/errors.ts friendlyError.
   ];
   for (const [name, res, message] of scanErrors) {
@@ -673,7 +673,7 @@ test.describe('Review Receipt', () => {
     ['409 duplicate at submit', 409, { error: 'This receipt has already been redeemed.' }, 'This receipt has already been redeemed.'],
     ['422 unreadable at submit', 422, { error: "We couldn't read a valid receipt from that photo. Please scan a valid receipt or slip." }, "We couldn't read a valid receipt from that photo. Please scan a valid receipt or slip."],
     ['400 image too large', 400, { error: 'Image is too large' }, 'Image is too large'],
-    ['401 not authenticated', 401, { error: 'Not authenticated' }, 'Not authenticated'],
+    ['401 not authenticated', 401, { error: 'Not authenticated' }, 'Your session has ended. Please log in again.'], // Friendly errors (owner decision 24 Nov 2026): an expired session (401 "Not authenticated") asks the member to log in again; technical text (camelCase field names, "data URI") gets the screen's fallback.
     ['500 internal error', 500, { error: 'Internal server error' }, SERVER_MESSAGE], // Friendly errors (owner decision 24 Nov 2026): utils/errors.ts friendlyError.
     ['non-JSON timeout', 504, '<html>FUNCTION_INVOCATION_TIMEOUT</html>', SERVER_MESSAGE, 'text/html'], // Friendly errors (owner decision 24 Nov 2026): utils/errors.ts friendlyError.
   ];
@@ -1173,7 +1173,7 @@ test.describe('Receipt History', () => {
     await notSee(page, 'Receipt Photo');
   });
 
-  test.skip('History › opening with a receiptId (a “Receipt scanned” row in Reward Activity) shows that receipt’s photo — not reachable yet: the Activity rows are wired in the rewards area', async () => {});
+  test.skip('History › opening with a receiptId shows that receipt’s photo — covered end to end in rewards.spec.ts (“a linked Receipt scanned row opens that receipt’s photo”)', async () => {});
 
   test.skip('History sheet › closed by the system back gesture — native only', async () => {});
   test.skip('History › Reduce Motion — animation only', async () => {});

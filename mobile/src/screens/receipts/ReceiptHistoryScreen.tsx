@@ -4,7 +4,6 @@ import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { RootStackParamList } from '../../navigation/types';
-import { api } from '../../api/client';
 import { useApp } from '../../context/AppContext';
 import { useBento } from '../../context/ThemeContext';
 import { showAlert } from '../../utils/alert';
@@ -28,29 +27,20 @@ const STATUS_LABELS: Record<string, string> = {
 export function ReceiptHistoryScreen({ navigation, route }: Props) {
   const { t } = useBento();
   const insets = useSafeAreaInsets();
-  const { receipts: loaded, getReceiptImage } = useApp();
+  const { receipts: loaded, getReceiptImage, refreshReceipts } = useApp();
   const [photoLoadingId, setPhotoLoadingId] = useState<string | null>(null);
   const [photoModal, setPhotoModal] = useState<{ imageData: string | null; receipt: Receipt } | null>(null);
 
   // Refreshes each time it opens (owner decision 24 Nov 2026), so a receipt an admin has since
   // approved or rejected shows its new status. The list loaded at app start stays on screen while
   // the new one loads (no blank flash); if the refresh fails, that list simply stays.
-  const [fresh, setFresh] = useState<Receipt[] | null>(null);
+  // The refresh goes through AppContext, so every screen sees the new statuses.
   useFocusEffect(
     useCallback(() => {
-      let live = true;
-      api
-        .receipts()
-        .then((list) => {
-          if (live) setFresh(list);
-        })
-        .catch(() => {});
-      return () => {
-        live = false;
-      };
-    }, []),
+      refreshReceipts().catch(() => {});
+    }, [refreshReceipts]),
   );
-  const receipts = fresh ?? loaded;
+  const receipts = loaded;
 
   const handleViewPhoto = async (receipt: Receipt) => {
     setPhotoLoadingId(receipt.id);

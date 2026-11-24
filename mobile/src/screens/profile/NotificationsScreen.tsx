@@ -3,6 +3,7 @@ import { Pressable, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/types';
 import { useApp } from '../../context/AppContext';
+import { showAlert } from '../../utils/alert';
 import { useBento } from '../../context/ThemeContext';
 import { BentoIcon, BentoScreen, BentoTile, EmptyState, GlassIconButton } from '../../components/bento';
 import type { AppNotification } from '../../data/types';
@@ -85,7 +86,13 @@ export function NotificationsScreen({ navigation }: Props) {
                       if (!n.read) markNotificationRead(n.id);
                       if (n.enquiryId) navigation.navigate('EnquiryChat', { enquiryId: n.enquiryId });
                     }}
-                    onView={() => markNotificationRead(n.id)}
+                    // Owner decision (24 Nov 2026): no silent failures. "View" only marks the row read, so a
+                    // failure says so (the row is unread again); opening an enquiry still goes ahead.
+                    onView={() =>
+                      markNotificationRead(n.id).then((ok) => {
+                        if (!ok) showAlert('Couldn’t mark as read', 'Something went wrong. Please try again.');
+                      })
+                    }
                   />
                 ))}
               </BentoTile>

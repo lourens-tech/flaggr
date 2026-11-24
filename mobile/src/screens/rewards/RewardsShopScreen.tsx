@@ -10,6 +10,7 @@ import { haptic } from '../../utils/haptics';
 import { REWARD_CATEGORY_LABELS } from '../../components/common/RewardCard';
 import { AdSpace } from '../../components/common/AdSpace';
 import { showAlert } from '../../utils/alert';
+import { friendlyError } from '../../utils/errors';
 import { useBento } from '../../context/ThemeContext';
 import { bentoBrand, bentoType } from '../../theme/bento';
 import type { Reward, RewardCategory, RewardVariant } from '../../data/types';
@@ -92,14 +93,20 @@ export function RewardsShopScreen({ navigation }: Props) {
   const confirmRedeem = async () => {
     if (!confirm) return;
     setRedeeming(true);
-    const voucher = await redeemReward(confirm.reward.id, confirm.variant.id);
-    setRedeeming(false);
-    setConfirm(null);
-    if (voucher) {
+    try {
+      const voucher = await redeemReward(confirm.reward.id, confirm.variant.id);
+      setRedeeming(false);
+      setConfirm(null);
       haptic.success();
       navigation.navigate('Voucher', { voucherId: voucher.id });
       // Owner-approved toast (24 Nov 2026), wording from the motion prototype.
       showToast('Reward redeemed', 'Show the voucher at the club');
+    } catch (err) {
+      // Owner decision (24 Nov 2026): a failed redeem is no longer silent. Server messages written
+      // for members ("Not enough Flagrr Cash", "Reward not found") show word for word.
+      setRedeeming(false);
+      setConfirm(null);
+      showAlert('Couldn’t redeem', friendlyError(err));
     }
   };
 

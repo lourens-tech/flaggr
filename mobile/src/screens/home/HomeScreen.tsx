@@ -10,6 +10,7 @@ import { AdSpace } from '../../components/common/AdSpace';
 import { useApp } from '../../context/AppContext';
 import { useBento } from '../../context/ThemeContext';
 import { showAlert } from '../../utils/alert';
+import { friendlyError } from '../../utils/errors';
 import { api } from '../../api/client';
 import { holeResult, roundTotals } from '../../golf/scoring';
 import type { RoundDto } from '../../golf/dto';
@@ -320,7 +321,14 @@ export function HomeScreen({ navigation }: Props) {
         <BentoTile>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
             <Text style={[bentoType.tileTitle, { color: t.ink }]}>My Stats</Text>
-            <SegmentedControl value={statsPeriod} onChange={(p) => setStatsPeriod(p)} options={PERIOD_OPTIONS} accessibilityLabel="Stats period" />
+            <SegmentedControl
+              value={statsPeriod}
+              // Owner decision (24 Nov 2026): no silent failures. If the period's stats can't load,
+              // the previous period stays selected (AppContext) and the member is told.
+              onChange={(p) => setStatsPeriod(p).catch((err) => showAlert('Couldn’t load your stats', friendlyError(err)))}
+              options={PERIOD_OPTIONS}
+              accessibilityLabel="Stats period"
+            />
           </View>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
             <Stat value={stats.roundsPlayed9} label="Rounds (9 Holes)" delta={stats.roundsPlayed9DeltaPct} period={statsPeriod} pos={0} />
