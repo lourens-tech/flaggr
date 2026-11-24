@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useIsFocused } from '@react-navigation/native';
 import { ActivityIndicator, Animated, AppState, Easing, Image, Linking, Platform, Pressable, StatusBar, StyleSheet, Text, View, useWindowDimensions, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
@@ -56,6 +57,12 @@ export function ScanReceiptScreen({ navigation }: Props) {
   const [capturing, setCapturing] = useState(false);
   // Camera torch (approved addition, 24 Nov 2026). Native only: the web build keeps today's camera.
   const [torch, setTorch] = useState(false);
+  // The torch goes off whenever this screen loses focus (Review, Success, closing the flow), so the
+  // flashlight never stays lit behind other screens; the member turns it on again if they come back.
+  const focused = useIsFocused();
+  useEffect(() => {
+    if (!focused) setTorch(false);
+  }, [focused]);
   // Camera access denied for good (the OS will not ask again): the card offers Open Settings
   // instead (owner decision 24 Nov 2026). The web never reports this (canAskAgain is always true).
   const deniedForGood = Platform.OS !== 'web' && permission !== null && !permission.granted && !permission.canAskAgain;
