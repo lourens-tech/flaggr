@@ -1,13 +1,17 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, Text, View, useWindowDimensions } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Animated, Easing, Image, Modal, Pressable, StatusBar, StyleSheet, Text, View } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { RootStackParamList } from '../../navigation/types';
+import { api } from '../../api/client';
 import { useApp } from '../../context/AppContext';
 import { useBento } from '../../context/ThemeContext';
 import { showAlert } from '../../utils/alert';
 import { bentoBrand, bentoType } from '../../theme/bento';
+import { prefersReducedMotion, useNativeDriver } from '../../theme/motion';
 import type { Receipt } from '../../data/types';
-import { Appear, BentoButton, BentoIcon, BentoScreen, BentoSheet, BentoTile } from '../../components/bento';
+import { Appear, BentoButton, BentoIcon, BentoScreen, BentoTile, StatusPill } from '../../components/bento';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ReceiptHistory'>;
 
@@ -23,10 +27,30 @@ const STATUS_LABELS: Record<string, string> = {
 
 export function ReceiptHistoryScreen({ navigation, route }: Props) {
   const { t } = useBento();
-  const { height } = useWindowDimensions();
-  const { receipts, getReceiptImage } = useApp();
+  const insets = useSafeAreaInsets();
+  const { receipts: loaded, getReceiptImage } = useApp();
   const [photoLoadingId, setPhotoLoadingId] = useState<string | null>(null);
   const [photoModal, setPhotoModal] = useState<{ imageData: string | null; receipt: Receipt } | null>(null);
+
+  // Refreshes each time it opens (owner decision 24 Nov 2026), so a receipt an admin has since
+  // approved or rejected shows its new status. The list loaded at app start stays on screen while
+  // the new one loads (no blank flash); if the refresh fails, that list simply stays.
+  const [fresh, setFresh] = useState<Receipt[] | null>(null);
+  useFocusEffect(
+    useCallback(() => {
+      let live = true;
+      api
+        .receipts()
+        .then((list) => {
+          if (live) setFresh(list);
+        })
+        .catch(() => {});
+      return () => {
+        live = false;
+      };
+    }, []),
+  );
+  const receipts = fresh ?? loaded;
 
   const handleViewPhoto = async (receipt: Receipt) => {
     setPhotoLoadingId(receipt.id);
@@ -64,26 +88,27 @@ export function ReceiptHistoryScreen({ navigation, route }: Props) {
     return { month: now.toLocaleDateString(undefined, { month: 'long' }), earned, count: thisMonth.length };
   }, [receipts]);
 
-  const pill = (label: string, bg: string, fg: string) => (
-    <View style={{ paddingVertical: 3, paddingHorizontal: 9, borderRadius: 999, backgroundColor: bg }}>
-      <Text style={{ fontSize: 12, fontWeight: '600', color: fg }}>{label}</Text>
-    </View>
-  );
-
   const renderRow = (item: Receipt, index: number) => {
     const approved = item.status === 'approved';
-    const badge = approved && item.pointsAwarded !== null
-      ? null
-      : approved
-        ? pill(STATUS_LABELS.approved, t.accentSoft, t.accent)
-        : item.status === 'rejected'
-        ? pill(STATUS_LABELS.rejected, t.seg, t.negative)
-        : pill(item.flagged ? 'Under review' : STATUS_LABELS[item.status] ?? item.status, t.warnBg, t.warnInk);
+    // Pills as on AppReceipts and kept boards G-B-HistoryStatuses: Approved (accent), Rejected
+    // (seg fill, negative text), Under review / Pending / any other status (warm).
+    const badge =
+      approved && item.pointsAwarded !== null ? null : approved ? (
+        <StatusPill label={STATUS_LABELS.approved} tone="accent" style={styles.pill} />
+      ) : item.status === 'rejected' ? (
+        <View style={[styles.rejected, { backgroundColor: t.seg }]}>
+          <Text style={{ fontSize: 12, fontWeight: '600', color: t.negative }} maxFontSizeMultiplier={1.4}>
+            {STATUS_LABELS.rejected}
+          </Text>
+        </View>
+      ) : (
+        <StatusPill label={item.flagged ? 'Under review' : (STATUS_LABELS[item.status] ?? item.status)} tone="warn" style={styles.pill} />
+      );
     return (
       <View key={item.id} style={{ paddingVertical: 13, borderTopWidth: index ? 1 : 0, borderTopColor: t.hair }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
           <View style={{ width: 40, height: 40, borderRadius: 13, backgroundColor: t.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
-            <BentoIcon name="receipt" size={20} color={t.accent} strokeWidth={1.7} />
+            <BentoIcon name="receipt" size={20} color={t.accent} strokeWidth={1.8} />
           </View>
           <View style={{ flex: 1, minWidth: 0 }}>
             <Text style={{ fontSize: 15, fontWeight: '600', color: t.ink }} numberOfLines={2}>
@@ -99,14 +124,14 @@ export function ReceiptHistoryScreen({ navigation, route }: Props) {
             </Text>
           )}
         </View>
-        <View style={{ marginLeft: 52, marginTop: 6, gap: 4 }}>
+        <View style={{ marginLeft: 52 }}>
           {!approved && item.pointsAwarded !== null ? (
-            <Text style={{ fontSize: 13, color: t.muted }}>
+            <Text style={[styles.subline, { color: t.muted }]}>
               {item.pointsAwarded} FC {item.status === 'pending' ? 'pending' : 'earned'}
             </Text>
           ) : null}
           {item.flagged ? (
-            <Text style={{ fontSize: 13, lineHeight: 18, color: t.muted }}>
+            <Text style={[styles.subline, { color: t.muted }]}>
               {item.status === 'pending'
                 ? `Flagged for manual review${item.flagReason ? ` (${item.flagReason})` : ''} — your Flagrr Cash will be added once it's approved.`
                 : `Flagged for manual review${item.flagReason ? ` (${item.flagReason})` : ''} — your Flagrr Cash has already been credited, no action is needed.`}
@@ -118,13 +143,13 @@ export function ReceiptHistoryScreen({ navigation, route }: Props) {
             accessibilityRole="button"
             accessibilityLabel={`View photo of ${item.courseName || 'receipt'}`}
             hitSlop={{ top: 12, bottom: 12, right: 12 }}
-            style={{ flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', minHeight: 24 }}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', minHeight: 18, marginTop: 8 }}
           >
             {photoLoadingId === item.id ? (
-              <ActivityIndicator color={t.accent} size="small" />
+              <Ring track={t.track} color={t.accent} />
             ) : (
               <>
-                <BentoIcon name="gallery" size={15} color={t.accent} strokeWidth={1.8} />
+                <BentoIcon name="eye" size={15} color={t.accent} strokeWidth={1.8} />
                 <Text style={{ fontSize: 13, fontWeight: '600', color: t.accent }}>View Photo</Text>
               </>
             )}
@@ -134,8 +159,13 @@ export function ReceiptHistoryScreen({ navigation, route }: Props) {
     );
   };
 
+  const closePhoto = () => setPhotoModal(null);
+  const photoCaption = photoModal
+    ? `${photoModal.receipt.courseName || 'Unrecognized merchant'} · ${formatDate(photoModal.receipt.submittedAt)}${photoModal.receipt.pointsAwarded !== null ? ` · ${photoModal.receipt.status === 'approved' ? '+' : ''}${photoModal.receipt.pointsAwarded} FC` : ''}`
+    : '';
+
   return (
-    <BentoScreen title="Receipt History" onBack={() => navigation.goBack()}>
+    <BentoScreen title="Receipt History" onBack={() => navigation.goBack()} contentStyle={{ paddingBottom: 60 + insets.bottom }}>
       <View style={{ height: 6 }} />
       {receipts.length === 0 ? (
         <Appear>
@@ -176,22 +206,75 @@ export function ReceiptHistoryScreen({ navigation, route }: Props) {
         </>
       )}
 
-      <BentoSheet
-        visible={photoModal !== null}
-        title="Receipt Photo"
-        subtitle={
-          photoModal
-            ? `${photoModal.receipt.courseName || 'Unrecognized merchant'} · ${formatDate(photoModal.receipt.submittedAt)}${photoModal.receipt.pointsAwarded !== null ? ` · ${photoModal.receipt.status === 'approved' ? '+' : ''}${photoModal.receipt.pointsAwarded} FC` : ''}`
-            : undefined
-        }
-        onClose={() => setPhotoModal(null)}
-      >
-        {photoModal?.imageData ? (
-          <Image source={{ uri: photoModal.imageData }} style={{ width: '100%', height: Math.round(height * 0.55), borderRadius: 18, backgroundColor: t.seg }} resizeMode="contain" accessibilityLabel="Receipt photo" />
-        ) : (
-          <Text style={[bentoType.body, { color: t.muted }]}>No photo was saved for this receipt.</Text>
-        )}
-      </BentoSheet>
+      {/* The receipt photo, full screen (owner decision 24 Nov 2026: the mockup layout wins; board DlgPhoto,
+          kept board G-B-PhotoNoImage). Closed by X, a tap anywhere outside the X, or the system back. */}
+      <Modal visible={photoModal !== null} transparent animationType="fade" onRequestClose={closePhoto} statusBarTranslucent>
+        <StatusBar barStyle="light-content" />
+        <Pressable style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(5,10,8,0.86)' }]} onPress={closePhoto} accessibilityRole="button" accessibilityLabel="Close" />
+        <View
+          accessibilityViewIsModal
+          style={[styles.viewer, { paddingTop: insets.top + 8, paddingBottom: Math.max(40, insets.bottom + 6), paddingLeft: 20 + insets.left, paddingRight: 20 + insets.right }]}
+        >
+          <View style={styles.viewerBar}>
+            <View style={{ width: 42 }} />
+            <Text accessibilityRole="header" style={[bentoType.navTitle, styles.passThrough, { color: '#FFFFFF' }]}>
+              Receipt Photo
+            </Text>
+            <Pressable onPress={closePhoto} accessibilityRole="button" accessibilityLabel="Close" hitSlop={2} style={styles.viewerClose}>
+              <BentoIcon name="closeWide" size={18} color="#FFFFFF" strokeWidth={2} />
+            </Pressable>
+          </View>
+          <View style={styles.viewerBody}>
+            {photoModal?.imageData ? (
+              <Image source={{ uri: photoModal.imageData }} style={[styles.passThrough, { flex: 1, width: '100%' }]} resizeMode="contain" accessibilityLabel="Receipt photo" />
+            ) : (
+              <View style={[styles.passThrough, styles.noPhoto]}>
+                <Text style={{ fontSize: 15, lineHeight: 22, color: 'rgba(255,255,255,0.85)', textAlign: 'center' }}>No photo was saved for this receipt.</Text>
+              </View>
+            )}
+          </View>
+          <Text style={[styles.passThrough, { fontSize: 13, lineHeight: 18, color: 'rgba(255,255,255,0.75)', textAlign: 'center' }]}>{photoCaption}</Text>
+        </View>
+      </Modal>
     </BentoScreen>
   );
 }
+
+// The 18 pt ring that stands in for "View Photo" while that row's photo loads (kept board G-B-HistoryStatuses1).
+function Ring({ track, color }: { track: string; color: string }) {
+  const spin = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (prefersReducedMotion()) return;
+    const loop = Animated.loop(Animated.timing(spin, { toValue: 1, duration: 1000, easing: Easing.linear, useNativeDriver }));
+    loop.start();
+    return () => loop.stop();
+  }, [spin]);
+  return (
+    <Animated.View
+      accessibilityRole="progressbar"
+      accessibilityLabel="Loading photo"
+      style={{
+        width: 18,
+        height: 18,
+        borderRadius: 9,
+        borderWidth: 2.5,
+        borderColor: track,
+        borderTopColor: color,
+        transform: [{ rotate: spin.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] }) }],
+      }}
+    />
+  );
+}
+
+const styles = StyleSheet.create({
+  pill: { alignSelf: 'center' },
+  rejected: { paddingVertical: 3, paddingHorizontal: 9, borderRadius: 999 },
+  subline: { fontSize: 13, lineHeight: 18, marginTop: 6 },
+  // Taps on everything but the X fall through to the backdrop, which closes the photo.
+  viewer: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, pointerEvents: 'box-none' },
+  viewerBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', pointerEvents: 'box-none' },
+  viewerClose: { width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(255,255,255,0.14)', alignItems: 'center', justifyContent: 'center' },
+  viewerBody: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 16, pointerEvents: 'box-none' },
+  noPhoto: { width: '100%', height: 300, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center', padding: 24 },
+  passThrough: { pointerEvents: 'none' },
+});

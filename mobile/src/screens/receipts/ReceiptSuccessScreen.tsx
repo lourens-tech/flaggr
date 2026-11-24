@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { Animated, Text, View } from 'react-native';
+import { Animated, StyleSheet, Text, View } from 'react-native';
 import Svg, { Line } from 'react-native-svg';
 import { CommonActions, StackActions } from '@react-navigation/native';
 import type { StackScreenProps } from '@react-navigation/stack';
@@ -9,7 +9,7 @@ import { haptic } from '../../utils/haptics';
 import { bentoBrand, bentoType } from '../../theme/bento';
 import { prefersReducedMotion, useNativeDriver } from '../../theme/motion';
 import { PopIn } from '../../components/motion';
-import { Appear, BentoButton, BentoIcon, BentoScreen, BentoTile, CountUp } from '../../components/bento';
+import { Appear, BentoButton, BentoIcon, BentoScreen, BentoTile, CountUp, showToast } from '../../components/bento';
 
 type Props = StackScreenProps<ScanFlowParamList, 'ReceiptSuccess'>;
 
@@ -60,7 +60,7 @@ export function ReceiptSuccessScreen({ route, navigation }: Props) {
             <View style={{ width: 160, height: 160, alignItems: 'center', justifyContent: 'center' }}>
               <Burst />
               <PopIn delay={150} from={0.4} style={{ width: 84, height: 84, borderRadius: 42, backgroundColor: bentoBrand.lime, alignItems: 'center', justifyContent: 'center' }}>
-                <BentoIcon name="check" size={40} color={bentoBrand.fairway} strokeWidth={2.4} />
+                <BentoIcon name="check" size={40} color={bentoBrand.fairway} strokeWidth={2.6} />
               </PopIn>
             </View>
             <Text style={[bentoType.eyebrow, { color: bentoBrand.lime }]}>Your reward</Text>
@@ -78,8 +78,9 @@ export function ReceiptSuccessScreen({ route, navigation }: Props) {
                 <Text style={{ fontSize: 14, color: 'rgba(255,255,255,0.9)' }}>Your receipt is being reviewed</Text>
               </View>
             ) : (
-              <Text style={{ fontSize: 15, lineHeight: 21, color: 'rgba(255,255,255,0.9)', marginTop: 10, textAlign: 'center' }}>
-                +{pointsAwarded} Flagrr Cash have been added to your wallet!
+              // Brand words (owner decision 24 Nov 2026): kept board G-B-SuccessApproved wording, no "wallet".
+              <Text style={{ fontSize: 15, lineHeight: 22, color: 'rgba(255,255,255,0.88)', marginTop: 10, textAlign: 'center' }}>
+                {pointsAwarded} Flagrr Cash added and ready to spend.
               </Text>
             )}
           </View>
@@ -88,24 +89,46 @@ export function ReceiptSuccessScreen({ route, navigation }: Props) {
 
       <Appear>
         <BentoTile>
-          <View style={{ flexDirection: 'row', gap: 14 }}>
+          {/* Kept boards G-B-SuccessApproved / G-B-SuccessFlagged; brand words (owner decision 24 Nov 2026): no "wallet" or "balance". */}
+          <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 14 }}>
             <View style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: flagged ? t.warnBg : t.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
-              <BentoIcon name={flagged ? 'info' : 'receipt'} size={20} color={flagged ? t.warnInk : t.accent} strokeWidth={1.8} />
+              <BentoIcon name={flagged ? 'info' : 'receipt'} size={22} color={flagged ? t.warnInk : t.accent} strokeWidth={1.8} />
             </View>
-            <Text style={[bentoType.body, { flex: 1, color: t.ink }]}>
-              {flagged
-                ? `This receipt was flagged for manual review. Once approved, ${pointsAwarded} Flagrr Cash will be added to your balance — no action is needed from you. You can check its status anytime under Profile > Receipt History.`
-                : 'Your new Flagrr Cash balance is now available in your wallet and ready to redeem on rewards.\n\nPlay more rounds, scan your receipts, and redeem rewards to unlock higher membership tiers and exclusive benefits.'}
-            </Text>
+            <View style={{ flex: 1, gap: 10 }}>
+              {flagged ? (
+                <Text style={[styles.info, { color: t.ink }]}>
+                  This receipt was flagged for manual review. Once approved, {pointsAwarded} Flagrr Cash will be added to your Flagrr Cash — no action is needed from you. You can check its status anytime under Profile &gt; Receipt History.
+                </Text>
+              ) : (
+                <>
+                  <Text style={[styles.info, { color: t.ink }]}>Your new Flagrr Cash is ready to redeem on rewards at your club.</Text>
+                  <Text style={[styles.info, { color: t.ink }]}>Play more rounds, scan your receipts, and redeem rewards to unlock higher membership tiers and exclusive benefits.</Text>
+                </>
+              )}
+            </View>
           </View>
         </BentoTile>
       </Appear>
 
       <View style={{ height: 6 }} />
       {/* Closes the whole scan flow and shows Home (owner's choice, 24 Nov 2026); Back can't return here. */}
-      <BentoButton label="View Current Balance" nub onPress={() => navigation.dispatch(StackActions.popTo('Main', { screen: 'Home' }))} />
+      {/* Label: brand words (owner decision 24 Nov 2026), kept board wording. The "Receipt submitted" toast
+          (owner-approved copy) follows once the flow has closed, as in the prototype (450 ms after leaving). */}
+      <BentoButton
+        label="View My Flagrr Cash"
+        nub
+        onPress={() => {
+          navigation.dispatch(StackActions.popTo('Main', { screen: 'Home' }));
+          setTimeout(() => showToast('Receipt submitted', flagged ? `+${pointsAwarded} FC once your club approves it` : undefined), 450);
+        }}
+      />
       {/* A fresh scanner in place of the whole flow (one camera screen, as in the prototype); Close then leaves the flow. */}
       <BentoButton label="Submit Another Receipt" variant="secondary" onPress={() => navigation.dispatch(CommonActions.reset({ index: 0, routes: [{ name: 'ScanReceipt' }] }))} />
     </BentoScreen>
   );
 }
+
+const styles = StyleSheet.create({
+  // Info tile copy: 14 pt at 1.5 line height (kept boards G-B-Success*).
+  info: { fontSize: 14, lineHeight: 21 },
+});
