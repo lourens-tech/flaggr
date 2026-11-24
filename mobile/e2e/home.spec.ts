@@ -1046,6 +1046,9 @@ test.describe('Session, logout and URLs', () => {
     await openSignedIn(page);
     await scenario(page, { fail: { 'GET /api/me': 401 } });
     await statsRadio(page, 'Month').click();
+    // Owner decision 24 Nov 2026 (no silent failures): the failed period switch now says so.
+    await expectAlert(page, 'Couldn’t load your stats');
+    await dismissAlert(page);
     await tab(page, 'Course');
     await tab(page, 'Home');
     await homeVisible(page);
