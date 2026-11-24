@@ -11,7 +11,9 @@ import { ApiError } from '../../api/client';
 import { useApp } from '../../context/AppContext';
 import { showAlert } from '../../utils/alert';
 import { ONBOARDING_BACKGROUNDS, fontFamily, screenPadding, spacing } from '../../theme';
-import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
+import type { ThemeColors } from '../../context/ThemeContext';
+import { systemFonts, useBentoLegacy } from '../../components/bento/legacy';
+import { AuthBackdrop } from '../../components/bento/AuthBackdrop';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'SignUpStep2'>;
 
@@ -19,8 +21,8 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_PASSWORD_LENGTH = 8;
 
 export function SignUpStep2Screen({ navigation, route }: Props) {
-  const colors = useThemeColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { colors } = useBentoLegacy();
+  const styles = useMemo(() => systemFonts(createStyles(colors)), [colors]);
   const { signup } = useApp();
   const [email, setEmail] = useState(route.params.email ?? '');
   const [password, setPassword] = useState('');
@@ -75,11 +77,7 @@ export function SignUpStep2Screen({ navigation, route }: Props) {
       {/* ImageBackground's inner <img> doesn't respect resizeMode="cover" on
           web (renders at native pixel size, causing horizontal overflow and a
           gap below) — an absolutely-positioned Image is the reliable fix. */}
-      <Image
-        source={ONBOARDING_BACKGROUNDS.signUpStep2}
-        style={[StyleSheet.absoluteFill, styles.backgroundImageSize]}
-        resizeMode="cover"
-      />
+      <AuthBackdrop photo={ONBOARDING_BACKGROUNDS.signUpStep2} />
       <StatusBar barStyle="light-content" />
       <View style={styles.overlay} />
       <SafeAreaView style={styles.safeArea}>
@@ -93,6 +91,14 @@ export function SignUpStep2Screen({ navigation, route }: Props) {
 
         <View style={styles.logoRow}>
           <FlagrrLogo size={72} />
+        </View>
+        <View style={styles.authHead}>
+          <View style={{ flexDirection: 'row', gap: 6, marginBottom: 14 }} accessibilityElementsHidden>
+            <View style={{ flex: 1, height: 4, borderRadius: 2, backgroundColor: colors.clubGreen }} />
+            <View style={{ flex: 1, height: 4, borderRadius: 2, backgroundColor: colors.clubGreen }} />
+          </View>
+          <Text style={styles.authEyebrow}>Step 2 of 2</Text>
+          <Text style={styles.authTitle} accessibilityRole="header">Set a password</Text>
         </View>
 
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -151,16 +157,19 @@ export function SignUpStep2Screen({ navigation, route }: Props) {
 
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
-  background: { flex: 1, backgroundColor: colors.darkGreen },
+  background: { flex: 1, backgroundColor: colors.background },
   // react-native-web's <Image> bakes the source asset's intrinsic width/height
   // into its own style array, which otherwise wins over absoluteFill's inset
   // properties — explicit 100% here overrides that.
   backgroundImageSize: { width: '100%', height: '100%' },
-  overlay: { ...StyleSheet.absoluteFill, backgroundColor: colors.overlayDarkGreen },
+  overlay: { display: 'none' },
   safeArea: { flex: 1, paddingHorizontal: screenPadding },
-  backButton: { width: 32, height: 32, justifyContent: 'center', marginTop: spacing.sm },
+  backButton: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', marginTop: spacing.sm, backgroundColor: 'rgba(10,24,17,0.45)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)' },
+  authHead: { marginTop: 110, marginBottom: spacing.md },
+  authEyebrow: { fontFamily: fontFamily.bodySemiBold, fontSize: 12, letterSpacing: 1.68, textTransform: 'uppercase', color: colors.textSecondary, marginBottom: 6 },
+  authTitle: { fontFamily: 'Fraunces_700Bold', fontSize: 34, lineHeight: 36, letterSpacing: -0.85, color: colors.textPrimary },
   logoRow: { alignItems: 'center', marginTop: spacing.xs },
-  form: { marginTop: spacing.lg },
-  hint: { fontFamily: fontFamily.body, fontSize: 12, color: 'rgba(255,255,255,0.6)', marginTop: 4, marginLeft: 4 },
+  form: { marginTop: spacing.xs },
+  hint: { fontFamily: fontFamily.body, fontSize: 12, color: colors.textSecondary, marginTop: 4, marginLeft: 4 },
 });
 }

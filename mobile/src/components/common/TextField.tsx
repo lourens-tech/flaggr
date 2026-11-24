@@ -15,7 +15,7 @@ interface Props extends TextInputProps {
 // The browser's own focus outline is replaced by the field's accent ring.
 const webNoOutline = { outlineStyle: 'none' } as unknown as { outlineWidth: number };
 
-export function TextField({ icon, isPassword, variant = 'onDark', error, style, ...rest }: Props) {
+export function TextField({ icon, isPassword, variant = 'onLight', error, style, ...rest }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [hidden, setHidden] = useState(!!isPassword);

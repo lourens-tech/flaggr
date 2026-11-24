@@ -11,15 +11,17 @@ import { SelectField } from '../../components/common/SelectField';
 import { DateField } from '../../components/common/DateField';
 import { api, type Course } from '../../api/client';
 import { ONBOARDING_BACKGROUNDS, fontFamily, screenPadding, spacing } from '../../theme';
-import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
+import type { ThemeColors } from '../../context/ThemeContext';
+import { systemFonts, useBentoLegacy } from '../../components/bento/legacy';
+import { AuthBackdrop } from '../../components/bento/AuthBackdrop';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'SignUpStep1'>;
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function SignUpStep1Screen({ navigation }: Props) {
-  const colors = useThemeColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { colors } = useBentoLegacy();
+  const styles = useMemo(() => systemFonts(createStyles(colors)), [colors]);
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -80,11 +82,7 @@ export function SignUpStep1Screen({ navigation }: Props) {
       {/* ImageBackground's inner <img> doesn't respect resizeMode="cover" on
           web (renders at native pixel size, causing horizontal overflow and a
           gap below) — an absolutely-positioned Image is the reliable fix. */}
-      <Image
-        source={ONBOARDING_BACKGROUNDS.signUpStep1}
-        style={[StyleSheet.absoluteFill, styles.backgroundImageSize]}
-        resizeMode="cover"
-      />
+      <AuthBackdrop photo={ONBOARDING_BACKGROUNDS.signUpStep1} />
       <StatusBar barStyle="light-content" />
       <View style={styles.overlay} />
       <SafeAreaView style={styles.safeArea}>
@@ -98,6 +96,14 @@ export function SignUpStep1Screen({ navigation }: Props) {
 
         <View style={styles.logoRow}>
           <FlagrrLogo size={72} />
+        </View>
+        <View style={styles.authHead}>
+          <View style={{ flexDirection: 'row', gap: 6, marginBottom: 14 }} accessibilityElementsHidden>
+            <View style={{ flex: 1, height: 4, borderRadius: 2, backgroundColor: colors.clubGreen }} />
+            <View style={{ flex: 1, height: 4, borderRadius: 2, backgroundColor: colors.light }} />
+          </View>
+          <Text style={styles.authEyebrow}>Step 1 of 2</Text>
+          <Text style={styles.authTitle} accessibilityRole="header">Create your account</Text>
         </View>
 
         <KeyboardAvoidingView
@@ -142,6 +148,7 @@ export function SignUpStep1Screen({ navigation }: Props) {
               />
               <View style={{ height: spacing.md }} />
               <DateField
+                variant="onLight"
                 placeholder="Date of Birth"
                 value={dateOfBirth}
                 onChange={(value) => {
@@ -153,6 +160,7 @@ export function SignUpStep1Screen({ navigation }: Props) {
               />
               <View style={{ height: spacing.md }} />
               <SelectField
+                variant="onLight"
                 placeholder={loadingCourses ? 'Loading golf clubs…' : 'Golf Club'}
                 options={courses.map((c) => ({ label: c.name, value: c.id }))}
                 value={courseId}
@@ -190,20 +198,23 @@ export function SignUpStep1Screen({ navigation }: Props) {
 
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
-  background: { flex: 1, backgroundColor: colors.darkGreen },
+  background: { flex: 1, backgroundColor: colors.background },
   // react-native-web's <Image> bakes the source asset's intrinsic width/height
   // into its own style array, which otherwise wins over absoluteFill's inset
   // properties — explicit 100% here overrides that.
   backgroundImageSize: { width: '100%', height: '100%' },
-  overlay: { ...StyleSheet.absoluteFill, backgroundColor: colors.overlayDarkGreen },
+  overlay: { display: 'none' },
   safeArea: { flex: 1, paddingHorizontal: screenPadding },
-  backButton: { width: 32, height: 32, justifyContent: 'center', marginTop: spacing.sm },
+  backButton: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', marginTop: spacing.sm, backgroundColor: 'rgba(10,24,17,0.45)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)' },
+  authHead: { marginTop: 110, marginBottom: spacing.md },
+  authEyebrow: { fontFamily: fontFamily.bodySemiBold, fontSize: 12, letterSpacing: 1.68, textTransform: 'uppercase', color: colors.textSecondary, marginBottom: 6 },
+  authTitle: { fontFamily: 'Fraunces_700Bold', fontSize: 34, lineHeight: 36, letterSpacing: -0.85, color: colors.textPrimary },
   logoRow: { alignItems: 'center', marginTop: spacing.xs },
   scrollContent: { flexGrow: 1, justifyContent: 'space-between' },
-  form: { marginTop: spacing.lg },
+  form: { marginTop: spacing.xs },
   loginRow: { alignItems: 'center', marginTop: spacing.xl, marginBottom: spacing.xl, gap: 4 },
-  loginText: { fontFamily: fontFamily.body, fontSize: 13, color: colors.white },
-  loginBold: { fontFamily: fontFamily.bodySemiBold, fontSize: 13, color: colors.lime },
+  loginText: { fontFamily: fontFamily.body, fontSize: 13, color: colors.textPrimary },
+  loginBold: { fontFamily: fontFamily.bodySemiBold, fontSize: 13, color: colors.clubGreen },
   errorText: { color: colors.negative, fontFamily: fontFamily.body, fontSize: 12, marginTop: 4, marginLeft: 4 },
 });
 }

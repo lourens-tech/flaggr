@@ -39,8 +39,8 @@ Open issues found by reading the code, grouped by severity. Paths are relative t
 ## Launch and legal
 
 1. **Terms and privacy pages are drafts** ("Draft — pending legal review") and `[ SUPPORT@DOMAIN ]` still appears in the footer and both pages. `flagrr-marketing: src/components/legal/LegalPage.tsx:32`, `Footer.tsx:59`, `content/terms.ts:72`, `content/privacy.ts:64,87`
-2. **No 18+ check at sign-up,** although the terms require it. `mobile/src/screens/onboarding/SignUpStep1Screen.tsx:152`
-3. **The terms cannot be read before sign-up.** The acceptance line is plain text and the terms screen exists only in the logged-in stack. `mobile/src/screens/onboarding/LandingScreen.tsx:98-101`
+2. **No 18+ check at sign-up,** although the terms require it. `mobile/src/screens/onboarding/SignUpStep1Screen.tsx:150`
+3. **The terms cannot be read before sign-up.** The acceptance line is plain text and the terms screen exists only in the logged-in stack. `mobile/src/screens/onboarding/LandingScreen.tsx:48-51`
 4. **Dead `#` links on the marketing site:** Terms and Privacy on the signup, success and cancel pages, "Club login" and "Contact". `flagrr-marketing: src/app/clubs/signup/page.tsx:87-88`, `src/content/home.ts:152,161`
 5. **No privacy contact.** The privacy and delete-account pages point only to in-app Contact Us. `mobile/static/privacy.html:97`, `delete-account.html:75`
 6. **A personal email address** is the fallback contact in code and on a public page. `api/profile/index.ts:19`, `api/admin/index.ts:69`, `mobile/static/support.html:73`
@@ -86,6 +86,7 @@ These need native code, so they wait for a new App Store / Play Store build (eve
 - **Bento golf screens (2026-11-24) are re-skinned in place**, not rebuilt to the boards' exact layouts: the hole view keeps its existing layout (fairway header with hole pills, floating map cards, score bar) in Bento colours, type, tiles and controls; My Golf keeps its charts. They go through `components/bento/legacy.tsx`, which maps the old colour names to Bento tokens. The hole board's photo-free "whole hole" header and some spacing differ.
 - **Bento profile and support screens (2026-11-24)** are re-skinned in place (shared `ScreenHeader`, `PillButton` and `TextField` restyled for members, screens fed through `components/bento/legacy.tsx`), not rebuilt to every board. Differences from the boards: the Contact enquiry type is still an inline list, not the board's sheet; Refer a Friend's Share My Code opens the phone's own share sheet, not the board's custom one; Choose Golf Club has no search; Member Tiers keeps its fairway band; Export My Data starts at once (no confirmation step, as before).
 - Receipt History now draws every receipt in one scrolling list (it was a virtualised `FlatList`). Fine at today's volumes; revisit if members end up with hundreds of receipts.
+- **Bento sign-in screens (2026-11-24)** are re-skinned in place, not rebuilt to every board: fields keep their placeholders and icons rather than the boards' labels above each field, the Login, sign-up and Forgot password screens keep the Flagrr wordmark at the top, and Forgot password keeps its contour background (no photo) and its existing two steps. The Landing board's layout is followed; the photo is the sign-up photo already in the app.
 - Bento glass is a solid fill on Android (a real blur needs a `BlurTargetView` behind every screen and is costly on mid-range phones).
 - Gesture-driven 120Hz motion such as swipe-to-dismiss sheets (`react-native-reanimated`).
 - Apple's real Liquid Glass material on iOS 26 (`expo-glass-effect`).

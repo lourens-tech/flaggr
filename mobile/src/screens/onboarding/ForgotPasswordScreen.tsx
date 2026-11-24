@@ -10,15 +10,17 @@ import { TextField } from '../../components/common/TextField';
 import { api, ApiError } from '../../api/client';
 import { showAlert } from '../../utils/alert';
 import { fontFamily, screenPadding, spacing } from '../../theme';
-import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
+import type { ThemeColors } from '../../context/ThemeContext';
+import { systemFonts, useBentoLegacy } from '../../components/bento/legacy';
+import { AuthBackdrop } from '../../components/bento/AuthBackdrop';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'ForgotPassword'>;
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function ForgotPasswordScreen({ navigation }: Props) {
-  const colors = useThemeColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { colors, scheme } = useBentoLegacy();
+  const styles = useMemo(() => systemFonts(createStyles(colors)), [colors]);
   const [step, setStep] = useState<'request' | 'reset'>('request');
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
@@ -73,6 +75,7 @@ export function ForgotPasswordScreen({ navigation }: Props) {
 
   return (
     <View style={styles.container}>
+      <AuthBackdrop />
       <StatusBar barStyle="light-content" />
       <SafeAreaView style={styles.safeArea}>
         <TouchableOpacity
@@ -84,7 +87,7 @@ export function ForgotPasswordScreen({ navigation }: Props) {
         </TouchableOpacity>
 
         <View style={styles.logoRow}>
-          <FlagrrLogo size={72} />
+          <FlagrrLogo size={72} color={scheme === 'dark' ? 'white' : 'darkGreen'} />
           <Text style={styles.subtitle}>Reset Password</Text>
         </View>
 
@@ -161,15 +164,15 @@ export function ForgotPasswordScreen({ navigation }: Props) {
 
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.darkGreen },
+  container: { flex: 1, backgroundColor: colors.background },
   safeArea: { flex: 1, paddingHorizontal: screenPadding },
-  backButton: { width: 32, height: 32, justifyContent: 'center', marginTop: spacing.sm },
+  backButton: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', marginTop: spacing.sm, backgroundColor: 'rgba(10,24,17,0.45)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)' },
   logoRow: { alignItems: 'center', marginTop: spacing.sm, gap: 8 },
-  subtitle: { fontFamily: fontFamily.heading, fontSize: 16, color: colors.lime },
+  subtitle: { fontFamily: 'Fraunces_700Bold', fontSize: 34, lineHeight: 38, letterSpacing: -0.7, color: colors.textPrimary, marginTop: 8 },
   form: { marginTop: spacing.xl },
-  helperText: { fontFamily: fontFamily.body, fontSize: 13, color: 'rgba(255,255,255,0.8)', lineHeight: 18 },
+  helperText: { fontFamily: fontFamily.body, fontSize: 13, color: colors.textSecondary, lineHeight: 18 },
   resendRow: { alignItems: 'center', marginTop: spacing.lg },
-  resendText: { fontFamily: fontFamily.body, fontSize: 13, color: colors.white },
-  resendBold: { fontFamily: fontFamily.bodySemiBold, color: colors.lime },
+  resendText: { fontFamily: fontFamily.body, fontSize: 13, color: colors.textPrimary },
+  resendBold: { fontFamily: fontFamily.bodySemiBold, color: colors.clubGreen },
 });
 }

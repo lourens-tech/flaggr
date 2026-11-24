@@ -10,16 +10,18 @@ import { TextField } from '../../components/common/TextField';
 import { ApiError } from '../../api/client';
 import { useApp } from '../../context/AppContext';
 import { showAlert } from '../../utils/alert';
-import { fontFamily, screenPadding, spacing } from '../../theme';
-import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
+import { ONBOARDING_BACKGROUNDS, fontFamily, screenPadding, spacing } from '../../theme';
+import type { ThemeColors } from '../../context/ThemeContext';
+import { systemFonts, useBentoLegacy } from '../../components/bento/legacy';
+import { AuthBackdrop } from '../../components/bento/AuthBackdrop';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Login'>;
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function LoginScreen({ navigation }: Props) {
-  const colors = useThemeColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { colors } = useBentoLegacy();
+  const styles = useMemo(() => systemFonts(createStyles(colors)), [colors]);
   const { login } = useApp();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -61,6 +63,7 @@ export function LoginScreen({ navigation }: Props) {
 
   return (
     <View style={styles.container}>
+      <AuthBackdrop photo={ONBOARDING_BACKGROUNDS.signUpStep1} />
       <StatusBar barStyle="light-content" />
       <SafeAreaView style={styles.safeArea}>
         <TouchableOpacity
@@ -73,6 +76,9 @@ export function LoginScreen({ navigation }: Props) {
 
         <View style={styles.logoRow}>
           <FlagrrLogo size={72} />
+        </View>
+        <View style={styles.authHead}>
+          <Text style={styles.authTitle} accessibilityRole="header">Welcome back</Text>
         </View>
 
         <View style={styles.form}>
@@ -112,7 +118,7 @@ export function LoginScreen({ navigation }: Props) {
             <Ionicons
               name={keepLoggedIn ? 'checkmark-circle' : 'ellipse-outline'}
               size={16}
-              color={keepLoggedIn ? colors.lime : 'rgba(255,255,255,0.6)'}
+              color={keepLoggedIn ? colors.clubGreen : colors.textSecondary}
             />
             <Text style={styles.rememberText}>Keep me logged in.</Text>
           </TouchableOpacity>
@@ -147,18 +153,21 @@ export function LoginScreen({ navigation }: Props) {
 
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.darkGreen },
+  container: { flex: 1, backgroundColor: colors.background },
   safeArea: { flex: 1, paddingHorizontal: screenPadding },
-  backButton: { width: 32, height: 32, justifyContent: 'center', marginTop: spacing.sm },
+  backButton: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', marginTop: spacing.sm, backgroundColor: 'rgba(10,24,17,0.45)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)' },
+  authHead: { marginTop: 110 },
+  authEyebrow: { fontFamily: fontFamily.bodySemiBold, fontSize: 12, letterSpacing: 1.68, textTransform: 'uppercase', color: colors.textSecondary, marginBottom: 6 },
+  authTitle: { fontFamily: 'Fraunces_700Bold', fontSize: 34, lineHeight: 36, letterSpacing: -0.85, color: colors.textPrimary },
   logoRow: { alignItems: 'center', marginTop: spacing.sm },
   form: { marginTop: spacing.xl },
   rememberRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: spacing.md },
-  rememberText: { fontFamily: fontFamily.body, fontSize: 12, color: colors.white },
+  rememberText: { fontFamily: fontFamily.body, fontSize: 12, color: colors.textPrimary },
   forgotRow: { alignItems: 'center', marginTop: spacing.lg },
-  forgotText: { fontFamily: fontFamily.body, fontSize: 13, color: colors.white },
-  forgotBold: { fontFamily: fontFamily.bodySemiBold, color: colors.lime },
+  forgotText: { fontFamily: fontFamily.body, fontSize: 13, color: colors.textPrimary },
+  forgotBold: { fontFamily: fontFamily.bodySemiBold, color: colors.clubGreen },
   signupRow: { alignItems: 'center', marginTop: 'auto', marginBottom: spacing.xl, gap: 4 },
-  signupText: { fontFamily: fontFamily.body, fontSize: 13, color: colors.white },
-  signupBold: { fontFamily: fontFamily.bodySemiBold, fontSize: 13, color: colors.lime },
+  signupText: { fontFamily: fontFamily.body, fontSize: 13, color: colors.textPrimary },
+  signupBold: { fontFamily: fontFamily.bodySemiBold, fontSize: 13, color: colors.clubGreen },
 });
 }

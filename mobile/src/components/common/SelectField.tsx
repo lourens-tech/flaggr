@@ -104,7 +104,8 @@ function createStyles(colors: ThemeColors) {
     paddingHorizontal: spacing.md,
   },
   containerOnDark: { backgroundColor: 'rgba(255,255,255,0.12)' },
-  containerOnLight: { backgroundColor: colors.inputBg, borderWidth: 1, borderColor: colors.inputBorder },
+  // Bento field look for member forms (tile fill, hairline, 16 pt corners).
+  containerOnLight: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 16, minHeight: 52 },
   text: { flex: 1, fontFamily: fontFamily.body, fontSize: fontSize.body },
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
   sheet: {

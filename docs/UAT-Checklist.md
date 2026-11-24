@@ -15,8 +15,9 @@ A practical checklist for manually testing the member-facing app end-to-end at h
 - [ ] "Keep me logged in" unchecked: closing and reopening the app requires login again.
 - [ ] "Keep me logged in" checked (default): reopening the app stays logged in.
 - [ ] On a store build (`EXPO_PUBLIC_STORE_BUILD=1`), the Landing and Login screens do not show an Admin Login option. On the web build they do.
-- [ ] The opening screen (Landing) shows the photo, headline and glass panel without clipping or sideways scrolling at phone width (375 px), on a foldable's cover and inner screens, on a landscape phone (it scrolls) and on desktop web, in both light and dark mode. Get Started opens sign-up, Golf Course Admin Login opens the admin sign-in and I already have an account opens member login.
-- [ ] With Reduce Motion on, the opening screen appears without the fade-up; with Reduce Transparency on, its panel is solid.
+- [ ] The opening screen (Landing, Bento) shows the photo fading into the ground, the wordmark, the headline with "Repeat." in the accent colour and the buttons without clipping or sideways scrolling at phone width (375 px), on a foldable's cover and inner screens, on a landscape phone (it scrolls) and on desktop web, in both light and dark mode (it follows the member's Appearance setting). Get Started opens sign-up, Golf Course Admin Login opens the admin sign-in and I already have an account opens member login.
+- [ ] With Reduce Motion on, the opening screen's headline appears without rising in.
+- [ ] Bento sign-in screens, light and dark: Login shows "Welcome back" under the photo; sign-up step 1 shows "Step 1 of 2", the progress bar and "Create your account", and step 2 "Step 2 of 2" and "Set a password"; Forgot password shows the wordmark and "Reset Password" on the contour background. The back button, password eye, Keep me logged in, Golf Club picker, Date of Birth picker, Recover here, Sign Up! and Login! links all work, and validation messages (missing name or email, passwords that don't match, password under 8 characters) still show under the right field. When the step 1 form scrolls, the fields pass under a clear gap below the title.
 - [ ] An error alert on member Login or Sign-up (reached from the opening screen) keeps the member style, not the admin one.
 
 ## 2. Forgot Password
