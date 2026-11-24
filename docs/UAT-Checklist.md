@@ -103,7 +103,8 @@ Use test receipts that trigger a flag: a very unclear photo (low OCR confidence)
 
 ## 7. Tiers
 
-- [ ] Member Tiers screen lists all four tiers with their correct thresholds and perks copy.
+- [ ] Member Tiers lists all four tiers as rows with the correct multiplier, threshold and perks (no rands), marks the member's tier Current and the next one Next, shows "N FC to {next tier}" with this quarter's FC (verified members) or "You’ve reached the top tier" with a full bar (Platinum), in light and dark.
+- [ ] Notifications: groups and row times look right in the phone's own time format; the header gear opens Notification Preferences; an account with no notifications shows "No notifications yet"; VoiceOver reads the View button as "View, {title}".
 - [ ] Scanning a receipt applies the correct earning multiplier for the member's current tier (verify the awarded FC = base points × multiplier, rounded).
 - [ ] An unverified member (not on the club roster) stays at Bronze however much they earn; once the club verifies them, the tier updates.
 - [ ] On a test account's birthday (or with date of birth set to today for testing), opening the app grants the birthday bonus exactly once — reopening the app again the same day does not grant it a second time.

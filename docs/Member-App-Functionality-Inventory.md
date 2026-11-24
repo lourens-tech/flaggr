@@ -489,6 +489,8 @@ One screen with two internal steps, `request` and `reset`.
 
 #### 7. Notifications (`screens/profile/NotificationsScreen.tsx`)
 
+> **1.1.0 (phase 3, 25 Nov 2026), what changed from the 1.0.1 description below:** Bento screen (`BentoScreen`, no `ScreenHeader`). A gear in the header opens Notification Preferences (approved addition). Group headings are uppercase. Each row has an unread dot, a 40 pt chip with a bell (unread) or check (read), the title, a **time** (clock time for Today/Yesterday, weekday for This Week, date for Earlier and for a row exactly 7 days old; phone locale) and the body. "View" is a button named "View, {title}" (hint "Marks this notification as read"). Empty feed: "No notifications yet" / "Updates about your receipts, rewards and enquiries will show here." (owner-approved copy). Everything else below is unchanged: grouping rule, enquiry rows, mark-read, no refetch, push-tap entry.
+
 - **Reached from:**
   - The Home bell.
   - **Tapping any push notification** (native only), through `navigationRef.navigate('Notifications')`.
@@ -538,6 +540,8 @@ One screen with two internal steps, `request` and `reset`.
 ---
 
 #### 8. Member Tiers (`screens/profile/MemberTiersScreen.tsx`)
+
+> **1.1.0 (phase 3, 25 Nov 2026), what changed from the 1.0.1 description below (owner decision: the mockup layout wins; perks keep the multiplier, drop rands):** Bento screen with the board's structure. Balance card: CountUp balance, tier name and "earning ×{multiplier}". Unverified notice (same copy). "How to Reach the Next Tier": "{N} FC to {next tier}", "Earn it before this quarter ends.", a `FillBar` at `tierProgress`, "{earned} FC this quarter" and the next threshold (earned = threshold − `pointsToNextTier`, exact per `api/_lib/tiers.ts`; the quarter line and figures are hidden for unverified members), then the 01/02/03 steps (same copy). Top tier: "You’ve reached the top tier" with a full bar (replaces the "0 pts to " bug). "Tier Benefits": all four tiers as rows with a ×multiplier badge (colours from the board, multipliers copied from `TIER_MULTIPLIERS`), "From N FC a quarter" (Bronze "From 0 FC"), the perks and a Current / Next tag. Perks (`data/mockData.ts`): Bronze "Flagrr Cash on your receipts", "Birthday reward of 50 FC"; Silver "1.2x Flagrr Cash on your receipts", "Birthday reward of 100 FC"; Gold "1.5x …", "Birthday reward of 150 FC", "A bar voucher each quarter you qualify"; Platinum "1.7x …", "Birthday reward of 200 FC", "A bar voucher each quarter you qualify". Removed with the tabs: the tier tab switcher, the "{TIER} MEMBER" crown pills and the per-tier description sentence. `ProgressBar` was deleted (no other user).
 
 - **Reached from:** the Home tier ring only.
 - **Shows:**
@@ -762,7 +766,7 @@ Inside `ScanFlow`: Review replaces itself with Success (Back can't resubmit); "S
 - **Reduce Motion** (iOS or Android setting, or the web `prefers-reduced-motion`): read synchronously by `prefersReducedMotion()` and kept current by a listener. Effects:
   - `Appear`: no rise or reveal.
   - `CountUp` and `CountUpText`: show the final value.
-  - `Ring`, `ProgressBar` and bar chart: drawn instantly.
+  - `Ring`, `ProgressBar` (1.1.0: `FillBar`) and bar chart: drawn instantly.
   - Segmented, tab-bar and toggle indicators jump.
   - `PressableScale`: no spring.
   - `ScreenFade` (web): skipped.
