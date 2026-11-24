@@ -178,8 +178,8 @@ Tier is based on **Flagrr Cash earned in the current calendar quarter** (Jan–M
 - Three placements exist: a top banner on Home, a second slot on Home, and a slot in the Rewards Shop.
 - Ads are data-driven (stored in the database) and are managed by the Flagrr super-admin team: an ad can target one or more specific clubs, or all clubs. Each has an image or video, target URL, active window (start/end dates), and display order.
 - Each ad is tappable and opens its target URL. Taps and impressions are both logged for ad-performance reporting.
-- A slot with no ad configured falls back to an inert "Ad Space" placeholder, so nothing looks broken before an ad is set up.
-- A small "SPONSORED" label sits above every slot that is showing a real ad (not above the placeholder). Ads never animate: no rise, reveal, parallax or press scaling.
+- A slot with no ad booked is not shown at all: no placeholder box and no gap (owner decision, 24 Nov 2026; until then an "Ad Space" box filled the slot). An ad with no image or video still shows, as a green box with its title.
+- A small "SPONSORED" label sits above every ad. Ads never animate: no rise, reveal, parallax or press scaling.
 
 ## Profile
 

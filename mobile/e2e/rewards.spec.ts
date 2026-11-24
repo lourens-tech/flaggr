@@ -379,10 +379,11 @@ test.describe('Rewards Shop', () => {
     await expect(page.getByRole('link', { name: /Sample advert 3|Advertisement/ })).toHaveCount(0);
   });
 
-  test('Ad slot › no ad configured shows “Ad Space” placeholder without SPONSORED', async ({ page }) => {
+  test('Ad slot › no ad configured shows no slot (no “Ad Space”, no SPONSORED)', async ({ page }) => {
     await patchJson(page, ME, (me) => ({ ...me, ads: [] }));
     await openShop(page);
-    await expect(txt(page, 'Ad Space')).toBeVisible();
+    // Owner decision 24 Nov 2026: no booked ad means no slot at all (was an “Ad Space” box).
+    await expect(txt(page, 'Ad Space')).toHaveCount(0);
     await expect(txt(page, 'SPONSORED')).toHaveCount(0);
   });
 
@@ -620,7 +621,7 @@ test.describe('Rewards Shop', () => {
     await expect(alertBox(page)).toHaveCount(0); // no placeholder popup for a listed club
   });
 
-  test('Placeholder club › popup on Rewards with exact copy; Close dismisses; “Nothing Here Yet” card and Ad Space', async ({ page }) => {
+  test('Placeholder club › popup on Rewards with exact copy; Close dismisses; “Nothing Here Yet” card and no ad slot', async ({ page }) => {
     await quietHomePopup(page);
     await scenario(page, { placeholder: true });
     await openSignedIn(page);
@@ -635,7 +636,8 @@ test.describe('Rewards Shop', () => {
     await expect(heading(page, 'Rewards Shop')).toBeVisible();
     await expect(txt(page, 'Nothing Here Yet')).toBeVisible();
     await expect(txt(page, "Your golf club hasn't joined the Flagrr family yet — that's why there's nothing to redeem here.")).toBeVisible();
-    await expect(txt(page, 'Ad Space')).toBeVisible();
+    // Owner decision 24 Nov 2026: no booked ad means no slot at all (was an “Ad Space” box).
+    await expect(txt(page, 'Ad Space')).toHaveCount(0);
     await expect(txt(page, 'SPONSORED')).toHaveCount(0);
     await expect(searchBox(page)).toHaveCount(0);
   });

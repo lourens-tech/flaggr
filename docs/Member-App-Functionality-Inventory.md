@@ -481,7 +481,7 @@ One screen with two internal steps, `request` and `reset`.
     - Your Club without a logo (flag icon), and "Not specified".
     - Avatar initials versus photo (the board shows initials only).
     - Morning and Afternoon greetings (boards show "Evening").
-    - Ad placeholder "Ad Space", and ads with no image (title fallback). See AdSpace.
+    - Ad placeholder "Ad Space" (removed by owner decision 24 Nov 2026: no booked ad, no slot), and ads with no image (title fallback). See AdSpace.
     - The placeholder-club Home with an empty rail.
     - Home with no unread notifications.
 
@@ -838,7 +838,7 @@ Inside `ScanFlow`: Review replaces itself with Success (Back can't resubmit); "S
 - **Slot:** fixed **180 pt** high, full width, radius `radius.md` (15 pt), cover crop.
 - **"SPONSORED" label:** 12 pt, 600, letter-spaced, muted, above every **real** ad. Not shown on the empty placeholder.
 - **Placeholder states:**
-  - No active ad for the slot: a dark-green box with "Ad Space" in lime Fraunces 700. No label, not tappable.
+  - No active ad for the slot: a dark-green box with "Ad Space" in lime Fraunces 700. No label, not tappable (owner decision 24 Nov 2026: from the 1.1.0 store build the empty slot is not shown at all).
   - An ad with no `imageUrl`: the same green box showing the **ad's title** (or "Ad Space"), with the SPONSORED label.
 - **Media:**
   - Image or GIF: `Image` with cover crop.
@@ -860,7 +860,7 @@ Inside `ScanFlow`: Review replaces itself with Success (Back can't resubmit); "S
   - AdSpec documents: the 392 × 180 artwork template, the 312 × 156 safe area, fixed height, width per phone, cover fit, the 15 pt corners, export sizes, the three placements, 6 s rotation with videos playing to the end, dots 8 pt from the bottom, and muted autoplay video that loops when alone.
   - The Home boards show two SPONSORED ads with creative.
   - **Not on a board:**
-    - The empty-slot "Ad Space" placeholder.
+    - The empty-slot "Ad Space" placeholder (removed by owner decision 24 Nov 2026: no booked ad, no slot).
     - The no-image title fallback.
     - Non-tappable ads (no target URL).
     - The external-browser hand-off.
@@ -1012,7 +1012,7 @@ Every part, state, dialog and behaviour in this area that no static board shows.
 91. Tab bar: Android and Reduce Transparency solid (non-glass) variant.
 92. Tab bar: re-pressing the active tab does nothing (no scroll-to-top).
 93. Tab bar: active indicator slide, and Reduce Motion snap.
-94. Ads: empty-slot "Ad Space" placeholder (no SPONSORED label).
+94. Ads: empty-slot "Ad Space" placeholder (no SPONSORED label) (owner decision 24 Nov 2026: from the 1.1.0 store build the empty slot is not shown at all).
 95. Ads: ad without an image (title shown on a green box).
 96. Ads: non-tappable ad (no target URL).
 97. Ads: tap opens the external browser.
@@ -1682,7 +1682,7 @@ Verified against the code on branch `claude/member-store-build` (working tree, 2
     - A reward with zero variants renders nothing (cannot happen from the API, which only returns rewards with an active variant).
   - Ad slot (`AdSpace`), same component as Home:
     - Ads = `me.ads` filtered to placement `rewardsShop` (club's own + global, server order).
-    - No ad: 180 pt box, dark-green fill, lime "Ad Space" text, **no** "SPONSORED" label.
+    - No ad: 180 pt box, dark-green fill, lime "Ad Space" text, **no** "SPONSORED" label (owner decision 24 Nov 2026: from the 1.1.0 store build the empty slot is not shown at all).
     - Real ad: "SPONSORED" label (12 pt, muted, letter-spaced) above a 180 pt rounded box. Image/GIF: cover. Video: muted, autoplay, `cover`, no controls; loops only when it is the only ad. Ad with no media: box with the ad's title (or "Ad Space").
     - Several ads: rotate every 6 s (images/GIFs) or at video end; dots at the bottom (active dot wider/white). Rotation and impression logging pause while the tab is not focused.
     - With a `targetUrl`: the whole box is a link (accessibility role link, label = ad title or "Advertisement"); tap logs a click and opens the URL externally. Without a URL: not tappable.
@@ -1870,7 +1870,7 @@ Verified against the code on branch `claude/member-store-build` (working tree, 2
 18. Silent redeem failure (server 400 "Not enough Flagrr Cash", 404 "Reward not found", 401, offline): sheet closes with no message.
 19. Partial redeem failure: voucher issued and FC deducted but the follow-up refetch fails, app stays on the shop with no message and a stale balance.
 20. No disabled/unaffordable state on cards (every Redeem Now is tappable; check happens on tap).
-21. Rewards Shop ad placeholder "Ad Space" (no ad configured; no SPONSORED label).
+21. Rewards Shop ad placeholder "Ad Space" (no ad configured; no SPONSORED label) (owner decision 24 Nov 2026: from the 1.1.0 store build the empty slot is not shown at all).
 22. Shop ad without a target URL (not tappable).
 23. Shop ad without media (shows the ad title).
 24. Shop ad as video, and rotation with dots in the shop slot (spec only in AdSpec, never drawn in the shop).

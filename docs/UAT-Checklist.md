@@ -68,7 +68,7 @@ For the Bento store build, use this page together with [Member App Functionality
 
 - [ ] Home shows the top-banner ad and the second Home ad when the club has them configured, each with "SPONSORED" above it; the Rewards Shop shows its own slot. Ads don't animate when Home opens or scrolls.
 - [ ] An ad shows real creative (image or video) and tapping it opens the advertiser's link.
-- [ ] A slot with no ad configured shows the "Ad Space" placeholder without looking broken.
+- [ ] A slot with no ad booked is not shown at all: no "Ad Space" box, no SPONSORED label, no empty gap (Home and Rewards Shop, including a club not yet on Flagrr).
 - [ ] Viewing an ad is recorded as an impression and tapping it as a click (check the ad's performance figures in the super-admin console after a few views and taps).
 - [ ] An ad set to "all clubs" shows for members of different clubs; an ad targeted at one club does not show for a member of another club.
 - [ ] An ad outside its start/end dates, or switched off, does not show.

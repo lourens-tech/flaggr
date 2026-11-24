@@ -157,7 +157,7 @@ Two of these are still `test.fixme` in the Playwright suite in `mobile/e2e/`: th
 
 - About 110 touchable elements in member screens and 2 accessibility labels. Icon-only buttons (notification bells, avatars) have none, and the unread badge count is not announced. `mobile/src/screens/home/HomeScreen.tsx:161`, `rewards/RewardsActivityScreen.tsx:84`
 - The first FAQ answer describes ways to earn (promotions, in-app activities) that the backend does not implement, and the three help articles are stubs ending in "...". `mobile/src/data/faqData.ts:9, 46-50`
-- With no ad configured, the ad slot shows a plain "Ad Space" box. `mobile/src/components/common/AdSpace.tsx:93`
+- **Fixed in the 1.1.0 code (24 Nov 2026):** with no ad configured, the ad slot showed a plain "Ad Space" box; it is now not shown at all (owner decision). `mobile/src/components/common/AdSpace.tsx`
 - The PWA manifest describes the app as admin tools only, though members use the same web export. `mobile/static/manifest.json`
 - Pilot launch email images and links use `flagrr.com` (which does serve the marketing site, verified 2026-11-02), and the QR script docstrings still mention `app.flagrr.com`. `marketing/strand-golf-club-pilot-launch.html:223`
 - `app.flagrr.com` DNS is not configured, so the API base URL is pinned to `flagrr-loyalty.vercel.app`. `mobile/src/api/client.ts:26-30`

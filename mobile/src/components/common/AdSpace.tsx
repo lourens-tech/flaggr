@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Image, Linking, StyleProp, StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
-import { Parallax } from '../bento/motion';
 import { useIsFocused } from '@react-navigation/native';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { useApp } from '../../context/AppContext';
@@ -89,13 +88,8 @@ export function AdSpace({ placement, style }: Props) {
     return () => clearTimeout(timer);
   }, [canRevolve, isFocused, ad, advance]);
 
-  if (!ad) {
-    return (
-      <View style={[styles.box, styles.placeholder, style]}>
-        <Text style={styles.placeholderText}>Ad Space</Text>
-      </View>
-    );
-  }
+  // No booked ad: no slot at all (owner decision 24 Nov 2026; was an "Ad Space" box).
+  if (!ad) return null;
 
   const content = !ad.imageUrl ? (
     <View style={[styles.box, styles.placeholder]}>
@@ -104,10 +98,8 @@ export function AdSpace({ placement, style }: Props) {
   ) : ad.mediaType === 'video' ? (
     <VideoView player={player} style={styles.image} contentFit="cover" nativeControls={false} />
   ) : (
-    // The photo drifts a little against the scroll (Bento prototype); still outside a Bento screen.
-    <Parallax travel={10} style={{ position: 'absolute', top: -10, left: 0, right: 0, bottom: -10 }}>
-      <Image source={{ uri: ad.imageUrl }} style={styles.image} resizeMode="cover" />
-    </Parallax>
+    // Ads never move (the prototype's ad images are static, unlike reward and club photos).
+    <Image source={{ uri: ad.imageUrl }} style={styles.image} resizeMode="cover" />
   );
 
   const dots = canRevolve ? (
