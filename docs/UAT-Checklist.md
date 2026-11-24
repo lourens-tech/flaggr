@@ -68,7 +68,13 @@ A practical checklist for manually testing the member-facing app end-to-end at h
 - [ ] Scanning a blurry/unclear photo still reaches the Review screen and shows the "wasn't fully clear" warning.
 - [ ] **If a second participating club's merchant exists in the system**: scanning a receipt from that other club shows the away-club note and awards the flat rate (1 FC per R1 of the receipt total) regardless of tier.
 - [ ] Scanning a receipt from an unrelated/generic retailer behaves the same as a home-club receipt (catalog match + tier multiplier), not the away-club flat rate.
-- [ ] Receipt History lists the submitted receipt with the right status, amount, and an image that loads on demand.
+- [ ] Receipt History lists the submitted receipt with the right status, amount, and an image that loads on demand (View Photo opens it in a sheet; the close button and backdrop close it).
+- [ ] Receipt History's summary shows the Flagrr Cash from receipts approved this month and the number of receipts submitted this month; with no receipts, the empty card's **Scan a receipt** opens the camera.
+- [ ] Camera permission card reads "Flagrr needs camera access…" (not "Flaggr"); Continue asks for access; "Upload from gallery instead" works; the close button leaves the screen.
+- [ ] While a receipt is read, the photo shows dimmed behind the "Reading your receipt…" sheet.
+- [ ] Review Receipt: the back button and Rescan both return to the camera; Submit Receipt still submits.
+- [ ] Receipt submitted: a normal receipt shows "+N FC" and the added-to-balance message; a flagged one shows "Your receipt is being reviewed" and the manual-review note. View Current Balance goes Home; Submit Another Receipt opens the camera.
+- [ ] Duplicate ("Already redeemed"), "This is not a valid slip" (Back / Try Again) and "Couldn’t read that image" alerts appear in the Bento alert style with the same wording and buttons.
 
 ## 6. Receipts Held for Review
 
@@ -76,8 +82,8 @@ Use test receipts that trigger a flag: a very unclear photo (low OCR confidence)
 
 - [ ] The success screen says "Your receipt is being reviewed" and explains the Flagrr Cash will be added once approved.
 - [ ] The balance does not increase while the receipt is pending.
-- [ ] Receipt History shows the receipt as Pending with an "Under review" badge and the reason.
-- [ ] After a club admin approves the receipt: the Flagrr Cash is credited, an activity entry and a notification appear, and Receipt History shows Approved.
+- [ ] Receipt History shows the receipt with an "Under review" label, the FC pending, and the reason.
+- [ ] After a club admin approves the receipt: the Flagrr Cash is credited, an activity entry and a notification appear, and Receipt History shows "+N FC" for it.
 - [ ] After a club admin confirms the receipt as fraud: the status becomes Rejected, no Flagrr Cash is kept (any credited amount is reversed), and the member gets a "Receipt rejected" notification.
 
 ## 7. Tiers
@@ -239,7 +245,7 @@ Test each role (course admin, staff, super admin, support agent) at three widths
 - [ ] Hole view sheets (Scorecard, Your round, My bag): rise from the bottom as a rounded card with a close button; tapping the backdrop, the close button or Android back closes them; Done and every control inside still work.
 - [ ] Buttons and reward cards shrink slightly under the finger and spring back on release (no dimming).
 - [ ] iPhone: pushed screens slide in and can be swiped back from anywhere on the screen. Android: pushed screens slide in from the right.
-- [ ] The scan camera slides up from the bottom; Voucher and Receipt Success fade up. On Voucher the QR code pops in; on Receipt Success the trophy pops and the Flagrr Cash amount rolls up.
+- [ ] The scan camera slides up from the bottom; Voucher and Receipt Success fade up. On Voucher the QR code pops in; on Receipt Success the lime check badge pops and the "+N FC" amount counts up.
 - [ ] Alerts and confirmations spring in over a fading backdrop (member: scale in from 1.1 with a slight overshoot).
 - [ ] With Reduce Motion turned on (iOS Settings > Accessibility > Motion, or Android remove animations), everything appears instantly with no movement.
 - [ ] Admin dashboard (desktop browser): stat cards and panels rise in, numbers roll up, chart bars grow, table rows cascade in; the sidebar stays still while the content fades.

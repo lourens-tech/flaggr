@@ -1,22 +1,18 @@
-import React, { useState, useMemo } from 'react';
-import { Image, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import React, { useState } from 'react';
+import { Image, Pressable, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/types';
-import { ScreenHeader } from '../../components/common/ScreenHeader';
-import { PillButton } from '../../components/common/PillButton';
 import { ApiError } from '../../api/client';
 import { useApp } from '../../context/AppContext';
 import { showAlert } from '../../utils/alert';
-import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
-import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
+import { useBento } from '../../context/ThemeContext';
+import { bentoType } from '../../theme/bento';
+import { Appear, BentoButton, BentoIcon, BentoScreen, BentoTile, Eyebrow, type BentoIconName } from '../../components/bento';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ReviewReceipt'>;
 
 export function ReviewReceiptScreen({ route, navigation }: Props) {
-  const colors = useThemeColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { t } = useBento();
   const { submitReceipt } = useApp();
   const [submitting, setSubmitting] = useState(false);
   const { scanResult, imageBase64, imageUri } = route.params;
@@ -57,201 +53,153 @@ export function ReviewReceiptScreen({ route, navigation }: Props) {
     }
   };
 
+  const amountText = (item: (typeof scanResult.items)[number]) =>
+    earnsOnTotal && isPrepaidEarning(item)
+      ? `+${item.pointsAwarded} FC`
+      : earnsOnTotal
+        ? `R${item.price.toFixed(2)}`
+        : item.pointsAwarded > 0
+          ? `+${item.pointsAwarded} FC`
+          : '—';
+
   return (
-    <View style={styles.screen}>
-      <StatusBar barStyle="light-content" />
-      <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
-        <ScreenHeader title="Review Receipt" />
-      </SafeAreaView>
+    <BentoScreen title="Review Receipt" onBack={() => navigation.goBack()}>
+      <View style={{ height: 6 }} />
 
-      <ScrollView contentContainerStyle={styles.content}>
-        {imageUri ? (
-          <Image source={{ uri: imageUri }} style={styles.receiptImage} resizeMode="cover" />
-        ) : (
-          <View style={[styles.receiptImage, styles.receiptImagePlaceholder]}>
-            <Text style={styles.placeholderText}>No image captured</Text>
+      {isLowConfidence ? (
+        <Notice icon="info" bg={t.warnBg} ink={t.warnInk}>
+          This scan wasn’t fully clear — some details below may be inaccurate. It’s still been submitted for review.
+        </Notice>
+      ) : null}
+
+      {isNonParticipatingClub ? (
+        <Notice icon="info" bg={t.accentSoft} ink={t.ink}>
+          Your club is between subscriptions right now — Flagrr Cash earned at the standard rate of R1 = 1 FC.
+        </Notice>
+      ) : isAwayClub ? (
+        <Notice icon="info" bg={t.accentSoft} ink={t.ink}>
+          Not your home club — Flagrr Cash earned at the standard away-club rate of R1 = 1 FC.
+        </Notice>
+      ) : null}
+
+      <Appear>
+        <BentoTile>
+          {/* Photo thumbnail and the slip's details */}
+          <View style={{ flexDirection: 'row', gap: 14, alignItems: 'center' }}>
+            <View style={{ width: 72, height: 92, borderRadius: 14, overflow: 'hidden', backgroundColor: t.seg, boxShadow: `0 0 0 1px ${t.ring}`, alignItems: 'center', justifyContent: 'center' }}>
+              {imageUri ? (
+                <Image source={{ uri: imageUri }} style={{ width: 72, height: 92 }} resizeMode="cover" accessibilityLabel="Your receipt photo" />
+              ) : (
+                <Text style={{ fontSize: 11, color: t.muted, textAlign: 'center', padding: 6 }}>No image captured</Text>
+              )}
+            </View>
+            <View style={{ flex: 1, gap: 6 }}>
+              <Detail label="Merchant" value={merchantName} />
+              {scanResult.receiptNumber ? <Detail label="Receipt Number" value={scanResult.receiptNumber} /> : null}
+              {scanResult.date || scanResult.time ? <Detail label="Date" value={[scanResult.date, scanResult.time].filter(Boolean).join(' · ')} /> : null}
+            </View>
           </View>
-        )}
 
-        {isLowConfidence ? (
-          <View style={styles.warningBanner}>
-            <Ionicons name="alert-circle-outline" size={18} color={colors.negative} />
-            <Text style={styles.warningText}>
-              This scan wasn’t fully clear — some details below may be inaccurate. It’s still been submitted for
-              review.
-            </Text>
-          </View>
-        ) : null}
-
-        {isNonParticipatingClub ? (
-          <View style={styles.awayClubBanner}>
-            <Ionicons name="information-circle-outline" size={18} color={colors.clubGreen} />
-            <Text style={styles.awayClubText}>
-              Your club is between subscriptions right now — Flagrr Cash earned at the standard rate of R1 = 1 FC.
-            </Text>
-          </View>
-        ) : isAwayClub ? (
-          <View style={styles.awayClubBanner}>
-            <Ionicons name="information-circle-outline" size={18} color={colors.clubGreen} />
-            <Text style={styles.awayClubText}>
-              Not your home club — Flagrr Cash earned at the standard away-club rate of R1 = 1 FC.
-            </Text>
-          </View>
-        ) : null}
-
-        <View style={styles.summaryCard}>
-          <Text style={styles.summaryLabel}>Merchant</Text>
-          <Text style={styles.summaryValue}>{merchantName}</Text>
-
-          {scanResult.receiptNumber ? (
-            <>
-              <Text style={[styles.summaryLabel, { marginTop: spacing.md }]}>Receipt Number</Text>
-              <Text style={styles.summaryValueSmall}>{scanResult.receiptNumber}</Text>
-            </>
-          ) : null}
-
-          {scanResult.date || scanResult.time ? (
-            <>
-              <Text style={[styles.summaryLabel, { marginTop: spacing.md }]}>Date</Text>
-              <Text style={styles.summaryValueSmall}>
-                {[scanResult.date, scanResult.time].filter(Boolean).join(' · ')}
-              </Text>
-            </>
-          ) : null}
-
-          <Text style={[styles.summaryLabel, { marginTop: spacing.md }]}>Items</Text>
+          <Eyebrow style={{ fontSize: 13, letterSpacing: 1.56, marginTop: 14, paddingBottom: 4 }}>Items</Eyebrow>
           {scanResult.items.length === 0 ? (
-            <Text style={styles.noItemsText}>No line items were recognized on this receipt.</Text>
+            <Text style={[bentoType.body, { color: t.muted, paddingVertical: 12, borderTopWidth: 1, borderTopColor: t.hair }]}>
+              No line items were recognized on this receipt.
+            </Text>
           ) : (
-            scanResult.items.map((item, index) => (
-              <View key={`${item.description}-${index}`} style={styles.itemRow}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.itemLabel}>
-                    {item.quantity > 1 ? `${item.quantity}x ` : ''}
-                    {item.description}
+            scanResult.items.map((item, index) => {
+              const prepaid = earnsOnTotal && isPrepaidEarning(item);
+              const already = !prepaid && isAlreadyEarnedToday(item);
+              const matched = !prepaid && !already && !earnsOnTotal && Boolean(item.matchedName);
+              const notEligible = !prepaid && !already && !earnsOnTotal && !item.matchedName;
+              const amount = amountText(item);
+              const amountColor = amount.startsWith('+') ? t.accent : amount === '—' ? (already || notEligible ? t.negative : t.muted) : t.ink;
+              return (
+                <View key={`${item.description}-${index}`} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, borderTopWidth: 1, borderTopColor: t.hair }}>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={{ fontSize: 15, fontWeight: '600', color: t.ink }}>
+                      {item.quantity > 1 ? `${item.quantity}x ` : ''}
+                      {item.description}
+                    </Text>
+                    {prepaid ? (
+                      <ItemNote icon="check" color={t.accent}>Pre-paid · Matched: {item.matchedName}</ItemNote>
+                    ) : already ? (
+                      <ItemNote color={t.negative}>Already earned on another slip today</ItemNote>
+                    ) : matched ? (
+                      <ItemNote icon="check" color={t.accent}>Matched: {item.matchedName}</ItemNote>
+                    ) : notEligible ? (
+                      <ItemNote color={t.negative}>Not eligible for points</ItemNote>
+                    ) : null}
+                  </View>
+                  <Text style={[amount.startsWith('R') ? { fontSize: 15, fontWeight: '600' } : { fontFamily: 'Fraunces_600SemiBold', fontSize: 18 }, { color: amountColor, fontVariant: ['tabular-nums'] }]}>
+                    {amount}
                   </Text>
-                  {earnsOnTotal && isPrepaidEarning(item) ? (
-                    <Text style={styles.itemMatched}>Pre-paid · Matched: {item.matchedName}</Text>
-                  ) : isAlreadyEarnedToday(item) ? (
-                    <Text style={styles.itemUnmatched}>Already earned on another slip today</Text>
-                  ) : earnsOnTotal ? null : item.matchedName ? (
-                    <Text style={styles.itemMatched}>Matched: {item.matchedName}</Text>
-                  ) : (
-                    <Text style={styles.itemUnmatched}>Not eligible for points</Text>
-                  )}
                 </View>
-                <Text style={styles.itemAmount}>
-                  {earnsOnTotal && isPrepaidEarning(item)
-                    ? `+${item.pointsAwarded} FC`
-                    : earnsOnTotal
-                      ? `R${item.price.toFixed(2)}`
-                      : item.pointsAwarded > 0
-                        ? `+${item.pointsAwarded} FC`
-                        : '—'}
-                </Text>
-              </View>
-            ))
+              );
+            })
           )}
 
           {hasUnmatchedItems ? (
-            <Text style={styles.unmatchedHint}>
-              Some items weren’t recognized as eligible golf products or activities, so no points were awarded for
-              them.
+            <Text style={{ fontSize: 13, lineHeight: 19, color: t.muted, marginTop: 10 }}>
+              Some items weren’t recognized as eligible golf products or activities, so no points were awarded for them.
             </Text>
           ) : null}
 
-          <View style={styles.divider} />
+          {earnsOnTotal ? (
+            <Text style={{ fontSize: 13, lineHeight: 19, color: t.muted, marginTop: 10 }}>
+              {hasPrepaidEarning ? 'Flagrr Cash is earned on the slip total, plus the club value of pre-paid items.' : 'Flagrr Cash is earned on the slip total.'}
+            </Text>
+          ) : null}
+
           {scanResult.grandTotal !== null ? (
-            <View style={styles.itemRow}>
-              <Text style={styles.totalLabel}>Receipt Total</Text>
-              <Text style={styles.totalValueSmall}>R{scanResult.grandTotal.toFixed(2)}</Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 1, borderTopColor: t.hair, paddingTop: 12, marginTop: 12 }}>
+              <Text style={{ fontSize: 15, color: t.muted }}>Receipt Total</Text>
+              <Text style={{ fontSize: 15, fontWeight: '600', color: t.ink }}>R{scanResult.grandTotal.toFixed(2)}</Text>
             </View>
           ) : null}
-          <View style={styles.itemRow}>
-            <Text style={styles.totalLabel}>Flagrr Cash Earned</Text>
-            <Text style={styles.totalValue}>+{scanResult.totalPointsAwarded} FC</Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 8, paddingTop: 8, paddingBottom: 4, marginTop: scanResult.grandTotal === null ? 12 : 0, borderTopWidth: scanResult.grandTotal === null ? 1 : 0, borderTopColor: t.hair }}>
+            <Text style={{ fontSize: 16, fontWeight: '600', color: t.ink }}>Flagrr Cash Earned</Text>
+            <Text style={[bentoType.number, { fontSize: 30, lineHeight: 34, color: t.accent }]}>+{scanResult.totalPointsAwarded} FC</Text>
           </View>
-          {earnsOnTotal ? (
-            <Text style={styles.unmatchedHint}>
-              {hasPrepaidEarning
-                ? 'Flagrr Cash is earned on the slip total, plus the club value of pre-paid items.'
-                : 'Flagrr Cash is earned on the slip total.'}
-            </Text>
-          ) : null}
-        </View>
+        </BentoTile>
+      </Appear>
 
-        <Text style={styles.disclaimer}>
-          Extracted details can’t be edited — if something looks wrong, rescan with a clearer photo.
-        </Text>
+      <Text style={{ fontSize: 13, lineHeight: 19, color: t.muted, paddingHorizontal: 4 }}>
+        Extracted details can’t be edited — if something looks wrong, rescan with a clearer photo.
+      </Text>
 
-        <View style={{ height: spacing.lg }} />
-        <PillButton label="Submit Receipt" onPress={handleSubmit} loading={submitting} />
-        <View style={{ height: spacing.xxl }} />
-      </ScrollView>
+      <View style={{ height: 4 }} />
+      <BentoButton label="Submit Receipt" nub onPress={handleSubmit} loading={submitting} />
+      <Pressable onPress={() => navigation.goBack()} accessibilityRole="button" style={{ alignSelf: 'center', paddingVertical: 12, paddingHorizontal: 16 }}>
+        <Text style={{ fontSize: 15, fontWeight: '600', color: t.accent }}>Rescan</Text>
+      </Pressable>
+    </BentoScreen>
+  );
+}
+
+function Detail({ label, value }: { label: string; value: string }) {
+  const { t } = useBento();
+  return (
+    <View style={{ flexDirection: 'row', gap: 14, flexWrap: 'wrap' }}>
+      <Text style={{ fontSize: 14, color: t.muted, minWidth: 104 }}>{label}</Text>
+      <Text style={{ flex: 1, minWidth: 90, fontSize: 14, fontWeight: '600', color: t.ink }}>{value}</Text>
     </View>
   );
 }
 
-function createStyles(colors: ThemeColors) {
-  return StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.background },
-  headerSafeArea: { backgroundColor: colors.clubGreen },
-  content: { padding: screenPadding },
-  receiptImage: { width: '100%', height: 220, borderRadius: radius.md },
-  receiptImagePlaceholder: { backgroundColor: colors.imagePlaceholder, alignItems: 'center', justifyContent: 'center' },
-  placeholderText: { fontFamily: fontFamily.body, color: colors.textSecondary },
-  warningBanner: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 8,
-    backgroundColor: colors.dangerBg,
-    borderRadius: radius.md,
-    padding: spacing.sm + 2,
-    marginTop: spacing.md,
-  },
-  warningText: { flex: 1, fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.negative, lineHeight: 16 },
-  awayClubBanner: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 8,
-    backgroundColor: colors.mintBg,
-    borderRadius: radius.md,
-    padding: spacing.sm + 2,
-    marginTop: spacing.md,
-  },
-  awayClubText: { flex: 1, fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textPrimary, lineHeight: 16 },
-  summaryCard: {
-    backgroundColor: colors.mintBgAlt,
-    borderRadius: radius.lg,
-    padding: spacing.md,
-    marginTop: spacing.md,
-  },
-  summaryLabel: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary },
-  summaryValue: { fontFamily: fontFamily.heading, fontSize: fontSize.cardTitle, color: colors.textPrimary, marginTop: 2 },
-  summaryValueSmall: { fontFamily: fontFamily.bodyMedium, fontSize: fontSize.small, color: colors.textPrimary, marginTop: 2 },
-  noItemsText: { fontFamily: fontFamily.body, fontSize: fontSize.small, color: colors.textSecondary, marginTop: spacing.sm },
-  itemRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing.sm },
-  itemLabel: { fontFamily: fontFamily.body, fontSize: fontSize.small, color: colors.textPrimary },
-  itemMatched: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.clubGreen, marginTop: 1 },
-  itemUnmatched: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary, marginTop: 1 },
-  itemAmount: { fontFamily: fontFamily.bodyMedium, fontSize: fontSize.small, color: colors.textPrimary },
-  unmatchedHint: {
-    fontFamily: fontFamily.body,
-    fontSize: fontSize.tiny,
-    color: colors.textSecondary,
-    marginTop: spacing.sm,
-    lineHeight: 16,
-  },
-  divider: { height: 1, backgroundColor: 'rgba(31,66,52,0.15)', marginVertical: spacing.md },
-  totalLabel: { fontFamily: fontFamily.heading, fontSize: fontSize.label, color: colors.textPrimary },
-  totalValue: { fontFamily: fontFamily.heading, fontSize: fontSize.label, color: colors.clubGreen },
-  totalValueSmall: { fontFamily: fontFamily.bodyMedium, fontSize: fontSize.small, color: colors.textPrimary },
-  disclaimer: {
-    fontFamily: fontFamily.body,
-    fontSize: fontSize.tiny,
-    color: colors.textSecondary,
-    marginTop: spacing.md,
-    textAlign: 'center',
-  },
-});
+function ItemNote({ children, color, icon }: { children: React.ReactNode; color: string; icon?: BentoIconName }) {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 2 }}>
+      {icon ? <BentoIcon name={icon} size={14} color={color} strokeWidth={2.2} /> : null}
+      <Text style={{ flexShrink: 1, fontSize: 13, color }}>{children}</Text>
+    </View>
+  );
+}
+
+function Notice({ children, icon, bg, ink }: { children: React.ReactNode; icon: BentoIconName; bg: string; ink: string }) {
+  return (
+    <View style={{ flexDirection: 'row', gap: 10, paddingVertical: 12, paddingHorizontal: 14, borderRadius: 18, backgroundColor: bg }}>
+      <BentoIcon name={icon} size={18} color={ink} strokeWidth={1.8} />
+      <Text style={{ flex: 1, fontSize: 14, lineHeight: 20, color: ink }}>{children}</Text>
+    </View>
+  );
 }

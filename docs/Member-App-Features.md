@@ -75,6 +75,13 @@ Built only from rounds the member has finished in the Course tab, at home or awa
 ### Scanning a receipt
 
 - Tap the scan action in the centre of the tab bar → camera capture or photo upload. The image is resized to 1800px on the device before upload.
+- Screens (Bento design since 2026-11-24):
+  - **Scan**: full-screen camera with a close button, lime corner frame with a sweeping scan line (still with Reduce Motion), the "Align receipt or QR code" hint, an **Upload from gallery** button and a round shutter.
+  - **Camera permission**: a card reading "Camera access needed — Flagrr needs camera access to scan your receipts and award Flagrr Cash." with **Continue** (asks for access) and **Upload from gallery instead**, plus a close button.
+  - **Reading**: the chosen photo dimmed behind a sheet saying "Reading your receipt…" while the scan runs.
+  - **Review Receipt**: a back button and **Rescan** both return to the camera; a photo thumbnail with Merchant, Receipt Number and Date; each item with "Matched: …", "Pre-paid · Matched: …", "Already earned on another slip today" or "Not eligible for points" and its FC or price; Receipt Total; Flagrr Cash Earned; **Submit Receipt**.
+  - **Receipt submitted**: "+N FC", "Submitted successfully!" and either the added-to-balance message or, for a flagged receipt, "Your receipt is being reviewed" with the manual-review note; **View Current Balance** (Home) and **Submit Another Receipt** (camera).
+  - **Receipt History** (from Profile): a summary of Flagrr Cash from approved receipts submitted this calendar month and how many receipts were submitted this month; each receipt with its date and total, then "+N FC" when approved or a Pending / Under review / Rejected label, any flag note, and **View Photo** (opens the photo in a sheet). With no receipts, an empty card with **Scan a receipt**.
 - The server reads the image (Tesseract OCR by default; Claude vision when `RECEIPT_EXTRACTOR=claude` is set, falling back to Tesseract) and parses merchant name, receipt/transaction/till number, date/time, line items, subtotal, VAT, and grand total.
 - Line items are matched against the club's product/activity catalog (exact, alias, or fuzzy match) to work out the Flagrr Cash the receipt is worth. The basis is the slip's grand total, else the subtotal, else the sum of items.
 - The preview result is cached for 30 minutes, and confirming a scan reuses it. The confirm step re-checks everything server-side rather than trusting the client.

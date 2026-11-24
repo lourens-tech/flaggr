@@ -1,15 +1,13 @@
 import React, { useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, Image, Modal, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { ActivityIndicator, Image, Pressable, Text, View, useWindowDimensions } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/types';
-import { ScreenHeader } from '../../components/common/ScreenHeader';
 import { useApp } from '../../context/AppContext';
+import { useBento } from '../../context/ThemeContext';
 import { showAlert } from '../../utils/alert';
-import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
-import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
+import { bentoBrand, bentoType } from '../../theme/bento';
 import type { Receipt } from '../../data/types';
+import { Appear, BentoButton, BentoIcon, BentoScreen, BentoSheet, BentoTile } from '../../components/bento';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ReceiptHistory'>;
 
@@ -24,17 +22,17 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 export function ReceiptHistoryScreen({ navigation }: Props) {
-  const colors = useThemeColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { t } = useBento();
+  const { height } = useWindowDimensions();
   const { receipts, getReceiptImage } = useApp();
   const [photoLoadingId, setPhotoLoadingId] = useState<string | null>(null);
-  const [photoModal, setPhotoModal] = useState<{ imageData: string | null } | null>(null);
+  const [photoModal, setPhotoModal] = useState<{ imageData: string | null; receipt: Receipt } | null>(null);
 
   const handleViewPhoto = async (receipt: Receipt) => {
     setPhotoLoadingId(receipt.id);
     try {
       const imageData = await getReceiptImage(receipt.id);
-      setPhotoModal({ imageData });
+      setPhotoModal({ imageData, receipt });
     } catch {
       showAlert('Couldn’t load photo', 'Something went wrong. Please try again.');
     } finally {
@@ -42,141 +40,146 @@ export function ReceiptHistoryScreen({ navigation }: Props) {
     }
   };
 
-  const renderItem = ({ item }: { item: Receipt }) => (
-    <View style={styles.card}>
-      <View style={styles.cardTopRow}>
-        <Text style={styles.cardTitle} numberOfLines={1}>{item.courseName || 'Unrecognized merchant'}</Text>
-        <View style={styles.statusBadge}>
-          <Text style={styles.statusBadgeText}>{STATUS_LABELS[item.status] ?? item.status}</Text>
+  // Summary tile: Flagrr Cash from approved receipts submitted this calendar
+  // month, and how many receipts were submitted this month.
+  const summary = useMemo(() => {
+    const now = new Date();
+    const thisMonth = receipts.filter((r) => {
+      const d = new Date(r.submittedAt);
+      return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+    });
+    const earned = thisMonth.reduce((sum, r) => sum + (r.status === 'approved' && r.pointsAwarded ? r.pointsAwarded : 0), 0);
+    return { month: now.toLocaleDateString(undefined, { month: 'long' }), earned, count: thisMonth.length };
+  }, [receipts]);
+
+  const pill = (label: string, bg: string, fg: string) => (
+    <View style={{ paddingVertical: 3, paddingHorizontal: 9, borderRadius: 999, backgroundColor: bg }}>
+      <Text style={{ fontSize: 12, fontWeight: '600', color: fg }}>{label}</Text>
+    </View>
+  );
+
+  const renderRow = (item: Receipt, index: number) => {
+    const approved = item.status === 'approved';
+    const badge = approved && item.pointsAwarded !== null
+      ? null
+      : approved
+        ? pill(STATUS_LABELS.approved, t.accentSoft, t.accent)
+        : item.status === 'rejected'
+        ? pill(STATUS_LABELS.rejected, t.seg, t.negative)
+        : pill(item.flagged ? 'Under review' : STATUS_LABELS[item.status] ?? item.status, t.warnBg, t.warnInk);
+    return (
+      <View key={item.id} style={{ paddingVertical: 13, borderTopWidth: index ? 1 : 0, borderTopColor: t.hair }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <View style={{ width: 40, height: 40, borderRadius: 13, backgroundColor: t.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
+            <BentoIcon name="receipt" size={20} color={t.accent} strokeWidth={1.7} />
+          </View>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={{ fontSize: 15, fontWeight: '600', color: t.ink }} numberOfLines={2}>
+              {item.courseName || 'Unrecognized merchant'}
+            </Text>
+            <Text style={{ fontSize: 13, color: t.muted, marginTop: 2 }}>
+              {formatDate(item.submittedAt)} · R{item.total.toFixed(2)}
+            </Text>
+          </View>
+          {badge ?? (
+            <Text style={{ fontFamily: 'Fraunces_600SemiBold', fontSize: 17, color: t.accent, fontVariant: ['tabular-nums'] }}>
+              +{item.pointsAwarded?.toLocaleString()} FC
+            </Text>
+          )}
+        </View>
+        <View style={{ marginLeft: 52, marginTop: 6, gap: 4 }}>
+          {!approved && item.pointsAwarded !== null ? (
+            <Text style={{ fontSize: 13, color: t.muted }}>
+              {item.pointsAwarded} FC {item.status === 'pending' ? 'pending' : 'earned'}
+            </Text>
+          ) : null}
+          {item.flagged ? (
+            <Text style={{ fontSize: 13, lineHeight: 18, color: t.muted }}>
+              {item.status === 'pending'
+                ? `Flagged for manual review${item.flagReason ? ` (${item.flagReason})` : ''} — your Flagrr Cash will be added once it's approved.`
+                : `Flagged for manual review${item.flagReason ? ` (${item.flagReason})` : ''} — your Flagrr Cash has already been credited, no action is needed.`}
+            </Text>
+          ) : null}
+          <Pressable
+            onPress={() => handleViewPhoto(item)}
+            disabled={photoLoadingId === item.id}
+            accessibilityRole="button"
+            accessibilityLabel={`View photo of ${item.courseName || 'receipt'}`}
+            hitSlop={{ top: 12, bottom: 12, right: 12 }}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', minHeight: 24 }}
+          >
+            {photoLoadingId === item.id ? (
+              <ActivityIndicator color={t.accent} size="small" />
+            ) : (
+              <>
+                <BentoIcon name="gallery" size={15} color={t.accent} strokeWidth={1.8} />
+                <Text style={{ fontSize: 13, fontWeight: '600', color: t.accent }}>View Photo</Text>
+              </>
+            )}
+          </Pressable>
         </View>
       </View>
-      {item.flagged ? (
-        <View style={styles.reviewBadge}>
-          <Ionicons name="alert-circle-outline" size={12} color={colors.warning} />
-          <Text style={styles.reviewBadgeText}>Under review</Text>
-        </View>
-      ) : null}
-      <Text style={styles.cardMeta}>{formatDate(item.submittedAt)}</Text>
-      <Text style={styles.cardBody}>
-        R{item.total.toFixed(2)}
-        {item.pointsAwarded !== null
-          ? ` · ${item.pointsAwarded} FC ${item.status === 'pending' ? 'pending' : 'earned'}`
-          : ''}
-      </Text>
-      {item.flagged ? (
-        <Text style={styles.reviewNote}>
-          {item.status === 'pending'
-            ? `Flagged for manual review${item.flagReason ? ` (${item.flagReason})` : ''} — your Flagrr Cash will be added once it's approved.`
-            : `Flagged for manual review${item.flagReason ? ` (${item.flagReason})` : ''} — your Flagrr Cash has already been credited, no action is needed.`}
-        </Text>
-      ) : null}
-      <TouchableOpacity
-        style={styles.viewPhotoButton}
-        onPress={() => handleViewPhoto(item)}
-        disabled={photoLoadingId === item.id}
-      >
-        {photoLoadingId === item.id ? (
-          <ActivityIndicator color={colors.clubGreen} size="small" />
-        ) : (
-          <>
-            <Ionicons name="image-outline" size={15} color={colors.clubGreen} />
-            <Text style={styles.viewPhotoText}>View Photo</Text>
-          </>
-        )}
-      </TouchableOpacity>
-    </View>
-  );
+    );
+  };
 
   return (
-    <View style={styles.screen}>
-      <StatusBar barStyle="light-content" />
-      <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
-        <ScreenHeader title="Receipt History" onBack={() => navigation.goBack()} />
-      </SafeAreaView>
-
-      <FlatList
-        data={receipts}
-        keyExtractor={(r) => r.id}
-        renderItem={renderItem}
-        contentContainerStyle={styles.listContent}
-        ListEmptyComponent={
-          <Text style={styles.emptyText}>No receipts yet — scan one from the Home screen to get started.</Text>
-        }
-      />
-
-      <Modal visible={photoModal !== null} transparent animationType="fade" onRequestClose={() => setPhotoModal(null)}>
-        <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={() => setPhotoModal(null)}>
-          <View style={styles.photoSheet}>
-            <View style={styles.photoSheetHeader}>
-              <Text style={styles.photoSheetTitle}>Receipt Photo</Text>
-              <TouchableOpacity onPress={() => setPhotoModal(null)} hitSlop={8}>
-                <Ionicons name="close" size={22} color={colors.textPrimary} />
-              </TouchableOpacity>
+    <BentoScreen title="Receipt History" onBack={() => navigation.goBack()}>
+      <View style={{ height: 6 }} />
+      {receipts.length === 0 ? (
+        <Appear>
+          <BentoTile padding={18}>
+            <View style={{ alignItems: 'center', paddingVertical: 18, paddingHorizontal: 8 }}>
+              <View style={{ width: 64, height: 64, borderRadius: 22, backgroundColor: t.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
+                <BentoIcon name="receipt" size={30} color={t.accent} strokeWidth={1.7} />
+              </View>
+              <Text style={[bentoType.number, { fontSize: 22, color: t.ink, marginTop: 14, textAlign: 'center' }]}>No receipts yet</Text>
+              <Text style={[bentoType.body, { color: t.muted, marginTop: 6, textAlign: 'center', maxWidth: 270 }]}>
+                No receipts yet — scan one from the Home screen to get started.
+              </Text>
+              <BentoButton label="Scan a receipt" nub compact onPress={() => navigation.navigate('ScanReceipt')} style={{ marginTop: 18, alignSelf: 'stretch' }} />
             </View>
-            {photoModal?.imageData ? (
-              <Image source={{ uri: photoModal.imageData }} style={styles.photoImage} resizeMode="contain" />
-            ) : (
-              <Text style={styles.emptyText}>No photo was saved for this receipt.</Text>
-            )}
-          </View>
-        </TouchableOpacity>
-      </Modal>
-    </View>
-  );
-}
+          </BentoTile>
+        </Appear>
+      ) : (
+        <>
+          <Appear>
+            <BentoTile tone="hero" padding={0}>
+              <View style={{ paddingVertical: 16, paddingHorizontal: 18, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)' }}>Earned from receipts · {summary.month}</Text>
+                  <Text style={[bentoType.number, { fontSize: 30, lineHeight: 34, color: '#FFFFFF', marginTop: 4 }]}>{summary.earned.toLocaleString()} FC</Text>
+                </View>
+                <View style={{ alignItems: 'flex-end' }}>
+                  <Text style={[bentoType.number, { fontSize: 22, color: bentoBrand.lime }]}>{summary.count}</Text>
+                  <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)' }}>{summary.count === 1 ? 'receipt' : 'receipts'}</Text>
+                </View>
+              </View>
+            </BentoTile>
+          </Appear>
+          <Appear>
+            <BentoTile padding={0}>
+              <View style={{ paddingHorizontal: 16 }}>{receipts.map(renderRow)}</View>
+            </BentoTile>
+          </Appear>
+        </>
+      )}
 
-function createStyles(colors: ThemeColors) {
-  return StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.background },
-  headerSafeArea: { backgroundColor: colors.clubGreen },
-  listContent: { padding: screenPadding, gap: spacing.sm },
-  card: {
-    backgroundColor: colors.mintBg,
-    borderWidth: 0.5,
-    borderColor: colors.clubGreen,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
-    gap: 4,
-  },
-  cardTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
-  cardTitle: { flex: 1, fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.textPrimary },
-  cardMeta: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary },
-  cardBody: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textPrimary },
-  statusBadge: { backgroundColor: colors.background, borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 3 },
-  statusBadgeText: { fontFamily: fontFamily.bodySemiBold, fontSize: 10, color: colors.textPrimary },
-  reviewBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    alignSelf: 'flex-start',
-    backgroundColor: colors.warningBg,
-    borderRadius: radius.pill,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-  },
-  reviewBadgeText: { fontFamily: fontFamily.bodySemiBold, fontSize: 10, color: colors.warning },
-  reviewNote: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary, fontStyle: 'italic' },
-  viewPhotoButton: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: spacing.xs, alignSelf: 'flex-start' },
-  viewPhotoText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.tiny, color: colors.clubGreen },
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center', padding: screenPadding },
-  photoSheet: {
-    backgroundColor: colors.background,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    width: '100%',
-    maxWidth: 480,
-    maxHeight: '80%',
-  },
-  photoSheetHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.sm },
-  photoSheetTitle: { fontFamily: fontFamily.heading, fontSize: fontSize.cardTitle, color: colors.textPrimary },
-  photoImage: { width: '100%', height: 420, borderRadius: radius.sm },
-  emptyText: {
-    fontFamily: fontFamily.body,
-    fontSize: fontSize.body,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginTop: spacing.xl,
-  },
-});
+      <BentoSheet
+        visible={photoModal !== null}
+        title="Receipt Photo"
+        subtitle={
+          photoModal
+            ? `${photoModal.receipt.courseName || 'Unrecognized merchant'} · ${formatDate(photoModal.receipt.submittedAt)}${photoModal.receipt.pointsAwarded !== null ? ` · ${photoModal.receipt.status === 'approved' ? '+' : ''}${photoModal.receipt.pointsAwarded} FC` : ''}`
+            : undefined
+        }
+        onClose={() => setPhotoModal(null)}
+      >
+        {photoModal?.imageData ? (
+          <Image source={{ uri: photoModal.imageData }} style={{ width: '100%', height: Math.round(height * 0.55), borderRadius: 18, backgroundColor: t.seg }} resizeMode="contain" accessibilityLabel="Receipt photo" />
+        ) : (
+          <Text style={[bentoType.body, { color: t.muted }]}>No photo was saved for this receipt.</Text>
+        )}
+      </BentoSheet>
+    </BentoScreen>
+  );
 }
