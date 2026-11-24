@@ -658,24 +658,52 @@ test.describe('Notifications', () => {
     await expect(text(page, 'Yesterday note')).toBeVisible();
   });
 
+  // Bento restyle (owner rule: match the boards): the icons are line SVGs now, not Ionicons glyphs, so the
+  // read/unread state is read from the row's status icon label and the chevron is the row's second icon.
+  const nRow = (page: Page, id: string) => vis(page.getByTestId(`notification-${id}`));
+
   test('Notifications › unread rows show a bell icon, read rows a check icon; enquiry rows a chevron', async ({ page }) => {
     await openSignedIn(page);
     await openNotifications(page);
-    const row = (title: string) => vis(page.getByText(title, { exact: true })).first().locator('xpath=../..');
-    await expect(row('Flagrr Cash earned')).toContainText(GLYPH.bell);
-    await expect(row('Welcome to Flagrr')).toContainText(GLYPH.checkmarkCircleOutline);
-    await expect(row('Your club replied')).toContainText(GLYPH.chevronForward);
-    await expect(row('Your club replied')).not.toContainText('View');
+    await expect(nRow(page, 'n1').getByRole('img', { name: 'Unread', exact: true })).toBeVisible(); // restyle: was the bell glyph
+    await expect(nRow(page, 'n3').getByRole('img', { name: 'Read', exact: true })).toBeVisible(); // restyle: was the check glyph
+    await expect(nRow(page, 'n2')).toHaveAccessibleName('Your club replied. Thanks, we have booked your tee time.');
+    await expect(nRow(page, 'n2').locator('svg')).toHaveCount(2); // restyle: status icon + chevron (was the chevron glyph)
+    await expect(nRow(page, 'n2')).not.toContainText('View');
+  });
+
+  test('Notifications › each row shows its time: clock time today, weekday this week, date earlier (boards)', async ({ page }) => {
+    await openSignedIn(page);
+    await openNotifications(page);
+    const dates = await page.request.get(`${API}/api/notifications`, { headers: { Authorization: `Bearer ${TOKEN}` } }).then((r) => r.json());
+    const expected = await page.evaluate((list: Array<{ id: string; date: string }>) => {
+      const d = (id: string) => new Date(list.find((n) => n.id === id)!.date);
+      return {
+        n1: d('n1').toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }),
+        n2: d('n2').toLocaleDateString(undefined, { weekday: 'short' }),
+        n3: d('n3').toLocaleDateString(undefined, { day: 'numeric', month: 'short' }),
+      };
+    }, dates);
+    for (const [id, time] of Object.entries(expected)) await expect(nRow(page, id).getByText(time, { exact: true })).toBeVisible();
+  });
+
+  test('Notifications › the header gear opens Notification Preferences (approved addition)', async ({ page }) => {
+    await openSignedIn(page);
+    await openNotifications(page);
+    await button(page, 'Notification Preferences').click();
+    await expect(heading(page, 'Notification Preferences')).toBeVisible();
+    await button(page, 'Back').click();
+    await expect(heading(page, 'Notifications')).toBeVisible();
   });
 
   test('Notifications › “View” marks read only (server call, Home badge drops, no navigation)', async ({ page }) => {
     await openSignedIn(page);
     await openNotifications(page);
     const req = page.waitForRequest((r) => r.url().includes('/api/notifications?action=read'));
-    const row = vis(page.getByText('Flagrr Cash earned', { exact: true })).first().locator('xpath=../..');
+    const row = nRow(page, 'n1'); // restyle: rows carry a test id (the title's grandparent is no longer the row)
     await row.getByText('View', { exact: true }).click();
     expect((await req).postDataJSON()).toEqual({ id: 'n1' });
-    await expect(row).toContainText(GLYPH.checkmarkCircleOutline);
+    await expect(row.getByRole('img', { name: 'Read', exact: true })).toBeVisible(); // restyle: was the check glyph
     await expect(heading(page, 'Notifications')).toBeVisible();
     await button(page, 'Back').click();
     await expect(bell(page)).toHaveAccessibleName('Notifications, 1 unread');
@@ -713,12 +741,15 @@ test.describe('Notifications', () => {
     await expect(page.getByRole('alert')).toHaveCount(0);
   });
 
-  test('Notifications › empty list is a blank screen (no groups, no message)', async ({ page }) => {
+  // Owner decision 24 Nov 2026: the empty list shows the board's empty state (was a blank screen).
+  test('Notifications › empty list shows “No notifications yet” (no groups)', async ({ page }) => {
     await scenario(page, { noNotifications: true });
     await openSignedIn(page);
     await openNotifications(page);
     await expect(vis(page.getByText(/^(Today|Yesterday|This Week|Earlier)$/))).toHaveCount(0);
     await expect(vis(page.getByText('View', { exact: true }))).toHaveCount(0);
+    await expect(heading(page, 'No notifications yet')).toBeVisible();
+    await expect(text(page, 'Updates about your receipts, rewards and enquiries will show here.')).toBeVisible();
   });
 
   test('Notifications › list is not refetched when the screen opens', async ({ page }) => {
@@ -749,13 +780,26 @@ test.describe('Member Tiers', () => {
     await expect(heading(page, 'Member Tiers')).toBeVisible();
   }
 
-  test('Tiers › points card: balance, “Gold Member”, progress line “1,786 pts to Platinum”', async ({ page }) => {
+  // Owner decisions 24 Nov 2026 (Member Tiers): the board's layout wins (quarterly progress, all four tiers
+  // as rows instead of the tier tabs); perks keep the multiplier but drop rands; no "points" for Flagrr Cash.
+  test('Tiers › balance card: balance, tier and multiplier (board: “Gold · earning ×1.5”)', async ({ page }) => {
     await openSignedIn(page);
     await openTiers(page);
-    await expect(text(page, '12,480')).toBeVisible();
+    await expect(vis(page.getByLabel('12,480 Flagrr Cash'))).toHaveText('12,480');
     await expect(text(page, 'Flagrr Cash')).toBeVisible();
-    await expect(text(page, 'Gold Member')).toBeVisible();
-    await expect(text(page, '1,786 pts to Platinum')).toBeVisible();
+    await expect(text(page, 'Gold')).toBeVisible(); // decision (board layout): was the “Gold Member” badge
+    await expect(text(page, 'earning ×1.5')).toBeVisible();
+  });
+
+  test('Tiers › quarterly progress: “1,786 FC to Platinum”, this quarter’s Flagrr Cash and the Platinum threshold', async ({ page }) => {
+    await openSignedIn(page);
+    await openTiers(page);
+    await expect(text(page, 'How to Reach the Next Tier')).toBeVisible();
+    await expect(text(page, '1,786 FC to Platinum')).toBeVisible(); // decision (no “points”, board layout): was “1,786 pts to Platinum”
+    await expect(text(page, 'Earn it before this quarter ends.')).toBeVisible();
+    await expect(text(page, '13,214 FC this quarter')).toBeVisible(); // 15,000 − 1,786 (api/_lib/tiers.ts)
+    await expect(text(page, '15,000')).toBeVisible();
+    expect(await tierFill(page)).toBe('64%');
   });
 
   test('Tiers › “How to Reach the Next Tier” with 01 Play / 02 Earn / 03 Upgrade', async ({ page }) => {
@@ -768,47 +812,46 @@ test.describe('Member Tiers', () => {
     }
   });
 
-  const PERKS: Record<string, string[]> = {
-    Bronze: ['Earn 1 Flagrr Cash per R1 spent', 'Birthday reward (50 Flagrr Cash)'],
-    Silver: ['1.2x Flagrr Cash per R1 spent', 'Birthday reward (100 Flagrr Cash)'],
-    Gold: ['1.5x Flagrr Cash per R1 spent', 'Birthday reward (150 Flagrr Cash)', 'R100 bar voucher each quarter you qualify'],
-    Platinum: ['1.7x Flagrr Cash per R1 spent', 'Birthday reward (200 Flagrr Cash)', 'R200 bar voucher each quarter you qualify'],
+  // Decision: perks keep the multiplier, drop rands (was “… per R1 spent”, “R100/R200 bar voucher …”); birthday
+  // lines use the AppTiers board's wording (was “Birthday reward (N Flagrr Cash)”).
+  const TIERS: Record<string, { mult: string; from: string; perks: string[] }> = {
+    Bronze: { mult: '×1', from: 'From 0 FC', perks: ['Flagrr Cash on your receipts', 'Birthday reward of 50 FC'] },
+    Silver: { mult: '×1.2', from: 'From 5,000 FC a quarter', perks: ['1.2x Flagrr Cash on your receipts', 'Birthday reward of 100 FC'] },
+    Gold: { mult: '×1.5', from: 'From 10,000 FC a quarter', perks: ['1.5x Flagrr Cash on your receipts', 'Birthday reward of 150 FC', 'A bar voucher each quarter you qualify'] },
+    Platinum: { mult: '×1.7', from: 'From 15,000 FC a quarter', perks: ['1.7x Flagrr Cash on your receipts', 'Birthday reward of 200 FC', 'A bar voucher each quarter you qualify'] },
   };
-  async function expectTier(page: Page, name: string) {
-    await expect(text(page, `${name.toUpperCase()} MEMBER`)).toBeVisible();
-    await expect(text(page, `${name} status recognises loyal players and gives them more value every time they play.`)).toBeVisible();
-    for (const p of PERKS[name]) await expect(text(page, p)).toBeVisible();
-    for (const other of Object.keys(PERKS).filter((n) => n !== name)) {
-      for (const p of PERKS[other].filter((x) => !PERKS[name].includes(x))) await expect(vis(page.getByText(p, { exact: true }))).toHaveCount(0);
+  /** The progress bar's fill width (FillBar's accessibilityValue is not rendered as aria-valuenow on web). */
+  const tierFill = (page: Page) => vis(page.getByRole('progressbar', { name: 'Tier progress' })).locator('> div').first().evaluate((el) => (el as HTMLElement).style.width);
+  const tierRow = (page: Page, name: string) => vis(page.getByTestId(`tier-${name}`));
+  async function expectTierRows(page: Page, current: string, next: string | null) {
+    await expect(text(page, 'Tier Benefits')).toBeVisible();
+    for (const [name, t] of Object.entries(TIERS)) {
+      const row = tierRow(page, name);
+      await expect(row.getByText(name, { exact: true })).toBeVisible();
+      await expect(row.getByText(t.mult, { exact: true })).toBeVisible();
+      await expect(row.getByText(t.from, { exact: true })).toBeVisible();
+      for (const p of t.perks) await expect(row.getByText(p, { exact: true })).toBeVisible();
+      await expect(row.getByText('Current', { exact: true })).toHaveCount(name === current ? 1 : 0);
+      await expect(row.getByText('Next', { exact: true })).toHaveCount(name === next ? 1 : 0);
     }
+    await expect(vis(page.getByText(/R1\b|R100|R200|per R1/))).toHaveCount(0); // brand kit: no rands
   }
 
-  test('Tiers › “Tier Benefits” defaults to the member’s own tier (Gold) with its perks', async ({ page }) => {
+  test('Tiers › “Tier Benefits” lists all four tiers with multiplier, threshold and perks; Gold is Current, Platinum Next', async ({ page }) => {
     await openSignedIn(page);
     await openTiers(page);
-    await expect(text(page, 'Tier Benefits')).toBeVisible();
-    for (const n of Object.keys(PERKS)) await expect(text(page, n)).toBeVisible();
-    await expectTier(page, 'Gold');
+    await expectTierRows(page, 'Gold', 'Platinum');
   });
 
-  test('Tiers › each tier tab shows that tier’s pill, description and perks', async ({ page }) => {
+  test('Tiers › a Silver member sees Silver marked Current', async ({ page }) => {
+    await patchMe(page, (me) => { me.user.tier = 'Silver'; me.points.nextTier = 'Gold'; });
     await openSignedIn(page);
     await openTiers(page);
-    for (const n of ['Bronze', 'Silver', 'Platinum', 'Gold']) {
-      await text(page, n).click();
-      await expectTier(page, n);
-    }
+    await expect(text(page, 'earning ×1.2')).toBeVisible();
+    await expectTierRows(page, 'Silver', 'Gold');
   });
 
-  test('Tiers › a Silver member sees Silver selected by default', async ({ page }) => {
-    await patchMe(page, (me) => { me.user.tier = 'Silver'; });
-    await openSignedIn(page);
-    await openTiers(page);
-    await expect(text(page, 'Silver Member')).toBeVisible();
-    await expectTier(page, 'Silver');
-  });
-
-  test('Tiers › unverified banner shows only when membership is not verified', async ({ page }) => {
+  test('Tiers › unverified banner shows only when membership is not verified; no quarterly figures then', async ({ page }) => {
     const banner = "Your club hasn't verified your membership yet, so tier progress is on hold — you can still earn and redeem Flagrr Cash as normal. Ask your golf club to add you to their member list.";
     await openSignedIn(page);
     await openTiers(page);
@@ -817,15 +860,21 @@ test.describe('Member Tiers', () => {
     await page.reload();
     await openTiers(page);
     await expect(text(page, banner)).toBeVisible();
+    // An unverified member is held at Bronze whatever they earn (api/_lib/tiers.ts), so the quarter's figures aren't shown.
+    await expect(vis(page.getByText(/FC this quarter$/))).toHaveCount(0);
   });
 
-  test('Tiers › top tier renders today’s “0 pts to ” line (nextTier null; known bug)', async ({ page }) => {
+  // Decision (board G-A-TiersTop): the top tier reads “You’ve reached the top tier” (was the broken “0 pts to ” line).
+  test('Tiers › top tier reads “You’ve reached the top tier” with a full bar; Platinum is Current, no Next', async ({ page }) => {
     await scenario(page, { topTier: true });
     await openSignedIn(page);
     await openTiers(page);
-    await expect(text(page, 'Platinum Member')).toBeVisible();
-    await expect(text(page, /^0 pts to\s*$/)).toBeVisible();
-    await expectTier(page, 'Platinum');
+    await expect(text(page, 'Platinum')).toBeVisible();
+    await expect(text(page, 'earning ×1.7')).toBeVisible();
+    await expect(text(page, 'You’ve reached the top tier')).toBeVisible();
+    await expect(vis(page.getByText(/pts to/))).toHaveCount(0);
+    expect(await tierFill(page)).toBe('100%');
+    await expectTierRows(page, 'Platinum', null);
   });
 
   test('Tiers › Back returns to Home', async ({ page }) => {

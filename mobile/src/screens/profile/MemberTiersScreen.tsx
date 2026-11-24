@@ -1,18 +1,12 @@
-import React, { useState, useMemo } from 'react';
-import { ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
+import React from 'react';
+import { Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/types';
-import { ScreenHeader } from '../../components/common/ScreenHeader';
-import { ProgressBar } from '../../components/common/ProgressBar';
 import { useApp } from '../../context/AppContext';
+import { useBento } from '../../context/ThemeContext';
 import { memberTiers } from '../../data/mockData';
-import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
-import type { ThemeColors } from '../../context/ThemeContext';
-import { systemFonts, useBentoLegacy } from '../../components/bento/legacy';
-import { CountUp } from '../../components/bento';
+import { bentoBrand, bentoType } from '../../theme/bento';
+import { Appear, BentoIcon, BentoScreen, BentoTile, CountUp, FillBar, StatusPill } from '../../components/bento';
 import type { TierName } from '../../data/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'MemberTiers'>;
@@ -23,196 +17,146 @@ const STEPS = [
   { number: '03', title: 'Upgrade', body: 'As your activity grows, unlock the next tier and enjoy enhanced benefits.' },
 ];
 
+// Tier multipliers for the badges and the balance card: the ones the server applies
+// (api/_lib/tiers.ts TIER_MULTIPLIERS). The perk lines are memberTiers' perks
+// (data/mockData.ts), worded per the owner's decision of 24 Nov 2026: keep the
+// multiplier, drop rands.
+const MULTIPLIER: Record<TierName, number> = { Bronze: 1, Silver: 1.2, Gold: 1.5, Platinum: 1.7 };
+// Tier badge fills, copied from the AppTiers boards (the same in light and dark).
+// Darker than the brand kit's tier marks so the white multiplier stays readable.
+const TIER_FILL: Record<TierName, string> = { Bronze: '#A0693A', Silver: '#8E9894', Gold: '#B8862E', Platinum: '#5C625E' };
+
 export function MemberTiersScreen({ navigation }: Props) {
-  const { colors, scheme } = useBentoLegacy();
-  const styles = useMemo(() => systemFonts(createStyles(colors), { minFontSize: 12 }), [colors]);
+  const { t } = useBento();
   const { user, points } = useApp();
-  const [selectedTier, setSelectedTier] = useState<TierName>(user.tier);
-  const tier = memberTiers.find((t) => t.name === selectedTier) ?? memberTiers[0];
+  const topTier = points.nextTier === null;
+  const next = memberTiers.find((x) => x.name === points.nextTier) ?? null;
+  // Flagrr Cash earned this quarter. The server qualifies tiers on FC earned per
+  // calendar quarter and sends pointsToNextTier = next threshold − earned this quarter
+  // (api/_lib/tiers.ts), so this is exact for a verified member below the top tier.
+  // An unverified member is held at Bronze whatever they earn, so it isn't shown then.
+  const quarterEarned = next && user.verifiedMember ? Math.max(0, next.minPoints - points.pointsToNextTier) : null;
 
   return (
-    <View style={styles.screen}>
-      <StatusBar barStyle={scheme === 'dark' ? 'light-content' : 'dark-content'} />
-      <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
-        <ScreenHeader title="Member Tiers" onBack={() => navigation.goBack()} />
-      </SafeAreaView>
+    <BentoScreen title="Member Tiers" onBack={() => navigation.goBack()}>
+      <View style={{ height: 4 }} />
 
-      <ScrollView showsVerticalScrollIndicator={false}>
-        <View style={styles.pointsCard}>
-          <View style={styles.pointsHeaderRow}>
-            <View style={styles.pointsSummary}>
-              <MaterialCommunityIcons name="cards" size={20} color={colors.clubGreen} />
-              <CountUp value={points.balance} style={styles.pointsValue} />
-              <Text style={styles.pointsLabel}>Flagrr Cash</Text>
+      {/* Balance and tier */}
+      <Appear>
+        <BentoTile tone="hero" padding={18}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+            <View style={{ flexShrink: 1 }}>
+              <Text style={{ fontSize: 14, color: t.onHeroMuted }}>Flagrr Cash</Text>
+              <CountUp
+                value={points.balance}
+                accessibilityLabel={`${points.balance.toLocaleString()} Flagrr Cash`}
+                style={[bentoType.number, { fontSize: 40, lineHeight: 42, color: t.onHero, marginTop: 6 }]}
+              />
             </View>
-            <LinearGradient
-              colors={[colors.goldGradientStart, colors.goldGradientEnd]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.tierBadge}
-            >
-              <Text style={styles.tierBadgeText}>{user.tier} Member</Text>
-              <MaterialCommunityIcons name="crown" size={13} color={colors.white} />
-            </LinearGradient>
+            <View style={{ alignItems: 'flex-end' }}>
+              <Text style={[bentoType.number, { fontSize: 24, lineHeight: 28, color: bentoBrand.lime }]}>{user.tier}</Text>
+              {MULTIPLIER[user.tier] ? <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)' }}>earning ×{MULTIPLIER[user.tier]}</Text> : null}
+            </View>
           </View>
-          <ProgressBar progress={points.tierProgress} />
-          <Text style={styles.progressFooterText}>
-            {points.pointsToNextTier.toLocaleString()} pts to {points.nextTier}
+        </BentoTile>
+      </Appear>
+
+      {!user.verifiedMember ? (
+        <View style={{ flexDirection: 'row', gap: 10, alignItems: 'flex-start', paddingVertical: 14, paddingHorizontal: 16, borderRadius: 20, backgroundColor: t.warnBg }}>
+          <BentoIcon name="info" size={18} color={t.warnInk} strokeWidth={1.8} />
+          <Text style={{ flex: 1, fontSize: 14, lineHeight: 20, color: t.warnInk }}>
+            Your club hasn't verified your membership yet, so tier progress is on hold — you can still earn and redeem Flagrr Cash as normal. Ask your golf club to add you to their member list.
           </Text>
         </View>
+      ) : null}
 
-        {!user.verifiedMember ? (
-          <View style={styles.unverifiedBanner}>
-            <Ionicons name="alert-circle-outline" size={18} color={colors.darkGreen} />
-            <Text style={styles.unverifiedBannerText}>
-              Your club hasn't verified your membership yet, so tier progress is on hold — you can still earn and
-              redeem Flagrr Cash as normal. Ask your golf club to add you to their member list.
-            </Text>
-          </View>
-        ) : null}
-
-        <View style={styles.howToSection}>
-          <Text style={styles.howToTitle}>How to Reach the Next Tier</Text>
-          <View style={styles.stepsRow}>
-            {STEPS.map((step) => (
-              <View key={step.number} style={styles.stepItem}>
-                <View style={styles.stepCircle}>
-                  <Text style={styles.stepNumber}>{step.number}</Text>
+      {/* Quarterly progress to the next tier, then the three steps */}
+      <Appear>
+        <BentoTile padding={18}>
+          <Text accessibilityRole="header" style={{ fontSize: 16, fontWeight: '600', color: t.ink }}>
+            How to Reach the Next Tier
+          </Text>
+          <Text style={[bentoType.number, { fontSize: 26, lineHeight: 30, letterSpacing: -0.025 * 26, color: t.ink, marginTop: 10 }]}>
+            {topTier ? 'You’ve reached the top tier' : `${points.pointsToNextTier.toLocaleString()} FC to ${points.nextTier}`}
+          </Text>
+          {quarterEarned !== null ? <Text style={{ fontSize: 14, lineHeight: 20, color: t.muted, marginTop: 4 }}>Earn it before this quarter ends.</Text> : null}
+          <FillBar
+            progress={topTier ? 1 : points.tierProgress}
+            color={t.accent}
+            track={t.track}
+            height={10}
+            style={{ marginTop: quarterEarned !== null ? 16 : 14 }}
+            accessibilityLabel="Tier progress"
+          />
+          {quarterEarned !== null && next ? (
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 8, marginTop: 8 }}>
+              <Text style={{ fontSize: 13, color: t.muted }}>{quarterEarned.toLocaleString()} FC this quarter</Text>
+              <Text style={{ fontSize: 13, color: t.muted }}>{next.minPoints.toLocaleString()}</Text>
+            </View>
+          ) : null}
+          <View style={{ marginTop: 16 }}>
+            {STEPS.map((s) => (
+              <View key={s.number} style={{ flexDirection: 'row', gap: 14, paddingVertical: 12, borderTopWidth: 1, borderTopColor: t.hair }}>
+                <Text style={[bentoType.number, { fontSize: 20, lineHeight: 24, letterSpacing: -0.5, color: t.accent, width: 30 }]}>{s.number}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 15, fontWeight: '600', color: t.ink }}>{s.title}</Text>
+                  <Text style={{ fontSize: 14, lineHeight: 20, color: t.muted, marginTop: 2 }}>{s.body}</Text>
                 </View>
-                <Text style={styles.stepTitle}>{step.title}</Text>
-                <Text style={styles.stepBody}>{step.body}</Text>
               </View>
             ))}
           </View>
-        </View>
+        </BentoTile>
+      </Appear>
 
-        <View style={styles.benefitsSection}>
-          <Text style={styles.benefitsTitle}>Tier Benefits</Text>
-
-          <View style={styles.tabRow}>
-            {memberTiers.map((t) => (
-              <TouchableOpacity key={t.name} onPress={() => setSelectedTier(t.name)} style={styles.tab}>
-                <Text style={[styles.tabText, selectedTier === t.name && styles.tabTextActive]}>{t.name}</Text>
-                {selectedTier === t.name ? <View style={styles.tabIndicator} /> : null}
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          <LinearGradient
-            colors={[colors.goldGradientStart, colors.goldGradientEnd]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.tierPill}
-          >
-            <Text style={styles.tierPillText}>{tier.name.toUpperCase()} MEMBER</Text>
-            <MaterialCommunityIcons name="crown" size={13} color={colors.white} />
-          </LinearGradient>
-
-          <Text style={styles.tierDescription}>
-            {tier.name} status recognises loyal players and gives them more value every time they play.
+      {/* All four tiers as rows (owner decision 24 Nov 2026: the board's layout replaces the tier tabs). */}
+      <Appear>
+        <BentoTile padding={0} innerStyle={{ paddingTop: 4, paddingBottom: 4, paddingHorizontal: 16 }}>
+          <Text accessibilityRole="header" style={{ fontSize: 16, fontWeight: '600', color: t.ink, paddingTop: 14 }}>
+            Tier Benefits
           </Text>
-
-          {tier.perks.map((perk, i) => (
-            <View key={i} style={styles.perkRow}>
-              <Ionicons name="checkmark-circle" size={18} color={colors.clubGreen} />
-              <Text style={styles.perkText}>{perk}</Text>
-            </View>
-          ))}
-        </View>
-
-        <View style={{ height: 140 }} />
-      </ScrollView>
-    </View>
+          {memberTiers.map((tier, i) => {
+            const current = tier.name === user.tier;
+            const isNext = tier.name === points.nextTier;
+            return (
+              <View
+                key={tier.name}
+                testID={`tier-${tier.name}`}
+                style={{ flexDirection: 'row', gap: 14, paddingVertical: 14, borderTopWidth: i > 0 ? 1 : 0, borderTopColor: t.hair }}
+              >
+                <View
+                  style={{
+                    width: 46,
+                    height: 46,
+                    borderRadius: 15,
+                    backgroundColor: TIER_FILL[tier.name],
+                    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.35)',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Text maxFontSizeMultiplier={1.2} style={{ fontFamily: bentoType.number.fontFamily, fontSize: 14, color: '#FFFFFF' }}>
+                    ×{MULTIPLIER[tier.name]}
+                  </Text>
+                </View>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+                    <Text style={{ fontSize: 16, fontWeight: '600', color: t.ink }}>{tier.name}</Text>
+                    {current ? <StatusPill label="Current" tone="accent" /> : isNext ? <StatusPill label="Next" tone="muted" /> : null}
+                  </View>
+                  <Text style={{ fontSize: 13, color: t.muted, marginTop: 2 }}>
+                    {tier.minPoints === 0 ? 'From 0 FC' : `From ${tier.minPoints.toLocaleString()} FC a quarter`}
+                  </Text>
+                  {tier.perks.map((perk, j) => (
+                    <Text key={perk} style={{ fontSize: 14, lineHeight: 19, color: t.ink, marginTop: j === 0 ? 4 : 2 }}>
+                      {perk}
+                    </Text>
+                  ))}
+                </View>
+              </View>
+            );
+          })}
+        </BentoTile>
+      </Appear>
+    </BentoScreen>
   );
-}
-
-function createStyles(colors: ThemeColors) {
-  return StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.darkGreen },
-  headerSafeArea: { backgroundColor: colors.background },
-  pointsCard: {
-    backgroundColor: colors.background,
-    marginHorizontal: screenPadding,
-    marginTop: spacing.lg,
-    borderRadius: radius.lg,
-    padding: spacing.md,
-    gap: spacing.sm,
-  },
-  pointsHeaderRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', columnGap: spacing.sm, rowGap: spacing.sm },
-  pointsSummary: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flexShrink: 1 },
-  pointsValue: { fontFamily: fontFamily.heading, fontSize: fontSize.title, color: colors.textPrimary },
-  pointsLabel: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textPrimary },
-  tierBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 6,
-    borderRadius: radius.pill,
-  },
-  tierBadgeText: { fontFamily: fontFamily.heading, fontSize: 11, color: colors.white, textTransform: 'uppercase' },
-  progressFooterText: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary },
-  unverifiedBanner: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.sm,
-    backgroundColor: colors.mintBg,
-    borderRadius: radius.md,
-    padding: spacing.sm + 4,
-    marginHorizontal: screenPadding,
-    marginTop: spacing.md,
-  },
-  unverifiedBannerText: { flex: 1, fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.darkGreen },
-  howToSection: { paddingHorizontal: screenPadding, paddingTop: spacing.xl },
-  howToTitle: { fontFamily: fontFamily.heading, fontSize: fontSize.cardTitle, color: colors.lime, marginBottom: spacing.lg },
-  stepsRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  stepItem: { flex: 1, alignItems: 'center', paddingHorizontal: 4 },
-  stepCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: colors.lime,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.sm,
-  },
-  stepNumber: { fontFamily: fontFamily.heading, fontSize: fontSize.small, color: colors.lime },
-  stepTitle: { fontFamily: fontFamily.heading, fontSize: fontSize.small, color: colors.white, marginBottom: 4 },
-  stepBody: { fontFamily: fontFamily.body, fontSize: 10, color: 'rgba(255,255,255,0.75)', textAlign: 'center' },
-  benefitsSection: {
-    backgroundColor: colors.background,
-    borderTopLeftRadius: radius.xl,
-    borderTopRightRadius: radius.xl,
-    marginTop: spacing.xl,
-    padding: screenPadding,
-    minHeight: 500,
-  },
-  benefitsTitle: { fontFamily: fontFamily.heading, fontSize: fontSize.title, color: colors.textPrimary, marginBottom: spacing.md },
-  tabRow: { flexDirection: 'row', gap: spacing.md, marginBottom: spacing.lg },
-  tab: { paddingBottom: spacing.sm },
-  tabText: { fontFamily: fontFamily.bodyMedium, fontSize: fontSize.small, color: colors.textSecondary },
-  tabTextActive: { color: colors.textPrimary, fontFamily: fontFamily.bodySemiBold },
-  tabIndicator: { height: 2, backgroundColor: colors.clubGreen, marginTop: 6, borderRadius: 1 },
-  tierPill: {
-    flexDirection: 'row',
-    alignSelf: 'flex-start',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.pill,
-    marginBottom: spacing.md,
-  },
-  tierPillText: { fontFamily: fontFamily.heading, fontSize: 12, color: colors.white },
-  tierDescription: {
-    fontFamily: fontFamily.body,
-    fontSize: fontSize.small,
-    color: colors.textSecondary,
-    marginBottom: spacing.md,
-    lineHeight: 20,
-  },
-  perkRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md, alignItems: 'flex-start' },
-  perkText: { flex: 1, fontFamily: fontFamily.body, fontSize: fontSize.small, color: colors.textPrimary, lineHeight: 20 },
-});
 }
