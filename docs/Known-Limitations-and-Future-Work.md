@@ -1,6 +1,6 @@
 # Known Limitations & Future Work
 
-_Last verified against code on 2026-11-20._
+_Last verified against code on 2026-11-24._
 
 Open issues found by reading the code, grouped by severity. Paths are relative to this repo unless a repo is named. Items marked **unverified** could not be confirmed from the code alone, for example because they depend on settings in Vercel, EAS or DNS.
 
@@ -78,7 +78,10 @@ Still open:
 
 These need native code, so they wait for a new App Store / Play Store build (everything else in the motion system ships over the air; see [Technical Architecture](Technical-Architecture)):
 
-- Haptic feedback on taps (`expo-haptics` is not installed).
+- Haptic feedback on taps (`expo-haptics` is not installed). The Bento redesign brief asks for a light haptic on primary actions; it was deliberately left out on 2026-11-24 so the redesign ships over the air.
+- Bento motion uses `Animated` with the native driver instead of Reanimated (owner's decision, 2026-11-24). Transforms and opacity run off the JS thread; the tier ring's stroke and the segmented-control thumb width run on the JS thread.
+- **Bento Home (2026-11-24) differs from its board where the app has no data for it:** the Resume round tile is fairway green instead of a course photo (rounds carry no photo); the hero shows the tier name without a multiplier ("Gold · ×1.5" on the board), because tier multipliers are not in the member data; the bell shows the unread count rather than only a dot, so the count isn't lost.
+- Bento glass is a solid fill on Android (a real blur needs a `BlurTargetView` behind every screen and is costly on mid-range phones).
 - Gesture-driven 120Hz motion such as swipe-to-dismiss sheets (`react-native-reanimated`).
 - Apple's real Liquid Glass material on iOS 26 (`expo-glass-effect`).
 - Skeleton loaders while lists load are not built yet; screens still show a spinner.

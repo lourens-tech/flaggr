@@ -39,16 +39,19 @@ A practical checklist for manually testing the member-facing app end-to-end at h
 
 ## 3. Home Screen
 
-- [ ] Flagrr Cash balance, tier badge, and "X pts to next tier" all show real numbers, not placeholders.
-- [ ] Month / Year / All toggle on My Stats actually changes the numbers shown.
-- [ ] Streak card shows the current streak length and "N more weeks to a Y Flagrr Cash bonus."
-- [ ] Points Earned Per Month chart renders (even if empty for a new account).
-- [ ] "View All" under Rewards navigates to the full Rewards Shop.
-- [ ] Notification bell shows an unread badge when there are unread notifications.
+- [ ] Flagrr Cash balance, tier name, and the tier ring's "N to {next tier}" all show real numbers, not placeholders; a Platinum member sees "Top tier". Tapping the ring opens Member Tiers; Redeem opens the Rewards Shop.
+- [ ] Month / Year / All on My Stats changes the numbers shown; Month and Year show "+/−N% vs Last Month/Year" (falls in the muted red), All shows no change line.
+- [ ] Streak tile shows the current streak length, one dot per recent week, and "N more weeks to a Y FC bonus."
+- [ ] With a round in progress, the Resume tile shows the next hole and "N pts thru M" and opens the hole view; with none, it reads "Play a round" and opens the Course tab.
+- [ ] An unverified member sees the amber "Your club hasn't verified your membership yet…" notice above the tiles.
+- [ ] Points Earned Per Month chart renders (even if empty for a new account); "My Golf" opens the My Golf tab.
+- [ ] "View All" and each reward card under Rewards open the full Rewards Shop.
+- [ ] Notification bell shows the unread count when there are unread notifications; the avatar and Your Club open Profile.
+- [ ] Home matches the Home board in light and dark at 375, 390 and 430 pt wide, and a 6-digit balance still fits the hero tile.
 
 ## 4. Ad Space and Impressions
 
-- [ ] Home shows the top-banner ad and the second Home ad when the club has them configured; the Rewards Shop shows its own slot.
+- [ ] Home shows the top-banner ad and the second Home ad when the club has them configured, each with "SPONSORED" above it; the Rewards Shop shows its own slot. Ads don't animate when Home opens or scrolls.
 - [ ] An ad shows real creative (image or video) and tapping it opens the advertiser's link.
 - [ ] A slot with no ad configured shows the "Ad Space" placeholder without looking broken.
 - [ ] Viewing an ad is recorded as an impression and tapping it as a click (check the ad's performance figures in the super-admin console after a few views and taps).
@@ -230,12 +233,14 @@ Test each role (course admin, staff, super admin, support agent) at three widths
 
 ## 17. Motion
 
-- [ ] Home: the Flagrr Cash balance rolls up from 0, the tier bar fills from the left, and the cards rise in one after another. After a scan is approved, the balance rolls from the old value to the new one.
-- [ ] Tab bar: the selected tab's icon switches to its filled version, pops slightly and gets a dot underneath; switching tabs crossfades.
+- [ ] Home: the tiles on screen rise in one after another and tiles further down rise in as you scroll to them; the Flagrr Cash balance and stats count up every time you come back to Home; the tier ring draws and the chart bars grow. After a scan is approved, the balance rolls from the old value to the new one.
+- [ ] Tab bar (Bento, member app): a floating glass bar 14 pt in from each side; every tab has a line icon and a label; the selected tab turns green (lime in dark mode) and its soft highlight slides across with a slight overshoot; switching tabs cross-fades with the new screen settling up into place. Scan is the raised green button in the middle and opens the receipt camera. All six labels fit unclipped on a 375-wide phone.
+- [ ] Alerts (member app): a centred card that scales in from slightly larger over a dimmed backdrop; buttons run full width under hairlines, two side by side with Cancel on the right; destructive actions are red. Every alert still runs the same action as before (spot-check Redeem, Delete round, Change home club, Delete account).
+- [ ] Hole view sheets (Scorecard, Your round, My bag): rise from the bottom as a rounded card with a close button; tapping the backdrop, the close button or Android back closes them; Done and every control inside still work.
 - [ ] Buttons and reward cards shrink slightly under the finger and spring back on release (no dimming).
 - [ ] iPhone: pushed screens slide in and can be swiped back from anywhere on the screen. Android: pushed screens slide in from the right.
 - [ ] The scan camera slides up from the bottom; Voucher and Receipt Success fade up. On Voucher the QR code pops in; on Receipt Success the trophy pops and the Flagrr Cash amount rolls up.
-- [ ] Alerts and confirmations spring in over a fading backdrop.
+- [ ] Alerts and confirmations spring in over a fading backdrop (member: scale in from 1.1 with a slight overshoot).
 - [ ] With Reduce Motion turned on (iOS Settings > Accessibility > Motion, or Android remove animations), everything appears instantly with no movement.
 - [ ] Admin dashboard (desktop browser): stat cards and panels rise in, numbers roll up, chart bars grow, table rows cascade in; the sidebar stays still while the content fades.
 

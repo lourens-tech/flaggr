@@ -4,7 +4,7 @@ import { useIsFocused } from '@react-navigation/native';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { useApp } from '../../context/AppContext';
 import { fontFamily, fontSize, radius, spacing } from '../../theme';
-import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
+import { useBento, useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 import type { AdPlacement } from '../../data/types';
 
 interface Props {
@@ -25,6 +25,7 @@ export function AdSpace({ placement, style }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { ads, logAdClick, logAdImpression } = useApp();
+  const { t } = useBento();
   const isFocused = useIsFocused();
 
   // Every active ad for this slot — this course's own plus any global ones
@@ -113,18 +114,31 @@ export function AdSpace({ placement, style }: Props) {
     </View>
   ) : null;
 
+  // A small "SPONSORED" label sits above every real ad (not the empty
+  // placeholder). The slot itself never animates.
+  const label = (
+    <Text style={[styles.sponsored, { color: t.muted }]} maxFontSizeMultiplier={1.4}>
+      SPONSORED
+    </Text>
+  );
+
   if (!ad.targetUrl) {
     return (
-      <View style={[styles.box, style]}>
-        {content}
-        {dots}
+      <View style={style}>
+        {label}
+        <View style={styles.box}>
+          {content}
+          {dots}
+        </View>
       </View>
     );
   }
 
   return (
+    <View style={style}>
+    {label}
     <TouchableOpacity
-      style={[styles.box, style]}
+      style={styles.box}
       activeOpacity={0.85}
       onPress={() => {
         logAdClick(ad.id);
@@ -136,6 +150,7 @@ export function AdSpace({ placement, style }: Props) {
       {content}
       {dots}
     </TouchableOpacity>
+    </View>
   );
 }
 
@@ -144,7 +159,8 @@ function createStyles(colors: ThemeColors) {
   box: { height: AD_SPACE_HEIGHT, borderRadius: radius.md, overflow: 'hidden' },
   image: { width: '100%', height: '100%' },
   placeholder: { backgroundColor: colors.darkGreen, alignItems: 'center', justifyContent: 'center' },
-  placeholderText: { fontFamily: fontFamily.heading, fontSize: fontSize.title, color: colors.lime },
+  placeholderText: { fontFamily: 'Fraunces_700Bold', fontSize: fontSize.title, color: colors.lime },
+  sponsored: { fontSize: 12, fontWeight: '600', letterSpacing: 1.44, marginBottom: 8 },
   dotsRow: {
     position: 'absolute',
     bottom: spacing.sm,

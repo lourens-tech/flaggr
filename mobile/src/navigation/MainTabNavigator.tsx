@@ -5,7 +5,7 @@ import { HomeScreen } from '../screens/home/HomeScreen';
 import { RewardsShopScreen } from '../screens/rewards/RewardsShopScreen';
 import { RewardsActivityScreen } from '../screens/rewards/RewardsActivityScreen';
 import { MemberProfileScreen } from '../screens/profile/MemberProfileScreen';
-import { FloatingTabBar } from '../components/common/FloatingTabBar';
+import { BentoTabBar, bentoTabScreenOptions } from '../components/bento/BentoTabBar';
 import { CourseHomeScreen } from '../screens/golf/CourseHomeScreen';
 import { MyGolfScreen } from '../screens/golf/MyGolfScreen';
 
@@ -14,9 +14,11 @@ const Tab = createBottomTabNavigator<MainTabParamList>();
 export function MainTabNavigator() {
   return (
     <Tab.Navigator
-      // Tabs crossfade instead of snapping (see theme/motion.ts).
-      screenOptions={{ headerShown: false, animation: 'fade' }}
-      tabBar={(props) => <FloatingTabBar {...props} />}
+      // Tabs cross-fade and settle (Bento motion, theme/motion.ts). The bar
+      // lays out any number of tabs around Scan, so the live 6-tab layout
+      // and the redesign's 4-tab layout both work.
+      screenOptions={bentoTabScreenOptions}
+      tabBar={(props) => <BentoTabBar {...props} />}
     >
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Course" component={CourseHomeScreen} />

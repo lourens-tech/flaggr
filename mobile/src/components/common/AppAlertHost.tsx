@@ -1,20 +1,49 @@
-import React, { useEffect, useState, useMemo } from 'react';
-import { Modal, StyleSheet, Text, View } from 'react-native';
-import { fontFamily, fontSize, radius, spacing } from '../../theme';
-import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
-import { PopIn, PressableScale } from '../motion';
+import React, { useEffect, useRef, useState } from 'react';
+import { Animated, Modal, Platform, Pressable, StyleSheet, Text, View, useWindowDimensions, type ViewStyle } from 'react-native';
+import { useBento } from '../../context/ThemeContext';
+import { bentoDuration, bentoEasing, prefersReducedMotion, useNativeDriver } from '../../theme/motion';
 import { activeAdminAlertHost, dismissAlert, subscribeAlert, type AlertButtonConfig, type AlertConfig } from '../../utils/alertStore';
 
 // Mounted once near the app root. Replaces react-native-web's no-op Alert.alert
 // and the browser's native window.alert/confirm (both off-brand, and the
 // latter shows the page's URL in the dialog chrome) with an in-app modal
 // that matches the rest of the UI everywhere the app runs.
+//
+// Bento alert (boards Dlg*): a centred 296 pt card that scales in from 1.1
+// with a slight overshoot over a dimmed, lightly blurred backdrop. Buttons
+// run edge to edge under hairlines: two side by side, otherwise stacked.
+// Every showAlert() call keeps its title, message, buttons and handlers.
+
+const webBlur = { backdropFilter: 'blur(5px)', WebkitBackdropFilter: 'blur(5px)' } as unknown as ViewStyle;
+
 export function AppAlertHost() {
-  const colors = useThemeColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { t } = useBento();
+  const { width } = useWindowDimensions();
   const [config, setConfig] = useState<AlertConfig>({ visible: false, title: '', message: undefined, buttons: [] });
+  const [mounted, setMounted] = useState(false);
+  const fade = useRef(new Animated.Value(0)).current;
+  const pop = useRef(new Animated.Value(0)).current;
 
   useEffect(() => subscribeAlert(setConfig), []);
+
+  useEffect(() => {
+    const reduced = prefersReducedMotion();
+    if (config.visible) {
+      setMounted(true);
+      fade.setValue(0);
+      pop.setValue(reduced ? 1 : 0);
+      Animated.parallel([
+        Animated.timing(fade, { toValue: 1, duration: reduced ? 200 : 350, useNativeDriver }),
+        reduced ? Animated.delay(0) : Animated.timing(pop, { toValue: 1, duration: bentoDuration.alert, easing: bentoEasing.overshoot, useNativeDriver }),
+      ]).start();
+      return;
+    }
+    if (!mounted) return;
+    Animated.timing(fade, { toValue: 0, duration: 160, useNativeDriver }).start(({ finished }) => {
+      if (finished) setMounted(false);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [config.visible, config.title, config.message]);
 
   const handlePress = (button: AlertButtonConfig) => {
     dismissAlert();
@@ -24,97 +53,81 @@ export function AppAlertHost() {
   // An admin console is showing its own alert host (AdminAlertHost).
   if (activeAdminAlertHost() !== null) return null;
 
-  return (
-    <Modal visible={config.visible} transparent animationType="fade" onRequestClose={dismissAlert}>
-      <View style={styles.backdrop}>
-        {/* Springs up from 92% as the backdrop fades, like an iOS alert. */}
-        <PopIn style={styles.card} from={0.92}>
-          <Text style={styles.title}>{config.title}</Text>
-          {config.message ? <Text style={styles.message}>{config.message}</Text> : null}
+  // Two buttons sit side by side with the action first and Cancel last, as
+  // on the boards; one, or three or more, stack.
+  const twoUp = config.buttons.length === 2;
+  const buttons = twoUp ? [...config.buttons].sort((a, b) => Number(a.style === 'cancel') - Number(b.style === 'cancel')) : config.buttons;
+  const cardWidth = Math.min(296, width - 48);
 
-          {/* Two buttons side by side; one, or three or more, stacked. */}
-          <View style={config.buttons.length === 2 ? styles.buttonRow : styles.buttonColumn}>
-            {config.buttons.map((button, i) => {
+  return (
+    <Modal visible={mounted || config.visible} transparent animationType="none" onRequestClose={dismissAlert} statusBarTranslucent>
+      <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: t.scrim, opacity: fade }, Platform.OS === 'web' ? webBlur : null]} />
+      <View style={styles.center} pointerEvents="box-none">
+        <Animated.View
+          accessibilityViewIsModal
+          accessibilityRole="alert"
+          style={{
+            width: cardWidth,
+            borderRadius: 26,
+            overflow: 'hidden',
+            backgroundColor: t.tile,
+            boxShadow: `0 30px 60px -20px rgba(0,0,0,0.45), 0 0 0 1px ${t.ring}`,
+            opacity: fade,
+            transform: [{ scale: pop.interpolate({ inputRange: [0, 1], outputRange: [1.1, 1] }) }],
+          }}
+        >
+          <View style={{ paddingTop: 22, paddingHorizontal: 20, paddingBottom: 18, alignItems: 'center' }}>
+            <Text accessibilityRole="header" style={{ fontSize: 17, fontWeight: '600', color: t.ink, textAlign: 'center' }}>
+              {config.title}
+            </Text>
+            {config.message ? (
+              <Text style={{ fontSize: 14, lineHeight: 20, color: t.muted, textAlign: 'center', marginTop: 6 }}>{config.message}</Text>
+            ) : null}
+          </View>
+
+          <View style={{ flexDirection: twoUp ? 'row' : 'column' }}>
+            {buttons.map((button, i) => {
               const isCancel = button.style === 'cancel';
               const isDestructive = button.style === 'destructive';
               return (
-                <PressableScale
-                  key={i}
+                <Pressable
+                  key={`${i}-${button.text}`}
                   accessibilityRole="button"
                   onPress={() => handlePress(button)}
-                  style={[
-                    styles.button,
-                    config.buttons.length === 2 && styles.buttonInRow,
-                    isCancel && styles.buttonOutline,
-                    isDestructive && styles.buttonDestructive,
-                    !isCancel && !isDestructive && styles.buttonPrimary,
-                  ]}
+                  style={({ pressed }) => ({
+                    flex: twoUp ? 1 : undefined,
+                    minHeight: 50,
+                    paddingHorizontal: 12,
+                    paddingVertical: 10,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderTopWidth: 1,
+                    borderTopColor: t.hair,
+                    borderLeftWidth: twoUp && i === 1 ? 1 : 0,
+                    borderLeftColor: t.hair,
+                    backgroundColor: pressed ? t.seg : 'transparent',
+                  })}
                 >
-                  <Text style={[styles.buttonText, isCancel ? styles.buttonTextOutline : styles.buttonTextSolid]}>
+                  <Text
+                    style={{
+                      fontSize: 16,
+                      fontWeight: isCancel ? '500' : '600',
+                      color: isDestructive ? t.danger : isCancel ? t.ink : t.accent,
+                      textAlign: 'center',
+                    }}
+                  >
                     {button.text ?? 'OK'}
                   </Text>
-                </PressableScale>
+                </Pressable>
               );
             })}
           </View>
-        </PopIn>
+        </Animated.View>
       </View>
     </Modal>
   );
 }
 
-function createStyles(colors: ThemeColors) {
-  return StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(15,31,25,0.55)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: spacing.xl,
-  },
-  card: {
-    width: '100%',
-    maxWidth: 340,
-    backgroundColor: colors.background,
-    borderRadius: radius.xl,
-    padding: spacing.lg,
-    alignItems: 'center',
-  },
-  title: {
-    fontFamily: fontFamily.heading,
-    fontSize: fontSize.title,
-    color: colors.textPrimary,
-    textAlign: 'center',
-  },
-  message: {
-    fontFamily: fontFamily.body,
-    fontSize: fontSize.small,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginTop: spacing.sm,
-    lineHeight: 20,
-  },
-  buttonRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.lg, width: '100%' },
-  buttonColumn: { marginTop: spacing.lg, width: '100%', gap: spacing.sm },
-  // No flex here: in the one-button column a flex: 1 button has no height to
-  // fill and collapses to nothing on iOS and Android (the web still drew it).
-  button: {
-    height: 48,
-    borderRadius: radius.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: spacing.md,
-  },
-  buttonInRow: { flex: 1 },
-  buttonPrimary: { backgroundColor: colors.darkGreen },
-  buttonDestructive: { backgroundColor: colors.negative },
-  buttonOutline: { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: colors.darkGreen },
-  buttonText: {
-    fontFamily: fontFamily.headingDisplay,
-    fontSize: fontSize.button,
-    textTransform: 'capitalize',
-  },
-  buttonTextSolid: { color: colors.white },
-  buttonTextOutline: { color: colors.textPrimary },
+const styles = StyleSheet.create({
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
 });
-}

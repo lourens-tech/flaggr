@@ -58,4 +58,9 @@ Keep this list current; fix items here or record why the exception stands.
   - Lime is the accent in dark mode; in light mode the accent is Flag Green (#00805A, text #00704F) because lime on light fails contrast. One accent idea per screen; selection is neutral.
   - Status colours outside the six: red #C8322A (count badges), plus muted red, amber and green tints for status pills.
 - The marketing site's clubs-page console mock-up (`flagrr-marketing: src/components/clubs/ConsoleSection.tsx`, 2026-11-02) follows the same admin exceptions: system font for interface text, Flag Green (#00704F text) as the single light-mode accent, status pills and a red count badge, and glass over a blurred photo.
+- **Member app Bento redesign (from 2026-11-24, in progress).** Tokens in `mobile/src/theme/bento.ts`, matching the approved Bento boards:
+  - Light: ground #EEF0EA, tiles #FFFFFF, ink #111412, muted #5F6661, accent Flag Green #00704F with white text. Dark: ground #0C110E, tiles #151B17, ink #F1F3EE, muted #9BA49E, accent Lime #CDDE5C with Fairway Green #1F4234 text. Fairway Green is used for hero tiles and the Scan button.
+  - Titles and big numbers use Fraunces 700. Interface text in restyled member screens uses the system font (SF Pro / Roboto) instead of Poppins, as in the admin consoles (approved by the owner on 2026-11-24); screens not yet restyled still use Poppins until their phase lands.
+  - Destructive actions in alerts are red #C8322A (dark #FF6B61). Icons are thin line icons; no emoji.
+  - Translucent glass only on navigation (tab bar, floating buttons, title bar).
 - The app theme (`mobile/src/theme/colors.ts`) uses the same hex values under older names: `darkGreen` = Fairway Green, `clubGreen` = Flag Green, `lime` = Lime. The emails and mailers use these older names too. Confirm against the values above when changing any of them.

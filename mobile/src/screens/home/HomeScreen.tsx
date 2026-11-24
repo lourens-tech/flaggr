@@ -1,35 +1,36 @@
-import React, { useEffect, useMemo } from 'react';
-import {
-  Image,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { Image, Pressable, ScrollView, Text, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import type { CompositeScreenProps } from '@react-navigation/native';
+import { useFocusEffect, type CompositeScreenProps } from '@react-navigation/native';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { MainTabParamList } from '../../navigation/types';
 import type { RootStackParamList } from '../../navigation/types';
-import { ProgressBar } from '../../components/common/ProgressBar';
-import { PillButton } from '../../components/common/PillButton';
-import { BarChart } from '../../components/common/BarChart';
-import { RewardCard } from '../../components/common/RewardCard';
-import { HeaderAvatar } from '../../components/common/HeaderAvatar';
 import { AdSpace } from '../../components/common/AdSpace';
-import { FlagrrLogo } from '../../components/common/FlagrrLogo';
 import { useApp } from '../../context/AppContext';
+import { useBento } from '../../context/ThemeContext';
 import { showAlert } from '../../utils/alert';
-import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
-import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
-import { CountUpText, FadeIn, PressableScale } from '../../components/motion';
-import type { StatsPeriod } from '../../data/types';
+import { api } from '../../api/client';
+import { holeResult, roundTotals } from '../../golf/scoring';
+import type { RoundDto } from '../../golf/dto';
+import type { Reward, StatsPeriod } from '../../data/types';
+import { bentoBrand, bentoType } from '../../theme/bento';
+import { PressableScale } from '../../components/motion';
+import {
+  Appear,
+  BentoButton,
+  BentoIcon,
+  BentoScreen,
+  BentoTile,
+  CountUp,
+  Eyebrow,
+  GlassIconButton,
+  H1,
+  Ring,
+  SegmentedControl,
+} from '../../components/bento';
+import { BentoAvatar } from '../../components/bento/BentoAvatar';
+import { BentoBarChart, compactNumber } from '../../components/bento/BentoBarChart';
 
 const NOT_LISTED_POPUP_TITLE = "You're Almost In the Family";
 const NOT_LISTED_POPUP_BODY =
@@ -40,89 +41,48 @@ type Props = CompositeScreenProps<
   NativeStackScreenProps<RootStackParamList>
 >;
 
-// Home-local stat card — an icon-chip + delta-pill treatment matching the
-// admin desktop dashboard's cards. Kept local rather than folded into the
-// shared StatCard component, since that component is also rendered on the
-// (untouched) course-admin/super-admin mobile screens.
-function HomeStatCard({
-  icon,
-  label,
-  value,
-  deltaPct,
-  deltaLabel,
-  showDelta,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  label: string;
-  value: string | number;
-  deltaPct: number;
-  deltaLabel: string;
-  showDelta: boolean;
-}) {
-  const colors = useThemeColors();
-  const styles = useMemo(() => createStatCardStyles(colors), [colors]);
-  const positive = deltaPct >= 0;
-  return (
-    <FadeIn style={styles.card}>
-      <View style={styles.topRow}>
-        <View style={styles.iconChip}>
-          <Ionicons name={icon} size={14} color={colors.clubGreen} />
-        </View>
-        {showDelta ? (
-          <View style={styles.deltaRow}>
-            <Ionicons
-              name={positive ? 'arrow-up' : 'arrow-down'}
-              size={10}
-              color={positive ? colors.positive : colors.negative}
-            />
-            <Text style={[styles.delta, { color: positive ? colors.positive : colors.negative }]}>
-              {Math.abs(deltaPct)}%
-            </Text>
-          </View>
-        ) : null}
-      </View>
-      <Text style={styles.label}>{label}</Text>
-      <CountUpText style={styles.value} value={value} />
-      {showDelta && deltaLabel ? <Text style={styles.deltaLabel}>{deltaLabel}</Text> : null}
-    </FadeIn>
-  );
-}
-
-function createStatCardStyles(colors: ThemeColors) {
-  return StyleSheet.create({
-    card: {
-      width: '47%',
-      backgroundColor: colors.surface,
-      borderWidth: 1,
-      borderColor: colors.border,
-      borderRadius: radius.md,
-      padding: spacing.sm + 4,
-      gap: spacing.xs,
-    },
-    topRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
-    iconChip: { width: 30, height: 30, borderRadius: 8, backgroundColor: colors.mintBg, alignItems: 'center', justifyContent: 'center' },
-    deltaRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-    delta: { fontFamily: fontFamily.bodySemiBold, fontSize: 11.5 },
-    label: { fontFamily: fontFamily.bodyMedium, fontSize: fontSize.small - 1, color: colors.textSecondary },
-    value: { fontFamily: fontFamily.heading, fontSize: fontSize.title, color: colors.textPrimary },
-    deltaLabel: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textMuted },
-  });
-}
-
-const PERIOD_LABELS: Record<StatsPeriod, string> = { month: 'Month', year: 'Year', all: 'All' };
-const PERIODS: StatsPeriod[] = ['month', 'year', 'all'];
+const PERIOD_OPTIONS: Array<{ value: StatsPeriod; label: string }> = [
+  { value: 'month', label: 'Month' },
+  { value: 'year', label: 'Year' },
+  { value: 'all', label: 'All' },
+];
 // "All" has no prior window to compare against (see api/_lib/periods.ts),
 // so its deltaPct is always forced to 0 server-side — show no delta at all
 // there rather than a misleading "0%".
 const DELTA_LABELS: Record<StatsPeriod, string> = { month: 'vs Last Month', year: 'vs Last Year', all: '' };
-// Fixed so every card in the horizontal row is the same size regardless of
-// title/description length — RewardCard sizes to its content otherwise.
-const REWARD_CARD_WIDTH = 160;
+
+// Hero grid rows (Home board: two 168 pt rows, the Flagrr Cash hero spans
+// both). Minimum heights, so larger text grows the tiles instead of clipping.
+const ROW = 168;
+
+function greeting(now: Date) {
+  const h = now.getHours();
+  return h < 12 ? 'Morning' : h < 17 ? 'Afternoon' : 'Evening';
+}
+
+function dateLine(now: Date) {
+  const weekday = now.toLocaleDateString(undefined, { weekday: 'long' });
+  const day = now.toLocaleDateString(undefined, { day: 'numeric', month: 'long' });
+  return `${weekday} · ${day}`;
+}
+
+// The in-progress round for the Resume tile: next hole to play, and points
+// so far (same scoring module as the hole view).
+function roundProgress(r: RoundDto) {
+  const setup = {
+    holes: r.holes,
+    handicaps: r.courseHandicap == null || r.playingHandicap == null ? null : { course: r.courseHandicap, playing: r.playingHandicap },
+  };
+  const totals = roundTotals(setup, r.entries);
+  const next = r.holes.findIndex((_, i) => !holeResult(setup, i, r.entries[i]).played);
+  return { thru: totals.holesPlayed, points: totals.points, nextHole: next === -1 ? null : r.holes[next].n };
+}
 
 export function HomeScreen({ navigation }: Props) {
-  const colors = useThemeColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { t } = useBento();
   const { user, points, streak, stats, rewards, unreadNotificationCount, statsPeriod, setStatsPeriod } = useApp();
+  const [inProgress, setInProgress] = useState<RoundDto | null>(null);
+  const now = new Date();
 
   // Shows every second app open rather than every single one, so it's a
   // standing reminder without nagging on every launch — see RewardsShopScreen
@@ -149,361 +109,322 @@ export function HomeScreen({ navigation }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user.id, user.isPlaceholderClub]);
 
+  // Resume round tile: the same read the Course tab makes. Best-effort; if it
+  // fails, the tile offers the Course tab instead.
+  useFocusEffect(
+    useCallback(() => {
+      let alive = true;
+      api
+        .golfHome()
+        .then((h) => {
+          if (alive) setInProgress(h.inProgress);
+        })
+        .catch(() => {});
+      return () => {
+        alive = false;
+      };
+    }, []),
+  );
+
+  const progress = inProgress ? roundProgress(inProgress) : null;
+  const topTier = points.nextTier === null;
+  const balanceSize = points.balance >= 100000 ? 30 : points.balance >= 10000 ? 38 : 42;
+  const weeksLeft = Math.max(0, streak.nextMilestoneWeeks - streak.weeks);
+  const streakSince =
+    streak.weeks > 0
+      ? `You've played every week since ${new Date(streak.activeSince).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}`
+      : 'Play a round this week to start your streak';
+
   return (
-    <View style={styles.screen}>
-      <StatusBar barStyle="light-content" />
-      <SafeAreaView style={styles.safeArea} edges={['top']}>
-        <View style={styles.topBar}>
-          <View style={styles.topBarLeft}>
-            <FlagrrLogo color="white" size={20} showTagline={false} />
-            <Text style={styles.topBarTitle}>Home</Text>
-          </View>
-          <View style={styles.topBarRight}>
-            <TouchableOpacity onPress={() => navigation.navigate('Notifications')} style={styles.bellButton}>
-              <Ionicons name="notifications" size={20} color={colors.white} />
-              {unreadNotificationCount > 0 ? (
-                <View style={styles.badge}>
-                  <Text style={styles.badgeText}>{unreadNotificationCount}</Text>
-                </View>
-              ) : null}
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => navigation.navigate('Profile')}>
-              <HeaderAvatar size={32} />
-            </TouchableOpacity>
-          </View>
+    <BentoScreen tabBar>
+      {/* Greeting, date, notifications and avatar */}
+      <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12 }}>
+        <View style={{ flex: 1 }}>
+          <Eyebrow>{dateLine(now)}</Eyebrow>
+          <H1 style={{ marginTop: 6, fontSize: 36, lineHeight: 37 }}>
+            {greeting(now)},{'\n'}
+            {user.firstName}
+          </H1>
         </View>
-      </SafeAreaView>
-
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <FadeIn distance={8}>
-          <Text style={styles.welcome}>Hello, {user.firstName} 👋</Text>
-        </FadeIn>
-
-        <FadeIn style={styles.pointsCard} distance={16}>
-          <View style={styles.pointsHeaderRow}>
-            <View style={styles.pointsSummary}>
-              <MaterialCommunityIcons name="cards" size={20} color={colors.clubGreen} />
-              <View>
-                <CountUpText style={styles.pointsValue} value={points.balance} />
-                <Text style={styles.pointsLabel}>Flagrr Cash</Text>
-              </View>
-            </View>
-            <LinearGradient
-              colors={[colors.goldGradientStart, colors.goldGradientEnd]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.tierBadge}
-            >
-              <Text style={styles.tierBadgeText}>{user.tier} Member</Text>
-              <MaterialCommunityIcons name="crown" size={13} color={colors.white} />
-            </LinearGradient>
-          </View>
-
-          <ProgressBar progress={points.tierProgress} />
-          <View style={styles.progressFooterRow}>
-            <Text style={styles.progressFooterText}>
-              {points.pointsToNextTier.toLocaleString()} pts to {points.nextTier}
-            </Text>
-            <TouchableOpacity onPress={() => navigation.navigate('MemberTiers')}>
-              <Ionicons name="information-circle-outline" size={16} color={colors.clubGreen} />
-            </TouchableOpacity>
-          </View>
-          {!user.verifiedMember ? (
-            <Text style={styles.unverifiedNote}>
-              Your club hasn't verified your membership yet — you can still earn Flagrr Cash, but tier progress is on
-              hold.
-            </Text>
-          ) : null}
-
-          <PillButton
-            label="Redeem Flagrr Cash"
-            onPress={() => navigation.navigate('Rewards')}
-            variant="primary"
-          />
-
-          <View style={styles.streakCard}>
-            <View style={styles.streakIcon}>
-              <Ionicons name="flame" size={26} color={colors.lime} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.streakTitle}>{streak.weeks}-Week Streak</Text>
-              <Text style={styles.streakSubtitle}>
-                {streak.weeks > 0
-                  ? `You've played every week since ${new Date(streak.activeSince).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}`
-                  : 'Play a round this week to start your streak'}
-              </Text>
-              <Text style={styles.streakMilestone}>
-                {streak.nextMilestoneWeeks - streak.weeks} more week
-                {streak.nextMilestoneWeeks - streak.weeks === 1 ? '' : 's'} to a {streak.nextMilestoneAmount} Flagrr
-                Cash bonus
-              </Text>
-              <View style={styles.streakDots}>
-                {streak.weeksPlayed.map((played, i) => (
-                  <View
-                    key={i}
-                    style={[styles.streakDot, { backgroundColor: played ? colors.lime : 'rgba(255,255,255,0.3)' }]}
-                  />
-                ))}
-              </View>
-            </View>
-          </View>
-        </FadeIn>
-
-        <FadeIn>
-        <PressableScale style={styles.clubCard} onPress={() => navigation.navigate('Profile')}>
-          {user.courseLogoUrl ? (
-            <Image source={{ uri: user.courseLogoUrl }} style={styles.clubLogo} />
-          ) : (
-            <View style={[styles.clubLogo, styles.clubLogoFallback]}>
-              <Ionicons name="golf-outline" size={17} color={colors.clubGreen} />
-            </View>
-          )}
-          <View style={{ flex: 1 }}>
-            <Text style={styles.clubLabel}>Your Club</Text>
-            <Text style={styles.clubName} numberOfLines={1}>{user.homeClub || 'Not specified'}</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
-        </PressableScale>
-        </FadeIn>
-
-        <AdSpace placement="homeTop" style={styles.adSpace} />
-
-        <View style={styles.statsHeaderRow}>
-          <Text style={styles.sectionTitle}>My Stats</Text>
-          <View style={styles.periodToggle}>
-            {PERIODS.map((p) => (
-              <TouchableOpacity
-                key={p}
-                onPress={() => setStatsPeriod(p)}
-                style={[styles.periodPill, statsPeriod === p && styles.periodPillActive]}
-              >
-                <Text style={[styles.periodText, statsPeriod === p && styles.periodTextActive]}>
-                  {PERIOD_LABELS[p]}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        <View style={styles.statsGrid}>
-          <HomeStatCard
-            icon="flag-outline"
-            label="Rounds (9 Holes)"
-            value={stats.roundsPlayed9}
-            deltaPct={stats.roundsPlayed9DeltaPct}
-            deltaLabel={DELTA_LABELS[statsPeriod]}
-            showDelta={statsPeriod !== 'all'}
-          />
-          <HomeStatCard
-            icon="flag-outline"
-            label="Rounds (18 Holes)"
-            value={stats.roundsPlayed18}
-            deltaPct={stats.roundsPlayed18DeltaPct}
-            deltaLabel={DELTA_LABELS[statsPeriod]}
-            showDelta={statsPeriod !== 'all'}
-          />
-          <HomeStatCard
-            icon="card-outline"
-            label="Cash Earned"
-            value={stats.bucksEarned.toLocaleString()}
-            deltaPct={stats.bucksEarnedDeltaPct}
-            deltaLabel={DELTA_LABELS[statsPeriod]}
-            showDelta={statsPeriod !== 'all'}
-          />
-          <HomeStatCard
-            icon="receipt-outline"
-            label="Cash Redeemed"
-            value={stats.bucksRedeemed.toLocaleString()}
-            deltaPct={stats.bucksRedeemedDeltaPct}
-            deltaLabel={DELTA_LABELS[statsPeriod]}
-            showDelta={statsPeriod !== 'all'}
-          />
-        </View>
-
-        <FadeIn style={styles.chartCard}>
-          <Text style={styles.chartTitle}>Points Earned Per Month</Text>
-          <BarChart data={stats.monthly} />
-        </FadeIn>
-
-        <AdSpace placement="home" style={styles.adSpace} />
-
-        <View style={styles.rewardsHeaderRow}>
-          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Rewards</Text>
-          <TouchableOpacity style={styles.viewAllRow} onPress={() => navigation.navigate('Rewards')}>
-            <Text style={styles.viewAllText}>View All</Text>
-            <Ionicons name="arrow-forward" size={16} color={colors.clubGreen} />
-          </TouchableOpacity>
-        </View>
-
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rewardsRow}>
-          {rewards.slice(0, 5).map((reward) => (
-            <RewardCard
-              key={reward.id}
-              reward={reward}
-              width={REWARD_CARD_WIDTH}
-              onPress={() => navigation.navigate('Rewards')}
+        <View style={{ flexDirection: 'row', gap: 10, paddingBottom: 4 }}>
+          <View>
+            <GlassIconButton
+              icon="bell"
+              onPress={() => navigation.navigate('Notifications')}
+              accessibilityLabel={unreadNotificationCount > 0 ? `Notifications, ${unreadNotificationCount} unread` : 'Notifications'}
             />
-          ))}
-        </ScrollView>
+            {unreadNotificationCount > 0 ? (
+              <View pointerEvents="none" style={{ position: 'absolute', top: -4, right: -4, minWidth: 20, height: 20, paddingHorizontal: 5, borderRadius: 10, backgroundColor: bentoBrand.lime, alignItems: 'center', justifyContent: 'center', boxShadow: `0 0 0 2px ${t.ground}` }}>
+                <Text maxFontSizeMultiplier={1.2} style={{ fontSize: 11, fontWeight: '700', color: bentoBrand.fairway }}>
+                  {unreadNotificationCount}
+                </Text>
+              </View>
+            ) : null}
+          </View>
+          <PressableScale onPress={() => navigation.navigate('Profile')} accessibilityRole="button" accessibilityLabel="Profile" hitSlop={2}>
+            <BentoAvatar size={42} />
+          </PressableScale>
+        </View>
+      </View>
 
-        <View style={{ height: 120 }} />
+      {!user.verifiedMember ? (
+        <View style={{ flexDirection: 'row', gap: 10, paddingVertical: 12, paddingHorizontal: 14, borderRadius: 18, backgroundColor: t.warnBg, marginTop: 6 }}>
+          <BentoIcon name="info" size={18} color={t.warnInk} strokeWidth={1.8} />
+          <Text style={[bentoType.body, { flex: 1, fontSize: 14, lineHeight: 20, color: t.warnInk }]}>
+            Your club hasn't verified your membership yet — you can still earn Flagrr Cash, but tier progress is on hold.
+          </Text>
+        </View>
+      ) : null}
+
+      <View style={{ height: 10 }} />
+
+      {/* Hero grid: Flagrr Cash (spans both rows) | Streak / Resume round */}
+      <View style={{ flexDirection: 'row', gap: 12 }}>
+        <Appear style={{ flex: 1.2 }}>
+          <BentoTile tone="hero" style={{ flex: 1, minHeight: ROW * 2 + 12 }} innerStyle={{ justifyContent: 'space-between', gap: 12 }}>
+            <View>
+              <Text style={[bentoType.label, { fontWeight: '400', color: t.onHeroMuted }]}>Flagrr Cash</Text>
+              <CountUp
+                value={points.balance}
+                accessibilityLabel={`${points.balance.toLocaleString()} Flagrr Cash`}
+                style={[bentoType.number, { fontSize: balanceSize, lineHeight: balanceSize + 2, letterSpacing: -0.03 * balanceSize, color: t.onHero, marginTop: 10 }]}
+              />
+              <Text style={[bentoType.label, { fontWeight: '400', color: t.onHeroMuted, marginTop: 6 }]}>
+                <Text style={{ color: bentoBrand.lime, fontWeight: '600' }}>{user.tier}</Text> Member
+              </Text>
+            </View>
+            <PressableScale
+              onPress={() => navigation.navigate('MemberTiers')}
+              accessibilityRole="button"
+              accessibilityLabel={topTier ? `Member tiers: ${user.tier}, top tier` : `Member tiers: ${points.pointsToNextTier.toLocaleString()} to ${points.nextTier}`}
+              style={{ alignSelf: 'flex-start' }}
+            >
+              <Ring progress={topTier ? 1 : points.tierProgress} color={bentoBrand.lime} track="rgba(255,255,255,0.14)">
+                {topTier ? (
+                  <Text style={{ fontSize: 12, fontWeight: '600', color: t.onHero, textAlign: 'center' }}>Top tier</Text>
+                ) : (
+                  <>
+                    <Text style={[bentoType.number, { fontSize: 19, lineHeight: 20, color: t.onHero }]}>{points.pointsToNextTier < 100000 ? points.pointsToNextTier.toLocaleString() : compactNumber(points.pointsToNextTier)}</Text>
+                    <Text maxFontSizeMultiplier={1.3} style={{ fontSize: 11, color: 'rgba(255,255,255,0.8)', marginTop: 3 }}>
+                      to {points.nextTier}
+                    </Text>
+                  </>
+                )}
+              </Ring>
+            </PressableScale>
+            <BentoButton label="Redeem" variant="lime" nub compact onPress={() => navigation.navigate('Rewards')} accessibilityLabel="Redeem Flagrr Cash" />
+          </BentoTile>
+        </Appear>
+
+        <View style={{ flex: 1, gap: 12 }}>
+          <Appear style={{ flex: 1 }}>
+            <BentoTile style={{ flex: 1, minHeight: ROW }} padding={15} innerStyle={{ justifyContent: 'space-between' }}>
+              <View accessible accessibilityLabel={`${streak.weeks}-week streak. ${streakSince}.`} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <BentoIcon name="flame" size={20} color={t.accent} strokeWidth={1.8} />
+                <Text style={{ fontSize: 13, color: t.muted }}>Streak</Text>
+              </View>
+              <View>
+                <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6 }}>
+                  <CountUp value={streak.weeks} style={[bentoType.number, { fontSize: 38, lineHeight: 40, color: t.ink }]} />
+                  <Text style={{ fontSize: 15, color: t.muted }}>{streak.weeks === 1 ? 'week' : 'weeks'}</Text>
+                </View>
+                <View
+                  accessibilityRole="image"
+                  accessibilityLabel={`Played ${streak.weeksPlayed.filter(Boolean).length} of the last ${streak.weeksPlayed.length} weeks`}
+                  style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 9 }}
+                >
+                  {streak.weeksPlayed.map((played, i) => (
+                    <View key={i} style={{ width: 9, height: 9, borderRadius: 4.5, backgroundColor: played ? t.accent : t.dotOff }} />
+                  ))}
+                </View>
+                <Text style={{ fontSize: 12, lineHeight: 16, color: t.muted, marginTop: 8 }}>
+                  {weeksLeft} more week{weeksLeft === 1 ? '' : 's'} to a {streak.nextMilestoneAmount} FC bonus
+                </Text>
+              </View>
+            </BentoTile>
+          </Appear>
+
+          <Appear style={{ flex: 1 }}>
+            {inProgress && progress ? (
+              <BentoTile
+                tone="hero"
+                style={{ flex: 1, minHeight: ROW }}
+                padding={14}
+                innerStyle={{ justifyContent: 'flex-end' }}
+                onPress={() => navigation.navigate('CourseGuide', { roundId: inProgress.id })}
+                accessibilityLabel={`Resume round at ${inProgress.courseName}${progress.nextHole ? `, hole ${progress.nextHole}` : ''}, ${progress.points} points thru ${progress.thru}`}
+              >
+                <View style={{ position: 'absolute', top: 12, right: 12, width: 36, height: 36, borderRadius: 18, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' }}>
+                  <BentoIcon name="arrowUpRight" size={17} color={bentoBrand.fairway} strokeWidth={2} />
+                </View>
+                <Text style={[bentoType.number, { fontFamily: 'Fraunces_600SemiBold', fontSize: 20, lineHeight: 23, color: t.onHero }]}>
+                  {progress.nextHole ? `Hole ${progress.nextHole}` : 'All holes in'}
+                </Text>
+                <Text style={{ fontSize: 13, color: t.onHeroMuted, marginTop: 4 }}>
+                  {progress.points} pts thru {progress.thru}
+                </Text>
+              </BentoTile>
+            ) : (
+              <BentoTile
+                style={{ flex: 1, minHeight: ROW }}
+                padding={14}
+                innerStyle={{ justifyContent: 'space-between' }}
+                onPress={() => navigation.navigate('Course')}
+                accessibilityLabel="Play a round: open the Course tab"
+              >
+                <View style={{ width: 40, height: 40, borderRadius: 13, backgroundColor: t.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
+                  <BentoIcon name="golfFlag" size={20} color={t.accent} strokeWidth={1.8} />
+                </View>
+                <View>
+                  <Text style={[bentoType.number, { fontFamily: 'Fraunces_600SemiBold', fontSize: 20, lineHeight: 23, color: t.ink }]}>Play a round</Text>
+                  <Text style={{ fontSize: 13, color: t.muted, marginTop: 4 }}>Hole maps and your scorecard</Text>
+                </View>
+              </BentoTile>
+            )}
+          </Appear>
+        </View>
+      </View>
+
+      {/* Your Club */}
+      <Appear>
+        <BentoTile padding={0} onPress={() => navigation.navigate('Profile')} accessibilityLabel={`Your Club: ${user.homeClub || 'Not specified'}`}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 13, paddingHorizontal: 16 }}>
+            <View style={{ width: 40, height: 40, borderRadius: 13, backgroundColor: t.accentSoft, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+              {user.courseLogoUrl ? (
+                <Image source={{ uri: user.courseLogoUrl }} style={{ width: 40, height: 40 }} />
+              ) : (
+                <BentoIcon name="golfFlag" size={20} color={t.accent} strokeWidth={1.8} />
+              )}
+            </View>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={{ fontSize: 15, fontWeight: '600', color: t.ink }}>Your Club</Text>
+              <Text style={{ fontSize: 13, color: t.muted, marginTop: 2 }} numberOfLines={2}>
+                {user.homeClub || 'Not specified'}
+              </Text>
+            </View>
+            <BentoIcon name="chevronRight" size={18} color={t.muted} />
+          </View>
+        </BentoTile>
+      </Appear>
+
+      {/* Ads never animate. */}
+      <AdSpace placement="homeTop" style={{ marginTop: 6 }} />
+
+      {/* My Stats */}
+      <Appear style={{ marginTop: 6 }}>
+        <BentoTile>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+            <Text style={[bentoType.tileTitle, { color: t.ink }]}>My Stats</Text>
+            <SegmentedControl value={statsPeriod} onChange={(p) => setStatsPeriod(p)} options={PERIOD_OPTIONS} accessibilityLabel="Stats period" />
+          </View>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+            <Stat value={stats.roundsPlayed9} label="Rounds (9 Holes)" delta={stats.roundsPlayed9DeltaPct} period={statsPeriod} pos={0} />
+            <Stat value={stats.roundsPlayed18} label="Rounds (18 Holes)" delta={stats.roundsPlayed18DeltaPct} period={statsPeriod} pos={1} />
+            <Stat value={stats.bucksEarned} label="Cash Earned" delta={stats.bucksEarnedDeltaPct} period={statsPeriod} pos={2} />
+            <Stat value={stats.bucksRedeemed} label="Cash Redeemed" delta={stats.bucksRedeemedDeltaPct} period={statsPeriod} pos={3} />
+          </View>
+        </BentoTile>
+      </Appear>
+
+      {/* Points Earned Per Month, with the way into My Golf */}
+      <Appear>
+        <BentoTile>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', gap: 8, marginBottom: 14 }}>
+            <Text style={{ flex: 1, fontSize: 16, fontWeight: '600', color: t.ink }}>Points Earned Per Month</Text>
+            <Pressable onPress={() => navigation.navigate('MyGolf')} accessibilityRole="link" hitSlop={12}>
+              <Text style={{ fontSize: 14, fontWeight: '500', color: t.accent }}>My Golf</Text>
+            </Pressable>
+          </View>
+          {stats.monthly.length ? (
+            <BentoBarChart data={stats.monthly} />
+          ) : (
+            <Text style={{ fontSize: 13, color: t.muted }}>Scan a receipt to start your chart.</Text>
+          )}
+        </BentoTile>
+      </Appear>
+
+      <AdSpace placement="home" style={{ marginTop: 6 }} />
+
+      {/* Rewards preview */}
+      <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginTop: 8 }}>
+        <Text accessibilityRole="header" style={{ fontFamily: 'Fraunces_600SemiBold', fontSize: 22, letterSpacing: -0.22, color: t.ink }}>
+          Rewards
+        </Text>
+        <Pressable onPress={() => navigation.navigate('Rewards')} accessibilityRole="link" hitSlop={12}>
+          <Text style={{ fontSize: 15, fontWeight: '500', color: t.accent }}>View All</Text>
+        </Pressable>
+      </View>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -24 }} contentContainerStyle={{ paddingHorizontal: 24, gap: 12, paddingBottom: 4 }}>
+        {rewards.slice(0, 5).map((reward) => (
+          <RewardMini key={reward.id} reward={reward} onPress={() => navigation.navigate('Rewards')} />
+        ))}
       </ScrollView>
+    </BentoScreen>
+  );
+}
+
+// One cell of the My Stats 2×2 grid, with hairlines between cells.
+function Stat({ value, label, delta, period, pos }: { value: number; label: string; delta: number; period: StatsPeriod; pos: 0 | 1 | 2 | 3 }) {
+  const { t } = useBento();
+  const right = pos % 2 === 1;
+  const bottom = pos >= 2;
+  const showDelta = period !== 'all';
+  const up = delta >= 0;
+  return (
+    <View
+      style={{
+        width: '50%',
+        paddingTop: bottom ? 14 : 2,
+        paddingBottom: 4,
+        paddingLeft: right ? 16 : 0,
+        paddingRight: right ? 0 : 8,
+        borderLeftWidth: right ? 1 : 0,
+        borderTopWidth: bottom ? 1 : 0,
+        borderColor: t.hair,
+      }}
+    >
+      <CountUp value={value} style={[bentoType.number, { fontFamily: 'Fraunces_600SemiBold', fontSize: 26, lineHeight: 29, color: t.ink }]} />
+      <Text style={{ fontSize: 13, color: t.muted, marginTop: 3 }}>{label}</Text>
+      {showDelta ? (
+        <Text style={{ fontSize: 12, fontWeight: '600', color: up ? t.accent : t.negative, marginTop: 3 }}>
+          {up ? '+' : '−'}
+          {Math.abs(delta)}% <Text style={{ fontWeight: '400', color: t.muted }}>{DELTA_LABELS[period]}</Text>
+        </Text>
+      ) : null}
     </View>
   );
 }
 
-function createStyles(colors: ThemeColors) {
-  return StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.background },
-  safeArea: { backgroundColor: colors.clubGreen },
-  topBar: {
-    height: 62,
-    backgroundColor: colors.clubGreen,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: screenPadding,
-  },
-  topBarLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  topBarTitle: { fontFamily: fontFamily.heading, fontSize: fontSize.title, color: colors.white },
-  topBarRight: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  bellButton: { width: 23, height: 23, alignItems: 'center', justifyContent: 'center' },
-  badge: {
-    position: 'absolute',
-    top: -4,
-    right: -6,
-    backgroundColor: colors.lime,
-    borderRadius: 8,
-    minWidth: 16,
-    height: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 3,
-  },
-  badgeText: { fontFamily: fontFamily.bodySemiBold, fontSize: 9, color: colors.textPrimary },
-  scrollContent: { backgroundColor: colors.background },
-  welcome: {
-    fontFamily: fontFamily.heading,
-    fontSize: fontSize.title,
-    color: colors.white,
-    backgroundColor: colors.clubGreen,
-    paddingHorizontal: screenPadding,
-    paddingBottom: spacing.xl + spacing.md,
-    paddingTop: spacing.sm,
-  },
-  pointsCard: {
-    backgroundColor: colors.darkGreen,
-    marginHorizontal: screenPadding,
-    marginTop: -spacing.xl,
-    borderRadius: radius.lg,
-    padding: spacing.md,
-    gap: spacing.sm,
-  },
-  pointsHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  pointsSummary: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  pointsValue: { fontFamily: fontFamily.heading, fontSize: 32, color: colors.white },
-  pointsLabel: { fontFamily: fontFamily.body, fontSize: fontSize.small, color: colors.white },
-  tierBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 6,
-    borderRadius: radius.pill,
-  },
-  tierBadgeText: {
-    fontFamily: fontFamily.heading,
-    fontSize: 11,
-    color: colors.white,
-    textTransform: 'uppercase',
-  },
-  progressFooterRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  progressFooterText: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: 'rgba(255,255,255,0.7)' },
-  unverifiedNote: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: 'rgba(255,255,255,0.7)', marginTop: -4 },
-  streakCard: {
-    backgroundColor: colors.clubGreen,
-    borderRadius: radius.md,
-    padding: spacing.sm + 4,
-    flexDirection: 'row',
-    gap: spacing.sm,
-    alignItems: 'center',
-  },
-  streakIcon: {
-    width: 54,
-    height: 54,
-    borderRadius: 11,
-    backgroundColor: colors.darkGreen,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  streakTitle: { fontFamily: fontFamily.heading, fontSize: fontSize.title, color: colors.white },
-  streakSubtitle: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.white, marginTop: 2 },
-  streakMilestone: { fontFamily: fontFamily.bodyMedium, fontSize: fontSize.tiny, color: colors.lime, marginTop: 2 },
-  streakDots: { flexDirection: 'row', gap: 4, marginTop: spacing.sm },
-  streakDot: { width: 9, height: 9, borderRadius: 4.5 },
-  clubCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm + 4,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm + 4,
-    marginHorizontal: screenPadding,
-    marginTop: spacing.lg,
-  },
-  clubLogo: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.mintBg },
-  clubLogoFallback: { alignItems: 'center', justifyContent: 'center' },
-  clubLabel: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary },
-  clubName: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.textPrimary, marginTop: 1 },
-  statsHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: screenPadding,
-    marginTop: spacing.lg,
-  },
-  sectionTitle: { fontFamily: fontFamily.heading, fontSize: fontSize.title, color: colors.textPrimary },
-  periodToggle: {
-    flexDirection: 'row',
-    backgroundColor: colors.mintBg,
-    borderRadius: radius.pill,
-    padding: 3,
-  },
-  periodPill: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: radius.pill },
-  periodPillActive: { backgroundColor: colors.darkGreen },
-  periodText: { fontFamily: fontFamily.heading, fontSize: 12, color: colors.textPrimary },
-  periodTextActive: { color: colors.white },
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    paddingHorizontal: screenPadding,
-    marginTop: spacing.md,
-    gap: spacing.sm,
-  },
-  chartCard: {
-    marginHorizontal: screenPadding,
-    marginTop: spacing.md,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.lg,
-    padding: spacing.md,
-  },
-  chartTitle: { fontFamily: fontFamily.heading, fontSize: fontSize.small, color: colors.textPrimary, marginBottom: spacing.md },
-  adSpace: { marginHorizontal: screenPadding, marginTop: spacing.md },
-  rewardsHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: screenPadding,
-    marginTop: spacing.lg,
-  },
-  viewAllRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  viewAllText: { fontFamily: fontFamily.heading, fontSize: fontSize.label, color: colors.clubGreen },
-  rewardsRow: { paddingHorizontal: screenPadding, gap: spacing.sm, marginTop: spacing.sm },
-});
+// Reward card in the Home rail: photo, title and the first option's cost,
+// as the previous card showed.
+function RewardMini({ reward, onPress }: { reward: Reward; onPress: () => void }) {
+  const { t } = useBento();
+  const [failed, setFailed] = useState(false);
+  const cost = reward.variants[0]?.cost;
+  return (
+    <PressableScale onPress={onPress} accessibilityRole="button" accessibilityLabel={`${reward.title}${cost != null ? `, ${cost} Flagrr Cash` : ''}`} style={{ width: 200 }}>
+      <View style={{ padding: 5, borderRadius: 24, backgroundColor: t.shell, boxShadow: `0 0 0 1px ${t.ring}, ${t.shadow}` }}>
+        <View style={{ borderRadius: 19, overflow: 'hidden', backgroundColor: t.tile, boxShadow: t.insetHighlight }}>
+          <View style={{ height: 112, backgroundColor: bentoBrand.fairway, alignItems: 'center', justifyContent: 'center' }}>
+            {reward.imageUrl && !failed ? (
+              <Image source={{ uri: reward.imageUrl }} onError={() => setFailed(true)} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} resizeMode="cover" />
+            ) : (
+              <BentoIcon name="rewards" size={34} color={bentoBrand.lime} strokeWidth={1.5} />
+            )}
+          </View>
+          <View style={{ paddingTop: 12, paddingHorizontal: 14, paddingBottom: 14 }}>
+            <Text style={{ fontSize: 15, fontWeight: '600', color: t.ink }} numberOfLines={2}>
+              {reward.title}
+            </Text>
+            {cost != null ? (
+              <View style={{ flexDirection: 'row', alignItems: 'baseline', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
+                <Text style={[bentoType.number, { fontSize: 17, color: t.ink }]}>{cost.toLocaleString()}</Text>
+                <Text style={{ fontSize: 12, fontWeight: '500', color: t.muted }}>Flagrr Cash</Text>
+              </View>
+            ) : null}
+          </View>
+        </View>
+      </View>
+    </PressableScale>
+  );
 }

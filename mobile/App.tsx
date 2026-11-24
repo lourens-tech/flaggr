@@ -13,6 +13,7 @@ import { AppProvider } from './src/context/AppContext';
 import { AdminProvider } from './src/context/AdminContext';
 import { RootNavigator } from './src/navigation/RootNavigator';
 import { AppAlertHost } from './src/components/common/AppAlertHost';
+import { ToastHost } from './src/components/bento/Toast';
 import { navigationRef } from './src/navigation/navigationRef';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -47,6 +48,25 @@ export default function App() {
     return null;
   }
 
+  // Dev-only Bento component gallery on the web build: add `?bento` (or
+  // `?bento=dark` / `?bento=light`) to the URL. Never shipped behaviour:
+  // __DEV__ is false in every exported build.
+  if (__DEV__ && Platform.OS === 'web' && typeof window !== 'undefined') {
+    const bento = new URLSearchParams(window.location.search).get('bento');
+    if (bento !== null) {
+      const { BentoGallery } = require('./src/dev/BentoGallery') as typeof import('./src/dev/BentoGallery');
+      return (
+        <SafeAreaProvider>
+          <ThemeProvider forceScheme={bento === 'dark' ? 'dark' : bento === 'light' ? 'light' : undefined}>
+            <BentoGallery />
+            <AppAlertHost />
+            <ToastHost />
+          </ThemeProvider>
+        </SafeAreaProvider>
+      );
+    }
+  }
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
@@ -57,6 +77,7 @@ export default function App() {
                 <RootNavigator />
               </NavigationContainer>
               <AppAlertHost />
+              <ToastHost />
             </AdminProvider>
           </AppProvider>
         </ThemeProvider>

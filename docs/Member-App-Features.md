@@ -18,19 +18,23 @@ Everything below describes the app as it exists today for a signed-up member. Se
 
 ## Home Screen
 
-The member's dashboard, shown after login:
+The member's dashboard, shown after login. Since 2026-11-24 it uses the Bento design (tiles in the order of the Home board):
 
-- **Flagrr Cash balance** and current **tier badge** (Bronze/Silver/Gold/Platinum), with a progress bar toward the next tier and how many FC are needed.
-- **Streak card** — see [Streaks](#streaks) below.
-- **My Stats** — Rounds Played (9 holes), Rounds Played (18 holes), Flagrr Cash Earned, Flagrr Cash Redeemed, each with a period-over-period % change. A Month / Year / All toggle re-fetches these live.
-- **Points Earned Per Month** bar chart (current calendar year).
-- **Ad space** — see [Ad Space](#ad-space) below.
-- **Rewards preview** — the first 3 rewards, with a "View All" link into the full Rewards Shop.
-- A notification bell with an unread badge, and the member's avatar, in the header.
+- **Header** — today's date, a time-of-day greeting with the member's first name ("Morning, / Afternoon, / Evening,"), a notification bell with the unread count (opens Notifications) and the member's avatar or initials (opens Profile).
+- **Membership not verified** — an amber notice above the tiles: "Your club hasn't verified your membership yet — you can still earn Flagrr Cash, but tier progress is on hold."
+- **Flagrr Cash hero** — the balance (counts up each time Home opens), the tier name, a ring showing progress to the next tier with the FC still needed (tap for Member Tiers; "Top tier" at Platinum), and **Redeem** (opens the Rewards Shop).
+- **Streak tile** — weeks in the streak, a dot per recent week, and "N more weeks to a Y FC bonus". See [Streaks](#streaks).
+- **Resume round tile** — when a round is in progress: the next hole to play and the Stableford points so far ("14 pts thru 6"); tap to reopen the hole view. Read from the same `golfHome` call as the Course tab, refreshed each time Home opens. With no round in progress (or if that call fails) the tile is **Play a round**, which opens the Course tab.
+- **Your Club** — the home club name and crest; opens Profile.
+- **Ad space** (top banner) — see [Ad Space](#ad-space).
+- **My Stats** — Rounds (9 Holes), Rounds (18 Holes), Cash Earned, Cash Redeemed, each with a period-over-period % change ("+50% vs Last Month"; none for All). A Month / Year / All control re-fetches these live.
+- **Points Earned Per Month** bar chart (the latest month highlighted), with a **My Golf** link to the My Golf tab.
+- **Ad space** (second slot).
+- **Rewards preview** — the first 5 rewards with photo, name and the first option's Flagrr Cash cost; tapping a card or "View All" opens the Rewards Shop.
 
 ## Course and My Golf
 
-The tab bar has three tabs either side of the Scan button: **Home, Course, My Golf** on the left and **Rewards, Activity, Profile** on the right.
+The tab bar has three tabs either side of the Scan button: **Home, Course, My Golf** on the left and **Rewards, Activity, Profile** on the right. It is the Bento floating glass bar (2026-11-24): each tab shows a line icon and a label, the active tab is green (lime in dark mode) with a soft highlight that slides between tabs, and Scan is a raised fairway-green button with a lime icon and a "Scan" label. The same bar also lays out the redesign's 4-tab layout (Home, Course, Rewards, Profile) if the tabs change; that change has not been made.
 
 ### Course tab
 
@@ -157,6 +161,7 @@ Tier is based on **Flagrr Cash earned in the current calendar quarter** (Jan–M
 - Ads are data-driven (stored in the database) and are managed by the Flagrr super-admin team: an ad can target one or more specific clubs, or all clubs. Each has an image or video, target URL, active window (start/end dates), and display order.
 - Each ad is tappable and opens its target URL. Taps and impressions are both logged for ad-performance reporting.
 - A slot with no ad configured falls back to an inert "Ad Space" placeholder, so nothing looks broken before an ad is set up.
+- A small "SPONSORED" label sits above every slot that is showing a real ad (not above the placeholder). Ads never animate: no rise, reveal, parallax or press scaling.
 
 ## Profile
 
@@ -188,6 +193,7 @@ Tier is based on **Flagrr Cash earned in the current calendar quarter** (Jan–M
 
 ## App-wide UX details
 
-- A branded in-app alert/confirm modal is used everywhere instead of the browser's native `alert`/`confirm`, so every dialog matches the app's look and feel, including on the web build.
-- Motion follows one system (`mobile/src/theme/motion.ts`): screens slide in with native iOS-style pushes, the balance and stats roll up, cards and buttons scale under the finger, the selected tab pops, and success screens pop their QR code or trophy. Reduce Motion in the phone's accessibility settings turns all of it off.
+- A branded in-app alert/confirm modal is used everywhere instead of the browser's native `alert`/`confirm`, so every dialog matches the app's look and feel, including on the web build. Since 2026-11-24 it is the Bento alert: a centred card with the title and message in the system font, and full-width buttons under hairlines (two side by side with Cancel on the right, otherwise stacked). The default action is green (lime in dark mode), destructive actions are red, Cancel is plain. Titles, messages, buttons and what each button does are unchanged.
+- The round sheets in the hole view (Scorecard, Your round, My bag) are Bento sheets: a rounded card inset from the screen edges with a close button, rising from the bottom over a dimmed backdrop. Their content is unchanged.
+- Motion follows one system (`mobile/src/theme/motion.ts`): screens slide in with native iOS-style pushes, the balance and stats roll up, cards and buttons scale under the finger, the tab highlight slides to the selected tab, switching tabs cross-fades with the new screen settling into place, alerts scale in and sheets rise, and success screens pop their QR code or trophy. Reduce Motion in the phone's accessibility settings turns all of it off (tabs and alerts then only fade).
 - The web build includes a PWA manifest and a minimal service worker (no offline caching).
