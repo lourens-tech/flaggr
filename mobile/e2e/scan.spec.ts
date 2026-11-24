@@ -760,8 +760,8 @@ test.describe('Receipt Success', () => {
     await see(page, 'Submitted successfully!');
     await see(page, 'Your reward');
     await expect(page.getByLabel('196 Flagrr Cash').filter({ visible: true })).toHaveText('+196 FC');
-    await see(page, '196 Flagrr Cash added and ready to redeem.'); // Brand words (owner decision 24 Nov 2026): kept board G-B-SuccessApproved wording with the brand kit’s verb (redeem, not spend), no “wallet” / “balance”.
-    await see(page, 'Your new Flagrr Cash is ready to redeem on rewards at your club.'); // Brand words (owner decision 24 Nov 2026): kept board G-B-SuccessApproved wording with the brand kit’s verb (redeem, not spend), no “wallet” / “balance”.
+    await see(page, '196 Flagrr Cash added and ready to spend.'); // Brand words (owner decision 24 Nov 2026): kept board G-B-SuccessApproved wording, no “wallet” / “balance”.
+    await see(page, 'Your new Flagrr Cash is ready to redeem on rewards at your club.'); // Brand words (owner decision 24 Nov 2026): kept board G-B-SuccessApproved wording, no “wallet” / “balance”.
     await see(page, 'Play more rounds, scan your receipts, and redeem rewards to unlock higher membership tiers and exclusive benefits.');
     await notSee(page, 'Your receipt is being reviewed');
     await notSee(page, 'This receipt was flagged for manual review', false);
@@ -785,8 +785,8 @@ test.describe('Receipt Success', () => {
     await see(page, 'Your receipt is being reviewed');
     // Brand words (owner decision 24 Nov 2026): kept board G-B-SuccessFlagged wording, no “balance”.
     await see(page, 'This receipt was flagged for manual review. Once approved, 196 Flagrr Cash will be added to your Flagrr Cash — no action is needed from you. You can check its status anytime under Profile > Receipt History.');
-    await notSee(page, '196 Flagrr Cash added and ready to redeem.'); // Brand words (owner decision 24 Nov 2026): kept board G-B-SuccessApproved wording with the brand kit’s verb (redeem, not spend), no “wallet” / “balance”.
-    await notSee(page, 'Your new Flagrr Cash is ready to redeem', false); // Brand words (owner decision 24 Nov 2026): kept board G-B-SuccessApproved wording with the brand kit’s verb (redeem, not spend), no “wallet” / “balance”.
+    await notSee(page, '196 Flagrr Cash added and ready to spend.'); // Brand words (owner decision 24 Nov 2026): kept board G-B-SuccessApproved wording, no “wallet” / “balance”.
+    await notSee(page, 'Your new Flagrr Cash is ready to redeem', false); // Brand words (owner decision 24 Nov 2026): kept board G-B-SuccessApproved wording, no “wallet” / “balance”.
     const after = await mockState(page);
     expect(after.receipts).toBe(before.receipts + 1);
     expect(after.scenario.balance).toBe(before.scenario.balance);
@@ -797,15 +797,15 @@ test.describe('Receipt Success', () => {
     await toReview(page);
     await button(page, 'Submit Receipt').click(); // mock confirms 196
     await expect(page.getByLabel('250 Flagrr Cash').filter({ visible: true })).toHaveText('+250 FC');
-    await see(page, '250 Flagrr Cash added and ready to redeem.'); // Brand words (owner decision 24 Nov 2026): kept board G-B-SuccessApproved wording with the brand kit’s verb (redeem, not spend), no “wallet” / “balance”.
+    await see(page, '250 Flagrr Cash added and ready to spend.'); // Brand words (owner decision 24 Nov 2026): kept board G-B-SuccessApproved wording, no “wallet” / “balance”.
   });
 
-  test('Zero FC › “+0 FC” and “0 Flagrr Cash added and ready to redeem.”', async ({ page }) => {
+  test('Zero FC › “+0 FC” and “0 Flagrr Cash added and ready to spend.”', async ({ page }) => {
     await stubScan(page, scanBody({ items: [], grandTotal: null, totalPointsAwarded: 0 }));
     await toReview(page);
     await button(page, 'Submit Receipt').click();
     await expect(page.getByLabel('0 Flagrr Cash', { exact: true }).filter({ visible: true })).toHaveText('+0 FC');
-    await see(page, '0 Flagrr Cash added and ready to redeem.'); // Brand words (owner decision 24 Nov 2026): kept board G-B-SuccessApproved wording with the brand kit’s verb (redeem, not spend), no “wallet” / “balance”.
+    await see(page, '0 Flagrr Cash added and ready to spend.'); // Brand words (owner decision 24 Nov 2026): kept board G-B-SuccessApproved wording, no “wallet” / “balance”.
   });
 
   test('“View My Flagrr Cash” leaves Success for the tabs, showing the credited balance; the new receipt is first in History', async ({ page }) => {
