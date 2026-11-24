@@ -1,22 +1,22 @@
-import React, { useMemo } from 'react';
-import { ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import React, { useMemo, useState } from 'react';
+import { Pressable, Text, View } from 'react-native';
 import type { CompositeScreenProps } from '@react-navigation/native';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MainTabParamList, RootStackParamList } from '../../navigation/types';
 import { useApp } from '../../context/AppContext';
-import { HeaderAvatar } from '../../components/common/HeaderAvatar';
 import { showAlert } from '../../utils/alert';
-import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
-import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
+import { useBento } from '../../context/ThemeContext';
+import { bentoType } from '../../theme/bento';
 import type { ActivityEntry } from '../../data/types';
+import { Appear, BentoButton, BentoIcon, BentoScreen, BentoTile, Eyebrow, H1, SegmentedControl } from '../../components/bento';
 
 type Props = CompositeScreenProps<
   BottomTabScreenProps<MainTabParamList, 'Activity'>,
   NativeStackScreenProps<RootStackParamList>
 >;
+
+type Filter = 'all' | 'earn' | 'redeem';
 
 function groupLabel(dateIso: string): string {
   const date = new Date(dateIso);
@@ -38,10 +38,18 @@ function formatTime(dateIso: string): string {
   return new Date(dateIso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
+function formatAmount(amount: number) {
+  if (amount > 0) return `+${amount.toLocaleString()} FC`;
+  if (amount < 0) return `−${Math.abs(amount).toLocaleString()} FC`;
+  return `${amount} FC`;
+}
+
 export function RewardsActivityScreen({ navigation }: Props) {
-  const colors = useThemeColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
-  const { activity, vouchers, unreadNotificationCount } = useApp();
+  const { t } = useBento();
+  const { activity, vouchers } = useApp();
+  // All / Earned / Redeemed: filters the list on the device.
+  const [filter, setFilter] = useState<Filter>('all');
+  const visible = useMemo(() => (filter === 'all' ? activity : activity.filter((e) => e.type === filter)), [activity, filter]);
 
   const handleEntryPress = (entry: ActivityEntry) => {
     if (entry.type !== 'redeem' || !entry.voucherId) return;
@@ -65,106 +73,98 @@ export function RewardsActivityScreen({ navigation }: Props) {
 
   const grouped = useMemo(() => {
     const groups: Record<string, ActivityEntry[]> = {};
-    for (const entry of activity) {
+    for (const entry of visible) {
       const label = groupLabel(entry.date);
       groups[label] = groups[label] ?? [];
       groups[label].push(entry);
     }
     const order = ['Today', 'Yesterday', 'This Week', 'Earlier'];
     return order.filter((label) => groups[label]?.length).map((label) => ({ label, entries: groups[label] }));
-  }, [activity]);
+  }, [visible]);
+
+  const statusPill = (entry: ActivityEntry) => {
+    if (entry.type !== 'redeem' || !entry.voucherId) return null;
+    const v = vouchers.find((x) => x.id === entry.voucherId);
+    if (!v || v.status === 'active') return null;
+    return (
+      <View style={{ paddingVertical: 3, paddingHorizontal: 9, borderRadius: 999, backgroundColor: v.status === 'expired' ? t.seg : t.accentSoft }}>
+        <Text style={{ fontSize: 12, fontWeight: '600', color: v.status === 'expired' ? t.muted : t.accent }}>{v.status === 'expired' ? 'Expired' : 'Already redeemed'}</Text>
+      </View>
+    );
+  };
 
   return (
-    <View style={styles.screen}>
-      <StatusBar barStyle="light-content" />
-      <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Reward Activity</Text>
-          <View style={styles.headerRight}>
-            <TouchableOpacity onPress={() => navigation.navigate('Notifications')}>
-              <Ionicons name="notifications" size={20} color={colors.white} />
-              {unreadNotificationCount > 0 ? <View style={styles.badge} /> : null}
-            </TouchableOpacity>
-            <HeaderAvatar size={30} />
-          </View>
-        </View>
-      </SafeAreaView>
+    <BentoScreen tabBar>
+      <H1>Reward Activity</H1>
+      <SegmentedControl
+        fill
+        value={filter}
+        onChange={setFilter}
+        accessibilityLabel="Show activity"
+        options={[
+          { value: 'all', label: 'All' },
+          { value: 'earn', label: 'Earned' },
+          { value: 'redeem', label: 'Redeemed' },
+        ]}
+        style={{ marginTop: 6 }}
+      />
 
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {grouped.length === 0 ? (
-          <Text style={styles.emptyText}>No activity yet — play a round or scan a receipt to get started.</Text>
-        ) : null}
+      {activity.length === 0 ? (
+        <Appear>
+          <BentoTile padding={18}>
+            <View style={{ alignItems: 'center', paddingVertical: 18, paddingHorizontal: 8 }}>
+              <View style={{ width: 64, height: 64, borderRadius: 22, backgroundColor: t.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
+                <BentoIcon name="activity" size={30} color={t.accent} strokeWidth={1.7} />
+              </View>
+              <Text style={[bentoType.number, { fontSize: 22, color: t.ink, marginTop: 14, textAlign: 'center' }]}>No activity yet</Text>
+              <Text style={[bentoType.body, { color: t.muted, marginTop: 6, textAlign: 'center', maxWidth: 270 }]}>
+                No activity yet — play a round or scan a receipt to get started.
+              </Text>
+              <BentoButton label="Scan a receipt" nub compact onPress={() => navigation.navigate('ScanReceipt')} style={{ marginTop: 18, alignSelf: 'stretch' }} />
+            </View>
+          </BentoTile>
+        </Appear>
+      ) : grouped.length === 0 ? (
+        <Text style={[bentoType.body, { color: t.muted, textAlign: 'center', marginTop: 12 }]}>
+          {filter === 'earn' ? 'Nothing earned yet.' : 'Nothing redeemed yet.'}
+        </Text>
+      ) : null}
 
-        {grouped.map((group) => (
-          <View key={group.label} style={{ marginBottom: spacing.lg }}>
-            <Text style={styles.groupLabel}>{group.label}</Text>
-            <View style={styles.card}>
+      {grouped.map((group) => (
+        <Appear key={group.label}>
+          <Eyebrow style={{ marginTop: 8, marginBottom: 8, marginLeft: 4 }}>{group.label}</Eyebrow>
+          <BentoTile padding={0}>
+            <View style={{ paddingHorizontal: 16 }}>
               {group.entries.map((entry, i) => {
                 const isEarn = entry.type === 'earn';
                 const isTappable = entry.type === 'redeem' && !!entry.voucherId;
                 return (
-                  <TouchableOpacity
+                  <Pressable
                     key={entry.id}
-                    activeOpacity={isTappable ? 0.7 : 1}
                     disabled={!isTappable}
                     onPress={() => handleEntryPress(entry)}
-                    style={[styles.row, i !== group.entries.length - 1 && styles.rowDivider]}
+                    accessibilityRole={isTappable ? 'button' : undefined}
+                    style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 13, borderTopWidth: i ? 1 : 0, borderTopColor: t.hair, opacity: pressed ? 0.7 : 1 })}
                   >
-                    <View style={styles.rowIcon}>
-                      <Ionicons
-                        name={isEarn ? 'add-circle' : 'checkmark-done-circle'}
-                        size={20}
-                        color={colors.clubGreen}
-                      />
+                    <View style={{ width: 40, height: 40, borderRadius: 13, backgroundColor: isEarn ? t.accentSoft : t.seg, alignItems: 'center', justifyContent: 'center' }}>
+                      <BentoIcon name={isEarn ? 'receipt' : 'rewards'} size={20} color={isEarn ? t.accent : t.ink} strokeWidth={1.7} />
                     </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.rowTitle}>{entry.title}</Text>
-                      <Text style={styles.rowSubtitle}>
+                    <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
+                      <Text style={{ fontSize: 15, fontWeight: '600', color: t.ink }}>{entry.title}</Text>
+                      <Text style={{ fontSize: 13, color: t.muted }}>
                         {isEarn ? 'Earned' : 'Redeemed'} · {formatTime(entry.date)}
                       </Text>
+                      {statusPill(entry) ? <View style={{ flexDirection: 'row' }}>{statusPill(entry)}</View> : null}
                     </View>
-                    <Text style={[styles.rowAmount, { color: isEarn ? colors.clubGreen : colors.textPrimary }]}>
-                      {isEarn ? '+' : ''}
-                      {entry.amount} FC
-                    </Text>
-                    {isTappable ? (
-                      <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
-                    ) : null}
-                  </TouchableOpacity>
+                    <Text style={{ fontFamily: 'Fraunces_600SemiBold', fontSize: 17, color: isEarn ? t.accent : t.ink, fontVariant: ['tabular-nums'] }}>{formatAmount(entry.amount)}</Text>
+                    {isTappable ? <BentoIcon name="chevronRight" size={16} color={t.muted} /> : null}
+                  </Pressable>
                 );
               })}
             </View>
-          </View>
-        ))}
-        <View style={{ height: 120 }} />
-      </ScrollView>
-    </View>
+          </BentoTile>
+        </Appear>
+      ))}
+    </BentoScreen>
   );
-}
-
-function createStyles(colors: ThemeColors) {
-  return StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.background },
-  headerSafeArea: { backgroundColor: colors.clubGreen },
-  header: {
-    height: 62,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: screenPadding,
-  },
-  headerTitle: { fontFamily: fontFamily.heading, fontSize: fontSize.title, color: colors.white },
-  headerRight: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  badge: { position: 'absolute', top: -2, right: -4, width: 8, height: 8, borderRadius: 4, backgroundColor: colors.lime },
-  content: { padding: screenPadding },
-  emptyText: { fontFamily: fontFamily.body, fontSize: fontSize.small, color: colors.textSecondary, textAlign: 'center', marginTop: spacing.xl },
-  groupLabel: { fontFamily: fontFamily.heading, fontSize: fontSize.title, color: colors.textPrimary, marginBottom: spacing.sm },
-  card: { backgroundColor: colors.mintBgAlt, borderRadius: radius.lg, paddingHorizontal: spacing.md },
-  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.sm + 4, gap: spacing.sm },
-  rowDivider: { borderBottomWidth: 1, borderBottomColor: 'rgba(31,66,52,0.08)' },
-  rowIcon: { width: 24, alignItems: 'center' },
-  rowTitle: { fontFamily: fontFamily.bodyMedium, fontSize: fontSize.small, color: colors.textPrimary },
-  rowSubtitle: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary, marginTop: 2 },
-  rowAmount: { fontFamily: fontFamily.heading, fontSize: fontSize.label },
-});
 }

@@ -121,6 +121,11 @@ Use test receipts that trigger a flag: a very unclear photo (low OCR confidence)
 - [ ] Reward Activity timeline shows the redemption; tapping it opens the voucher's QR code.
 - [ ] When club staff redeem the voucher at the counter, the member gets a "Reward validated" notification and the voucher then shows as used.
 - [ ] A used/expired voucher, when tapped from Reward Activity, explains its state instead of opening a QR code.
+- [ ] Redeem Now opens the "Redeem reward?" sheet showing the right option, Cost and Balance after; Cancel, the close button and the backdrop all close it without redeeming; Redeem Now redeems once and opens the voucher.
+- [ ] Rewards Shop search and category filters work (tapping the active filter returns to All); a search with no matches shows "No rewards match your search."
+- [ ] A member at a club not on Flagrr sees "Nothing Here Yet" with Contact Support (opens Contact Your Club), the ad, and the "You're Almost In the Family" alert on every visit.
+- [ ] Voucher shows the ticket with QR code, voucher code, Redeemed and Expires dates, Cost and Balance left; Back to Rewards and the back button both work.
+- [ ] Reward Activity's All / Earned / Redeemed filter works; used and expired vouchers are labelled in the list; an empty account sees the empty card with Scan a receipt.
 
 ## 11. Profile
 

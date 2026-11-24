@@ -156,10 +156,16 @@ Tier is based on **Flagrr Cash earned in the current calendar quarter** (Jan–M
 - Redeeming a reward deducts the Flagrr Cash cost and issues a **QR code voucher** (code format `FLGR-XXXX-XXXX`, 90-day expiry) to present at the club. Redeeming a reward the member cannot afford is blocked.
 - Club staff validate the voucher by code or QR; the member then receives a "Reward validated" notification.
 - The Rewards Shop also has its own **ad space** slot (see below).
+- Screen (Bento design since 2026-11-24): the club name and "Rewards Shop" with the Flagrr Cash to spend; a search field; All plus one filter per category that has rewards; reward cards two to a row with photo, category, title, description, option chips (when there are several), cost in FC and **Redeem Now**. The ad sits after the first row.
+- **Redeem confirmation** is a sheet (it was an alert): the reward photo, club and category, the chosen option, **Cost** and **Balance after**, **Redeem Now** and Cancel. Redeem Now does exactly what the alert's Redeem did and opens the voucher.
+- **Not enough Flagrr Cash** stays an alert with the real shortfall ("You need N more Flagrr Cash to redeem …").
+- **No search results**: a card with "No rewards match your search." and "Try another word, or clear the search to see everything."
+- **Club not on Flagrr**: the "Nothing Here Yet" card with **Contact Support** (opens Contact Your Club) and the ad below it; the "You're Almost In the Family" alert still shows on every visit. A listed club with no rewards shows "No Rewards Yet" with no button.
 
 ### Vouchers & Reward Activity
 
-- **Reward Activity** is a chronological timeline of earn and redeem events (the most recent 100), grouped Today / Yesterday / This Week / Earlier.
+- **Voucher** screen: a ticket with the reward photo, title, club, "Reward Redeemed", the QR code and voucher code, then Redeemed date, Expires date, Cost and Balance left; **Back to Rewards**, plus a back button.
+- **Reward Activity** is a chronological timeline of earn and redeem events (the most recent 100), grouped Today / Yesterday / This Week / Earlier. An All / Earned / Redeemed control filters the list on the device. Redeem entries show their FC with a minus sign and an "Already redeemed" or "Expired" label when the voucher is used or expired. With no activity, an empty card offers **Scan a receipt**.
 - Tapping a redeem entry opens that voucher's QR code if it is still active, or explains if it has already been used or has expired.
 
 ## Ad Space
