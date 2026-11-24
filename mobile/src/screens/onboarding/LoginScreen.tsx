@@ -1,27 +1,27 @@
-import React, { useState, useMemo } from 'react';
-import { StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import React, { useState } from 'react';
+import { Pressable, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from '../../navigation/types';
-import { FlagrrLogo } from '../../components/common/FlagrrLogo';
-import { PillButton } from '../../components/common/PillButton';
-import { TextField } from '../../components/common/TextField';
 import { ApiError } from '../../api/client';
 import { useApp } from '../../context/AppContext';
+import { useBento } from '../../context/ThemeContext';
 import { showAlert } from '../../utils/alert';
-import { ONBOARDING_BACKGROUNDS, fontFamily, screenPadding, spacing } from '../../theme';
-import type { ThemeColors } from '../../context/ThemeContext';
-import { systemFonts, useBentoLegacy } from '../../components/bento/legacy';
-import { AuthBackdrop } from '../../components/bento/AuthBackdrop';
+import { friendlyError } from '../../utils/errors';
+import { ONBOARDING_BACKGROUNDS } from '../../theme';
+import { BentoButton, BentoField, BentoIcon, H1 } from '../../components/bento';
+import { AuthPhotoScreen, PasswordField, PhotoBackButton, PromptLink, authTitle } from './authParts';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Login'>;
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const GENERIC_ERROR = 'Something went wrong. Please try again.';
 
+// Login (Bento boards AppLogin and the kept Login states G-A-Login*): back,
+// "Welcome back", Email, Password with the eye, Keep me logged in, Login,
+// "Forgot Password? Recover here." and the sign-up link. Same validation,
+// call and navigation as before.
 export function LoginScreen({ navigation }: Props) {
-  const { colors } = useBentoLegacy();
-  const styles = useMemo(() => systemFonts(createStyles(colors)), [colors]);
+  const { t } = useBento();
   const { login } = useApp();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -50,124 +50,78 @@ export function LoginScreen({ navigation }: Props) {
     try {
       await login(email.trim(), password, keepLoggedIn);
     } catch (err) {
-      const message = err instanceof ApiError ? err.message : 'Something went wrong. Please try again.';
+      // Server messages written for members stay word for word; raw technical
+      // text becomes plain wording (owner decision 24 Nov 2026).
+      const message = err instanceof ApiError ? friendlyError(err, GENERIC_ERROR) : GENERIC_ERROR;
       showAlert('Couldn’t log in', message);
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleForgotPassword = () => {
-    navigation.navigate('ForgotPassword');
-  };
-
   return (
-    <View style={styles.container}>
-      <AuthBackdrop photo={ONBOARDING_BACKGROUNDS.signUpStep1} />
-      <StatusBar barStyle="light-content" />
-      <SafeAreaView style={styles.safeArea}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          hitSlop={12}
-          style={styles.backButton}
+    <AuthPhotoScreen photo={ONBOARDING_BACKGROUNDS.signUpStep1} gap={14}>
+      <PhotoBackButton onPress={() => navigation.goBack()} />
+      <View style={{ height: 112 }} />
+      <H1 style={authTitle(36)}>Welcome back</H1>
+
+      <BentoField
+        label="Email"
+        placeholder="Email"
+        autoCapitalize="none"
+        keyboardType="email-address"
+        returnKeyType="next"
+        value={email}
+        onChangeText={(text) => {
+          setEmail(text);
+          if (emailError) setEmailError(undefined);
+        }}
+        error={emailError}
+      />
+      <PasswordField
+        label="Password"
+        placeholder="Password"
+        returnKeyType="done"
+        onSubmitEditing={handleLogin}
+        value={password}
+        onChangeText={(text) => {
+          setPassword(text);
+          if (passwordError) setPasswordError(undefined);
+        }}
+        error={passwordError}
+      />
+
+      <Pressable
+        onPress={() => setKeepLoggedIn((v) => !v)}
+        accessibilityRole="checkbox"
+        accessibilityLabel="Keep me logged in."
+        accessibilityState={{ checked: keepLoggedIn }}
+        aria-checked={keepLoggedIn}
+        style={{ flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 44, alignSelf: 'flex-start' }}
+      >
+        <View
+          style={
+            keepLoggedIn
+              ? { width: 24, height: 24, borderRadius: 8, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center' }
+              : { width: 24, height: 24, borderRadius: 8, borderWidth: 1.5, borderColor: t.muted }
+          }
         >
-          <Ionicons name="chevron-back" size={24} color={colors.white} />
-        </TouchableOpacity>
-
-        <View style={styles.logoRow}>
-          <FlagrrLogo size={72} />
+          {keepLoggedIn ? <BentoIcon name="check" size={16} color={t.accentInk} strokeWidth={2.4} /> : null}
         </View>
-        <View style={styles.authHead}>
-          <Text style={styles.authTitle} accessibilityRole="header">Welcome back</Text>
-        </View>
+        <Text style={{ fontSize: 15, color: t.ink }}>Keep me logged in.</Text>
+      </Pressable>
 
-        <View style={styles.form}>
-          <TextField
-            icon="mail-outline"
-            placeholder="Email"
-            autoCapitalize="none"
-            keyboardType="email-address"
-            returnKeyType="next"
-            value={email}
-            onChangeText={(text) => {
-              setEmail(text);
-              if (emailError) setEmailError(undefined);
-            }}
-            error={emailError}
-          />
-          <View style={{ height: spacing.md }} />
-          <TextField
-            icon="lock-closed-outline"
-            placeholder="Password"
-            isPassword
-            returnKeyType="done"
-            onSubmitEditing={handleLogin}
-            value={password}
-            onChangeText={(text) => {
-              setPassword(text);
-              if (passwordError) setPasswordError(undefined);
-            }}
-            error={passwordError}
-          />
+      <BentoButton
+        label="Login"
+        nub={!submitting}
+        onPress={handleLogin}
+        loading={submitting}
+        disabled={!email || !password}
+        style={submitting ? { opacity: 0.45 } : undefined}
+      />
 
-          <TouchableOpacity
-            style={styles.rememberRow}
-            onPress={() => setKeepLoggedIn((v) => !v)}
-            activeOpacity={0.7}
-          >
-            <Ionicons
-              name={keepLoggedIn ? 'checkmark-circle' : 'ellipse-outline'}
-              size={16}
-              color={keepLoggedIn ? colors.clubGreen : colors.textSecondary}
-            />
-            <Text style={styles.rememberText}>Keep me logged in.</Text>
-          </TouchableOpacity>
-
-          <View style={{ height: spacing.lg }} />
-          <PillButton
-            label="Login"
-            icon="arrow-forward"
-            onPress={handleLogin}
-            loading={submitting}
-            disabled={!email || !password}
-          />
-
-          <TouchableOpacity style={styles.forgotRow} onPress={handleForgotPassword}>
-            <Text style={styles.forgotText}>
-              Forgot Password? <Text style={styles.forgotBold}>Recover here.</Text>
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        <TouchableOpacity
-          style={styles.signupRow}
-          onPress={() => navigation.navigate('SignUpStep1')}
-        >
-          <Text style={styles.signupText}>Don't have an account?</Text>
-          <Text style={styles.signupBold}>Sign Up!</Text>
-        </TouchableOpacity>
-      </SafeAreaView>
-    </View>
+      <PromptLink prompt="Forgot Password?" link="Recover here." size={14} onPress={() => navigation.navigate('ForgotPassword')} />
+      <PromptLink prompt="Don't have an account?" link="Sign Up!" split onPress={() => navigation.navigate('SignUpStep1')} />
+    </AuthPhotoScreen>
   );
-}
-
-function createStyles(colors: ThemeColors) {
-  return StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  safeArea: { flex: 1, paddingHorizontal: screenPadding },
-  backButton: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', marginTop: spacing.sm, backgroundColor: 'rgba(10,24,17,0.45)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)' },
-  authHead: { marginTop: 110 },
-  authEyebrow: { fontFamily: fontFamily.bodySemiBold, fontSize: 12, letterSpacing: 1.68, textTransform: 'uppercase', color: colors.textSecondary, marginBottom: 6 },
-  authTitle: { fontFamily: 'Fraunces_700Bold', fontSize: 34, lineHeight: 36, letterSpacing: -0.85, color: colors.textPrimary },
-  logoRow: { alignItems: 'center', marginTop: spacing.sm },
-  form: { marginTop: spacing.xl },
-  rememberRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: spacing.md },
-  rememberText: { fontFamily: fontFamily.body, fontSize: 12, color: colors.textPrimary },
-  forgotRow: { alignItems: 'center', marginTop: spacing.lg },
-  forgotText: { fontFamily: fontFamily.body, fontSize: 13, color: colors.textPrimary },
-  forgotBold: { fontFamily: fontFamily.bodySemiBold, color: colors.clubGreen },
-  signupRow: { alignItems: 'center', marginTop: 'auto', marginBottom: spacing.xl, gap: 4 },
-  signupText: { fontFamily: fontFamily.body, fontSize: 13, color: colors.textPrimary },
-  signupBold: { fontFamily: fontFamily.bodySemiBold, fontSize: 13, color: colors.clubGreen },
-});
 }
