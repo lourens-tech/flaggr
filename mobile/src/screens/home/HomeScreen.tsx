@@ -157,8 +157,8 @@ export function HomeScreen({ navigation }: Props) {
               accessibilityLabel={unreadNotificationCount > 0 ? `Notifications, ${unreadNotificationCount} unread` : 'Notifications'}
             />
             {unreadNotificationCount > 0 ? (
-              <View pointerEvents="none" style={{ position: 'absolute', top: -4, right: -4, minWidth: 20, height: 20, paddingHorizontal: 5, borderRadius: 10, backgroundColor: bentoBrand.lime, alignItems: 'center', justifyContent: 'center', boxShadow: `0 0 0 2px ${t.ground}` }}>
-                <Text maxFontSizeMultiplier={1.2} style={{ fontSize: 11, fontWeight: '700', color: bentoBrand.fairway }}>
+              <View pointerEvents="none" style={{ position: 'absolute', top: -4, right: -6, minWidth: 20, height: 20, paddingHorizontal: 5, borderRadius: 10, backgroundColor: bentoBrand.lime, alignItems: 'center', justifyContent: 'center', boxShadow: `0 0 0 2px ${t.ground}` }}>
+                <Text maxFontSizeMultiplier={1.2} style={{ fontSize: 12, fontWeight: '700', color: bentoBrand.fairway }}>
                   {unreadNotificationCount}
                 </Text>
               </View>
@@ -192,7 +192,7 @@ export function HomeScreen({ navigation }: Props) {
                 accessibilityLabel={`${points.balance.toLocaleString()} Flagrr Cash`}
                 style={[bentoType.number, { fontSize: balanceSize, lineHeight: balanceSize + 2, letterSpacing: -0.03 * balanceSize, color: t.onHero, marginTop: 10 }]}
               />
-              <Text style={[bentoType.label, { fontWeight: '400', color: t.onHeroMuted, marginTop: 6 }]}>
+              <Text style={[bentoType.label, { fontWeight: '400', color: 'rgba(255,255,255,0.88)', marginTop: 6 }]}>
                 <Text style={{ color: bentoBrand.lime, fontWeight: '600' }}>{user.tier}</Text> Member
               </Text>
             </View>
@@ -205,7 +205,7 @@ export function HomeScreen({ navigation }: Props) {
             >
               <Ring size={ringSize} stroke={9} progress={topTier ? 1 : points.tierProgress} color={bentoBrand.lime} track="rgba(255,255,255,0.14)">
                 {topTier ? (
-                  <Text style={{ fontSize: 13, fontWeight: '600', color: t.onHero, textAlign: 'center' }}>Top tier</Text>
+                  <Text maxFontSizeMultiplier={1.2} numberOfLines={2} style={[bentoType.number, { fontSize: 20, lineHeight: 22, color: t.onHero, textAlign: 'center' }]}>Top tier</Text>
                 ) : (
                   <>
                     <Text style={[bentoType.number, { fontSize: 22, lineHeight: 24, color: t.onHero }]}>{points.pointsToNextTier < 100000 ? points.pointsToNextTier.toLocaleString() : compactNumber(points.pointsToNextTier)}</Text>
@@ -281,7 +281,7 @@ export function HomeScreen({ navigation }: Props) {
                   <BentoIcon name="golfFlag" size={20} color={t.accent} strokeWidth={1.8} />
                 </View>
                 <View>
-                  <Text style={[bentoType.number, { fontFamily: 'Fraunces_600SemiBold', fontSize: 20, lineHeight: 23, color: t.ink }]}>Play a round</Text>
+                  <Text style={[bentoType.number, { fontSize: 20, lineHeight: 21, letterSpacing: -0.5, color: t.ink }]}>Play a round</Text>
                   <Text style={{ fontSize: 13, color: t.muted, marginTop: 4 }}>Hole maps and your scorecard</Text>
                 </View>
               </BentoTile>
@@ -343,7 +343,7 @@ export function HomeScreen({ navigation }: Props) {
           {stats.monthly.length ? (
             <BentoBarChart data={stats.monthly} />
           ) : (
-            <Text style={{ fontSize: 13, color: t.muted }}>Scan a receipt to start your chart.</Text>
+            <Text style={{ fontSize: 14, color: t.muted }}>Scan a receipt to start your chart.</Text>
           )}
         </BentoTile>
       </Appear>
