@@ -645,6 +645,8 @@ test.describe('Notifications', () => {
     await expect(text(page, 'Welcome to Flagrr')).toBeVisible();
     await expect(text(page, 'Scan your receipts after your round to earn Flagrr Cash.')).toBeVisible();
     await expect(vis(page.getByText('View', { exact: true }))).toHaveCount(2); // rows without an enquiry
+    // The button's accessible name starts with its visible label (screen readers and voice control).
+    await expect(vis(page.getByRole('button', { name: /^View, / }))).toHaveCount(2);
   });
 
   test('Notifications › “Yesterday” group appears for yesterday’s notifications', async ({ page }) => {
@@ -685,6 +687,19 @@ test.describe('Notifications', () => {
       };
     }, dates);
     for (const [id, time] of Object.entries(expected)) await expect(nRow(page, id).getByText(time, { exact: true })).toBeVisible();
+  });
+
+  test('Notifications › a row exactly 7 days old (still “This Week”) shows its date, not today’s weekday', async ({ page }) => {
+    const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString();
+    await patchJson(page, /\/api\/notifications(\?|$)/, (list) => list.map((n: any) => (n.id === 'n2' ? { ...n, date: weekAgo } : n)));
+    await openSignedIn(page);
+    await openNotifications(page);
+    const expected = await page.evaluate((iso: string) => ({
+      date: new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }),
+      weekday: new Date(iso).toLocaleDateString(undefined, { weekday: 'short' }),
+    }), weekAgo);
+    await expect(nRow(page, 'n2').getByText(expected.date, { exact: true })).toBeVisible();
+    await expect(nRow(page, 'n2').getByText(expected.weekday, { exact: true })).toHaveCount(0);
   });
 
   test('Notifications › the header gear opens Notification Preferences (approved addition)', async ({ page }) => {
@@ -787,7 +802,8 @@ test.describe('Member Tiers', () => {
     await openTiers(page);
     await expect(vis(page.getByLabel('12,480 Flagrr Cash'))).toHaveText('12,480');
     await expect(text(page, 'Flagrr Cash')).toBeVisible();
-    await expect(text(page, 'Gold')).toBeVisible(); // decision (board layout): was the “Gold Member” badge
+    // decision (board layout): was the “Gold Member” badge. Two: the balance card's tier plus the Tier Benefits row.
+    await expect(vis(page.getByText('Gold', { exact: true }))).toHaveCount(2);
     await expect(text(page, 'earning ×1.5')).toBeVisible();
   });
 
@@ -869,7 +885,7 @@ test.describe('Member Tiers', () => {
     await scenario(page, { topTier: true });
     await openSignedIn(page);
     await openTiers(page);
-    await expect(text(page, 'Platinum')).toBeVisible();
+    await expect(vis(page.getByText('Platinum', { exact: true }))).toHaveCount(2); // balance card + Tier Benefits row
     await expect(text(page, 'earning ×1.7')).toBeVisible();
     await expect(text(page, 'You’ve reached the top tier')).toBeVisible();
     await expect(vis(page.getByText(/pts to/))).toHaveCount(0);

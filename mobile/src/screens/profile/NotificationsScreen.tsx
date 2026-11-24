@@ -32,7 +32,9 @@ function groupLabel(dateIso: string): Group {
 function rowTime(dateIso: string, group: Group): string {
   const d = new Date(dateIso);
   if (group === 'Today' || group === 'Yesterday') return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
-  if (group === 'This Week') return d.toLocaleDateString(undefined, { weekday: 'short' });
+  // "This Week" also holds rows exactly 7 days old (groupLabel); their weekday is today's, which
+  // would read as today, so those show the date instead.
+  if (group === 'This Week' && d.getDay() !== new Date().getDay()) return d.toLocaleDateString(undefined, { weekday: 'short' });
   return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
 }
 
@@ -139,7 +141,8 @@ function NotificationRow({
         <Pressable
           onPress={onView}
           accessibilityRole="button"
-          accessibilityLabel={`Mark as read: ${n.title}`}
+          accessibilityLabel={`View, ${n.title}`}
+          accessibilityHint="Marks this notification as read"
           style={{ alignSelf: 'center', minWidth: 44, minHeight: 44, alignItems: 'flex-end', justifyContent: 'center' }}
         >
           <Text style={{ fontSize: 14, fontWeight: '600', color: t.accent }}>View</Text>

@@ -205,7 +205,7 @@ export function HomeScreen({ navigation }: Props) {
             >
               <Ring size={ringSize} stroke={9} progress={topTier ? 1 : points.tierProgress} color={bentoBrand.lime} track="rgba(255,255,255,0.14)">
                 {topTier ? (
-                  <Text style={[bentoType.number, { fontSize: 20, lineHeight: 22, color: t.onHero, textAlign: 'center' }]}>Top tier</Text>
+                  <Text maxFontSizeMultiplier={1.2} numberOfLines={2} style={[bentoType.number, { fontSize: 20, lineHeight: 22, color: t.onHero, textAlign: 'center' }]}>Top tier</Text>
                 ) : (
                   <>
                     <Text style={[bentoType.number, { fontSize: 22, lineHeight: 24, color: t.onHero }]}>{points.pointsToNextTier < 100000 ? points.pointsToNextTier.toLocaleString() : compactNumber(points.pointsToNextTier)}</Text>
