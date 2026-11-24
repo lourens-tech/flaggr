@@ -80,7 +80,7 @@ export function ReceiptSuccessScreen({ route, navigation }: Props) {
             ) : (
               // Brand words (owner decision 24 Nov 2026): kept board G-B-SuccessApproved wording, no "wallet".
               <Text style={{ fontSize: 15, lineHeight: 22, color: 'rgba(255,255,255,0.88)', marginTop: 10, textAlign: 'center' }}>
-                {pointsAwarded} Flagrr Cash added and ready to spend.
+                {pointsAwarded} Flagrr Cash added and ready to redeem.
               </Text>
             )}
           </View>
