@@ -1,9 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Pressable, Text, View, useWindowDimensions, type LayoutChangeEvent } from 'react-native';
-import type { BottomTabBarProps, BottomTabNavigationOptions } from '@react-navigation/bottom-tabs';
+import type { BottomTabNavigationOptions } from '@react-navigation/bottom-tabs';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBento } from '../../context/ThemeContext';
 import { bentoBrand, bentoLayout as L, bentoType } from '../../theme/bento';
-import { bentoDuration, bentoEasing, prefersReducedMotion, useNativeDriver } from '../../theme/motion';
+import { E2E_INSTANT_MOTION, bentoDuration, bentoEasing, prefersReducedMotion, useNativeDriver } from '../../theme/motion';
 import { PressableScale } from '../motion/PressableScale';
 import { BentoIcon, type BentoIconName } from './BentoIcon';
 import { Glass } from './primitives';
@@ -31,20 +32,26 @@ export interface BentoTab {
   name: string;
 }
 
-// Presentational bar, driven by BentoTabBar below (and by the dev gallery).
+// Presentational bar, driven by navigation/MemberTabBar.tsx (and by the dev gallery).
 export function BentoTabBarView({
   tabs,
   activeIndex,
   onTabPress,
   onScanPress,
+  hidden = false,
 }: {
   tabs: BentoTab[];
   activeIndex: number;
   onTabPress: (tab: BentoTab, index: number) => void;
   onScanPress: () => void;
+  // Pushed screens hide the bar: it slides down out of view (0.6 s) and fades (0.4 s).
+  hidden?: boolean;
 }) {
   const { t } = useBento();
-  const { width } = useWindowDimensions();
+  const { width: windowWidth } = useWindowDimensions();
+  // Keep clear of side safe areas (the iPhone Duo's camera strip when closed).
+  const insets = useSafeAreaInsets();
+  const width = windowWidth - insets.left - insets.right;
   const scanAt = Math.floor(tabs.length / 2);
   const slots = tabs.length + 1;
   const inner = Math.min(width, 560) - L.tabBarSide * 2 - 12;
@@ -67,6 +74,30 @@ export function BentoTabBarView({
     return () => a.stop();
   }, [targetX, x]);
 
+  const hide = useRef(new Animated.Value(hidden ? 1 : 0)).current;
+  const fade = useRef(new Animated.Value(hidden ? 0 : 1)).current;
+  // Once it has slid away it leaves the layout too (no focus, no screen reader, not findable).
+  const [gone, setGone] = useState(hidden);
+  useEffect(() => {
+    if (!hidden) setGone(false);
+    if (prefersReducedMotion()) {
+      hide.setValue(hidden ? 1 : 0);
+      fade.setValue(hidden ? 0 : 1);
+      if (hidden) setGone(true);
+      return;
+    }
+    // As the prototype's .tb: transform over 0.6 s on the move curve, opacity over 0.4 s on CSS "ease".
+    const a = Animated.parallel([
+      Animated.timing(hide, { toValue: hidden ? 1 : 0, duration: 600, easing: bentoEasing.move, useNativeDriver }),
+      Animated.timing(fade, { toValue: hidden ? 0 : 1, duration: 400, easing: Easing.bezier(0.25, 0.1, 0.25, 1), useNativeDriver }),
+    ]);
+    a.start(({ finished }) => {
+      if (finished && hidden) setGone(true);
+    });
+    return () => a.stop();
+  }, [hidden, hide, fade]);
+  const barTravel = L.tabBarHeight * 1.4; // .tb.hide{transform:translateY(140%)}: 140% of the bar's own height
+
   const onSlotLayout = (i: number) => (e: LayoutChangeEvent) => {
     const lx = e.nativeEvent.layout.x;
     setXs((m) => (m[i] === lx ? m : { ...m, [i]: lx }));
@@ -83,6 +114,7 @@ export function BentoTabBarView({
         accessibilityRole="tab"
         accessibilityLabel={label}
         accessibilityState={{ selected: on }}
+        aria-selected={on}
         style={{ width: slotW, minHeight: 58, alignItems: 'center', justifyContent: 'center', gap: 4 }}
       >
         <BentoIcon name={ICONS[tab.name] ?? 'home'} size={23} color={on ? t.accent : t.tabOff} strokeWidth={on ? 2 : 1.6} />
@@ -126,7 +158,20 @@ export function BentoTabBarView({
   );
 
   return (
-    <View pointerEvents="box-none" style={{ position: 'absolute', left: 0, right: 0, bottom: L.tabBarBottom, alignItems: 'center' }}>
+    <Animated.View
+      pointerEvents={hidden ? 'none' : 'box-none'}
+      aria-hidden={hidden}
+      style={{
+        position: 'absolute',
+        left: insets.left,
+        right: insets.right,
+        bottom: L.tabBarBottom,
+        alignItems: 'center',
+        display: gone ? 'none' : 'flex',
+        opacity: fade,
+        transform: [{ translateY: hide.interpolate({ inputRange: [0, 1], outputRange: [0, barTravel] }) }],
+      }}
+    >
       <Glass
         radius={L.tabBarRadius}
         blur={24}
@@ -150,27 +195,14 @@ export function BentoTabBarView({
         ) : null}
         {items}
       </Glass>
-    </View>
-  );
-}
-
-// Adapter for React Navigation's bottom tabs. Pressing a tab navigates to it
-// and Scan opens the receipt camera, exactly as the previous tab bar did.
-export function BentoTabBar({ state, navigation }: BottomTabBarProps) {
-  const tabs = state.routes.map((r) => ({ key: r.key, name: r.name }));
-  return (
-    <BentoTabBarView
-      tabs={tabs}
-      activeIndex={state.index}
-      onTabPress={(tab) => navigation.navigate(tab.name)}
-      onScanPress={() => navigation.navigate('ScanReceipt')}
-    />
+    </Animated.View>
   );
 }
 
 // Tab switch: cross-fade over 0.42 s, the incoming screen settling from
-// scale 0.985 and 6 pt down. Reduce Motion keeps only the fade.
-export const bentoTabScreenOptions: BottomTabNavigationOptions = {
+// scale 0.985 and 6 pt down. Reduce Motion keeps only the fade. In the click-through test
+// build tabs switch at once (E2E_INSTANT_MOTION, theme/motion.ts).
+export const bentoTabScreenOptions: BottomTabNavigationOptions = E2E_INSTANT_MOTION ? { headerShown: false, animation: 'none' } : {
   headerShown: false,
   transitionSpec: {
     animation: 'timing',

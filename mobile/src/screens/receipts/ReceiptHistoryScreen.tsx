@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, Text, View, useWindowDimensions } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/types';
@@ -21,7 +21,7 @@ const STATUS_LABELS: Record<string, string> = {
   rejected: 'Rejected',
 };
 
-export function ReceiptHistoryScreen({ navigation }: Props) {
+export function ReceiptHistoryScreen({ navigation, route }: Props) {
   const { t } = useBento();
   const { height } = useWindowDimensions();
   const { receipts, getReceiptImage } = useApp();
@@ -39,6 +39,18 @@ export function ReceiptHistoryScreen({ navigation }: Props) {
       setPhotoLoadingId(null);
     }
   };
+
+  // Opened for one receipt (a "Receipt scanned" row in Reward Activity): show it once the list has it.
+  const openedFor = useRef<string | null>(null);
+  const wanted = route.params?.receiptId;
+  useEffect(() => {
+    if (!wanted || openedFor.current === wanted) return;
+    const r = receipts.find((x) => x.id === wanted);
+    if (!r) return;
+    openedFor.current = wanted;
+    void handleViewPhoto(r);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wanted, receipts]);
 
   // Summary tile: Flagrr Cash from approved receipts submitted this calendar
   // month, and how many receipts were submitted this month.
@@ -136,7 +148,7 @@ export function ReceiptHistoryScreen({ navigation }: Props) {
               <Text style={[bentoType.body, { color: t.muted, marginTop: 6, textAlign: 'center', maxWidth: 270 }]}>
                 No receipts yet — scan one from the Home screen to get started.
               </Text>
-              <BentoButton label="Scan a receipt" nub compact onPress={() => navigation.navigate('ScanReceipt')} style={{ marginTop: 18, alignSelf: 'stretch' }} />
+              <BentoButton label="Scan a receipt" nub compact onPress={() => navigation.navigate('ScanFlow')} style={{ marginTop: 18, alignSelf: 'stretch' }} />
             </View>
           </BentoTile>
         </Appear>

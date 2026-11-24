@@ -4,8 +4,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import type { RootStackParamList } from '../../navigation/types';
+import type { StackScreenProps } from '@react-navigation/stack';
+import type { ScanFlowParamList } from '../../navigation/types';
 import { api, ApiError } from '../../api/client';
 import { showAlert } from '../../utils/alert';
 import { useBento } from '../../context/ThemeContext';
@@ -14,7 +14,7 @@ import { prefersReducedMotion, useNativeDriver } from '../../theme/motion';
 import { PressableScale } from '../../components/motion';
 import { BentoButton, BentoIcon, type BentoIconName } from '../../components/bento';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'ScanReceipt'>;
+type Props = StackScreenProps<ScanFlowParamList, 'ScanReceipt'>;
 
 // Full-resolution phone photos (often 3000-4000px) push server-side OCR well
 // past Vercel's 60s hard limit on the Hobby plan. Downscaling the long edge

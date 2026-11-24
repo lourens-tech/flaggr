@@ -3,10 +3,8 @@ import { ActivityIndicator, RefreshControl, ScrollView, StatusBar, StyleSheet, S
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Line, Path, Rect, Text as SvgText } from 'react-native-svg';
 import { useFocusEffect } from '@react-navigation/native';
-import type { CompositeScreenProps } from '@react-navigation/native';
-import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import type { MainTabParamList, RootStackParamList } from '../../navigation/types';
+import type { StackScreenProps } from '@react-navigation/stack';
+import type { RootStackParamList } from '../../navigation/types';
 import { FlagrrLogo } from '../../components/common/FlagrrLogo';
 import { HeaderAvatar } from '../../components/common/HeaderAvatar';
 import { PillButton, bentoHeroStyle, bentoTileStyle, systemFonts, useBentoLegacy } from '../../components/bento/legacy';
@@ -22,7 +20,7 @@ import { formatIndex, formatWhole } from '../../golf/scoring';
 import { handicapPoints } from '../../golf/stats';
 import type { StatsPeriod } from '../../data/types';
 
-type Props = CompositeScreenProps<BottomTabScreenProps<MainTabParamList, 'MyGolf'>, NativeStackScreenProps<RootStackParamList>>;
+type Props = StackScreenProps<RootStackParamList, 'MyGolf'>;
 
 const PERIODS: StatsPeriod[] = ['month', 'year', 'all'];
 const PERIOD_LABELS: Record<StatsPeriod, string> = { month: 'Month', year: 'Year', all: 'All' };
@@ -85,6 +83,8 @@ export function MyGolfScreen({ navigation }: Props) {
   return (
     <BentoScreen
       tabBar
+      onBack={() => navigation.goBack()}
+      scrollTitle="My Golf"
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await load(period); setRefreshing(false); }} />}
     >
         <View style={{ marginBottom: 4 }}>
@@ -111,7 +111,7 @@ export function MyGolfScreen({ navigation }: Props) {
               {data!.clubName ? `${data!.clubName}’s course map is on its way.` : 'Your club’s course map is on its way.'} Once you’ve kept a scorecard on a
               Flagrr course map, your Stableford average, scoring by par, toughest holes and more appear here.
             </Text>
-            {data!.anyCourseLive ? <PillButton label="Play an away course" onPress={() => navigation.navigate('Course')} variant="primary" /> : null}
+            {data!.anyCourseLive ? <PillButton label="Play an away course" onPress={() => navigation.popTo('Main', { screen: 'Course' })} variant="primary" /> : null}
           </FadeIn>
         ) : null}
 
@@ -119,7 +119,7 @@ export function MyGolfScreen({ navigation }: Props) {
           <FadeIn style={[styles.card, styles.lift]}>
             <Text style={styles.cardTitle}>Play your first round</Text>
             <Text style={styles.body}>Keep your scorecard in the Course tab and your stats appear here when you finish.</Text>
-            <PillButton label="Go to Course" onPress={() => navigation.navigate('Course')} />
+            <PillButton label="Go to Course" onPress={() => navigation.popTo('Main', { screen: 'Course' })} />
           </FadeIn>
         ) : null}
 

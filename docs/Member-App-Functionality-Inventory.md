@@ -623,29 +623,32 @@ One screen with two internal steps, `request` and `reset`.
 - `Landing` (initial), `Login`, `ForgotPassword`, `SignUpStep1`, `SignUpStep2`.
 - `AdminLogin` and `AdminForgotPassword` are registered **only when not a store build**.
 
-**Member stack** (`RootNavigator`, all `headerShown: false`):
+**Member stack** (`RootNavigator`, JS stack `@react-navigation/stack` since 1.1.0, all `headerShown: false`; the 1.0.1 store app used the native stack with six tabs):
 
 | Route | Screen | Transition | How it's reached (summary) |
 |---|---|---|---|
-| `Main` | Tab navigator, ground background | default | Login, sign-up, restore; `navigate('Main')` from Voucher and ReceiptSuccess; `navigate('Main', {screen:'MyGolf'})` from CourseGuide's "See My Golf" |
-| `Voucher` | Voucher | fade_from_bottom | Redeem flow, activity (other inventory) |
-| `ScanReceipt` | Camera | slide_from_bottom | Tab-bar Scan button |
-| `ReviewReceipt` | Review | default push | After a scan |
-| `ReceiptSuccess` | Result | fade_from_bottom | After submit |
-| `ReceiptHistory` | Receipts | push | Profile (other inventory) |
+| `Main` | Tab navigator (Home, Course, Rewards, Profile), ground background | cross-fade (sign in / out) | Login, sign-up, restore; `popTo('Main', {screen:'Home'})` from ReceiptSuccess "View Current Balance"; `popTo('Main', {screen:'Rewards'})` from Voucher "Back to Rewards"; tab presses on My Golf |
+| `MyGolf` | My Golf (keeps the tab bar, Course lit; Back button) | push; cross-fade when a tab press closes it | Course "Your game" tile; Home "My Golf" link; CourseGuide "See My Golf" (reset to `[Main, MyGolf]`) |
+| `Activity` | Reward Activity (Back button, title "Reward Activity") | push | Profile "Reward Activity" row |
+| `Voucher` | Voucher | push | Redeem flow, Activity rows |
+| `ScanFlow` | Nested stack: `ScanReceipt` → `ReviewReceipt` → `ReceiptSuccess` | modal rise (screen behind shrinks); push inside | Tab-bar Scan button; "Scan a receipt" on empty Activity and Receipt History |
+| `ReceiptHistory` | Receipts | push | Profile |
 | `MemberTiers` | Tiers | push | Home tier ring |
 | `Notifications` | Notifications | push | Home bell; push tap |
 | `HelpCenter`, `Contact`, `GiveFeedback`, `Referral`, `EditProfile`, `TermsPrivacy`, `MyEnquiries`, `EnquiryChat`, `NotificationPreferences` | Profile and support screens | push | Profile rows; `Contact` also from the Home placeholder popup; `EnquiryChat` also from Notifications |
 | `RoundSetup` | Start a round | push | Course tab |
-| `CourseGuide` | Hole view | slide_from_bottom, **gestureEnabled: false** | Home Resume tile; Round setup |
-| `RoundDetail` | Round detail | push | My Golf |
+| `CourseGuide` | Hole view | push, **no swipe-back** | Home Resume tile; Round setup (replaces itself) |
+| `RoundDetail` | Round detail | push | My Golf, Course |
 
-**Tabs** (`MainTabNavigator`, order): `Home`, `Course`, `MyGolf` (label "My Golf"), `Rewards`, `Activity`, `Profile`. The tab bar inserts Scan in the centre, after My Golf.
+Inside `ScanFlow`: Review replaces itself with Success (Back can't resubmit); "Submit Another Receipt" resets the flow to one fresh scanner (1.0.1 stacked a second scanner); Close on the scanner, or Back on its first screen, closes the whole flow.
 
-**Transitions** (`motionOptions.tsx`):
-- iOS uses the native push.
-- Android uses `ios_from_right`, so both platforms slide the same way.
-- Web: native-stack does not animate, so each screen is wrapped in `ScreenFade` (fade plus 6 pt rise). It is skipped with Reduce Motion.
+**Tabs** (`MainTabNavigator`, order): `Home`, `Course`, `Rewards`, `Profile`. The tab bar (`navigation/MemberTabBar.tsx`) is drawn above the stack and inserts Scan in the centre.
+
+**Transitions** (`navigation/transitions.ts`, from the Bento prototype, curve cubic-bezier(.32,.72,0,1)):
+- Push 560 ms: the new screen slides in from the right (shadow); the one behind slides 28% left and dims to 82%. Pop 520 ms.
+- Scan flow 620 ms: rises from the bottom, corners 48 → square; the screen behind shrinks to 92%, dims to 60%, corners to 40 over black. Closing 500 ms.
+- Sign in / out: 500 ms cross-fade, settling from 98.5% and 6 pt down.
+- Animations run on web too. Reduce Motion: every transition is a 200 ms fade.
 - Tab switch: 420 ms cross-fade, with the incoming scene settling from scale 0.985 and 6 pt down. Reduce Motion keeps only the fade.
 
 **Deep links:**
@@ -655,7 +658,7 @@ One screen with two internal steps, `request` and `reset`.
 
 #### C. Gestures and hardware back
 
-- **Swipe back (iOS):** `fullScreenGestureEnabled: true` on every stack screen, so the user can swipe back from anywhere on the screen, not only the edge.
+- **Swipe back (iOS):** every pushed screen can be swiped back from anywhere on the screen (`gestureResponseDistance` = screen width on the JS stack; 1.0.1 used `fullScreenGestureEnabled`). The scan flow has no swipe-down; it closes with its Close button.
   - Exception: `CourseGuide`, which has no swipe.
   - Auth screens swipe back through their history (for example, Forgot to Login to Landing).
   - The Forgot screen's reset step swipes back to Login, not to the request step.
@@ -668,23 +671,23 @@ One screen with two internal steps, `request` and `reset`.
   - The SelectField and DateField modals close on back.
   - `predictiveBackGestureEnabled: false` in `app.json`.
 - **Pull to refresh:** **none** on any screen in this area (Home, Notifications, Tiers). It exists only on CourseHome and MyGolf (other inventories).
-- **Tab re-press:** `BentoTabBar` calls `navigation.navigate(tab.name)` directly and never emits `tabPress`. Re-pressing the active tab does nothing: no scroll-to-top and no pop-to-root.
-- **Tab bar Scan button:** `navigate('ScanReceipt')`, slides up.
+- **Tab re-press:** re-pressing the active tab scrolls that tab to the top (`navigation/scrollToTop.ts`; 1.0.1 did nothing). On My Golf, pressing Course pops back to Course if that's where My Golf was opened, and any other tab closes My Golf with the tab cross-fade.
+- **Tab bar Scan button:** `navigate('ScanFlow')`, rises as a modal. Haptic: medium (phones).
 
 #### D. Tab bar (`components/bento/BentoTabBar.tsx`)
 
 - **Layout:**
   - A floating glass bar, 22 pt from the bottom, 74 pt tall, at most 560 pt wide minus side margins, centred.
-  - It handles any number of tabs. Scan always sits at index `floor(tabs/2)`. Slots are up to 62 pt wide and shrink to share the width (7 slots today).
-- **Tabs:** an icon (23 pt; accent and stroke 2 when active, `t.tabOff` and stroke 1.6 otherwise) and a label (max font scale 1.3). Icons: home, course, myGolf, rewards, activity, profile.
-- **Accessibility:** tablist and tab roles, with selected state and labels.
+  - It handles any number of tabs. Scan always sits at index `floor(tabs/2)`. Slots are up to 62 pt wide and shrink to share the width (5 slots in 1.1.0).
+- **Tabs:** an icon (23 pt; accent and stroke 2 when active, `t.tabOff` and stroke 1.6 otherwise) and a label (max font scale 1.3). Icons: home, course, rewards, profile. A tab press gives a selection haptic.
+- **Accessibility:** tablist and tab roles, with selected state (`aria-selected` on web too) and labels.
 - **Scan:** a raised fairway square (lifted above the bar) with a lime scan icon and the label "Scan". Press scale 0.9. Accessibility label "Scan receipt".
 - **Active indicator:** a soft-accent pill behind the active tab. It slides with an overshoot over 600 ms; Reduce Motion snaps it. It is placed without animation on first render.
 - **Glass:**
   - iOS: BlurView with a translucent fill.
   - Web: CSS `backdrop-filter`.
   - **Android, and anywhere with Reduce Transparency: a solid fill.**
-- Hidden on all stack screens, which sit above `Main`.
+- Shown on the four tabs and My Golf (Course lit); on every other screen it slides down out of view over 600 ms and fades (`hidden` prop), and is hidden from screen readers.
 - **Board coverage:** every Home board shows **4 tabs + Scan** (Home, Course, Scan, Rewards, Profile), and the prototype uses `TABS = Home, Course, Rewards, Profile`. **The live 6-tab layout (with My Golf and Activity as tabs) is on no board**, and neither is where My Golf and Activity move to. In the prototype, My Golf is reached from Home or Course and Activity from Profile. Before shipping 4 tabs, every entry point to those two screens must exist elsewhere.
 
 #### E. Session, keep-me-logged-in, logout (`context/AppContext.tsx`, `api/client.ts`)
@@ -1651,7 +1654,7 @@ Verified against the code on branch `claude/member-store-build` (working tree, 2
 #### Rewards Shop (`mobile/src/screens/rewards/RewardsShopScreen.tsx`)
 
 - **Reached from:**
-  - Tab bar tab **Rewards** (icon `rewards`, label "Rewards"), in the live 6-tab bar (Home, Course, My Golf | Scan | Rewards, Activity, Profile). Tab screens stay mounted, so search text, category and per-card option choice persist while switching tabs.
+  - Tab bar tab **Rewards** (icon `rewards`, label "Rewards"), in the 4-tab bar (Home, Course | Scan | Rewards, Profile) since 1.1.0 (1.0.1: six tabs). Tab screens stay mounted, so search text, category and per-card option choice persist while switching tabs.
   - Home: the hero **Redeem** button (accessibility label "Redeem Flagrr Cash").
   - Home: Rewards preview header link **View All**.
   - Home: tapping any of the first 5 reward mini-cards in the Rewards preview (opens the shop, not a specific reward).
@@ -1817,7 +1820,7 @@ Verified against the code on branch `claude/member-store-build` (working tree, 2
 
 | Control | What it does | When available / conditions |
 |---|---|---|
-| All / Earned / Redeemed | Filters the list on the device (`type === 'earn'` / `'redeem'`). No server call. Selection persists while the tab stays mounted. | Always visible. |
+| All / Earned / Redeemed | Filters the list on the device (`type === 'earn'` / `'redeem'`). No server call. Since 1.1.0 Reward Activity is a pushed screen, so the filter starts on All each time it opens (1.0.1: it persisted while the tab stayed mounted). | Always visible. |
 | Redeem row with a voucher (tappable, role button, pressed opacity 0.7) | Looks up the voucher in the local `vouchers` list. Not found → alert **Voucher not found**. `active` → navigates to `Voucher` with that id. `expired` → alert **Voucher expired**. `redeemed` → alert **Already redeemed**. | `type === 'redeem'` and `voucherId` set (shop redemptions and tier bar vouchers). |
 | Earn rows; redeem rows without a voucher | Nothing (disabled, no chevron, no button role). | — |
 | **Scan a receipt** (empty card) | `navigation.navigate('ScanReceipt')` (receipt camera, slide-up). | Only when the member has no activity at all. |

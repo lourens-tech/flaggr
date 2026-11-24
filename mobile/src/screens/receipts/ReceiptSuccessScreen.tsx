@@ -1,15 +1,17 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, Text, View } from 'react-native';
 import Svg, { Line } from 'react-native-svg';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import type { RootStackParamList } from '../../navigation/types';
+import { CommonActions, StackActions } from '@react-navigation/native';
+import type { StackScreenProps } from '@react-navigation/stack';
+import type { ScanFlowParamList } from '../../navigation/types';
 import { useBento } from '../../context/ThemeContext';
+import { haptic } from '../../utils/haptics';
 import { bentoBrand, bentoType } from '../../theme/bento';
 import { prefersReducedMotion, useNativeDriver } from '../../theme/motion';
 import { PopIn } from '../../components/motion';
 import { Appear, BentoButton, BentoIcon, BentoScreen, BentoTile, CountUp } from '../../components/bento';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'ReceiptSuccess'>;
+type Props = StackScreenProps<ScanFlowParamList, 'ReceiptSuccess'>;
 
 // Rays around the success badge (Receipt submitted board).
 function Burst() {
@@ -46,6 +48,8 @@ function PulseDot() {
 export function ReceiptSuccessScreen({ route, navigation }: Props) {
   const { t } = useBento();
   const { pointsAwarded, flagged } = route.params;
+  // The receipt is in: one success tap as the screen arrives.
+  useEffect(() => haptic.success(), []);
 
   return (
     <BentoScreen>
@@ -98,8 +102,10 @@ export function ReceiptSuccessScreen({ route, navigation }: Props) {
       </Appear>
 
       <View style={{ height: 6 }} />
-      <BentoButton label="View Current Balance" nub onPress={() => navigation.navigate('Main')} />
-      <BentoButton label="Submit Another Receipt" variant="secondary" onPress={() => navigation.replace('ScanReceipt')} />
+      {/* Closes the whole scan flow and shows Home (owner's choice, 24 Nov 2026); Back can't return here. */}
+      <BentoButton label="View Current Balance" nub onPress={() => navigation.dispatch(StackActions.popTo('Main', { screen: 'Home' }))} />
+      {/* A fresh scanner in place of the whole flow (one camera screen, as in the prototype); Close then leaves the flow. */}
+      <BentoButton label="Submit Another Receipt" variant="secondary" onPress={() => navigation.dispatch(CommonActions.reset({ index: 0, routes: [{ name: 'ScanReceipt' }] }))} />
     </BentoScreen>
   );
 }

@@ -93,7 +93,8 @@ export function VoucherScreen({ route, navigation }: Props) {
         </BentoTile>
       </Appear>
 
-      <BentoButton label="Back to Rewards" nub onPress={() => navigation.navigate('Main')} />
+      {/* Back to the Rewards tab (owner's choice, 24 Nov 2026), closing whatever was opened on the way. */}
+      <BentoButton label="Back to Rewards" nub onPress={() => navigation.popTo('Main', { screen: 'Rewards' })} />
     </BentoScreen>
   );
 }

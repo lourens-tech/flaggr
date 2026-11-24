@@ -188,7 +188,7 @@ export function MemberProfileScreen({ navigation }: Props) {
   };
 
   return (
-    <BentoScreen tabBar>
+    <BentoScreen tabBar scrollTitle="Profile">
       {/* Who you are: photo (tap to change), name, club and tier, three stats */}
       <Appear>
         <View style={{ alignItems: 'center', paddingTop: 8 }}>

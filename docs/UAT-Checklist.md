@@ -7,11 +7,14 @@ For the Bento store build, use this page together with [Member App Functionality
 ## 0. Store build 1.1.0 (Expo SDK 58) upgrade checks
 
 - [ ] Install 1.0.1, sign in with "Keep me logged in", then install the 1.1.0 build over it: the member is still signed in and the Appearance choice is kept.
+- [ ] Screen movement (1.1.0): pushes slide in with the screen behind sliding left and dimming; Scan rises with the screen behind shrinking; swipe-back from anywhere on iPhone, including over Home's reward rail and the Rewards categories (it must not fight horizontal scrolling); no swipe-back during a round. With Reduce Motion on, screens just fade.
+- [ ] Haptics (1.1.0, phones): a tick on tab and segment changes, a light tap on main buttons and Scan, a success buzz when a receipt is submitted, a reward redeemed and a round saved.
+- [ ] "View Current Balance" after a scan shows Home and Back does not return to the success screen; "Back to Rewards" on a voucher shows the Rewards tab; "See My Golf" after finishing a round shows My Golf and Back returns to the tabs; "Submit Another Receipt" opens one scanner and Close leaves the flow.
 - [ ] On an iPhone with dark mode on and Appearance set to System, the 1.1.0 app is dark; with Light or Dark chosen, it ignores the phone setting.
 - [ ] Profile → Export My Data opens the share sheet with a complete `flagrr-my-data.json`.
 - [ ] Push notifications still arrive and show while the app is open.
 - [ ] Camera scan, photo upload, date picker, video ads and the share sheet all work on iOS and Android.
-- [ ] `cd mobile && npm run e2e` is green (495 passed, 48 skipped as of 24 Nov 2026) before the build. It covers the web build only; the items above and the native-only skips need a device.
+- [ ] `cd mobile && npm run e2e` is green (503 passed, 42 skipped as of 24 Nov 2026) before the build. It covers the web build only; the items above and the native-only skips need a device.
 
 ## 1. Onboarding
 
@@ -56,7 +59,7 @@ For the Bento store build, use this page together with [Member App Functionality
 - [ ] Streak tile shows the current streak length, one dot per recent week, and "N more weeks to a Y FC bonus."
 - [ ] With a round in progress, the Resume tile shows the next hole and "N pts thru M" and opens the hole view; with none, it reads "Play a round" and opens the Course tab.
 - [ ] An unverified member sees the amber "Your club hasn't verified your membership yet…" notice above the tiles.
-- [ ] Points Earned Per Month chart renders (even if empty for a new account); "My Golf" opens the My Golf tab.
+- [ ] Points Earned Per Month chart renders (even if empty for a new account); "My Golf" opens My Golf, with the tab bar still showing and Course lit.
 - [ ] "View All" and each reward card under Rewards open the full Rewards Shop.
 - [ ] Notification bell shows the unread count when there are unread notifications; the avatar and Your Club open Profile.
 - [ ] Home matches the Home board in light and dark at 375, 390 and 430 pt wide, and a 6-digit balance still fits the hero tile.
@@ -184,7 +187,7 @@ Use test receipts that trigger a flag: a very unclear photo (low OCR confidence)
 
 Needs migration `048` applied and at least one live course map.
 
-- [ ] The tab bar shows Home, Course, My Golf, Scan, Rewards, Activity, Profile and fits a 360-wide phone.
+- [ ] The tab bar shows Home, Course, Scan, Rewards, Profile and fits a 360-wide phone (1.1.0; the 1.0.1 store app has six tabs). My Golf opens from Course's Your game tile and from Home; Reward Activity opens from Profile.
 - [ ] A member whose club has no live map sees **Coming soon** on the Course tab (and the away courses below it) and on My Golf until they finish a round.
 - [ ] Away courses: search by name and by town; a recently played course is listed first.
 - [ ] Start a round: men's / ladies' and tees change the lengths and ratings; the Course and Playing Handicap match the working shown (for example index 14.2, White men's 70.0 / 120, par 72: course 13, playing 12 at 95%). A plus index like +1.4 is accepted; 55 or 14.25 is refused.
@@ -262,7 +265,7 @@ Test each role (course admin, staff, super admin, support agent) at three widths
 ## 17. Motion
 
 - [ ] Home: the tiles on screen rise in one after another and tiles further down rise in as you scroll to them; the Flagrr Cash balance and stats count up every time you come back to Home; the tier ring draws and the chart bars grow. After a scan is approved, the balance rolls from the old value to the new one.
-- [ ] Tab bar (Bento, member app): a floating glass bar 14 pt in from each side; every tab has a line icon and a label; the selected tab turns green (lime in dark mode) and its soft highlight slides across with a slight overshoot; switching tabs cross-fades with the new screen settling up into place. Scan is the raised green button in the middle and opens the receipt camera. All six labels fit unclipped on a 375-wide phone.
+- [ ] Tab bar (Bento, member app): a floating glass bar 14 pt in from each side; every tab has a line icon and a label; the selected tab turns green (lime in dark mode) and its soft highlight slides across with a slight overshoot; switching tabs cross-fades with the new screen settling up into place. Scan is the raised green button in the middle and opens the receipt camera. All labels fit unclipped on a 360-wide phone. 1.1.0: the bar slides away on pushed screens and comes back on the tabs and My Golf; tapping the current tab scrolls it to the top.
 - [ ] Alerts (member app): a centred card that scales in from slightly larger over a dimmed backdrop; buttons run full width under hairlines, two side by side with Cancel on the right; destructive actions are red. Every alert still runs the same action as before (spot-check Redeem, Delete round, Change home club, Delete account).
 - [ ] Hole view sheets (Scorecard, Your round, My bag): rise from the bottom as a rounded card with a close button; tapping the backdrop, the close button or Android back closes them; Done and every control inside still work.
 - [ ] Buttons and reward cards shrink slightly under the finger and spring back on release (no dimming).

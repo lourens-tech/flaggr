@@ -45,6 +45,11 @@ export interface BentoTokens {
   negative: string;
   warnBg: string;
   warnInk: string;
+  // Status pills (Bento prototype): a soft danger fill with darker text, and the warm "Under review" text.
+  dangerSoft: string;
+  dangerInk: string;
+  pillWarnBg: string;
+  pillWarnInk: string;
 }
 
 export const bentoBrand = {
@@ -84,6 +89,10 @@ export const bentoLight: BentoTokens = {
   negative: '#A4532F',
   warnBg: '#FBEFD6',
   warnInk: '#6B4600',
+  dangerSoft: 'rgba(200,50,42,0.10)',
+  dangerInk: '#A3261F',
+  pillWarnBg: '#FBEFD6',
+  pillWarnInk: '#8A5A00',
 };
 
 export const bentoDark: BentoTokens = {
@@ -115,6 +124,10 @@ export const bentoDark: BentoTokens = {
   negative: '#F0A07A',
   warnBg: 'rgba(232,176,72,0.14)',
   warnInk: '#F1D39B',
+  dangerSoft: 'rgba(200,50,42,0.10)',
+  dangerInk: '#F0918A',
+  pillWarnBg: 'rgba(233,196,106,0.16)',
+  pillWarnInk: '#E9C46A',
 };
 
 export const bentoLayout = {

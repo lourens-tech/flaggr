@@ -11,6 +11,7 @@
     "@react-navigation/bottom-tabs": "^7.18.11",
     "@react-navigation/native": "^7.3.11",
     "@react-navigation/native-stack": "^7.18.3",
+    "@react-navigation/stack": "^7.12.2",
     "expo": "^58.0.0",
     "expo-blur": "~58.0.6",
     "expo-camera": "~58.0.14",
@@ -52,7 +53,7 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "e2e:build": "EXPO_PUBLIC_API_URL=http://localhost:${E2E_API_PORT:-4020} expo export --platform web --output-dir e2e/${E2E_WEB_DIR:-.web}",
+    "e2e:build": "EXPO_PUBLIC_E2E=1 EXPO_PUBLIC_API_URL=http://localhost:${E2E_API_PORT:-4020} expo export --platform web --output-dir e2e/${E2E_WEB_DIR:-.web}",
     "e2e": "npm run e2e:build && playwright test"
   },
   "private": true,

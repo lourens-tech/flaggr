@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Image, Pressable, Text, View } from 'react-native';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import type { RootStackParamList } from '../../navigation/types';
+import type { StackScreenProps } from '@react-navigation/stack';
+import type { ScanFlowParamList } from '../../navigation/types';
 import { ApiError } from '../../api/client';
 import { useApp } from '../../context/AppContext';
 import { showAlert } from '../../utils/alert';
@@ -9,7 +9,7 @@ import { useBento } from '../../context/ThemeContext';
 import { bentoType } from '../../theme/bento';
 import { Appear, BentoButton, BentoIcon, BentoScreen, BentoTile, Eyebrow, type BentoIconName } from '../../components/bento';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'ReviewReceipt'>;
+type Props = StackScreenProps<ScanFlowParamList, 'ReviewReceipt'>;
 
 export function ReviewReceiptScreen({ route, navigation }: Props) {
   const { t } = useBento();

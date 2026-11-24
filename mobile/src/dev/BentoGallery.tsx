@@ -3,6 +3,7 @@ import { Text, View } from 'react-native';
 import { useBento } from '../context/ThemeContext';
 import { bentoBrand } from '../theme/bento';
 import { showAlert } from '../utils/alert';
+import { BentoRow, BentoRowGroup, ChatBubble, ChatDay, EmptyState, LoadError, PickerSheet, StatusPill } from '../components/bento/parts';
 import {
   Appear,
   BentoButton,
@@ -33,6 +34,8 @@ const TABS4 = ['Home', 'Course', 'Rewards', 'Profile'];
 const TABS6 = ['Home', 'Course', 'MyGolf', 'Rewards', 'Activity', 'Profile'];
 
 export function BentoGallery() {
+  const [picker, setPicker] = useState(false);
+  const [pick, setPick] = useState<string | null>('bookings');
   const { t } = useBento();
   const [period, setPeriod] = useState<'month' | 'year' | 'all'>('month');
   const [share, setShare] = useState(true);
@@ -147,6 +150,39 @@ export function BentoGallery() {
             </View>
           </BentoTile>
         </Appear>
+
+        {/* Phase 3 shared parts (components/bento/parts.tsx) */}
+        <BentoRowGroup>
+          <BentoRow icon="bell" label="Notification Preferences" onPress={() => showToast('Row pressed')} />
+          <BentoRow icon="profile" label="Appearance" value="Light" onPress={() => showToast('Row pressed')} />
+          <BentoRow icon="info" label="Delete account" tone="danger" onPress={() => showToast('Row pressed')} />
+          <BentoRow label="Receipt scanned" sublabel="Earned · 24 Nov" trailing={<StatusPill label="Under review" tone="warn" />} />
+        </BentoRowGroup>
+        <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+          <StatusPill label="Approved" tone="accent" />
+          <StatusPill label="Under review" tone="warn" />
+          <StatusPill label="Already redeemed" tone="muted" />
+          <StatusPill label="Expired" tone="danger" />
+        </View>
+        <EmptyState icon="activity" title="No activity yet" body="Play a round or scan a receipt to get started." actionLabel="Scan a receipt" onAction={() => showToast('Scan')} />
+        <LoadError onRetry={() => showToast('Retry')} />
+        <BentoTile>
+          <ChatDay label="Today" />
+          <View style={{ gap: 10, marginTop: 8 }}>
+            <ChatBubble mine text="Hi, can we book a four-ball for Saturday morning?" meta="09:58" />
+            <ChatBubble mine={false} text="07:36 is open for four. Shall I put it in your name?" meta="Pro shop · 10:42" />
+          </View>
+        </BentoTile>
+        <BentoButton label="Picker sheet" variant="secondary" onPress={() => setPicker(true)} />
+        <PickerSheet
+          visible={picker}
+          title="Type of enquiry"
+          options={[{ value: 'bookings', label: 'Bookings' }, { value: 'receipts', label: 'Receipts' }, { value: 'general', label: 'General', sublabel: 'Anything else' }]}
+          selected={pick}
+          onSelect={(v) => { setPick(v); setPicker(false); }}
+          onClose={() => setPicker(false)}
+          searchPlaceholder="Search"
+        />
 
         {[1, 2, 3].map((n) => (
           <Appear key={n}>

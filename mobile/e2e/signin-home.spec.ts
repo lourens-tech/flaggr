@@ -1549,15 +1549,15 @@ test.describe('Member Tiers', () => {
 
 // =====================================================================
 test.describe('Tab bar', () => {
-  test('Tab bar › six tabs in order with Scan in the centre', async ({ page }) => {
+  test('Tab bar › four tabs in order with Scan in the centre (Bento boards)', async ({ page }) => {
     await openSignedIn(page);
     const bar = vis(page.getByRole('tablist')).first();
-    await expect(bar.getByRole('tab')).toHaveText(['Home', 'Course', 'My Golf', 'Rewards', 'Activity', 'Profile']);
+    await expect(bar.getByRole('tab')).toHaveText(['Home', 'Course', 'Rewards', 'Profile']);
     const labels = await bar.locator('[role="tab"], [role="button"]').evaluateAll((els) => els.map((e) => e.getAttribute('aria-label')));
-    expect(labels).toEqual(['Home', 'Course', 'My Golf', 'Scan receipt', 'Rewards', 'Activity', 'Profile']);
+    expect(labels).toEqual(['Home', 'Course', 'Scan receipt', 'Rewards', 'Profile']);
   });
 
-  test('Tab bar › every tab opens its screen and Home comes back', async ({ page }) => {
+  test('Tab bar › every tab opens its screen (My Golf from Home, Reward Activity from Profile) and Home comes back', async ({ page }) => {
     await openSignedIn(page);
     const dest: Array<[Parameters<typeof tab>[1], string]> = [
       ['Course', 'Play a round'], ['My Golf', 'My Golf'], ['Rewards', 'Rewards Shop'], ['Activity', 'Reward Activity'], ['Profile', 'Sam Mokoena'],
@@ -1577,31 +1577,48 @@ test.describe('Tab bar', () => {
     await expect(vis(page.getByRole('tablist'))).toHaveCount(0);
   });
 
-  test('Tab bar › re-pressing the active tab does nothing (no scroll-to-top)', async ({ page }) => {
+  test('Tab bar › re-pressing the active tab scrolls it back to the top', async ({ page }) => {
     await openSignedIn(page);
     const viewAll = vis(page.getByRole('link', { name: 'View All' })).first();
     await viewAll.scrollIntoViewIfNeeded();
-    const before = (await viewAll.boundingBox())!.y;
-    await tab(page, 'Home');
-    await page.waitForTimeout(600);
-    expect(Math.round((await viewAll.boundingBox())!.y)).toBe(Math.round(before));
+    const greeting = vis(page.getByRole('heading', { name: /^(Morning|Afternoon|Evening), Sam$/ })).first();
+    await expect(greeting).not.toBeInViewport();
+    await vis(page.getByRole('tab', { name: 'Home' })).click(); // already selected: a re-press
+    await expect(greeting).toBeInViewport();
   });
 
-  test.fixme('Tab bar › the active tab exposes its selected state — web renders role="tab" without aria-selected', async ({ page }) => {
+  test('Tab bar › lights the right tab when a screen switches tabs itself (Home “Redeem” → Rewards)', async ({ page }) => {
+    await openSignedIn(page);
+    await vis(page.getByRole('button', { name: 'Redeem Flagrr Cash' })).first().click();
+    await expect(vis(page.getByRole('tab', { name: 'Rewards' }))).toHaveAttribute('aria-selected', 'true');
+    await expect(vis(page.getByRole('tab', { name: 'Home' }))).toHaveAttribute('aria-selected', 'false');
+  });
+
+  test('Tab bar › slides away on pushed screens and comes back on the tabs and My Golf (Course lit)', async ({ page }) => {
+    await openSignedIn(page);
+    await bell(page).click();
+    await expect(vis(page.getByRole('tablist'))).toHaveCount(0);
+    await vis(page.getByRole('button', { name: 'Back', exact: true })).first().click();
+    await expect(vis(page.getByRole('tablist'))).toHaveCount(1);
+    await tab(page, 'My Golf');
+    await expect(vis(page.getByRole('tab', { name: 'Course' }))).toHaveAttribute('aria-selected', 'true');
+  });
+
+  test('Tab bar › the active tab exposes its selected state (aria-selected)', async ({ page }) => {
     await openSignedIn(page);
     await expect(vis(page.getByRole('tab', { name: 'Home' }))).toHaveAttribute('aria-selected', 'true');
   });
 
-  test.fixme('Accessibility states › My Stats period exposes the checked option — web renders role="radio" without aria-checked', async ({ page }) => {
+  test('Accessibility states › My Stats period exposes the checked option (aria-checked)', async ({ page }) => {
     await openSignedIn(page);
     await expect(statsRadio(page, 'Year')).toBeChecked();
   });
 
-  test.fixme('Accessibility states › a submitting PillButton is announced busy — web renders no aria-busy', async ({ page }) => {
+  test('Accessibility states › a submitting PillButton is announced busy (aria-busy)', async ({ page }) => {
     await delay(page, `${API}/api/auth/login`, 1500);
     await gotoLogin(page);
     await loginAs(page);
-    await expect(button(page, 'Login')).toHaveAttribute('aria-busy', 'true');
+    await expect(page.getByRole('button', { name: 'Login', exact: true }).and(page.locator('[aria-busy="true"]'))).toHaveCount(1);
   });
 
   test.skip('Tab bar › indicator slide / Reduce Motion snap; Android & Reduce Transparency solid glass; hardware back to Home', () => {

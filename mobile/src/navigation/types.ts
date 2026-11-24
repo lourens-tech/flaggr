@@ -9,6 +9,9 @@ export type AuthStackParamList = {
   ForgotPassword: undefined;
   AdminForgotPassword: undefined;
   SignUpStep1: undefined;
+  // Readable before signing in (owner decision 24 Nov 2026): Landing and Sign up link here.
+  // section: which part to open on (the screen gets a Terms | Privacy toggle in phase 3).
+  TermsPrivacy: { section?: 'terms' | 'privacy' } | undefined;
   SignUpStep2: {
     firstName: string;
     lastName: string;
@@ -111,13 +114,23 @@ export type SuperAdminStackParamList = {
   TermsPrivacy: undefined;
 };
 
+// The four Bento tabs. My Golf and Reward Activity are pushed screens (RootStackParamList).
 export type MainTabParamList = {
   Home: undefined;
   Course: undefined;
-  MyGolf: undefined;
   Rewards: undefined;
-  Activity: undefined;
   Profile: undefined;
+};
+
+// The receipt flow, presented over the app as one modal group.
+export type ScanFlowParamList = {
+  ScanReceipt: undefined;
+  ReviewReceipt: {
+    imageUri: string | null;
+    imageBase64: string;
+    scanResult: ScanResult & { isDuplicate: false; invalid: false };
+  };
+  ReceiptSuccess: { pointsAwarded: number; flagged?: boolean };
 };
 
 export type RootStackParamList = {
@@ -128,14 +141,12 @@ export type RootStackParamList = {
   AdminForceChangePassword: undefined;
   AdminStaffWelcome: undefined;
   Voucher: { voucherId: string };
-  ScanReceipt: undefined;
-  ReviewReceipt: {
-    imageUri: string | null;
-    imageBase64: string;
-    scanResult: ScanResult & { isDuplicate: false; invalid: false };
-  };
-  ReceiptSuccess: { pointsAwarded: number; flagged?: boolean };
-  ReceiptHistory: undefined;
+  ScanFlow: NavigatorScreenParams<ScanFlowParamList> | undefined;
+  // closeAs 'tab': the tab bar is closing My Golf to switch tabs, so it cross-fades instead of sliding.
+  MyGolf: { closeAs?: 'tab' } | undefined;
+  Activity: undefined;
+  // receiptId: open that receipt straight away (from a "Receipt scanned" row in Reward Activity).
+  ReceiptHistory: { receiptId?: string } | undefined;
   MemberTiers: undefined;
   Notifications: undefined;
   HelpCenter: undefined;
@@ -143,7 +154,7 @@ export type RootStackParamList = {
   GiveFeedback: undefined;
   Referral: undefined;
   EditProfile: undefined;
-  TermsPrivacy: undefined;
+  TermsPrivacy: { section?: 'terms' | 'privacy' } | undefined;
   MyEnquiries: undefined;
   EnquiryChat: { enquiryId: string };
   NotificationPreferences: undefined;

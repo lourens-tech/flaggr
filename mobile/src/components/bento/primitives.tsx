@@ -19,6 +19,7 @@ import {
 import type { TextInputInstance } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { useBento } from '../../context/ThemeContext';
+import { haptic } from '../../utils/haptics';
 import { bentoBrand, bentoLayout as L, bentoType } from '../../theme/bento';
 import { bentoDuration, bentoEasing, prefersReducedMotion, useNativeDriver } from '../../theme/motion';
 import { PressableScale } from '../motion/PressableScale';
@@ -92,10 +93,14 @@ export function Glass({
       </View>
     );
   }
+  // Only the blur layer is clipped to the rounded shape: clipping the whole view on iOS
+  // cut off anything meant to stand out of it (the raised Scan button) and the shadow.
   return (
-    <View {...rest} style={[base, { overflow: 'hidden' }, style]}>
-      <BlurView intensity={Math.min(100, blur * 3)} tint={scheme === 'dark' ? 'systemChromeMaterialDark' : 'systemChromeMaterialLight'} style={StyleSheet.absoluteFill} />
-      <View style={[StyleSheet.absoluteFill, { backgroundColor: t.glass }]} pointerEvents="none" />
+    <View {...rest} style={[base, style]}>
+      <View pointerEvents="none" style={[StyleSheet.absoluteFill, { borderRadius: Math.max(0, radius - 1), overflow: 'hidden' }]}>
+        <BlurView intensity={Math.min(100, blur * 3)} tint={scheme === 'dark' ? 'systemChromeMaterialDark' : 'systemChromeMaterialLight'} style={StyleSheet.absoluteFill} />
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: t.glass }]} />
+      </View>
       {children}
     </View>
   );
@@ -201,11 +206,20 @@ export function BentoButton({
 
   return (
     <PressableScale
-      onPress={onPress}
+      onPress={
+        onPress
+          ? () => {
+              // A light tap on main actions; secondary buttons stay quiet.
+              if (variant !== 'secondary') haptic.light();
+              onPress();
+            }
+          : undefined
+      }
       disabled={inactive}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
       accessibilityState={{ disabled: inactive, busy: loading }}
+      aria-busy={loading}
       style={[
         {
           minHeight: height,
@@ -336,9 +350,13 @@ export function SegmentedControl<V extends string>({
           <Pressable
             key={o.value}
             onLayout={onSegLayout(o.value)}
-            onPress={() => onChange(o.value)}
+            onPress={() => {
+              if (!on) haptic.selection();
+              onChange(o.value);
+            }}
             accessibilityRole="radio"
             accessibilityState={{ selected: on, checked: on }}
+            aria-checked={on}
             hitSlop={{ top: 6, bottom: 6 }}
             style={{ flex: fill ? 1 : undefined, minHeight: 32, paddingHorizontal: 13, paddingVertical: 6, borderRadius: 999, alignItems: 'center', justifyContent: 'center' }}
           >
@@ -391,6 +409,8 @@ export const BentoField = React.forwardRef<
               borderRadius: L.fieldRadius,
               borderWidth: 1,
               borderColor,
+              // Focus: an accent outline with a soft 3 pt ring (Bento kit).
+              boxShadow: focused && !error ? `0 0 0 3px ${t.accentSoft}` : undefined,
               backgroundColor: t.tile,
               color: t.ink,
               fontSize: 16,
@@ -447,11 +467,15 @@ export function BentoToggle({
   }, [value, anim]);
   return (
     <Pressable
-      onPress={() => onValueChange(!value)}
+      onPress={() => {
+        haptic.selection();
+        onValueChange(!value);
+      }}
       disabled={disabled}
       accessibilityRole="switch"
       accessibilityLabel={accessibilityLabel}
       accessibilityState={{ checked: value, disabled }}
+      aria-checked={value}
       hitSlop={6}
       style={{ width: 52, height: 32, borderRadius: 16, backgroundColor: value ? t.accent : t.seg, padding: 2, opacity: disabled ? 0.45 : 1 }}
     >

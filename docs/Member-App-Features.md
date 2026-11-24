@@ -29,13 +29,15 @@ The member's dashboard, shown after login. Since 2026-11-24 it uses the Bento de
 - **Your Club** — the home club name and crest; opens Profile.
 - **Ad space** (top banner) — see [Ad Space](#ad-space).
 - **My Stats** — Rounds (9 Holes), Rounds (18 Holes), Cash Earned, Cash Redeemed, each with a period-over-period % change ("+50% vs Last Month"; none for All). A Month / Year / All control re-fetches these live.
-- **Points Earned Per Month** bar chart (the latest month highlighted), with a **My Golf** link to the My Golf tab.
+- **Points Earned Per Month** bar chart (the latest month highlighted), with a **My Golf** link that opens My Golf.
 - **Ad space** (second slot).
 - **Rewards preview** — the first 5 rewards with photo, name and the first option's Flagrr Cash cost; tapping a card or "View All" opens the Rewards Shop.
 
 ## Course and My Golf
 
-The tab bar has three tabs either side of the Scan button: **Home, Course, My Golf** on the left and **Rewards, Activity, Profile** on the right. It is the Bento floating glass bar (2026-11-24): each tab shows a line icon and a label, the active tab is green (lime in dark mode) with a soft highlight that slides between tabs, and Scan is a raised fairway-green button with a lime icon and a "Scan" label. The same bar also lays out the redesign's 4-tab layout (Home, Course, Rewards, Profile) if the tabs change; that change has not been made.
+The tab bar has two tabs either side of the Scan button: **Home, Course** on the left and **Rewards, Profile** on the right (the Bento boards' layout, in the 1.1.0 code since 24 Nov 2026; the 1.0.1 store app has six tabs). **My Golf** opens from Course's *Your game* tile and Home's *My Golf* link, and keeps the tab bar with Course lit; **Reward Activity** opens from Profile's *Reward Activity* row. It is the Bento floating glass bar: each tab shows a line icon and a label, the active tab is green (lime in dark mode) with a soft highlight that slides between tabs, and Scan is a raised fairway-green button with a lime icon and a "Scan" label. The bar slides away on every other screen and comes back with the tabs. Tapping the tab you're on scrolls it back to the top.
+
+**Movement** (1.1.0, matching the Bento prototype): a new screen slides in from the right while the one behind slides a little left and dims; Back reverses it, and on iPhones you can swipe back from anywhere on the screen (not during a round, where sideways drags move the hole map). The receipt flow (Scan, Review, Success) rises from the bottom as one card while the screen behind shrinks and dims; closing it from any step leaves the whole flow. Signing in or out cross-fades. Phones give a light tap of feedback on tab and segment changes, main buttons and Scan, and when a receipt is submitted, a reward redeemed or a round saved. With Reduce Motion on, screens simply fade.
 
 ### Course tab
 
@@ -62,7 +64,7 @@ The hole view opens full screen, without the tab bar:
 - **Scorecard** (the card button): every hole with par, stroke index, shots, score, putts and points or net, Out / In / Total, and the round's Stableford, net, gross and handicap score (adjusted gross, each hole capped at net double bogey; a pick-up counts as net double bogey). **Finish round** is enabled once every hole has a score or a pick-up; **Discard round** deletes it.
 - Scores save to the server as they are entered, with a copy on the device in case the signal drops ("Not saved yet · will retry" in the header until it goes through). Leaving the screen keeps the round in progress.
 
-### My Golf tab
+### My Golf
 
 Built only from rounds the member has finished in the Course tab, at home or away, for the Month, Year or All:
 - **Stableford average**, rounds played to handicap (36+ points over 18 holes, 18+ over nine), best round, and the Handicap Index as entered. Round-level numbers use 18-hole rounds when there are any in the period, otherwise nine-hole rounds.

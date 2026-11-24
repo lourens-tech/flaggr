@@ -106,6 +106,7 @@ export function CourseHomeScreen({ navigation }: Props) {
   return (
     <BentoScreen
       tabBar
+      scrollTitle="Course"
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await load(); setRefreshing(false); }} />}
     >
       <View>

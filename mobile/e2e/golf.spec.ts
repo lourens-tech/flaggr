@@ -100,6 +100,15 @@ async function openMyGolf(page: Page) {
   await expect(page.getByRole('heading', { name: 'My Golf' })).toBeVisible();
 }
 async function longPress(page: Page, el: ReturnType<Page['getByLabel']>) {
+  // Wait until the control has stopped moving (entrances ease in): a press whose target slides
+  // out from under a still pointer is cancelled, as it would be under a finger.
+  let last = -1;
+  await expect.poll(async () => {
+    const y = Math.round((await el.boundingBox())?.y ?? -1);
+    const still = y === last;
+    last = y;
+    return still;
+  }, { intervals: [250] }).toBe(true);
   await el.hover();
   await page.mouse.down();
   await page.waitForTimeout(900);
@@ -1294,6 +1303,8 @@ test.describe('Hole view', () => {
     await page.getByRole('button', { name: 'Correct a score' }).click();
     await expect(page.getByText('Finished round · changes save')).toBeVisible();
     const s0 = before.entries[0].s as number;
+    // Let the round, profile and course map finish loading: the map arriving re-lays out the screen.
+    await page.waitForLoadState('networkidle');
     await longPress(page, page.getByLabel(`Score ${s0}`));
     const a = appAlert(page);
     await expect(a).toContainText('Could not save that score');

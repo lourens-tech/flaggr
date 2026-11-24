@@ -4,10 +4,12 @@ import type { ScrollViewInstance } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { CommonActions } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/types';
 import { api, ApiError } from '../../api/client';
 import { showAlert } from '../../utils/alert';
+import { haptic } from '../../utils/haptics';
 import { useTheme, type ThemeColors } from '../../context/ThemeContext';
 import { PillButton, systemFonts, useBentoLegacy } from '../../components/bento/legacy';
 import { BentoToggle } from '../../components/bento';
@@ -297,8 +299,19 @@ export function CourseGuideScreen({ navigation, route }: Props) {
       setSheet(null);
       setRound(saved);
       const t = roundTotals(setup!, entries);
+      haptic.success();
       showAlert('Round saved', `${round.courseName}: ${t.points} Stableford points${t.gross != null ? `, ${t.gross} gross` : ''}. Your stats are in My Golf.`, [
-        { text: 'See My Golf', onPress: () => navigation.navigate('Main', { screen: 'MyGolf' }) },
+        {
+          text: 'See My Golf',
+          // Replace the round with My Golf over the tabs (Back returns to the tabs, not the finished round).
+          onPress: () =>
+            navigation.dispatch((state) => {
+              const main = state.routes.find((r) => r.name === 'Main');
+              return main
+                ? CommonActions.reset({ ...state, index: 1, routes: [main, { key: `MyGolf-${Date.now()}`, name: 'MyGolf', params: undefined }] })
+                : CommonActions.navigate('MyGolf');
+            }),
+        },
         { text: 'Close', style: 'cancel', onPress: () => navigation.goBack() },
       ]);
     } catch (err) {

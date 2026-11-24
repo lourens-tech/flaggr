@@ -1,12 +1,14 @@
-import React, { useCallback, useMemo, useRef } from 'react';
-import { Animated, Platform, StatusBar, StyleSheet, View, useWindowDimensions, type RefreshControlProps, type StyleProp, type ViewStyle } from 'react-native';
-import type { ViewInstance } from 'react-native';
+import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { Animated, Platform, StatusBar, StyleSheet, Text, View, useWindowDimensions, type RefreshControlProps, type StyleProp, type ViewStyle } from 'react-native';
+import type { ScrollViewInstance, ViewInstance } from 'react-native';
+import { NavigationRouteContext } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 import { useBento } from '../../context/ThemeContext';
-import { bentoLayout as L, TAB_BAR_CLEARANCE } from '../../theme/bento';
+import { bentoLayout as L, bentoType, TAB_BAR_CLEARANCE } from '../../theme/bento';
 import { useNativeDriver } from '../../theme/motion';
 import { BentoScrollContext } from './motion';
+import { registerScrollToTop } from '../../navigation/scrollToTop';
 import { Glass, GlassIconButton, NavTitle } from './primitives';
 
 // The faint contour lines across the top of every board.
@@ -37,20 +39,28 @@ export function ContourBackdrop() {
   );
 }
 
-// Glass title bar fades in over this many points of scroll, starting at 40.
+// Scroll-linked chrome from the Bento prototype:
+// - a pushed screen's header row (Back, title, right button) sticks to the top
+//   and turns into a floating glass pill over the first 70 pt of scroll;
+// - a tab screen (and My Golf) shows a full-width glass title bar that fades
+//   and slides down into place between 40 and 120 pt.
+const NAV_TO = 70;
 const BAR_FROM = 40;
-const BAR_TO = 72;
+const BAR_TO = 120;
 
 // A Bento screen: ground background, 24 pt side padding, and (when it
-// scrolls) the tile rise/reveal context. With `onBack` or `title`, it draws
-// the boards' header row: a glass back button that sticks to the top as you
-// scroll, the title centred, and a glass title bar that fades in after 40 pt.
+// scrolls) the tile rise/reveal context. With `onBack`, `title` or
+// `headerRight` it draws the boards' header row as a sticky glass pill.
+// `scrollTitle` is for tab screens: the title bar that appears once scrolled
+// (the header row, if any, then scrolls with the content). Tapping the current
+// tab again scrolls a tab screen back to the top.
 export function BentoScreen({
   children,
   title,
   onBack,
   backLabel = 'Back',
   headerRight,
+  scrollTitle,
   tabBar = false,
   scroll = true,
   refreshControl,
@@ -62,6 +72,7 @@ export function BentoScreen({
   onBack?: () => void;
   backLabel?: string;
   headerRight?: React.ReactNode;
+  scrollTitle?: string;
   // The screen sits under the floating tab bar: leave room for it.
   tabBar?: boolean;
   scroll?: boolean;
@@ -85,27 +96,50 @@ export function BentoScreen({
   const ctx = useMemo(() => ({ scrollY, scrollTop, viewport, content, nextOrder }), [scrollY, nextOrder]);
   const hasHeader = Boolean(title || onBack || headerRight);
   const headerTop = insets.top + 8;
+  // Left and right safe areas too: the iPhone Duo's closed screen keeps a strip on the camera
+  // side (status, camera) that content must not sit under; 0 on other phones held upright.
+  const padLeft = L.screenPadding + insets.left;
+  const padRight = L.screenPadding + insets.right;
   const bottom = (tabBar ? TAB_BAR_CLEARANCE : 40) + insets.bottom;
 
   const barOpacity = scrollY.interpolate({ inputRange: [BAR_FROM, BAR_TO], outputRange: [0, 1], extrapolate: 'clamp' });
+  const barShift = scrollY.interpolate({ inputRange: [BAR_FROM, BAR_TO], outputRange: [-10, 0], extrapolate: 'clamp' });
+  const pillGlass = scrollY.interpolate({ inputRange: [0, NAV_TO], outputRange: [0, 1], extrapolate: 'clamp' });
+  // A pushed screen's header row floats (sticky pill); a tab screen's scrolls with the content.
+  const pill = hasHeader && !scrollTitle;
+  const [rowHeight, setRowHeight] = useState<number>(L.iconButton);
 
-  const headerRow = hasHeader ? (
+  // Tab re-tap: scroll back to the top. Outside navigation (dev gallery) there's no route.
+  const route = useContext(NavigationRouteContext);
+  const scrollRef = useRef<ScrollViewInstance>(null);
+  useEffect(() => {
+    if (!route?.key || !scroll) return;
+    return registerScrollToTop(route.key, () => scrollRef.current?.scrollTo({ y: 0, animated: true }));
+  }, [route?.key, scroll]);
+
+  const rowContent = (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: L.iconButton }}>
-      {/* The live back button floats above (it sticks); this keeps its place. */}
-      <View style={{ width: onBack ? L.iconButton : headerRight ? L.iconButton : 0 }} />
+      {onBack ? (
+        <GlassIconButton icon="back" onPress={onBack} accessibilityLabel={backLabel} />
+      ) : (
+        <View style={{ width: headerRight ? L.iconButton : 0 }} />
+      )}
       <NavTitle style={{ flex: 1 }} numberOfLines={2}>
         {title}
       </NavTitle>
       <View style={{ minWidth: onBack || headerRight ? L.iconButton : 0, alignItems: 'flex-end' }}>{headerRight}</View>
     </View>
-  ) : null;
+  );
+
+  // In the content: the row itself (tab screens), or a spacer the sticky pill sits over.
+  const headerRow = hasHeader ? (pill ? <View style={{ height: rowHeight }} /> : rowContent) : null;
 
   const body = (
     <View
       ref={content}
       // Keep this view real on Android so tiles can measure against it.
       collapsable={Platform.OS === 'web' ? undefined : false}
-      style={[{ paddingTop: hasHeader ? headerTop : insets.top + 16, paddingHorizontal: L.screenPadding, paddingBottom: bottom, gap }, contentStyle]}
+      style={[{ paddingTop: hasHeader ? headerTop : insets.top + 16, paddingLeft: padLeft, paddingRight: padRight, paddingBottom: bottom, gap }, contentStyle]}
     >
       {headerRow}
       {children}
@@ -119,6 +153,7 @@ export function BentoScreen({
         <ContourBackdrop />
         {scroll ? (
           <Animated.ScrollView
+            ref={scrollRef}
             onLayout={(e) => setViewportHeight(e.nativeEvent.layout.height)}
             onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
               useNativeDriver,
@@ -139,22 +174,26 @@ export function BentoScreen({
           </View>
         )}
 
-        {hasHeader ? (
-          <>
-            {/* Glass title bar: fades in once the header has scrolled away. */}
-            <Animated.View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, opacity: barOpacity }}>
-              <Glass radius={0} blur={24} saturate={1.7} style={{ borderWidth: 0, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: t.hair, paddingTop: headerTop, paddingBottom: 8, paddingHorizontal: L.screenPadding + L.iconButton + 12 }}>
-                <View style={{ minHeight: L.iconButton, justifyContent: 'center' }}>
-                  <NavTitle numberOfLines={1}>{title}</NavTitle>
-                </View>
-              </Glass>
-            </Animated.View>
-            {onBack ? (
-              <View style={{ position: 'absolute', top: headerTop, left: L.screenPadding }}>
-                <GlassIconButton icon="back" onPress={onBack} accessibilityLabel={backLabel} />
+        {scrollTitle ? (
+          // Tab screens: a full-width glass title bar once scrolled.
+          <Animated.View pointerEvents="none" aria-hidden style={{ position: 'absolute', top: 0, left: 0, right: 0, opacity: barOpacity, transform: [{ translateY: barShift }] }}>
+            <Glass radius={0} blur={22} saturate={1.6} style={{ borderWidth: 0, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: t.hair, paddingTop: headerTop, paddingBottom: 14, paddingLeft: padLeft + L.iconButton + 12, paddingRight: padRight + L.iconButton + 12 }}>
+              <View style={{ minHeight: L.iconButton, justifyContent: 'flex-end' }}>
+                <Text numberOfLines={1} style={[bentoType.navTitle, { color: t.ink }]}>
+                  {scrollTitle}
+                </Text>
               </View>
-            ) : null}
-          </>
+            </Glass>
+          </Animated.View>
+        ) : null}
+        {pill ? (
+          // Pushed screens: the header row sticks and gains a glass pill behind it.
+          <View pointerEvents="box-none" style={{ position: 'absolute', top: headerTop - 6, left: padLeft - 6, right: padRight - 6, padding: 6 }}>
+            <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { opacity: pillGlass }]}>
+              <Glass radius={30} blur={22} saturate={1.6} style={{ flex: 1, boxShadow: '0 10px 30px -16px rgba(0,0,0,0.45)' }} />
+            </Animated.View>
+            <View onLayout={(e) => setRowHeight(Math.max(L.iconButton, Math.round(e.nativeEvent.layout.height)))}>{rowContent}</View>
+          </View>
         ) : null}
       </View>
     </BentoScrollContext.Provider>

@@ -1,20 +1,15 @@
 import React, { useMemo, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
-import type { CompositeScreenProps } from '@react-navigation/native';
-import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import type { MainTabParamList, RootStackParamList } from '../../navigation/types';
+import type { StackScreenProps } from '@react-navigation/stack';
+import type { RootStackParamList } from '../../navigation/types';
 import { useApp } from '../../context/AppContext';
 import { showAlert } from '../../utils/alert';
 import { useBento } from '../../context/ThemeContext';
 import { bentoType } from '../../theme/bento';
 import type { ActivityEntry } from '../../data/types';
-import { Appear, BentoButton, BentoIcon, BentoScreen, BentoTile, Eyebrow, H1, SegmentedControl } from '../../components/bento';
+import { Appear, BentoButton, BentoIcon, BentoScreen, BentoTile, Eyebrow, SegmentedControl } from '../../components/bento';
 
-type Props = CompositeScreenProps<
-  BottomTabScreenProps<MainTabParamList, 'Activity'>,
-  NativeStackScreenProps<RootStackParamList>
->;
+type Props = StackScreenProps<RootStackParamList, 'Activity'>;
 
 type Filter = 'all' | 'earn' | 'redeem';
 
@@ -94,8 +89,7 @@ export function RewardsActivityScreen({ navigation }: Props) {
   };
 
   return (
-    <BentoScreen tabBar>
-      <H1>Reward Activity</H1>
+    <BentoScreen title="Reward Activity" onBack={() => navigation.goBack()}>
       <SegmentedControl
         fill
         value={filter}
@@ -120,7 +114,7 @@ export function RewardsActivityScreen({ navigation }: Props) {
               <Text style={[bentoType.body, { color: t.muted, marginTop: 6, textAlign: 'center', maxWidth: 270 }]}>
                 No activity yet — play a round or scan a receipt to get started.
               </Text>
-              <BentoButton label="Scan a receipt" nub compact onPress={() => navigation.navigate('ScanReceipt')} style={{ marginTop: 18, alignSelf: 'stretch' }} />
+              <BentoButton label="Scan a receipt" nub compact onPress={() => navigation.navigate('ScanFlow')} style={{ marginTop: 18, alignSelf: 'stretch' }} />
             </View>
           </BentoTile>
         </Appear>

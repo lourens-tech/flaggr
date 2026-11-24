@@ -40,6 +40,12 @@ export const STAGGER_MAX_ITEMS = 8;
 // JS thread either way and warns if asked for it).
 export const useNativeDriver = Platform.OS !== 'web';
 
+// The click-through test build (npm run e2e:build) sets EXPO_PUBLIC_E2E=1. There, screen
+// pushes, tab switches and tile entrances (Appear) happen at once, so a test never clicks
+// something that is still sliding into place. Never set for real web or phone builds; the
+// motion itself is checked separately against the prototype.
+export const E2E_INSTANT_MOTION = process.env.EXPO_PUBLIC_E2E === '1';
+
 // "Reduce Motion" (iOS/Android accessibility setting, or the browser's
 // prefers-reduced-motion). Read synchronously at animation time via
 // prefersReducedMotion(); kept current by a listener started once on import.

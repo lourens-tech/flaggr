@@ -26,6 +26,7 @@ import {
   Eyebrow,
   GlassIconButton,
   H1,
+  Parallax,
   Ring,
   SegmentedControl,
 } from '../../components/bento';
@@ -138,7 +139,7 @@ export function HomeScreen({ navigation }: Props) {
       : 'Play a round this week to start your streak';
 
   return (
-    <BentoScreen tabBar>
+    <BentoScreen tabBar scrollTitle="Home">
       {/* Greeting, date, notifications and avatar */}
       <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12 }}>
         <View style={{ flex: 1 }}>
@@ -411,7 +412,9 @@ function RewardMini({ reward, onPress }: { reward: Reward; onPress: () => void }
         <View style={{ borderRadius: 19, overflow: 'hidden', backgroundColor: t.tile, boxShadow: t.insetHighlight }}>
           <View style={{ height: 112, backgroundColor: bentoBrand.fairway, alignItems: 'center', justifyContent: 'center' }}>
             {reward.imageUrl && !failed ? (
-              <Image source={{ uri: reward.imageUrl }} onError={() => setFailed(true)} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} resizeMode="cover" />
+              <Parallax travel={8} style={{ position: 'absolute', top: -8, left: 0, right: 0, bottom: -8 }}>
+                <Image source={{ uri: reward.imageUrl }} onError={() => setFailed(true)} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+              </Parallax>
             ) : (
               <BentoIcon name="rewards" size={34} color={bentoBrand.lime} strokeWidth={1.5} />
             )}

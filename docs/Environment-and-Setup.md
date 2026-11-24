@@ -40,7 +40,7 @@ npx tsc --noEmit -p e2e                        # type-check the tests
 ```
 They run the production web export against `e2e/mock-api/server.ts`, a sample-data stand-in that answers every call in `src/api/client.ts` (port 4020; web on 8090). Tests switch scenarios through `POST /api/__scenario` and restore seed data with `POST /api/__reset`. The mock's test-only sign-in and reset code are written at the top of `server.ts`; they are not a real account. `E2E_API_PORT`, `E2E_WEB_PORT` and `E2E_WEB_DIR` let several runs work side by side. Output folders (`e2e/.web*`, `e2e/.results*`, `e2e/.report*`) are git-ignored. Run the suite before every member-app commit: it checks the [functionality inventory](Member-App-Functionality-Inventory) still works. It covers what the web build can do; camera, push, haptics and other native-only items need a device.
 
-As of 24 Nov 2026 the suite has 543 tests in six files (`signin-home`, `scan`, `rewards`, `golf`, `profile`, `smoke`), one `test.describe` per inventory screen. A full run takes about 15 minutes and ends with 495 passed and 48 skipped: 40 are marked native only (live camera, OS permission prompts, push taps, haptics, gestures, Reduce Motion) and 8 are `test.fixme` for known differences listed in [Known Limitations](Known-Limitations-and-Future-Work). The mock copies the real server's rules where a screen depends on them (duplicate image → 409, an approved receipt adds the activity row and notification, the latest-100 activity cap, "General" enquiry type, member replies reopening a resolved enquiry, finished-round save validation); `/api/__reset` also restores the golf settings so no test leaks into the next.
+As of 24 Nov 2026 the suite has 545 tests in six files (`signin-home`, `scan`, `rewards`, `golf`, `profile`, `smoke`), one `test.describe` per inventory screen. A full run takes about 11 minutes and ends with 503 passed and 42 skipped: 40 are marked native only (live camera, OS permission prompts, push taps, haptics, gestures, Reduce Motion) and 2 are `test.fixme` for known differences listed in [Known Limitations](Known-Limitations-and-Future-Work). The mock copies the real server's rules where a screen depends on them (duplicate image → 409, an approved receipt adds the activity row and notification, the latest-100 activity cap, "General" enquiry type, member replies reopening a resolved enquiry, finished-round save validation); `/api/__reset` also restores the golf settings so no test leaks into the next. The test build sets `EXPO_PUBLIC_E2E=1` (only in `npm run e2e:build`; read as `E2E_INSTANT_MOTION` in `mobile/src/theme/motion.ts`), which makes screen pushes, tab switches and tile entrances (`Appear`) instant, so a test never meets two screens mid-slide or clicks a tile that is still sliding into place (seen once under load: a click on Home's My Golf link landed while its tile was rising 46 pt and was lost); real web and phone builds never set it. The transitions themselves were measured separately in headless Chromium against `navigation/transitions.ts`.
 
 Read the Expo SDK 58 docs (`https://docs.expo.dev/versions/v58.0.0/`) before changing code. Set `EXPO_PUBLIC_API_URL` to point the app at a local backend; otherwise it calls `https://flagrr-loyalty.vercel.app`.
 
@@ -120,13 +120,14 @@ From `mobile/app.json` and `mobile/eas.json`:
 | | |
 |---|---|
 | App name / slug | Flagrr / `flagrr` |
-| Version | 1.1.0 in the code (Expo SDK 58, not built yet). The store apps are 1.0.1 (SDK 57). |
-| iOS bundle ID / build number | `com.flagrr.loyalty` / 6 |
+| Version | 1.1.0 (Expo SDK 58). First 1.1.0 builds on 24 Nov 2026: iOS build 7 (production profile, sent to TestFlight for internal testing) and an Android internal preview. The store apps are 1.0.1 (SDK 57). |
+| iOS bundle ID / build number | `com.flagrr.loyalty` / 7 |
 | Android package / version code | `com.flagrr.loyalty` / 9 |
 | EAS project ID | `12ea4b7f-59dd-490e-8286-443a03ab9b6b`, owner `ewo-solutions` |
 | OTA updates | `expo-updates`, runtime version policy `appVersion` |
 | Profiles | `development` (dev client, internal), `preview` and `production` (channels of the same names, `EXPO_PUBLIC_STORE_BUILD=1`) |
 | `appVersionSource` | `local` (the production profile auto-increments) |
+| Build upload | `/.easignore` (repo root) decides what EAS Build uploads. While it exists EAS ignores every `.gitignore`, so it repeats their rules (above all `scripts/receipt-eval/fixtures/`, real member receipts) and adds folders the app build doesn't need (`reels/`, `refresh-assets/`, `marketing/`, `scripts/`, `docs/`). Add new ignore rules to both files. |
 | iOS submit | Apple team `KGZPMLYFZQ`, App Store Connect app `6796048910` |
 | Android | `google-services.json` committed (Firebase project `flagrr-8b915`); no Android submit block in `eas.json` |
 | Orientation / theme | Portrait; `userInterfaceStyle` is `automatic` from 1.1.0 (1.0.1 builds had `light`, which stopped the app following the phone's dark mode) |

@@ -1,10 +1,16 @@
 import React from 'react';
 import { View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
+import { signinIcons } from './icons/signin';
+import { homeIcons } from './icons/home';
+import { scanIcons } from './icons/scan';
+import { rewardsIcons } from './icons/rewards';
+import { profileIcons } from './icons/profile';
+import { golfIcons } from './icons/golf';
 
 // Thin, even line icons from the Bento boards (24-unit grid, round caps and
 // joins). Add icons here as screens are restyled; no emoji, no filled glyphs.
-const PATHS = {
+const BASE = {
   home: ['M4 10.6 12 4l8 6.6', 'M6 9.4V20h12V9.4', 'M10 20v-5h4v5'],
   course: ['M7 21V3.5', 'M7 4.2h10.5l-2.6 3.7 2.6 3.7H7'],
   scan: [
@@ -38,7 +44,17 @@ const PATHS = {
   gallery: ['M4.5 5.5h15v13h-15z', 'M4.5 15.5l4.2-4.2 3.6 3.6 2.4-2.4 4.8 4.8', 'M15.5 8.8a1.2 1.2 0 1 1 0 .1'],
   receipt: ['M6 3.5h12v17l-2-1.4-2 1.4-2-1.4-2 1.4-2-1.4-2 1.4z', 'M9 8h6M9 11.5h6M9 15h3.5'],
   info: ['M12 4a8 8 0 1 1 0 16 8 8 0 0 1 0-16', 'M12 11v5', 'M12 8h.01'],
+  // Shared by several areas (phase 3).
+  send: ['M4.5 12 19.5 5l-4.2 14-3.8-5.6z', 'M11.5 13.4 19.5 5'],
+  plus: ['M12 5v14', 'M5 12h14'],
+  settings: [
+    'M12 9.2a2.8 2.8 0 1 1 0 5.6 2.8 2.8 0 0 1 0-5.6',
+    'M19 12a7 7 0 0 0-.1-1.2l2-1.5-2-3.4-2.3.9a7 7 0 0 0-2.1-1.2L14 3h-4l-.5 2.6a7 7 0 0 0-2.1 1.2l-2.3-.9-2 3.4 2 1.5A7 7 0 0 0 5 12c0 .4 0 .8.1 1.2l-2 1.5 2 3.4 2.3-.9a7 7 0 0 0 2.1 1.2L10 21h4l.5-2.6a7 7 0 0 0 2.1-1.2l2.3.9 2-3.4-2-1.5c.1-.4.1-.8.1-1.2',
+  ],
 } as const;
+
+// Each phase 3 area adds its icons in its own file (icons/*.ts), so areas never edit the same lines.
+const PATHS = { ...BASE, ...signinIcons, ...homeIcons, ...scanIcons, ...rewardsIcons, ...profileIcons, ...golfIcons };
 
 export type BentoIconName = keyof typeof PATHS;
 

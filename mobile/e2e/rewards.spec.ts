@@ -772,7 +772,7 @@ test.describe('Voucher', () => {
     await expect(page.getByRole('tablist')).toBeVisible();
   });
 
-  test.fixme('Back to Rewards lands on the last active tab (Rewards after a redeem) — app lands on Home instead (navigate(\'Main\') on web resets to the first tab)', async ({ page }) => {
+  test('Back to Rewards after a redeem shows the Rewards tab', async ({ page }) => {
     await openShop(page);
     await redeemBtn(page, 'Redeem 9 Hole Round').click();
     await sheet(page).getByRole('button', { name: 'Redeem Now' }).click();
@@ -781,12 +781,14 @@ test.describe('Voucher', () => {
     await expect(heading(page, 'Rewards Shop')).toBeVisible();
   });
 
-  test.fixme('Back to Rewards from Reward Activity lands on Activity (inventory) — app lands on Home instead', async ({ page }) => {
+  test('Back to Rewards from a voucher opened in Reward Activity shows the Rewards tab (closing Activity too)', async ({ page }) => {
     await openActivity(page);
     await page.getByRole('button', { name: /^9 Hole Round redeemed/ }).click();
     await expect(heading(page, '9 Hole Round')).toBeVisible();
     await page.getByRole('button', { name: 'Back to Rewards' }).click();
-    await expect(heading(page, 'Reward Activity')).toBeVisible();
+    // Owner decision 24 Nov 2026: always the Rewards tab.
+    await expect(heading(page, 'Rewards Shop')).toBeVisible();
+    await expect(page.getByRole('tab', { name: 'Rewards' })).toHaveAttribute('aria-selected', 'true');
   });
 
   test('Zero-cost tier bar voucher shows “Bar Voucher — R100” and Cost “0 FC”', async ({ page }) => {
@@ -830,12 +832,13 @@ test.describe('Voucher', () => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Reward Activity', () => {
-  test('Reached from › Activity tab (tab screen, no Back button)', async ({ page }) => {
+  test('Reached from › Profile row, as a pushed screen: Back returns to Profile, no tab bar', async ({ page }) => {
     await openSignedIn(page);
     await tab(page, 'Activity');
     await expect(heading(page, 'Reward Activity')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Back', exact: true })).toHaveCount(0);
-    await expect(page.getByRole('tablist')).toBeVisible();
+    await expect(page.getByRole('tablist').filter({ visible: true })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Back', exact: true }).filter({ visible: true }).first().click();
+    await expect(page.getByRole('button', { name: 'Reward Activity', exact: true }).filter({ visible: true })).toBeVisible();
   });
 
   test('Reached from › Profile → Reward Activity row', async ({ page }) => {
@@ -909,17 +912,14 @@ test.describe('Reward Activity', () => {
     await expect(page.getByRole('button', { name: /redeemed Redeemed ·/ })).toHaveCount(3);
   });
 
-  test('Filter persists while switching tabs', async ({ page }) => {
+  test('Filter starts on All each time Reward Activity opens (it is a pushed screen since 1.1.0)', async ({ page }) => {
     await openActivity(page);
     await page.getByRole('radio', { name: 'Redeemed' }).click();
     await expect(txt(page, 'Receipt scanned')).toHaveCount(0);
-    await tab(page, 'Home');
-    await expect(heading(page, 'Reward Activity')).toHaveCount(0);
-    await tab(page, 'Activity');
+    await page.getByRole('button', { name: 'Back', exact: true }).filter({ visible: true }).first().click();
+    await page.getByRole('button', { name: 'Reward Activity', exact: true }).filter({ visible: true }).first().click();
     await expect(heading(page, 'Reward Activity')).toBeVisible();
-    await expect(page.getByRole('button', { name: /^9 Hole Round redeemed/ })).toBeVisible();
-    await expect(txt(page, 'Receipt scanned')).toHaveCount(0);
-    await expect(page.getByRole('button', { name: /redeemed Redeemed ·/ })).toHaveCount(3);
+    await expect(txt(page, 'Receipt scanned')).toHaveCount(2);
   });
 
   test('Filter empty › “Nothing earned yet.” / “Nothing redeemed yet.”', async ({ page }) => {

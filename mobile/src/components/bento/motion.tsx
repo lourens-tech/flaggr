@@ -4,7 +4,7 @@ import type { ViewInstance } from 'react-native';
 import { NavigationContext } from '@react-navigation/native';
 import Svg, { Circle } from 'react-native-svg';
 import { CountUpText } from '../motion/CountUpText';
-import { BENTO_RISE_STEP, bentoDuration, bentoEasing, prefersReducedMotion, STAGGER_MAX_ITEMS, useNativeDriver } from '../../theme/motion';
+import { BENTO_RISE_STEP, E2E_INSTANT_MOTION, bentoDuration, bentoEasing, prefersReducedMotion, STAGGER_MAX_ITEMS, useNativeDriver } from '../../theme/motion';
 
 // Bento motion helpers. Everything runs on React Native's Animated API with
 // the native driver for transforms and opacity, so it moves off the JS thread
@@ -53,7 +53,8 @@ export function Appear({
   order?: number;
 }) {
   const scroll = useBentoScroll();
-  const [reduced] = useState(() => prefersReducedMotion());
+  // Reduce Motion, and the click-through test build (E2E_INSTANT_MOTION), show tiles in place.
+  const [reduced] = useState(() => prefersReducedMotion() || E2E_INSTANT_MOTION);
   const progress = useRef(new Animated.Value(reduced ? 1 : 0)).current;
   const ref = useRef<ViewInstance>(null);
   const [phase, setPhase] = useState<Phase>(reduced ? 'done' : 'measuring');

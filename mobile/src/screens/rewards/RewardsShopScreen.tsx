@@ -6,6 +6,7 @@ import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MainTabParamList, RootStackParamList } from '../../navigation/types';
 import { useApp } from '../../context/AppContext';
+import { haptic } from '../../utils/haptics';
 import { REWARD_CATEGORY_LABELS } from '../../components/common/RewardCard';
 import { AdSpace } from '../../components/common/AdSpace';
 import { showAlert } from '../../utils/alert';
@@ -87,7 +88,10 @@ export function RewardsShopScreen({ navigation }: Props) {
     const voucher = await redeemReward(confirm.reward.id, confirm.variant.id);
     setRedeeming(false);
     setConfirm(null);
-    if (voucher) navigation.navigate('Voucher', { voucherId: voucher.id });
+    if (voucher) {
+      haptic.success();
+      navigation.navigate('Voucher', { voucherId: voucher.id });
+    }
   };
 
   const header = (
@@ -104,7 +108,7 @@ export function RewardsShopScreen({ navigation }: Props) {
   );
 
   return (
-    <BentoScreen tabBar>
+    <BentoScreen tabBar scrollTitle="Rewards Shop">
       {header}
       <View style={{ height: 4 }} />
 

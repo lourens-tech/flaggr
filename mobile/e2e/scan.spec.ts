@@ -152,7 +152,7 @@ const DISCLAIMER = 'Extracted details can’t be edited — if something looks w
 test.describe('Scan Receipt', () => {
   test('Entry › tab-bar Scan button opens Scan Receipt from every member tab, and Close returns to that tab', async ({ page }) => {
     await openSignedIn(page);
-    for (const label of ['Home', 'Course', 'My Golf', 'Rewards', 'Activity', 'Profile'] as const) {
+    for (const label of ['Home', 'Course', 'My Golf', 'Rewards', 'Profile'] as const) {
       await tab(page, label);
       await expectTab(page, label);
       await scanTabButton(page).click();
@@ -810,7 +810,7 @@ test.describe('Receipt Success', () => {
     await see(row(page, 0), '+196 FC');
   });
 
-  test.fixme('“View Current Balance” returns to the last-used tab (not forced to Home) — app differs from inventory: navigate(\'Main\') in React Navigation 7 pushes a NEW Main (fresh tab state on Home) instead of popping back, so started from Profile it lands on Home', async ({ page }) => {
+  test('“View Current Balance” closes the scan flow and shows Home, even when scanning started on another tab', async ({ page }) => {
     await openSignedIn(page);
     await tab(page, 'Profile');
     await scanTabButton(page).click();
@@ -819,19 +819,18 @@ test.describe('Receipt Success', () => {
     await see(page, 'Submitted successfully!');
     await button(page, 'View Current Balance').click();
     await notSee(page, 'Submitted successfully!');
-    await expectTab(page, 'Profile');
+    // Owner decision 24 Nov 2026: Home, where the Flagrr Cash total is.
+    await expectTab(page, 'Home');
   });
 
-  test('“Submit Another Receipt” opens a new scanner on top of the earlier one (two camera screens)', async ({ page }) => {
+  test('“Submit Another Receipt” opens one fresh scanner; Close leaves the whole flow', async ({ page }) => {
     await toReview(page);
     await button(page, 'Submit Receipt').click();
     await button(page, 'Submit Another Receipt').click();
     await see(page, 'Scan Receipt');
     await see(page, PERM_TITLE);
     await notSee(page, 'Submitted successfully!');
-    // Closing the new scanner lands on the earlier scanner, closing that lands on Main
-    await button(page, 'Close').click();
-    await see(page, PERM_TITLE);
+    // One scanner only (owner decision 24 Nov 2026: match the prototype): Close returns to the tabs.
     await button(page, 'Close').click();
     await notSee(page, PERM_TITLE);
     await expectTab(page, 'Home');
