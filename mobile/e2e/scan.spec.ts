@@ -140,9 +140,16 @@ async function mockState(page: Page) {
 }
 
 const LOWCONF = 'This scan wasn’t fully clear — some details below may be inaccurate. It’s still been submitted for review.';
-const AWAY = 'Not your home club — Flagrr Cash earned at the standard away-club rate of R1 = 1 FC.';
-const BETWEEN = 'Your club is between subscriptions right now — Flagrr Cash earned at the standard rate of R1 = 1 FC.';
-const UNMATCHED = 'Some items weren’t recognized as eligible golf products or activities, so no points were awarded for them.';
+// Brand words (owner decision 24 Nov 2026): no "R1 = 1 FC" (away: equation dropped; between: kept board G-B-ReviewNotices).
+const AWAY = 'Not your home club — Flagrr Cash earned at the standard away-club rate.';
+const BETWEEN = 'Your club is between subscriptions right now — this slip earns Flagrr Cash at the standard rate.';
+// Brand words (owner decision 24 Nov 2026): no "points" for Flagrr Cash (kept board G-B-ReviewItemsBasis).
+const UNMATCHED = 'Some items weren’t recognized as eligible golf products or activities, so they earned no Flagrr Cash.';
+const NOT_ELIGIBLE = 'Not eligible for Flagrr Cash';
+// Friendly errors (owner decision 24 Nov 2026): the texts friendlyError (src/utils/errors.ts) shows instead of
+// raw technical text; server messages written for members are still shown word for word.
+const SERVER_MESSAGE = 'Something went wrong on our side. Please try again.';
+const NETWORK_MESSAGE = 'We couldn’t reach Flagrr. Check your connection and try again.';
 const ON_TOTAL = 'Flagrr Cash is earned on the slip total.';
 const ON_TOTAL_PREPAID = 'Flagrr Cash is earned on the slip total, plus the club value of pre-paid items.';
 const DISCLAIMER = 'Extracted details can’t be edited — if something looks wrong, rescan with a clearer photo.';
@@ -311,11 +318,11 @@ test.describe('Scan Receipt', () => {
   });
 
   const scanErrors: [string, () => [number, unknown, string?], string][] = [
-    ['500 shows the server text “Internal server error”', () => [500, { error: 'Internal server error' }], 'Internal server error'],
+    ['500 shows the friendly server message', () => [500, { error: 'Internal server error' }], SERVER_MESSAGE], // Friendly errors (owner decision 24 Nov 2026): utils/errors.ts friendlyError.
     ['401 shows “Not authenticated”', () => [401, { error: 'Not authenticated' }], 'Not authenticated'],
     ['400 shows “Image is too large”', () => [400, { error: 'Image is too large' }], 'Image is too large'],
     ['400 shows “imageBase64 must be a jpeg/png/webp data URI”', () => [400, { error: 'imageBase64 must be a jpeg/png/webp data URI' }], 'imageBase64 must be a jpeg/png/webp data URI'],
-    ['non-JSON (timeout) shows “Request to /receipts?action=scan failed”', () => [504, '<html>An error occurred with your deployment FUNCTION_INVOCATION_TIMEOUT</html>', 'text/html'], 'Request to /receipts?action=scan failed'],
+    ['non-JSON (timeout) shows the friendly server message', () => [504, '<html>An error occurred with your deployment FUNCTION_INVOCATION_TIMEOUT</html>', 'text/html'], SERVER_MESSAGE], // Friendly errors (owner decision 24 Nov 2026): utils/errors.ts friendlyError.
   ];
   for (const [name, res, message] of scanErrors) {
     test(`Alert › “Couldn’t scan receipt” › ${name}; OK stays on the scanner`, async ({ page }) => {
@@ -332,31 +339,32 @@ test.describe('Scan Receipt', () => {
     });
   }
 
-  test('Alert › “Couldn’t scan receipt” › mock scan error (500 via scenario) shows “Internal server error”', async ({ page }) => {
+  test('Alert › “Couldn’t scan receipt” › mock scan error (500 via scenario) shows the friendly server message', async ({ page }) => {
     await scenario(page, { scan: 'error' });
     await openScan(page);
     await pickPhoto(page, 'Upload from gallery instead');
     const a = appAlert(page);
     await see(a, 'Couldn’t scan receipt');
-    await see(a, 'Internal server error');
+    await see(a, SERVER_MESSAGE); // Friendly errors (owner decision 24 Nov 2026): utils/errors.ts friendlyError.
+    await notSee(a, 'Internal server error');
   });
 
-  test('Alert › “Couldn’t scan receipt” › 503 through the mock fail switch shows the server text', async ({ page }) => {
+  test('Alert › “Couldn’t scan receipt” › 503 through the mock fail switch shows the friendly server message', async ({ page }) => {
     await scenario(page, { fail: { 'POST /api/receipts?action=scan': 503 } });
     await openScan(page);
     await pickPhoto(page, 'Upload from gallery instead');
     const a = appAlert(page);
     await see(a, 'Couldn’t scan receipt');
-    await see(a, 'Internal server error');
+    await see(a, SERVER_MESSAGE); // Friendly errors (owner decision 24 Nov 2026): utils/errors.ts friendlyError.
   });
 
-  test('Alert › “Couldn’t scan receipt” › offline / network failure shows “Something went wrong scanning that receipt.”', async ({ page }) => {
+  test('Alert › “Couldn’t scan receipt” › offline / network failure shows the friendly connection message', async ({ page }) => {
     await page.route(isApi('/api/receipts', 'scan'), (r) => r.abort('internetdisconnected'));
     await openScan(page);
     await pickPhoto(page, 'Upload from gallery instead');
     const a = appAlert(page);
     await see(a, 'Couldn’t scan receipt');
-    await see(a, 'Something went wrong scanning that receipt.');
+    await see(a, NETWORK_MESSAGE); // Friendly errors (owner decision 24 Nov 2026): utils/errors.ts friendlyError.
     await button(a, 'OK').click();
     await see(page, PERM_TITLE);
   });
@@ -384,7 +392,7 @@ test.describe('Scan Receipt', () => {
       await expect(page.getByRole('button', { name: 'Scan receipt', exact: true }).filter({ visible: true })).toHaveCount(1);
       await expect(button(page, 'Close')).toBeVisible();
       await notSee(page, PERM_TITLE);
-      // No flash / torch control exists
+      // The torch (approved addition, 24 Nov 2026) is native only: the web build keeps today's camera, with no flash / torch control
       await expect(page.getByRole('button', { name: /flash|torch/i })).toHaveCount(0);
     });
 
@@ -443,8 +451,11 @@ test.describe('Scan Receipt', () => {
 
   test.skip('Scan › blank dark screen while camera permission is unresolved — not observable on web (the browser permission query resolves before first paint)', async () => {});
   test.skip('Scan › shutter capturing state (spinner, busy/disabled) and gallery usable during capture — not observable on web (capture finishes in ~100 ms, then Reading replaces the controls)', async () => {});
-  test.skip('Scan › uncaught camera capture / picker failure gives no feedback — native only: cannot make the web camera or picker throw', async () => {});
-  test.skip('Scan › OS camera permission prompt and its app.json string; denied-forever card where Continue does nothing — native only', async () => {});
+  // No silent failures (owner decision 24 Nov 2026): a capture or picker failure now shows “Couldn’t scan receipt”.
+  test.skip('Scan › camera capture / picker failure shows “Couldn’t scan receipt” — native only: cannot make the web camera or picker throw', async () => {});
+  // Owner decision 24 Nov 2026: camera denied for good → the card's button is “Open Settings” (Linking.openSettings).
+  test.skip('Scan › OS camera permission prompt and its app.json string; denied-forever card shows “Open Settings” and returning from Settings re-reads the permission — native only (the web never reports denied-for-good)', async () => {});
+  test.skip('Scan › torch button toggles the camera torch (lime when on) — native only (approved addition; the web build keeps today’s camera)', async () => {});
   test.skip('Scan › iOS photos permission string — native only', async () => {});
   test.skip('Scan › leaving mid-scan by OS back/swipe — native only (and the inventory marks the outcome unverified)', async () => {});
   test.skip('Alerts › Android hardware back dismisses an alert without running a button handler — native only', async () => {});
@@ -490,12 +501,13 @@ test.describe('Review Receipt', () => {
     await expectNoTabBar(page);
   });
 
-  test('Issues › unmatched line shows “Not eligible for points” and “—”, plus the not-recognized footnote', async ({ page }) => {
+  test('Issues › unmatched line shows “Not eligible for Flagrr Cash” and “—”, plus the not-recognized footnote', async ({ page }) => {
     await scenario(page, { scan: 'issues' });
     await toReview(page);
     await see(page, 'Gift card');
-    await see(page, 'Not eligible for points');
+    await see(page, NOT_ELIGIBLE); // Brand words (owner decision 24 Nov 2026)
     await see(page, '—');
+    await expect(page.getByLabel('No Flagrr Cash', { exact: true }).filter({ visible: true })).toHaveCount(1); // the “—” (kept board G-B-ReviewItemsBasis)
     await see(page, UNMATCHED);
     await see(page, 'Matched: Castle Lite 330ml');
     await see(page, 'R268.00');
@@ -512,7 +524,7 @@ test.describe('Review Receipt', () => {
     await expect(page.getByText('R650.00', { exact: true }).filter({ visible: true })).toHaveCount(2); // line + Receipt Total
     await see(page, ON_TOTAL);
     await see(page, '+650 FC');
-    await notSee(page, 'Not eligible for points');
+    await notSee(page, NOT_ELIGIBLE);
     await notSee(page, UNMATCHED);
     await notSee(page, BETWEEN);
   });
@@ -546,7 +558,7 @@ test.describe('Review Receipt', () => {
     await notSee(page, AWAY);
     await see(page, ON_TOTAL);
     await expect(page.getByText('R32.00', { exact: true }).filter({ visible: true })).toHaveCount(2);
-    await notSee(page, 'Not eligible for points');
+    await notSee(page, NOT_ELIGIBLE);
   });
 
   test('Sparse slip › “Unrecognized merchant”, no receipt number or date rows, “No line items were recognized…”, no Receipt Total, +0 FC', async ({ page }) => {
@@ -600,7 +612,7 @@ test.describe('Review Receipt', () => {
     await see(page, 'R123.50');
     await see(page, '+274 FC');
     // No club notice at the home club, no items-basis notes
-    for (const n of [AWAY, BETWEEN, 'Not eligible for points', UNMATCHED]) await notSee(page, n);
+    for (const n of [AWAY, BETWEEN, NOT_ELIGIBLE, UNMATCHED]) await notSee(page, n);
     await notSee(page, 'Matched: Castle Lite 330ml');
   });
 
@@ -618,7 +630,7 @@ test.describe('Review Receipt', () => {
     await toReview(page);
     await see(page, 'Matched: Pizza');
     await see(page, '—');
-    await notSee(page, 'Not eligible for points');
+    await notSee(page, NOT_ELIGIBLE);
     await notSee(page, UNMATCHED);
     await notSee(page, 'Already earned on another slip today');
   });
@@ -662,8 +674,8 @@ test.describe('Review Receipt', () => {
     ['422 unreadable at submit', 422, { error: "We couldn't read a valid receipt from that photo. Please scan a valid receipt or slip." }, "We couldn't read a valid receipt from that photo. Please scan a valid receipt or slip."],
     ['400 image too large', 400, { error: 'Image is too large' }, 'Image is too large'],
     ['401 not authenticated', 401, { error: 'Not authenticated' }, 'Not authenticated'],
-    ['500 internal error', 500, { error: 'Internal server error' }, 'Internal server error'],
-    ['non-JSON timeout', 504, '<html>FUNCTION_INVOCATION_TIMEOUT</html>', 'Request to /receipts failed', 'text/html'],
+    ['500 internal error', 500, { error: 'Internal server error' }, SERVER_MESSAGE], // Friendly errors (owner decision 24 Nov 2026): utils/errors.ts friendlyError.
+    ['non-JSON timeout', 504, '<html>FUNCTION_INVOCATION_TIMEOUT</html>', SERVER_MESSAGE, 'text/html'], // Friendly errors (owner decision 24 Nov 2026): utils/errors.ts friendlyError.
   ];
   for (const [name, status, body, message, type] of submitErrors) {
     test(`Alert › “Couldn’t submit receipt” › ${name} shows “${message}”; OK stays on Review`, async ({ page }) => {
@@ -687,17 +699,17 @@ test.describe('Review Receipt', () => {
     await button(page, 'Submit Receipt').click();
     const a = appAlert(page);
     await see(a, 'Couldn’t submit receipt');
-    await see(a, 'Internal server error');
+    await see(a, SERVER_MESSAGE); // Friendly errors (owner decision 24 Nov 2026): utils/errors.ts friendlyError.
     expect((await mockState(page)).receipts).toBe(4);
   });
 
-  test('Alert › “Couldn’t submit receipt” › offline shows “Something went wrong. Please try again.”', async ({ page }) => {
+  test('Alert › “Couldn’t submit receipt” › offline shows the friendly connection message', async ({ page }) => {
     await toReview(page);
     await page.route(isApi('/api/receipts', null), (r) => (r.request().method() === 'POST' ? r.abort('internetdisconnected') : r.fallback()));
     await button(page, 'Submit Receipt').click();
     const a = appAlert(page);
     await see(a, 'Couldn’t submit receipt');
-    await see(a, 'Something went wrong. Please try again.');
+    await see(a, NETWORK_MESSAGE); // Friendly errors (owner decision 24 Nov 2026): utils/errors.ts friendlyError.
     await button(a, 'OK').click();
     await see(page, 'Review Receipt');
   });
@@ -708,7 +720,7 @@ test.describe('Review Receipt', () => {
     await button(page, 'Submit Receipt').click();
     const a = appAlert(page);
     await see(a, 'Couldn’t submit receipt');
-    await see(a, 'Internal server error');
+    await see(a, SERVER_MESSAGE); // Friendly errors (owner decision 24 Nov 2026): utils/errors.ts friendlyError.
     expect((await mockState(page)).receipts).toBe(5); // saved on the server
     await button(a, 'OK').click();
     await see(page, 'Review Receipt');
@@ -726,7 +738,7 @@ test.describe('Review Receipt', () => {
   test('Submit side effects › an approved submit adds the “Receipt scanned” activity row and the “Flagrr Cash earned” notification', async ({ page }) => {
     await toReview(page);
     await button(page, 'Submit Receipt').click();
-    await button(page, 'View Current Balance').click();
+    await button(page, 'View My Flagrr Cash').click(); // Brand words (owner decision 24 Nov 2026): kept board wording, no “balance”.
     await tab(page, 'Activity');
     await expect(page.getByText('Receipt scanned', { exact: true }).filter({ visible: true })).toHaveCount(3);
     await tab(page, 'Home');
@@ -741,19 +753,19 @@ test.describe('Review Receipt', () => {
 // ======================================================================== Receipt Success
 
 test.describe('Receipt Success', () => {
-  test('Approved › hero, “+N FC”, “Submitted successfully!”, wallet line, info tile copy, both buttons; balance credited', async ({ page }) => {
+  test('Approved › hero, “+N FC”, “Submitted successfully!”, added line, info tile copy, both buttons; balance credited', async ({ page }) => {
     await toReview(page);
     const before = await mockState(page);
     await button(page, 'Submit Receipt').click();
     await see(page, 'Submitted successfully!');
     await see(page, 'Your reward');
     await expect(page.getByLabel('196 Flagrr Cash').filter({ visible: true })).toHaveText('+196 FC');
-    await see(page, '+196 Flagrr Cash have been added to your wallet!');
-    await see(page, 'Your new Flagrr Cash balance is now available in your wallet and ready to redeem on rewards.', false);
-    await see(page, 'Play more rounds, scan your receipts, and redeem rewards to unlock higher membership tiers and exclusive benefits.', false);
+    await see(page, '196 Flagrr Cash added and ready to spend.'); // Brand words (owner decision 24 Nov 2026): kept board G-B-SuccessApproved wording, no “wallet” / “balance”.
+    await see(page, 'Your new Flagrr Cash is ready to redeem on rewards at your club.'); // Brand words (owner decision 24 Nov 2026): kept board G-B-SuccessApproved wording, no “wallet” / “balance”.
+    await see(page, 'Play more rounds, scan your receipts, and redeem rewards to unlock higher membership tiers and exclusive benefits.');
     await notSee(page, 'Your receipt is being reviewed');
     await notSee(page, 'This receipt was flagged for manual review', false);
-    await expect(button(page, 'View Current Balance')).toBeVisible();
+    await expect(button(page, 'View My Flagrr Cash')).toBeVisible(); // Brand words (owner decision 24 Nov 2026): kept board wording, no “balance”.
     await expect(button(page, 'Submit Another Receipt')).toBeVisible();
     // No header / back button, no tab bar
     await expect(page.getByRole('button', { name: 'Back', exact: true }).filter({ visible: true })).toHaveCount(0);
@@ -771,9 +783,10 @@ test.describe('Receipt Success', () => {
     await see(page, 'Submitted successfully!');
     await expect(page.getByLabel('196 Flagrr Cash').filter({ visible: true })).toHaveText('+196 FC');
     await see(page, 'Your receipt is being reviewed');
-    await see(page, 'This receipt was flagged for manual review. Once approved, 196 Flagrr Cash will be added to your balance — no action is needed from you. You can check its status anytime under Profile > Receipt History.');
-    await notSee(page, '+196 Flagrr Cash have been added to your wallet!');
-    await notSee(page, 'Your new Flagrr Cash balance', false);
+    // Brand words (owner decision 24 Nov 2026): kept board G-B-SuccessFlagged wording, no “balance”.
+    await see(page, 'This receipt was flagged for manual review. Once approved, 196 Flagrr Cash will be added to your Flagrr Cash — no action is needed from you. You can check its status anytime under Profile > Receipt History.');
+    await notSee(page, '196 Flagrr Cash added and ready to spend.'); // Brand words (owner decision 24 Nov 2026): kept board G-B-SuccessApproved wording, no “wallet” / “balance”.
+    await notSee(page, 'Your new Flagrr Cash is ready to redeem', false); // Brand words (owner decision 24 Nov 2026): kept board G-B-SuccessApproved wording, no “wallet” / “balance”.
     const after = await mockState(page);
     expect(after.receipts).toBe(before.receipts + 1);
     expect(after.scenario.balance).toBe(before.scenario.balance);
@@ -784,40 +797,40 @@ test.describe('Receipt Success', () => {
     await toReview(page);
     await button(page, 'Submit Receipt').click(); // mock confirms 196
     await expect(page.getByLabel('250 Flagrr Cash').filter({ visible: true })).toHaveText('+250 FC');
-    await see(page, '+250 Flagrr Cash have been added to your wallet!');
+    await see(page, '250 Flagrr Cash added and ready to spend.'); // Brand words (owner decision 24 Nov 2026): kept board G-B-SuccessApproved wording, no “wallet” / “balance”.
   });
 
-  test('Zero FC › “+0 FC” and “+0 Flagrr Cash have been added to your wallet!”', async ({ page }) => {
+  test('Zero FC › “+0 FC” and “0 Flagrr Cash added and ready to spend.”', async ({ page }) => {
     await stubScan(page, scanBody({ items: [], grandTotal: null, totalPointsAwarded: 0 }));
     await toReview(page);
     await button(page, 'Submit Receipt').click();
     await expect(page.getByLabel('0 Flagrr Cash', { exact: true }).filter({ visible: true })).toHaveText('+0 FC');
-    await see(page, '+0 Flagrr Cash have been added to your wallet!');
+    await see(page, '0 Flagrr Cash added and ready to spend.'); // Brand words (owner decision 24 Nov 2026): kept board G-B-SuccessApproved wording, no “wallet” / “balance”.
   });
 
-  test('“View Current Balance” leaves Success for the tabs, showing the credited balance; the new receipt is first in History', async ({ page }) => {
+  test('“View My Flagrr Cash” leaves Success for the tabs, showing the credited balance; the new receipt is first in History', async ({ page }) => {
     await toReview(page);
     await button(page, 'Submit Receipt').click();
     await see(page, 'Submitted successfully!');
-    await button(page, 'View Current Balance').click();
+    await button(page, 'View My Flagrr Cash').click(); // Brand words (owner decision 24 Nov 2026): kept board wording, no “balance”.
     await notSee(page, 'Submitted successfully!');
     await expectTab(page, 'Home');
     await expect.poll(() => topText(page)).toMatch(/Flagrr Cash 12,676/); // 12,480 + 196
-    // The new receipt was prepended locally: 5 rows, newest approved +196 FC first
+    // The new receipt is first: 5 rows, newest approved +196 FC first
     await tab(page, 'Profile');
     await vis(page, 'Receipt History').click();
     await expect(page.getByRole('button', { name: /^View photo of / }).filter({ visible: true })).toHaveCount(5);
     await see(row(page, 0), '+196 FC');
   });
 
-  test('“View Current Balance” closes the scan flow and shows Home, even when scanning started on another tab', async ({ page }) => {
+  test('“View My Flagrr Cash” closes the scan flow and shows Home, even when scanning started on another tab', async ({ page }) => {
     await openSignedIn(page);
     await tab(page, 'Profile');
     await scanTabButton(page).click();
     await pickPhoto(page, 'Upload from gallery instead');
     await button(page, 'Submit Receipt').click();
     await see(page, 'Submitted successfully!');
-    await button(page, 'View Current Balance').click();
+    await button(page, 'View My Flagrr Cash').click(); // Brand words (owner decision 24 Nov 2026): kept board wording, no “balance”.
     await notSee(page, 'Submitted successfully!');
     // Owner decision 24 Nov 2026: Home, where the Flagrr Cash total is.
     await expectTab(page, 'Home');
@@ -834,6 +847,35 @@ test.describe('Receipt Success', () => {
     await button(page, 'Close').click();
     await notSee(page, PERM_TITLE);
     await expectTab(page, 'Home');
+  });
+
+  test('“Receipt submitted” toast › after “View My Flagrr Cash” (owner-approved copy, prototype wording)', async ({ page }) => {
+    await toReview(page);
+    await button(page, 'Submit Receipt').click();
+    await button(page, 'View My Flagrr Cash').click();
+    await expectTab(page, 'Home');
+    const toast = page.getByRole('alert').filter({ hasText: 'Receipt submitted' });
+    await expect(toast).toBeVisible();
+    await expect(toast).not.toContainText('once your club approves it');
+  });
+
+  test('“Receipt submitted” toast › flagged: “+N FC once your club approves it”', async ({ page }) => {
+    await scenario(page, { flagged: true });
+    await toReview(page);
+    await button(page, 'Submit Receipt').click();
+    await button(page, 'View My Flagrr Cash').click();
+    const toast = page.getByRole('alert').filter({ hasText: 'Receipt submitted' });
+    await expect(toast).toBeVisible();
+    await expect(toast).toContainText('+196 FC once your club approves it');
+  });
+
+  test('“Receipt submitted” toast › not shown after “Submit Another Receipt”', async ({ page }) => {
+    await toReview(page);
+    await button(page, 'Submit Receipt').click();
+    await button(page, 'Submit Another Receipt').click();
+    await see(page, PERM_TITLE);
+    await page.waitForTimeout(800); // longer than the 450 ms the toast waits after leaving Success
+    await expect(page.getByRole('alert').filter({ hasText: 'Receipt submitted' })).toHaveCount(0);
   });
 
   test.skip('Success › back gesture returns to the camera (Review was replaced) — native only (swipe-back / Android back; the web build has no browser-history linking)', async () => {});
@@ -1059,16 +1101,79 @@ test.describe('Receipt History', () => {
     await see(page, PERM_TITLE);
   });
 
-  test('No refetch › reopening History does not call GET /api/receipts again (list loaded once at app start)', async ({ page }) => {
+  // Owner decision 24 Nov 2026 ("Refresh on open"): History calls GET /api/receipts each time it opens.
+  test('Refresh on open › each opening of History calls GET /api/receipts again', async ({ page }) => {
     const calls = await stubReceipts(page, [rc('a', 'approved', 'Strand Golf Club', 100, 1, 100)]);
-    await openHistory(page);
-    const n = calls.n;
-    expect(n).toBeGreaterThanOrEqual(1);
+    await openSignedIn(page);
+    await tab(page, 'Profile');
+    await expect.poll(() => calls.n).toBeGreaterThanOrEqual(1); // loaded once at app start
+    const start = calls.n;
+    await vis(page, 'Receipt History').click();
+    await see(page, '+100 FC');
+    await expect.poll(() => calls.n).toBe(start + 1); // a fresh GET on open (owner decision 24 Nov 2026)
     await button(page, 'Back').click();
     await vis(page, 'Receipt History').click();
     await see(page, '+100 FC');
-    expect(calls.n).toBe(n);
+    await expect.poll(() => calls.n).toBe(start + 2); // and again on the next open (owner decision 24 Nov 2026)
   });
+
+  test('Refresh on open › the list stays on screen while it refreshes, then shows the new status', async ({ page }) => {
+    // App start: the receipt is under review. The refresh on open answers later with it approved.
+    let release!: () => void;
+    const held = new Promise<void>((r) => (release = r));
+    const before = [rc('a', 'pending', 'Strand Golf Club', 100, 1, 100, true, 'low OCR confidence')];
+    const after = [rc('a', 'approved', 'Strand Golf Club', 100, 1, 100, true, 'low OCR confidence')];
+    let n = 0;
+    await page.route(isApi('/api/receipts', null), async (r) => {
+      if (r.request().method() !== 'GET') return r.fallback();
+      n++;
+      if (n === 1) return fulfil(r, 200, before.map(full));
+      await held;
+      return fulfil(r, 200, after.map(full));
+    });
+    await openHistory(page);
+    // While the refresh is held: the app-start list is shown (no blank flash, no empty state)
+    await expect.poll(() => n).toBe(2);
+    await see(row(page, 0), 'Under review');
+    await see(row(page, 0), '100 FC pending');
+    await notSee(page, 'No receipts yet');
+    release();
+    // The refreshed list replaces it: approved, +100 FC, credited note
+    await see(row(page, 0), '+100 FC');
+    await notSee(row(page, 0), 'Under review');
+    await see(row(page, 0), 'Flagged for manual review (low OCR confidence) — your Flagrr Cash has already been credited, no action is needed.');
+  });
+
+  test('Refresh on open › a failed refresh keeps the list loaded at app start (no alert)', async ({ page }) => {
+    let n = 0;
+    await page.route(isApi('/api/receipts', null), (r) => {
+      if (r.request().method() !== 'GET') return r.fallback();
+      n++;
+      return n === 1 ? fulfil(r, 200, [rc('a', 'approved', 'Strand Golf Club', 100, 1, 100)].map(full)) : fulfil(r, 500, { error: 'Internal server error' });
+    });
+    await openHistory(page);
+    await expect.poll(() => n).toBe(2);
+    await see(row(page, 0), '+100 FC');
+    await expect(appAlert(page)).toHaveCount(0);
+  });
+
+  test('View Photo › the photo opens full screen (owner decision: mockup layout) with its caption at the bottom', async ({ page }) => {
+    await openHistory(page);
+    await page.getByRole('button', { name: /^View photo of / }).filter({ visible: true }).first().click();
+    await see(page, 'Receipt Photo');
+    const img = page.getByLabel('Receipt photo', { exact: true }).filter({ visible: true });
+    await expect(img).toBeVisible();
+    const vp = page.viewportSize()!;
+    const box = (await img.boundingBox())!;
+    // Spans the screen width less the 20 pt side margins, and most of its height
+    expect(Math.round(box.width)).toBe(vp.width - 40);
+    expect(box.height).toBeGreaterThan(vp.height * 0.6);
+    // Tapping on the photo itself also closes it (only the X is a control; taps fall through to the backdrop)
+    await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+    await notSee(page, 'Receipt Photo');
+  });
+
+  test.skip('History › opening with a receiptId (a “Receipt scanned” row in Reward Activity) shows that receipt’s photo — not reachable yet: the Activity rows are wired in the rewards area', async () => {});
 
   test.skip('History sheet › closed by the system back gesture — native only', async () => {});
   test.skip('History › Reduce Motion — animation only', async () => {});

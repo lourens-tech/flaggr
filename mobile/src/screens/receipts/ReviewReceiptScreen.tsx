@@ -2,9 +2,9 @@ import React, { useState } from 'react';
 import { Image, Pressable, Text, View } from 'react-native';
 import type { StackScreenProps } from '@react-navigation/stack';
 import type { ScanFlowParamList } from '../../navigation/types';
-import { ApiError } from '../../api/client';
 import { useApp } from '../../context/AppContext';
 import { showAlert } from '../../utils/alert';
+import { friendlyError } from '../../utils/errors';
 import { useBento } from '../../context/ThemeContext';
 import { bentoType } from '../../theme/bento';
 import { Appear, BentoButton, BentoIcon, BentoScreen, BentoTile, Eyebrow, type BentoIconName } from '../../components/bento';
@@ -46,8 +46,7 @@ export function ReviewReceiptScreen({ route, navigation }: Props) {
       const receipt = await submitReceipt(imageBase64, imageUri);
       navigation.replace('ReceiptSuccess', { pointsAwarded: scanResult.totalPointsAwarded, flagged: receipt.flagged });
     } catch (err) {
-      const message = err instanceof ApiError ? err.message : 'Something went wrong. Please try again.';
-      showAlert('Couldn’t submit receipt', message);
+      showAlert('Couldn’t submit receipt', friendlyError(err, 'Something went wrong. Please try again.'));
     } finally {
       setSubmitting(false);
     }
@@ -72,13 +71,15 @@ export function ReviewReceiptScreen({ route, navigation }: Props) {
         </Notice>
       ) : null}
 
+      {/* Brand words (owner decision 24 Nov 2026): no "R1 = 1 FC". Between subscriptions: kept board
+          G-B-ReviewNotices wording and colours; away club: AppReviewAway colours and pin, equation dropped. */}
       {isNonParticipatingClub ? (
-        <Notice icon="info" bg={t.accentSoft} ink={t.ink}>
-          Your club is between subscriptions right now — Flagrr Cash earned at the standard rate of R1 = 1 FC.
+        <Notice icon="info" bg={t.accentSoft} ink={t.accent}>
+          Your club is between subscriptions right now — this slip earns Flagrr Cash at the standard rate.
         </Notice>
       ) : isAwayClub ? (
-        <Notice icon="info" bg={t.accentSoft} ink={t.ink}>
-          Not your home club — Flagrr Cash earned at the standard away-club rate of R1 = 1 FC.
+        <Notice icon="pin" bg={t.warnBg} ink={t.warnInk}>
+          Not your home club — Flagrr Cash earned at the standard away-club rate.
         </Notice>
       ) : null}
 
@@ -90,7 +91,7 @@ export function ReviewReceiptScreen({ route, navigation }: Props) {
               {imageUri ? (
                 <Image source={{ uri: imageUri }} style={{ width: 72, height: 92 }} resizeMode="cover" accessibilityLabel="Your receipt photo" />
               ) : (
-                <Text style={{ fontSize: 11, color: t.muted, textAlign: 'center', padding: 6 }}>No image captured</Text>
+                <Text style={{ fontSize: 12, lineHeight: 16, color: t.muted, textAlign: 'center', padding: 6 }}>No image captured</Text>
               )}
             </View>
             <View style={{ flex: 1, gap: 6 }}>
@@ -102,9 +103,7 @@ export function ReviewReceiptScreen({ route, navigation }: Props) {
 
           <Eyebrow style={{ fontSize: 13, letterSpacing: 1.56, marginTop: 14, paddingBottom: 4 }}>Items</Eyebrow>
           {scanResult.items.length === 0 ? (
-            <Text style={[bentoType.body, { color: t.muted, paddingVertical: 12, borderTopWidth: 1, borderTopColor: t.hair }]}>
-              No line items were recognized on this receipt.
-            </Text>
+            <Text style={{ fontSize: 14, lineHeight: 20, color: t.muted, marginTop: 6 }}>No line items were recognized on this receipt.</Text>
           ) : (
             scanResult.items.map((item, index) => {
               const prepaid = earnsOnTotal && isPrepaidEarning(item);
@@ -127,10 +126,14 @@ export function ReviewReceiptScreen({ route, navigation }: Props) {
                     ) : matched ? (
                       <ItemNote icon="check" color={t.accent}>Matched: {item.matchedName}</ItemNote>
                     ) : notEligible ? (
-                      <ItemNote color={t.negative}>Not eligible for points</ItemNote>
+                      // Brand words (owner decision 24 Nov 2026): kept board G-B-ReviewItemsBasis wording.
+                      <ItemNote color={t.negative}>Not eligible for Flagrr Cash</ItemNote>
                     ) : null}
                   </View>
-                  <Text style={[amount.startsWith('R') ? { fontSize: 15, fontWeight: '600' } : { fontFamily: 'Fraunces_600SemiBold', fontSize: 18 }, { color: amountColor, fontVariant: ['tabular-nums'] }]}>
+                  <Text
+                    accessibilityLabel={amount === '—' ? 'No Flagrr Cash' : undefined}
+                    style={[amount.startsWith('R') ? { fontSize: 15 } : { fontFamily: 'Fraunces_600SemiBold', fontSize: 18 }, { color: amountColor, fontVariant: ['tabular-nums'] }]}
+                  >
                     {amount}
                   </Text>
                 </View>
@@ -140,7 +143,7 @@ export function ReviewReceiptScreen({ route, navigation }: Props) {
 
           {hasUnmatchedItems ? (
             <Text style={{ fontSize: 13, lineHeight: 19, color: t.muted, marginTop: 10 }}>
-              Some items weren’t recognized as eligible golf products or activities, so no points were awarded for them.
+              Some items weren’t recognized as eligible golf products or activities, so they earned no Flagrr Cash.
             </Text>
           ) : null}
 
@@ -153,10 +156,10 @@ export function ReviewReceiptScreen({ route, navigation }: Props) {
           {scanResult.grandTotal !== null ? (
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 1, borderTopColor: t.hair, paddingTop: 12, marginTop: 12 }}>
               <Text style={{ fontSize: 15, color: t.muted }}>Receipt Total</Text>
-              <Text style={{ fontSize: 15, fontWeight: '600', color: t.ink }}>R{scanResult.grandTotal.toFixed(2)}</Text>
+              <Text style={{ fontSize: 15, fontWeight: '600', color: t.ink, fontVariant: ['tabular-nums'] }}>R{scanResult.grandTotal.toFixed(2)}</Text>
             </View>
           ) : null}
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 8, paddingTop: 8, paddingBottom: 4, marginTop: scanResult.grandTotal === null ? 12 : 0, borderTopWidth: scanResult.grandTotal === null ? 1 : 0, borderTopColor: t.hair }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 8, paddingTop: scanResult.grandTotal === null ? 12 : 8, paddingBottom: 4, marginTop: scanResult.grandTotal === null ? 12 : 0, borderTopWidth: scanResult.grandTotal === null ? 1 : 0, borderTopColor: t.hair }}>
             <Text style={{ fontSize: 16, fontWeight: '600', color: t.ink }}>Flagrr Cash Earned</Text>
             <Text style={[bentoType.number, { fontSize: 30, lineHeight: 34, color: t.accent }]}>+{scanResult.totalPointsAwarded} FC</Text>
           </View>
@@ -169,7 +172,7 @@ export function ReviewReceiptScreen({ route, navigation }: Props) {
 
       <View style={{ height: 4 }} />
       <BentoButton label="Submit Receipt" nub onPress={handleSubmit} loading={submitting} />
-      <Pressable onPress={() => navigation.goBack()} accessibilityRole="button" style={{ alignSelf: 'center', paddingVertical: 12, paddingHorizontal: 16 }}>
+      <Pressable onPress={() => navigation.goBack()} accessibilityRole="button" hitSlop={{ top: 6, bottom: 6 }} style={{ alignSelf: 'center', paddingVertical: 8, paddingHorizontal: 16 }}>
         <Text style={{ fontSize: 15, fontWeight: '600', color: t.accent }}>Rescan</Text>
       </Pressable>
     </BentoScreen>
@@ -197,8 +200,10 @@ function ItemNote({ children, color, icon }: { children: React.ReactNode; color:
 
 function Notice({ children, icon, bg, ink }: { children: React.ReactNode; icon: BentoIconName; bg: string; ink: string }) {
   return (
-    <View style={{ flexDirection: 'row', gap: 10, paddingVertical: 12, paddingHorizontal: 14, borderRadius: 18, backgroundColor: bg }}>
-      <BentoIcon name={icon} size={18} color={ink} strokeWidth={1.8} />
+    <View style={{ flexDirection: 'row', gap: 10, paddingVertical: 12, paddingHorizontal: 14, borderRadius: 16, backgroundColor: bg }}>
+      <View style={{ marginTop: 1 }}>
+        <BentoIcon name={icon} size={18} color={ink} strokeWidth={1.8} />
+      </View>
       <Text style={{ flex: 1, fontSize: 14, lineHeight: 20, color: ink }}>{children}</Text>
     </View>
   );
