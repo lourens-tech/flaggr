@@ -1,28 +1,27 @@
-import React, { useState, useMemo } from 'react';
-import { Image, KeyboardAvoidingView, Platform, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import React, { useState } from 'react';
+import { View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from '../../navigation/types';
-import { FlagrrLogo } from '../../components/common/FlagrrLogo';
-import { PillButton } from '../../components/common/PillButton';
-import { TextField } from '../../components/common/TextField';
 import { ApiError } from '../../api/client';
 import { useApp } from '../../context/AppContext';
 import { showAlert } from '../../utils/alert';
-import { ONBOARDING_BACKGROUNDS, fontFamily, screenPadding, spacing } from '../../theme';
-import type { ThemeColors } from '../../context/ThemeContext';
-import { systemFonts, useBentoLegacy } from '../../components/bento/legacy';
-import { AuthBackdrop } from '../../components/bento/AuthBackdrop';
+import { friendlyError } from '../../utils/errors';
+import { ONBOARDING_BACKGROUNDS } from '../../theme';
+import { BentoButton, BentoField } from '../../components/bento';
+import { AuthPhotoScreen, LegalLine, PasswordField, PhotoBackButton, SignUpHeader } from './authParts';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'SignUpStep2'>;
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_PASSWORD_LENGTH = 8;
+const GENERIC_ERROR = 'Something went wrong. Please try again.';
 
+// Sign up step 2 (Bento boards AppSignUp2 and the kept states G-A-SignUp2*,
+// G-A-SignUpFailed): email, password with the "At least 8 characters" hint,
+// confirmation, Sign Up. Same validation and call as before. The Terms of
+// Use and Privacy Notice line under Sign Up opens Terms and Privacy (owner
+// decision 24 Nov 2026; drawn in the style of G-A-LandingStore's line).
 export function SignUpStep2Screen({ navigation, route }: Props) {
-  const { colors } = useBentoLegacy();
-  const styles = useMemo(() => systemFonts(createStyles(colors)), [colors]);
   const { signup } = useApp();
   const [email, setEmail] = useState(route.params.email ?? '');
   const [password, setPassword] = useState('');
@@ -65,7 +64,9 @@ export function SignUpStep2Screen({ navigation, route }: Props) {
         password,
       });
     } catch (err) {
-      const message = err instanceof ApiError ? err.message : 'Something went wrong. Please try again.';
+      // Server messages written for members stay word for word; raw technical
+      // text becomes plain wording (owner decision 24 Nov 2026).
+      const message = err instanceof ApiError ? friendlyError(err, GENERIC_ERROR) : GENERIC_ERROR;
       showAlert('Couldn’t create your account', message);
     } finally {
       setSubmitting(false);
@@ -73,103 +74,56 @@ export function SignUpStep2Screen({ navigation, route }: Props) {
   };
 
   return (
-    <View style={styles.background}>
-      {/* ImageBackground's inner <img> doesn't respect resizeMode="cover" on
-          web (renders at native pixel size, causing horizontal overflow and a
-          gap below) — an absolutely-positioned Image is the reliable fix. */}
-      <AuthBackdrop photo={ONBOARDING_BACKGROUNDS.signUpStep2} />
-      <StatusBar barStyle="light-content" />
-      <View style={styles.overlay} />
-      <SafeAreaView style={styles.safeArea}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          hitSlop={12}
-          style={styles.backButton}
-        >
-          <Ionicons name="chevron-back" size={24} color={colors.white} />
-        </TouchableOpacity>
+    <AuthPhotoScreen photo={ONBOARDING_BACKGROUNDS.signUpStep2} gap={16}>
+      <PhotoBackButton onPress={() => navigation.goBack()} />
+      <View style={{ height: 96 }} />
+      <SignUpHeader step={2} title="Set a password" />
 
-        <View style={styles.logoRow}>
-          <FlagrrLogo size={72} />
-        </View>
-        <View style={styles.authHead}>
-          <View style={{ flexDirection: 'row', gap: 6, marginBottom: 14 }} accessibilityElementsHidden>
-            <View style={{ flex: 1, height: 4, borderRadius: 2, backgroundColor: colors.clubGreen }} />
-            <View style={{ flex: 1, height: 4, borderRadius: 2, backgroundColor: colors.clubGreen }} />
-          </View>
-          <Text style={styles.authEyebrow}>Step 2 of 2</Text>
-          <Text style={styles.authTitle} accessibilityRole="header">Set a password</Text>
-        </View>
+      <BentoField
+        label="Email"
+        placeholder="Email"
+        autoCapitalize="none"
+        keyboardType="email-address"
+        returnKeyType="next"
+        value={email}
+        onChangeText={(text) => {
+          setEmail(text);
+          if (emailError) setEmailError(undefined);
+        }}
+        error={emailError}
+      />
+      <PasswordField
+        label="Password"
+        placeholder="Password"
+        returnKeyType="next"
+        value={password}
+        onChangeText={(text) => {
+          setPassword(text);
+          if (passwordError) setPasswordError(undefined);
+          if (confirmPasswordError) setConfirmPasswordError(undefined);
+        }}
+        helper={`At least ${MIN_PASSWORD_LENGTH} characters`}
+        error={passwordError}
+      />
+      <PasswordField
+        label="Confirm Password"
+        placeholder="Confirm Password"
+        returnKeyType="done"
+        onSubmitEditing={handleSignUp}
+        value={confirmPassword}
+        onChangeText={(text) => {
+          setConfirmPassword(text);
+          if (confirmPasswordError) setConfirmPasswordError(undefined);
+        }}
+        error={confirmPasswordError}
+      />
 
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <View style={styles.form}>
-            <TextField
-              icon="mail-outline"
-              placeholder="Email"
-              autoCapitalize="none"
-              keyboardType="email-address"
-              returnKeyType="next"
-              value={email}
-              onChangeText={(text) => {
-                setEmail(text);
-                if (emailError) setEmailError(undefined);
-              }}
-              error={emailError}
-            />
-            <View style={{ height: spacing.md }} />
-            <TextField
-              icon="lock-closed-outline"
-              placeholder="Password"
-              isPassword
-              returnKeyType="next"
-              value={password}
-              onChangeText={(text) => {
-                setPassword(text);
-                if (passwordError) setPasswordError(undefined);
-                if (confirmPasswordError) setConfirmPasswordError(undefined);
-              }}
-              error={passwordError}
-            />
-            {!passwordError ? <Text style={styles.hint}>At least {MIN_PASSWORD_LENGTH} characters</Text> : null}
-            <View style={{ height: spacing.md }} />
-            <TextField
-              icon="lock-closed-outline"
-              placeholder="Confirm Password"
-              isPassword
-              returnKeyType="done"
-              onSubmitEditing={handleSignUp}
-              value={confirmPassword}
-              onChangeText={(text) => {
-                setConfirmPassword(text);
-                if (confirmPasswordError) setConfirmPasswordError(undefined);
-              }}
-              error={confirmPasswordError}
-            />
-
-            <View style={{ height: spacing.lg }} />
-            <PillButton label="Sign Up" loading={submitting} onPress={handleSignUp} />
-          </View>
-        </KeyboardAvoidingView>
-      </SafeAreaView>
-    </View>
+      <View style={{ height: 6 }} />
+      <BentoButton label="Sign Up" nub={!submitting} loading={submitting} onPress={handleSignUp} style={submitting ? { opacity: 0.45 } : undefined} />
+      <LegalLine
+        onTerms={() => navigation.navigate('TermsPrivacy', { section: 'terms' })}
+        onPrivacy={() => navigation.navigate('TermsPrivacy', { section: 'privacy' })}
+      />
+    </AuthPhotoScreen>
   );
-}
-
-function createStyles(colors: ThemeColors) {
-  return StyleSheet.create({
-  background: { flex: 1, backgroundColor: colors.background },
-  // react-native-web's <Image> bakes the source asset's intrinsic width/height
-  // into its own style array, which otherwise wins over absoluteFill's inset
-  // properties — explicit 100% here overrides that.
-  backgroundImageSize: { width: '100%', height: '100%' },
-  overlay: { display: 'none' },
-  safeArea: { flex: 1, paddingHorizontal: screenPadding },
-  backButton: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', marginTop: spacing.sm, backgroundColor: 'rgba(10,24,17,0.45)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)' },
-  authHead: { marginTop: 110, marginBottom: spacing.md },
-  authEyebrow: { fontFamily: fontFamily.bodySemiBold, fontSize: 12, letterSpacing: 1.68, textTransform: 'uppercase', color: colors.textSecondary, marginBottom: 6 },
-  authTitle: { fontFamily: 'Fraunces_700Bold', fontSize: 34, lineHeight: 36, letterSpacing: -0.85, color: colors.textPrimary },
-  logoRow: { alignItems: 'center', marginTop: spacing.xs },
-  form: { marginTop: spacing.xs },
-  hint: { fontFamily: fontFamily.body, fontSize: 12, color: colors.textSecondary, marginTop: 4, marginLeft: 4 },
-});
 }

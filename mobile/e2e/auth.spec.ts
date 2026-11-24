@@ -36,6 +36,9 @@ const GLYPH = {
   chevronForward: '',
 };
 
+// src/utils/errors.ts SERVER_MESSAGE: the plain wording for a 500 (owner decision 24 Nov 2026).
+const SERVER_MESSAGE = 'Something went wrong on our side. Please try again.';
+
 const vis = (l: Locator) => l.filter({ visible: true });
 const text = (page: Page, s: string | RegExp, exact = true) => vis(page.getByText(s, { exact })).first();
 // Auth screens stay mounted (hidden) under the one on top, so every lookup is
@@ -45,10 +48,16 @@ const heading = (page: Page, name: string) => vis(page.getByRole('heading', { na
 const button = (page: Page, name: string | RegExp, exact = true) =>
   vis(page.getByRole('button', typeof name === 'string' ? { name, exact } : { name })).first();
 
-/** The back chevron on Login / Sign up / Forgot (no accessibility label in code). */
+/** The back button on Login / Sign up / Forgot. */
 async function authBack(page: Page) {
-  await text(page, GLYPH.chevronBack).click();
+  // Owner rule 1 (Bento boards): the Ionicons chevron glyph is now the boards' line icon in a button labelled "Back".
+  await button(page, 'Back').click();
 }
+
+/** Keep me logged in (Login): the boards' checkbox. */
+const keepMe = (page: Page) => vis(page.getByRole('checkbox', { name: 'Keep me logged in.', exact: true })).first();
+/** A row in a picker sheet (the Golf Club sheet is a PickerSheet: radio rows, checked = chosen). */
+const option = (page: Page, name: string) => vis(page.getByRole('radio', { name, exact: true })).first();
 
 async function expectAlert(page: Page, title: string, message?: string) {
   const a = appAlert(page);
@@ -161,7 +170,8 @@ async function fillStep1(page: Page, o: { name?: string; email?: string; phone?:
   await page.getByLabel('Date of Birth').fill(o.dob ?? '1990-05-04');
   await expect(button(page, 'Golf Club')).toBeEnabled();
   await button(page, 'Golf Club').click();
-  await button(page, o.club ?? 'Strand Golf Club').click();
+  // Area note (phase 3): SelectField's sheet is replaced by the Bento PickerSheet, whose rows are radios.
+  await option(page, o.club ?? 'Strand Golf Club').click();
   if (o.referral !== undefined) await field(page, 'Referral Code (optional)').fill(o.referral);
 }
 
@@ -232,11 +242,22 @@ test.describe('Landing', () => {
     await expect(field(page, 'Admin Email or Staff Username')).toBeVisible();
   });
 
-  test('Landing › “Terms of Use” and “Privacy Notice” are plain text (tapping does nothing)', async ({ page }) => {
+  // Owner decision 24 Nov 2026: Terms of Use and Privacy Notice are links for signed-out people
+  // (before: plain text, tapping did nothing). They open Terms and Privacy; back returns to Landing.
+  test('Landing › “Terms of Use” opens Terms and Privacy; back returns to Landing', async ({ page }) => {
     await openLanding(page);
-    await expect(page.getByRole('link', { name: /Terms of Use|Privacy Notice/ })).toHaveCount(0);
-    await text(page, 'Terms of Use').click();
-    await text(page, 'Privacy Notice').click();
+    await vis(page.getByRole('link', { name: 'Terms of Use', exact: true })).first().click();
+    await expect(heading(page, 'Terms and Privacy')).toBeVisible();
+    await expect(text(page, '1. Acceptance of These Terms')).toBeVisible();
+    await button(page, 'Back').click();
+    await expect(button(page, 'Get Started')).toBeVisible();
+  });
+
+  test('Landing › “Privacy Notice” opens Terms and Privacy; back returns to Landing', async ({ page }) => {
+    await openLanding(page);
+    await vis(page.getByRole('link', { name: 'Privacy Notice', exact: true })).first().click();
+    await expect(heading(page, 'Terms and Privacy')).toBeVisible();
+    await button(page, 'Back').click();
     await expect(button(page, 'Get Started')).toBeVisible();
   });
 
@@ -252,7 +273,8 @@ test.describe('Login', () => {
     await expect(field(page, 'Email')).toBeVisible();
     await expect(field(page, 'Password')).toHaveAttribute('type', 'password');
     await expect(text(page, 'Keep me logged in.', false)).toBeVisible();
-    await expect(text(page, GLYPH.checkmarkCircle)).toBeVisible(); // on
+    // Owner rule 1 (Bento boards): the Ionicons circle glyph is now the boards' checkbox; assert its checked state.
+    await expect(keepMe(page)).toBeChecked(); // on
     await expect(text(page, 'Forgot Password? Recover here.')).toBeVisible();
     await expect(text(page, "Don't have an account?")).toBeVisible();
     await expect(text(page, 'Sign Up!')).toBeVisible();
@@ -336,18 +358,20 @@ test.describe('Login', () => {
     await expectAlert(page, 'Couldn’t log in', 'Something went wrong. Please try again.');
   });
 
-  test('Login › server error shows the server message', async ({ page }) => {
+  test('Login › server error shows the plain server message', async ({ page }) => {
     await scenario(page, { fail: { 'POST /api/auth/login': 500 } });
     await gotoLogin(page);
     await loginAs(page);
-    await expectAlert(page, 'Couldn’t log in', 'Internal server error');
+    // Owner decision 24 Nov 2026 (friendly wording): a 500 shows the plain server message, not the raw "Internal server error".
+    await expectAlert(page, 'Couldn’t log in', SERVER_MESSAGE);
   });
 
   test('Login › data load failing after login shows ‘Couldn’t log in’ but the token is already stored', async ({ page }) => {
     await scenario(page, { fail: { 'GET /api/me': 500 } });
     await gotoLogin(page);
     await loginAs(page);
-    await expectAlert(page, 'Couldn’t log in', 'Internal server error');
+    // Owner decision 24 Nov 2026 (friendly wording): a 500 shows the plain server message, not the raw "Internal server error".
+    await expectAlert(page, 'Couldn’t log in', SERVER_MESSAGE);
     expect(await storage(page, 'flagrr_auth_token')).toBe(TOKEN);
   });
 
@@ -380,7 +404,8 @@ test.describe('Login', () => {
   test('Login › keep me logged in OFF: token kept in memory only, a reload returns to Landing', async ({ page }) => {
     await gotoLogin(page);
     await text(page, 'Keep me logged in.', false).click();
-    await expect(text(page, GLYPH.ellipseOutline)).toBeVisible();
+    // Owner rule 1 (Bento boards): the Ionicons circle glyph is now the boards' checkbox; assert its checked state.
+    await expect(keepMe(page)).not.toBeChecked();
     await loginAs(page);
     await homeVisible(page);
     expect(await storage(page, 'flagrr_auth_token')).toBeNull();
@@ -392,9 +417,10 @@ test.describe('Login', () => {
     await gotoLogin(page);
     const row = text(page, 'Keep me logged in.', false);
     await row.click();
-    await expect(text(page, GLYPH.ellipseOutline)).toBeVisible();
+    // Owner rule 1 (Bento boards): the Ionicons circle glyph is now the boards' checkbox; assert its checked state.
+    await expect(keepMe(page)).not.toBeChecked();
     await row.click();
-    await expect(text(page, GLYPH.checkmarkCircle)).toBeVisible();
+    await expect(keepMe(page)).toBeChecked();
   });
 
   test('Login › “Recover here.” opens Reset Password; back returns to Login', async ({ page }) => {
@@ -441,43 +467,77 @@ test.describe('Sign up step 1', () => {
     await button(page, 'Golf Club').click();
     const sheet = appAlert(page);
     await expect(sheet.getByText('Golf Club', { exact: true })).toBeVisible();
-    await expect(sheet.getByRole('button')).toHaveText(['Strand Golf Club', 'Sample Links Golf Club', "My Club Isn't Listed Yet"]);
+    // Area note (phase 3): the Bento PickerSheet replaces SelectField's sheet; its club rows are radios.
+    await expect(sheet.getByRole('radio')).toHaveText(['Strand Golf Club', 'Sample Links Golf Club', "My Club Isn't Listed Yet"]);
   });
 
   test('Sign up 1 › picking a club closes the sheet, shows it in the field, and marks it with a checkmark', async ({ page }) => {
     await gotoSignUp1(page);
     await button(page, 'Golf Club').click();
-    await button(page, 'Sample Links Golf Club').click();
+    // Area note (phase 3): PickerSheet rows are radios; the chosen one is checked (it shows the check icon).
+    await option(page, 'Sample Links Golf Club').click();
     await expect(page.locator('[aria-modal="true"]')).toHaveCount(0);
     const field = button(page, 'Golf Club: Sample Links Golf Club');
     await expect(field).toBeVisible();
     await field.click();
     const sheet = appAlert(page);
-    await expect(sheet.getByRole('button', { name: 'Sample Links Golf Club' })).toContainText(GLYPH.checkmark);
-    await expect(sheet.getByRole('button', { name: 'Strand Golf Club', exact: true })).not.toContainText(GLYPH.checkmark);
+    await expect(sheet.getByRole('radio', { name: 'Sample Links Golf Club', exact: true })).toBeChecked();
+    await expect(sheet.getByRole('radio', { name: 'Strand Golf Club', exact: true })).not.toBeChecked();
   });
 
   test('Sign up 1 › tapping the sheet backdrop closes it without choosing', async ({ page }) => {
     await gotoSignUp1(page);
     await button(page, 'Golf Club').click();
-    await expect(appAlert(page).getByRole('button', { name: 'Strand Golf Club' })).toBeVisible();
+    await expect(appAlert(page).getByRole('radio', { name: 'Strand Golf Club' })).toBeVisible(); // PickerSheet rows are radios (area note, phase 3)
     await page.mouse.click(195, 60);
     await expect(page.locator('[aria-modal="true"]')).toHaveCount(0);
     await expect(button(page, 'Golf Club')).toBeVisible();
   });
 
-  test('Sign up 1 › club list failing to load gives an empty sheet and “Select your golf club” on Next', async ({ page }) => {
+  // Owner decision 24 Nov 2026 (no silent failures): the club list failing to load shows a friendly
+  // message with Try again, which re-runs the same load (before: an empty sheet and no message).
+  test('Sign up 1 › club list failing to load shows “Couldn’t load this” with Try again; the club field is disabled', async ({ page }) => {
     await scenario(page, { fail: { 'GET /api/courses': 500 } });
     await gotoSignUp1(page);
-    const field = button(page, 'Golf Club');
-    await expect(field).toBeEnabled();
-    await field.click();
-    const sheet = appAlert(page);
-    await expect(sheet.getByText('Golf Club', { exact: true })).toBeVisible();
-    await expect(sheet.getByRole('button')).toHaveCount(0);
-    await page.mouse.click(195, 60);
+    await expect(heading(page, 'Couldn’t load this')).toBeVisible();
+    await expect(text(page, SERVER_MESSAGE)).toBeVisible();
+    await expect(button(page, 'Try again')).toBeVisible();
+    await expect(button(page, 'Golf Club')).toBeDisabled();
     await button(page, 'Next Step').click();
     await expect(text(page, 'Select your golf club')).toBeVisible();
+  });
+
+  test('Sign up 1 › club list with no network says to check the connection', async ({ page }) => {
+    await offline(page, `${API}/api/courses`);
+    await gotoSignUp1(page);
+    await expect(heading(page, 'Couldn’t load this')).toBeVisible();
+    await expect(text(page, 'We couldn’t reach Flagrr. Check your connection and try again.')).toBeVisible();
+  });
+
+  test('Sign up 1 › Try again reloads the club list; the field then works and the message goes', async ({ page }) => {
+    await scenario(page, { fail: { 'GET /api/courses': 500 } });
+    await gotoSignUp1(page);
+    await expect(button(page, 'Try again')).toBeVisible();
+    await scenario(page, { fail: { 'GET /api/courses': 0 } });
+    const req = page.waitForRequest((r) => r.url() === `${API}/api/courses` && r.method() === 'GET');
+    await button(page, 'Try again').click();
+    await req;
+    await expect(button(page, 'Golf Club')).toBeEnabled();
+    await expect(vis(page.getByText('Couldn’t load this'))).toHaveCount(0);
+    await button(page, 'Golf Club').click();
+    await expect(appAlert(page).getByRole('radio')).toHaveText(['Strand Golf Club', 'Sample Links Golf Club', "My Club Isn't Listed Yet"]);
+    await option(page, 'Strand Golf Club').click();
+    await expect(button(page, 'Golf Club: Strand Golf Club')).toBeVisible();
+  });
+
+  test('Sign up 1 › Try again failing again keeps the message', async ({ page }) => {
+    await scenario(page, { fail: { 'GET /api/courses': 500 } });
+    await gotoSignUp1(page);
+    const req = page.waitForRequest((r) => r.url() === `${API}/api/courses` && r.method() === 'GET');
+    await button(page, 'Try again').click();
+    await req;
+    await expect(heading(page, 'Couldn’t load this')).toBeVisible();
+    await expect(button(page, 'Golf Club')).toBeDisabled();
   });
 
   test('Sign up 1 › Next with everything empty shows all four required errors', async ({ page }) => {
@@ -509,7 +569,7 @@ test.describe('Sign up step 1', () => {
     await page.getByLabel('Date of Birth').fill('1990-05-04');
     await expect(page.getByText('Date of birth is required')).toHaveCount(0);
     await button(page, 'Golf Club').click();
-    await button(page, 'Strand Golf Club').click();
+    await option(page, 'Strand Golf Club').click(); // PickerSheet rows are radios (area note, phase 3)
     await expect(page.getByText('Select your golf club')).toHaveCount(0);
   });
 
@@ -597,6 +657,24 @@ test.describe('Sign up step 2', () => {
     await expect(text(page, 'At least 8 characters')).toBeVisible();
     await expect(button(page, 'Sign Up')).toBeVisible();
     await expect(vis(page.getByText('Already have an account?'))).toHaveCount(0);
+  });
+
+  // Owner decision 24 Nov 2026: Terms and Privacy links on Sign up for signed-out people (no board
+  // draws a legal line on Sign up; it is the Landing store-build line under "Sign Up").
+  test('Sign up 2 › legal line: “Terms of Use” and “Privacy Notice” open Terms and Privacy; back keeps the form', async ({ page }) => {
+    await gotoSignUp2(page);
+    await expect(text(page, "By continuing, you're accepting our Terms of Use and Privacy Notice")).toBeVisible();
+    await field(page, 'Password').fill('Fairway2026');
+    await vis(page.getByRole('link', { name: 'Terms of Use', exact: true })).first().click();
+    await expect(heading(page, 'Terms and Privacy')).toBeVisible();
+    await expect(text(page, '1. Acceptance of These Terms')).toBeVisible();
+    await button(page, 'Back').click();
+    await expect(heading(page, 'Set a password')).toBeVisible();
+    await expect(field(page, 'Password')).toHaveValue('Fairway2026');
+    await vis(page.getByRole('link', { name: 'Privacy Notice', exact: true })).first().click();
+    await expect(heading(page, 'Terms and Privacy')).toBeVisible();
+    await button(page, 'Back').click();
+    await expect(heading(page, 'Set a password')).toBeVisible();
   });
 
   test('Sign up 2 › both eye toggles show and hide their password', async ({ page }) => {
@@ -746,12 +824,13 @@ test.describe('Forgot / reset password', () => {
     await expect(button(page, 'Send Code')).toBeVisible();
   });
 
-  test('Forgot › request failure shows ‘Couldn’t send code’ with the server message', async ({ page }) => {
+  test('Forgot › request failure shows ‘Couldn’t send code’ with the plain server message', async ({ page }) => {
     await scenario(page, { fail: { 'POST /api/auth/login?action=forgotPassword': 500 } });
     await gotoForgot(page);
     await field(page, 'Email').fill(TEST_EMAIL);
     await button(page, 'Send Code').click();
-    await expectAlert(page, 'Couldn’t send code', 'Internal server error');
+    // Owner decision 24 Nov 2026 (friendly wording): a 500 shows the plain server message, not the raw "Internal server error".
+    await expectAlert(page, 'Couldn’t send code', SERVER_MESSAGE);
     await dismissAlert(page);
     await expect(button(page, 'Send Code')).toBeVisible();
   });
@@ -892,14 +971,28 @@ test.describe('Forgot / reset password', () => {
     await expectAlert(page, 'Password reset');
   });
 
-  test('Forgot › “Send it again.” re-sends the code, stays on the reset step, with no feedback', async ({ page }) => {
+  // Owner decision 24 Nov 2026 (approved copy, board G-A-ResendToast): "Send it again." confirms with a
+  // "Code sent" toast (before: no feedback).
+  test('Forgot › “Send it again.” re-sends the code, stays on the reset step and shows the “Code sent” toast', async ({ page }) => {
     await gotoResetStep(page);
+    await expect(vis(page.getByText('Code sent', { exact: true }))).toHaveCount(0); // the first Send Code has no toast
     const req = page.waitForRequest((r) => r.url().includes('action=forgotPassword'));
     await text(page, "Didn't get a code? Send it again.").click();
     expect((await req).postDataJSON()).toEqual({ email: TEST_EMAIL });
     await expect(field(page, '6-digit code')).toBeVisible();
-    await page.waitForTimeout(300);
-    await expect(page.getByRole('alert')).toHaveCount(0);
+    await expect(text(page, 'Code sent')).toBeVisible();
+    await expect(text(page, 'Check your email for the new code.')).toBeVisible();
+    await expect(page.locator('[aria-modal="true"]')).toHaveCount(0); // a toast, not an alert
+  });
+
+  test('Forgot › “Send it again.” failing shows ‘Couldn’t send code’ and no toast', async ({ page }) => {
+    await gotoResetStep(page);
+    await scenario(page, { fail: { 'POST /api/auth/login?action=forgotPassword': 500 } });
+    await text(page, "Didn't get a code? Send it again.").click();
+    await expectAlert(page, 'Couldn’t send code', SERVER_MESSAGE);
+    await expect(vis(page.getByText('Code sent', { exact: true }))).toHaveCount(0);
+    await dismissAlert(page);
+    await expect(field(page, '6-digit code')).toBeVisible();
   });
 
   test('Forgot › back chevron on the reset step returns to the request step with the email kept; again returns to Login', async ({ page }) => {
