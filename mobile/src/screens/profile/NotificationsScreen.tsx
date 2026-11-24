@@ -29,7 +29,7 @@ function groupLabel(dateIso: string): string {
 
 export function NotificationsScreen({ navigation }: Props) {
   const { colors, scheme } = useBentoLegacy();
-  const styles = useMemo(() => systemFonts(createStyles(colors)), [colors]);
+  const styles = useMemo(() => systemFonts(createStyles(colors), { minFontSize: 12 }), [colors]);
   const { notifications, markNotificationRead } = useApp();
 
   const grouped = useMemo(() => {

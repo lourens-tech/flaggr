@@ -206,7 +206,7 @@ function SectionBlock({ section, styles }: { section: Section; styles: ReturnTyp
 
 export function TermsPrivacyScreen({ navigation }: Props) {
   const { colors, scheme } = useBentoLegacy();
-  const styles = useMemo(() => systemFonts(createStyles(colors)), [colors]);
+  const styles = useMemo(() => systemFonts(createStyles(colors), { minFontSize: 12 }), [colors]);
   return (
     <View style={styles.screen}>
       <StatusBar barStyle={scheme === 'dark' ? 'light-content' : 'dark-content'} />

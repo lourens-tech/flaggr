@@ -822,7 +822,7 @@ function createStyles(colors: ThemeColors, ring: string, tileShadow: string) {
     pill: { minWidth: 44, height: 44, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
     pillOn: { backgroundColor: colors.lime },
     pillNo: { fontFamily: fontFamily.bodySemiBold, fontSize: 15, color: colors.white, lineHeight: 17 },
-    pillPar: { fontFamily: fontFamily.body, fontSize: 9.5, color: 'rgba(255,255,255,0.6)', lineHeight: 11 },
+    pillPar: { fontFamily: fontFamily.body, fontSize: 9.5, color: 'rgba(255,255,255,0.72)', lineHeight: 11 },
     pillTextOn: { color: colors.darkGreen },
     scoredDot: { position: 'absolute', top: 5, right: 5, width: 5, height: 5, borderRadius: 3, backgroundColor: colors.lime },
     map: { flex: 1, position: 'relative' },

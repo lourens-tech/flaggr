@@ -7,7 +7,7 @@ import { useApp } from '../../context/AppContext';
 import { useBento } from '../../context/ThemeContext';
 import { bentoBrand, bentoType } from '../../theme/bento';
 import { PopIn } from '../../components/motion';
-import { Appear, BentoButton, BentoScreen, BentoTile } from '../../components/bento';
+import { Appear, BentoButton, BentoScreen, BentoTile, Parallax } from '../../components/bento';
 import { LinearGradient } from 'expo-linear-gradient';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Voucher'>;
@@ -44,9 +44,11 @@ export function VoucherScreen({ route, navigation }: Props) {
       {/* The ticket: reward photo, then a fairway stub with the QR and code. */}
       <Appear>
         <View style={{ borderRadius: 28, overflow: 'hidden', boxShadow: `0 0 0 1px ${t.ring}, ${t.shadow}` }}>
-          <View style={{ height: 176, backgroundColor: bentoBrand.fairway, justifyContent: 'flex-end' }}>
+          <View style={{ height: 176, backgroundColor: bentoBrand.fairway, justifyContent: 'flex-end', overflow: 'hidden' }}>
             {reward?.imageUrl && !imageFailed ? (
-              <Image source={{ uri: reward.imageUrl }} onError={() => setImageFailed(true)} resizeMode="cover" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} />
+              <Parallax travel={14} style={{ position: 'absolute', top: -14, left: 0, right: 0, bottom: -14 }}>
+                <Image source={{ uri: reward.imageUrl }} onError={() => setImageFailed(true)} resizeMode="cover" style={{ width: '100%', height: '100%' }} />
+              </Parallax>
             ) : null}
             <LinearGradient colors={['rgba(10,24,17,0)', 'rgba(10,24,17,0.82)']} locations={[0.35, 1]} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} />
             <View style={{ paddingHorizontal: 20, paddingBottom: 16 }}>

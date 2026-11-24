@@ -27,7 +27,7 @@ const CATEGORIES: Array<{ value: FeedbackCategory; label: string; icon: keyof ty
 // flow this is deliberately separate from.
 export function GiveFeedbackScreen({ navigation }: Props) {
   const { colors, scheme } = useBentoLegacy();
-  const styles = useMemo(() => systemFonts(createStyles(colors)), [colors]);
+  const styles = useMemo(() => systemFonts(createStyles(colors), { minFontSize: 12 }), [colors]);
   const { sendFeedback } = useApp();
   const [category, setCategory] = useState<FeedbackCategory | null>(null);
   const [message, setMessage] = useState('');

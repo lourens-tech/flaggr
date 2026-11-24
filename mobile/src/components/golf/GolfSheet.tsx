@@ -2,6 +2,7 @@ import React from 'react';
 import { StyleSheet } from 'react-native';
 import { type ThemeColors } from '../../context/ThemeContext';
 import { fontFamily, fontSize } from '../../theme';
+import { systemFonts } from '../bento/legacy';
 import { BentoSheet } from '../bento/BentoSheet';
 
 // A bottom sheet over the whole screen, used for the scorecard, the bag and
@@ -31,8 +32,8 @@ export function GolfSheet({
 }
 
 export const sheetText = (colors: ThemeColors) =>
-  StyleSheet.create({
+  systemFonts(StyleSheet.create({
     body: { fontFamily: fontFamily.body, fontSize: 12.5, color: colors.textSecondary, lineHeight: 18 },
     strong: { fontFamily: fontFamily.bodySemiBold, color: colors.textPrimary },
     small: { fontFamily: fontFamily.body, fontSize: fontSize.small - 0.5, color: colors.textMuted },
-  });
+  }));

@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { fontFamily, fontSize, radius, spacing } from '../../theme';
 import { useOptionalAdminTheme, useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 import { adminFont, adminRadius } from '../../theme/admin';
+import { systemFonts } from '../bento/legacy';
 
 export interface SelectOption {
   label: string;
@@ -21,7 +22,8 @@ interface Props {
 
 export function SelectField({ placeholder, options, value, onChange, variant = 'onDark', disabled }: Props) {
   const colors = useThemeColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  // Member fields use the system font (Bento); admin fields override it.
+  const styles = useMemo(() => systemFonts(createStyles(colors)), [colors]);
   const [open, setOpen] = useState(false);
   const admin = useOptionalAdminTheme();
   // The admin consoles always render fields on an opaque tile or sheet.

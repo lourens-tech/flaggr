@@ -13,7 +13,7 @@ import { useBento } from '../../context/ThemeContext';
 import { bentoBrand, bentoType } from '../../theme/bento';
 import type { Reward, RewardCategory, RewardVariant } from '../../data/types';
 import { PressableScale } from '../../components/motion';
-import { Appear, BentoButton, BentoField, BentoIcon, BentoScreen, BentoSheet, BentoTile, CountUp, Eyebrow, H1 } from '../../components/bento';
+import { Appear, BentoButton, BentoField, BentoIcon, BentoScreen, BentoSheet, BentoTile, CountUp, Eyebrow, H1, Parallax } from '../../components/bento';
 
 function chunk<T>(items: T[], size: number): T[][] {
   const rows: T[][] = [];
@@ -227,12 +227,19 @@ function FilterPill({ label, active, onPress }: { label: string; active: boolean
   );
 }
 
-function RewardImage({ reward, style, iconSize = 34 }: { reward: Reward; style: object; iconSize?: number }) {
+// `parallax` lets the photo drift against the page scroll (cards in the
+// list only, not the photo in the redeem sheet).
+function RewardImage({ reward, style, iconSize = 34, parallax = false }: { reward: Reward; style: object; iconSize?: number; parallax?: boolean }) {
   const [failed, setFailed] = useState(false);
+  const photo = <Image source={{ uri: reward.imageUrl }} onError={() => setFailed(true)} resizeMode="cover" style={{ width: '100%', height: '100%' }} />;
   return (
     <View style={[{ backgroundColor: bentoBrand.fairway, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }, style]}>
       {reward.imageUrl && !failed ? (
-        <Image source={{ uri: reward.imageUrl }} onError={() => setFailed(true)} resizeMode="cover" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} />
+        parallax ? (
+          <Parallax travel={10} style={{ position: 'absolute', top: -10, left: 0, right: 0, bottom: -10 }}>{photo}</Parallax>
+        ) : (
+          <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>{photo}</View>
+        )
       ) : (
         <BentoIcon name="rewards" size={iconSize} color={bentoBrand.lime} strokeWidth={1.5} />
       )}
@@ -251,7 +258,7 @@ function ShopCard({ reward, onRedeem }: { reward: Reward; onRedeem: (variantId: 
     <View style={{ flex: 1, padding: 5, borderRadius: 26, backgroundColor: t.shell, boxShadow: `0 0 0 1px ${t.ring}, ${t.shadow}` }}>
       <View style={{ flex: 1, borderRadius: 21, overflow: 'hidden', backgroundColor: t.tile, boxShadow: t.insetHighlight }}>
         <View>
-          <RewardImage reward={reward} style={{ height: 112 }} />
+          <RewardImage reward={reward} style={{ height: 112 }} parallax />
           <View style={{ position: 'absolute', top: 10, left: 10, paddingVertical: 4, paddingHorizontal: 10, borderRadius: 999, backgroundColor: 'rgba(31,66,52,0.85)' }}>
             <Text style={{ fontSize: 11, fontWeight: '600', color: bentoBrand.lime }}>{REWARD_CATEGORY_LABELS[reward.category]}</Text>
           </View>

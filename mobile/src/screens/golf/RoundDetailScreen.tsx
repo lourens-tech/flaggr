@@ -10,7 +10,7 @@ import { useBento } from '../../context/ThemeContext';
 import { bentoType } from '../../theme/bento';
 import type { RoundDto } from '../../golf/dto';
 import { formatIndex, formatWhole, roundTotals } from '../../golf/scoring';
-import { Appear, BentoButton, BentoScreen, BentoTile } from '../../components/bento';
+import { Appear, BentoButton, BentoScreen, BentoTile, CountUp } from '../../components/bento';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'RoundDetail'>;
 
@@ -88,14 +88,14 @@ export function RoundDetailScreen({ navigation, route }: Props) {
               <View style={{ flexDirection: 'row', gap: 24, marginTop: 14 }}>
                 <View>
                   <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 5 }}>
-                    <Text style={[bentoType.number, { fontSize: 38, lineHeight: 42, color: '#FFFFFF' }]}>{totals.points}</Text>
+                    <CountUp value={totals.points} style={[bentoType.number, { fontSize: 38, lineHeight: 42, color: '#FFFFFF' }]} />
                     <Text style={{ fontSize: 15, color: t.onHeroMuted }}>pts</Text>
                   </View>
                 </View>
                 {totals.gross != null ? (
                   <View>
                     <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 5 }}>
-                    <Text style={[bentoType.number, { fontSize: 38, lineHeight: 42, color: '#FFFFFF' }]}>{totals.gross}</Text>
+                    <CountUp value={totals.gross} style={[bentoType.number, { fontSize: 38, lineHeight: 42, color: '#FFFFFF' }]} />
                     <Text style={{ fontSize: 15, color: t.onHeroMuted }}>gross</Text>
                   </View>
                   </View>

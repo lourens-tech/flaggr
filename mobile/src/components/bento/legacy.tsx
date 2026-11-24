@@ -57,17 +57,29 @@ const FONT_MAP: Record<string, { fontFamily?: string; fontWeight?: TextStyle['fo
   Fraunces_800ExtraBold: { fontFamily: 'Fraunces_700Bold' },
 };
 
-export function systemFonts<T extends Record<string, unknown>>(styles: T): T {
+// Maps the old Poppins / display fonts to the system font (and Fraunces).
+// `minFontSize` (opt-in) lifts tiny legacy text, e.g. 9–10 pt timestamps,
+// to a readable size; screens with dense map or chart labels leave it off.
+export function systemFonts<T extends Record<string, unknown>>(styles: T, opts: { minFontSize?: number } = {}): T {
+  const min = opts.minFontSize ?? 0;
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(styles)) {
     const s = v as TextStyle;
     const mapped = s && typeof s.fontFamily === 'string' ? FONT_MAP[s.fontFamily] : undefined;
-    if (!mapped) {
+    const tooSmall = !!s && typeof s.fontSize === 'number' && s.fontSize < min;
+    if (!mapped && !tooSmall) {
       out[k] = v;
       continue;
     }
-    const next: TextStyle = { ...s, fontFamily: mapped.fontFamily };
-    if (mapped.fontWeight && s.fontWeight === undefined) next.fontWeight = mapped.fontWeight;
+    const next: TextStyle = { ...s };
+    if (mapped) {
+      next.fontFamily = mapped.fontFamily;
+      if (mapped.fontWeight && s.fontWeight === undefined) next.fontWeight = mapped.fontWeight;
+    }
+    if (tooSmall) {
+      next.fontSize = min;
+      if (typeof s.lineHeight === 'number' && s.lineHeight < Math.round(min * 1.3)) next.lineHeight = Math.round(min * 1.3);
+    }
     out[k] = next;
   }
   return out as T;

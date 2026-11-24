@@ -35,7 +35,7 @@ function formatTime(iso: string): string {
 
 export function EnquiryChatScreen({ route }: Props) {
   const { colors, scheme } = useBentoLegacy();
-  const styles = useMemo(() => systemFonts(createStyles(colors)), [colors]);
+  const styles = useMemo(() => systemFonts(createStyles(colors), { minFontSize: 12 }), [colors]);
   const { enquiryId } = route.params;
   const { getEnquiryThread, replyToEnquiry } = useApp();
   const [thread, setThread] = useState<MyEnquiryThread | null>(null);

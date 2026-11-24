@@ -20,7 +20,7 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function EditProfileScreen({ navigation }: Props) {
   const { colors, scheme } = useBentoLegacy();
-  const styles = useMemo(() => systemFonts(createStyles(colors)), [colors]);
+  const styles = useMemo(() => systemFonts(createStyles(colors), { minFontSize: 12 }), [colors]);
   const { user, updateProfile } = useApp();
   const [firstName, setFirstName] = useState(user.firstName);
   const [lastName, setLastName] = useState(user.lastName);

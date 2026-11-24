@@ -12,6 +12,7 @@ import { memberTiers } from '../../data/mockData';
 import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
 import type { ThemeColors } from '../../context/ThemeContext';
 import { systemFonts, useBentoLegacy } from '../../components/bento/legacy';
+import { CountUp } from '../../components/bento';
 import type { TierName } from '../../data/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'MemberTiers'>;
@@ -24,7 +25,7 @@ const STEPS = [
 
 export function MemberTiersScreen({ navigation }: Props) {
   const { colors, scheme } = useBentoLegacy();
-  const styles = useMemo(() => systemFonts(createStyles(colors)), [colors]);
+  const styles = useMemo(() => systemFonts(createStyles(colors), { minFontSize: 12 }), [colors]);
   const { user, points } = useApp();
   const [selectedTier, setSelectedTier] = useState<TierName>(user.tier);
   const tier = memberTiers.find((t) => t.name === selectedTier) ?? memberTiers[0];
@@ -41,7 +42,7 @@ export function MemberTiersScreen({ navigation }: Props) {
           <View style={styles.pointsHeaderRow}>
             <View style={styles.pointsSummary}>
               <MaterialCommunityIcons name="cards" size={20} color={colors.clubGreen} />
-              <Text style={styles.pointsValue}>{points.balance.toLocaleString()}</Text>
+              <CountUp value={points.balance} style={styles.pointsValue} />
               <Text style={styles.pointsLabel}>Flagrr Cash</Text>
             </View>
             <LinearGradient
@@ -137,8 +138,8 @@ function createStyles(colors: ThemeColors) {
     padding: spacing.md,
     gap: spacing.sm,
   },
-  pointsHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  pointsSummary: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  pointsHeaderRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', columnGap: spacing.sm, rowGap: spacing.sm },
+  pointsSummary: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flexShrink: 1 },
   pointsValue: { fontFamily: fontFamily.heading, fontSize: fontSize.title, color: colors.textPrimary },
   pointsLabel: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textPrimary },
   tierBadge: {

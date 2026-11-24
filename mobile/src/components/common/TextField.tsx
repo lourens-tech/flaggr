@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { fontFamily, fontSize, radius, spacing } from '../../theme';
 import { useBento, useOptionalAdminTheme, useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 import { adminFont, adminRadius } from '../../theme/admin';
+import { systemFonts } from '../bento/legacy';
 
 interface Props extends TextInputProps {
   icon?: keyof typeof Ionicons.glyphMap;
@@ -17,7 +18,8 @@ const webNoOutline = { outlineStyle: 'none' } as unknown as { outlineWidth: numb
 
 export function TextField({ icon, isPassword, variant = 'onLight', error, style, ...rest }: Props) {
   const colors = useThemeColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  // Member fields use the system font (Bento); admin fields override it.
+  const styles = useMemo(() => systemFonts(createStyles(colors)), [colors]);
   const [hidden, setHidden] = useState(!!isPassword);
   const [focused, setFocused] = useState(false);
   const onDark = variant === 'onDark';

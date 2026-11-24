@@ -10,7 +10,7 @@ import type { MainTabParamList, RootStackParamList } from '../../navigation/type
 import { FlagrrLogo } from '../../components/common/FlagrrLogo';
 import { HeaderAvatar } from '../../components/common/HeaderAvatar';
 import { PillButton, bentoHeroStyle, bentoTileStyle, systemFonts, useBentoLegacy } from '../../components/bento/legacy';
-import { BentoScreen, BentoToggle, Eyebrow, H1, SegmentedControl } from '../../components/bento';
+import { BentoScreen, BentoToggle, CountUp, Eyebrow, H1, SegmentedControl } from '../../components/bento';
 import type { BentoTokens } from '../../theme/bento';
 import { FadeIn, PressableScale } from '../../components/motion';
 import { api } from '../../api/client';
@@ -129,10 +129,10 @@ export function MyGolfScreen({ navigation }: Props) {
               <View style={styles.heroTop}>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.heroSmall}>Stableford average</Text>
-                  <Text style={styles.heroBig}>
-                    {s.pointsAverage == null ? '–' : fmt1(s.pointsAverage)}
+                  <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
+                    <CountUp value={s.pointsAverage == null ? '–' : fmt1(s.pointsAverage)} style={styles.heroBig} />
                     <Text style={styles.heroUnit}> pts</Text>
-                  </Text>
+                  </View>
                   <Text style={styles.heroSmall}>
                     {s.basisRounds
                       ? `${s.basisRounds} ${s.basis}-hole round${s.basisRounds === 1 ? '' : 's'} ${PERIOD_TEXT[period]}`
@@ -388,7 +388,7 @@ function Tile({ styles, label, value, sub }: { styles: ReturnType<typeof createS
   return (
     <View style={styles.tile}>
       <Text style={styles.rowSub}>{label}</Text>
-      <Text style={styles.tileVal}>{value}</Text>
+      <CountUp value={value} style={styles.tileVal} />
       <Text style={styles.tileSub}>{sub}</Text>
     </View>
   );
@@ -398,7 +398,7 @@ function Stat({ styles, label, value, sub }: { styles: ReturnType<typeof createS
   return (
     <View style={styles.statCell}>
       <Text style={styles.rowSub}>{label}</Text>
-      <Text style={styles.nineVal}>{value}</Text>
+      <CountUp value={value} style={styles.nineVal} />
       <Text style={styles.tileSub}>{sub}</Text>
     </View>
   );

@@ -34,13 +34,17 @@ const ScopedStaffWelcome = withAdminScope(AdminStaffWelcomeScreen);
 import { fadeUpOptions, slideUpOptions, stackScreenOptions, webScreenLayout } from './motionOptions';
 import { useApp } from '../context/AppContext';
 import { useAdmin } from '../context/AdminContext';
-import { useThemeColors, type ThemeColors } from '../context/ThemeContext';
+import { useBento, useThemeColors, type ThemeColors } from '../context/ThemeContext';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export function RootNavigator() {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  // Member screens sit on the Bento ground. The tab cross-fade shows what's
+  // behind the tab scenes for a moment, so the Main screen's own background
+  // must be the ground too (not the navigation default light grey).
+  const { t } = useBento();
   const { isAuthenticated, isInitializing } = useApp();
   const { isAdminAuthenticated, isInitializing: isAdminInitializing, admin, staffWelcomePending } = useAdmin();
 
@@ -48,8 +52,8 @@ export function RootNavigator() {
     // Restoring a stored session (member and/or admin) before deciding which
     // stack to mount — avoids a flash of the Landing screen on a warm start.
     return (
-      <View style={styles.loading}>
-        <ActivityIndicator color={colors.clubGreen} size="large" />
+      <View style={[styles.loading, { backgroundColor: t.ground }]}>
+        <ActivityIndicator color={t.accent} size="large" />
       </View>
     );
   }
@@ -73,7 +77,7 @@ export function RootNavigator() {
         )
       ) : isAuthenticated ? (
         <>
-          <Stack.Screen name="Main" component={MainTabNavigator} />
+          <Stack.Screen name="Main" component={MainTabNavigator} options={{ contentStyle: { backgroundColor: t.ground } }} />
           <Stack.Screen name="Voucher" component={VoucherScreen} options={fadeUpOptions} />
           <Stack.Screen name="ScanReceipt" component={ScanReceiptScreen} options={slideUpOptions} />
           <Stack.Screen name="ReviewReceipt" component={ReviewReceiptScreen} />

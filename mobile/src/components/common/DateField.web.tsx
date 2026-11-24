@@ -3,6 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { fontFamily, fontSize, radius, spacing } from '../../theme';
 import { useOptionalAdminTheme, useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 import { adminFont, adminRadius } from '../../theme/admin';
+import { systemFonts } from '../bento/legacy';
 
 interface Props {
   value: string | null; // 'YYYY-MM-DD'
@@ -18,7 +19,7 @@ interface Props {
 // standard, accessible substitute here.
 export function DateField({ value, onChange, placeholder = 'Date of Birth', error, variant = 'onDark', maximumDate }: Props) {
   const colors = useThemeColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const styles = useMemo(() => systemFonts(createStyles(colors)), [colors]);
   const onDark = variant === 'onDark';
   // In the admin consoles: the same neutral field as TextField. Member
   // screens get null here and keep their own look.
@@ -48,7 +49,7 @@ export function DateField({ value, onChange, placeholder = 'Date of Birth', erro
           border: 'none',
           outline: 'none',
           background: 'transparent',
-          fontFamily: fontFamily.body,
+          fontFamily: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
           fontSize: fontSize.body,
           color: onDark ? colors.white : colors.textPrimary,
           colorScheme: onDark ? 'dark' : 'light',

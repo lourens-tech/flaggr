@@ -9,12 +9,17 @@ type Props = Omit<TextProps, 'children'> & {
   value: number | string;
   style?: StyleProp<TextStyle>;
   duration?: number;
+  // Also animate strings with one or two decimals ("32.4 pts"). Off by
+  // default so admin stat cards keep showing money amounts as-is.
+  allowDecimals?: boolean;
 };
 
 interface Parsed {
   prefix: string;
   suffix: string;
   target: number;
+  // Digits after the decimal point (0 for whole numbers).
+  decimals: number;
   // Thousands separator used by the original string ('' = none, null = use
   // the device locale, for plain numbers).
   separator: string | null;
@@ -22,18 +27,27 @@ interface Parsed {
 
 // Only plain whole numbers animate — decimals, ranges or anything we can't
 // round-trip exactly are shown as-is.
-function parse(value: number | string): Parsed | null {
+function parse(value: number | string, allowDecimals = false): Parsed | null {
   if (typeof value === 'number') {
-    return Number.isFinite(value) && Number.isInteger(value) ? { prefix: '', suffix: '', target: value, separator: null } : null;
+    return Number.isFinite(value) && Number.isInteger(value) ? { prefix: '', suffix: '', target: value, decimals: 0, separator: null } : null;
   }
   const match = /\d[\d\s,  ]*\d|\d/.exec(value);
   if (!match) return null;
   const run = match[0];
-  const rest = value.slice(match.index + run.length);
-  if (/^[.]\d/.test(rest)) return null;
-  const target = parseInt(run.replace(/\D/g, ''), 10);
-  if (!Number.isFinite(target)) return null;
-  return { prefix: value.slice(0, match.index), suffix: rest, target, separator: /\D/.exec(run)?.[0] ?? '' };
+  let rest = value.slice(match.index + run.length);
+  const whole = parseInt(run.replace(/\D/g, ''), 10);
+  if (!Number.isFinite(whole)) return null;
+  let decimals = 0;
+  let target = whole;
+  const frac = allowDecimals ? /^\.(\d{1,2})(?!\d)/.exec(rest) : null;
+  if (frac) {
+    decimals = frac[1].length;
+    target = Number(`${whole}.${frac[1]}`);
+    rest = rest.slice(frac[0].length);
+  } else if (/^[.]\d/.test(rest)) {
+    return null;
+  }
+  return { prefix: value.slice(0, match.index), suffix: rest, target, decimals, separator: /\D/.exec(run)?.[0] ?? '' };
 }
 
 function group(n: number, separator: string) {
@@ -41,16 +55,19 @@ function group(n: number, separator: string) {
 }
 
 function format(p: Parsed, n: number, original: number | string) {
-  const rounded = Math.round(n);
+  const factor = 10 ** p.decimals;
+  const rounded = Math.round(n * factor) / factor;
   if (rounded === p.target) return typeof original === 'number' ? original.toLocaleString() : original;
-  const digits = p.separator === null ? rounded.toLocaleString() : group(rounded, p.separator);
-  return `${p.prefix}${digits}${p.suffix}`;
+  const whole = Math.floor(rounded);
+  const digits = p.separator === null ? whole.toLocaleString() : group(whole, p.separator);
+  const fraction = p.decimals ? `.${rounded.toFixed(p.decimals).split('.')[1]}` : '';
+  return `${p.prefix}${digits}${fraction}${p.suffix}`;
 }
 
 // Number that rolls up to its value on first show, and from the old value to
 // the new one when it changes (e.g. the Flagrr Cash balance after a scan).
-export function CountUpText({ value, style, duration: ms = duration.count, ...rest }: Props) {
-  const parsed = parse(value);
+export function CountUpText({ value, style, duration: ms = duration.count, allowDecimals = false, ...rest }: Props) {
+  const parsed = parse(value, allowDecimals);
   const animated = useRef(new Animated.Value(0)).current;
   const lastTarget = useRef<number | null>(null);
   const [display, setDisplay] = useState<string>(() =>

@@ -183,7 +183,7 @@ export function CountUp({ value, style, accessibilityLabel }: { value: number | 
       setRound((r) => r + 1);
     });
   }, [navigation]);
-  return <CountUpText key={round} value={value} style={style} duration={bentoDuration.count} accessibilityLabel={accessibilityLabel} />;
+  return <CountUpText key={round} value={value} style={style} duration={bentoDuration.count} accessibilityLabel={accessibilityLabel} allowDecimals />;
 }
 
 // ── Fill bar ────────────────────────────────────────────────────────────────

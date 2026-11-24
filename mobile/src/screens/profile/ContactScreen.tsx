@@ -22,7 +22,7 @@ const ENQUIRY_TYPES = ['Rewards and Points', 'Receipts', 'Membership', 'Technica
 
 export function ContactScreen({ navigation }: Props) {
   const { colors, scheme } = useBentoLegacy();
-  const styles = useMemo(() => systemFonts(createStyles(colors)), [colors]);
+  const styles = useMemo(() => systemFonts(createStyles(colors), { minFontSize: 12 }), [colors]);
   const { user, sendContactEnquiry } = useApp();
   const [name, setName] = useState(user.firstName);
   const [surname, setSurname] = useState(user.lastName);

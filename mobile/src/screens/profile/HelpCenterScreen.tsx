@@ -17,7 +17,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'HelpCenter'>;
 
 export function HelpCenterScreen({ navigation }: Props) {
   const { colors, scheme } = useBentoLegacy();
-  const styles = useMemo(() => systemFonts(createStyles(colors)), [colors]);
+  const styles = useMemo(() => systemFonts(createStyles(colors), { minFontSize: 12 }), [colors]);
   const { user } = useApp();
   const [query, setQuery] = useState('');
 
@@ -71,7 +71,7 @@ export function HelpCenterScreen({ navigation }: Props) {
                 <View key={article.title} style={styles.articleCard}>
                   <View style={styles.articleAccent} />
                   <Text style={styles.articleTitle} numberOfLines={2}>{article.title}</Text>
-                  <Text style={styles.articleSummary} numberOfLines={2}>{article.summary}</Text>
+                  <Text style={styles.articleSummary} numberOfLines={3}>{article.summary}</Text>
                 </View>
               ))}
             </ScrollView>
@@ -115,15 +115,15 @@ function createStyles(colors: ThemeColors) {
   sectionLabel: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.small, color: colors.textPrimary, marginBottom: spacing.sm },
   emptyText: { fontFamily: fontFamily.body, fontSize: fontSize.small, color: colors.textSecondary },
   articleCard: {
-    width: 140,
-    backgroundColor: colors.background,
+    width: 190,
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: 'rgba(31,66,52,0.1)',
-    borderRadius: radius.sm,
-    padding: spacing.sm,
+    borderColor: colors.border,
+    borderRadius: 20,
+    padding: 14,
   },
   articleAccent: { width: 24, height: 3, backgroundColor: colors.clubGreen, borderRadius: 2, marginBottom: spacing.sm },
-  articleTitle: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.tiny, color: colors.textPrimary },
-  articleSummary: { fontFamily: fontFamily.body, fontSize: 9, color: colors.textSecondary, marginTop: 4 },
+  articleTitle: { fontFamily: fontFamily.bodySemiBold, fontSize: 14, lineHeight: 18, color: colors.textPrimary },
+  articleSummary: { fontFamily: fontFamily.body, fontSize: 12.5, lineHeight: 17, color: colors.textSecondary, marginTop: 4 },
 });
 }

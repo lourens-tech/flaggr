@@ -11,7 +11,7 @@ import { useBento } from '../../context/ThemeContext';
 import { bentoBrand, bentoType } from '../../theme/bento';
 import type { GolfCourseSummaryDto, GolfHomeDto, GolfStatsDto } from '../../golf/dto';
 import { holeResult, roundTotals } from '../../golf/scoring';
-import { Appear, BentoButton, BentoField, BentoIcon, BentoScreen, BentoTile, Eyebrow, H1 } from '../../components/bento';
+import { Appear, BentoButton, BentoField, BentoIcon, BentoScreen, BentoTile, CountUp, Eyebrow, H1 } from '../../components/bento';
 
 type Props = CompositeScreenProps<BottomTabScreenProps<MainTabParamList, 'Course'>, NativeStackScreenProps<RootStackParamList>>;
 
@@ -188,9 +188,10 @@ export function CourseHomeScreen({ navigation }: Props) {
                   <View style={{ flex: 1 }}>
                     <Text style={{ fontSize: 13, color: t.muted }}>Your game · Stableford average</Text>
                     <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4, marginTop: 2 }}>
-                      <Text style={[bentoType.number, { fontSize: 28, lineHeight: 32, color: t.ink }]}>
-                        {stats.stats.pointsAverage == null ? '–' : stats.stats.pointsAverage.toFixed(1)}
-                      </Text>
+                      <CountUp
+                        value={stats.stats.pointsAverage == null ? '–' : stats.stats.pointsAverage.toFixed(1)}
+                        style={[bentoType.number, { fontSize: 28, lineHeight: 32, color: t.ink }]}
+                      />
                       <Text style={{ fontSize: 14, color: t.muted }}>pts</Text>
                     </View>
                   </View>

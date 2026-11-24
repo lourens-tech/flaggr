@@ -35,7 +35,7 @@ const ROWS: Array<{ key: keyof NotificationPreferences; label: string; descripti
 
 export function NotificationPreferencesScreen({ navigation }: Props) {
   const { colors, scheme } = useBentoLegacy();
-  const styles = useMemo(() => systemFonts(createStyles(colors)), [colors]);
+  const styles = useMemo(() => systemFonts(createStyles(colors), { minFontSize: 12 }), [colors]);
   const { getNotificationPreferences, updateNotificationPreferences } = useApp();
   const [prefs, setPrefs] = useState<NotificationPreferences | null>(null);
   const [loading, setLoading] = useState(true);

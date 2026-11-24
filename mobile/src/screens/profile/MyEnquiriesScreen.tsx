@@ -29,7 +29,7 @@ function relativeTime(iso: string): string {
 
 export function MyEnquiriesScreen({ navigation }: Props) {
   const { colors, scheme } = useBentoLegacy();
-  const styles = useMemo(() => systemFonts(createStyles(colors)), [colors]);
+  const styles = useMemo(() => systemFonts(createStyles(colors), { minFontSize: 12 }), [colors]);
   const { listMyEnquiries } = useApp();
   const [enquiries, setEnquiries] = useState<MyEnquirySummary[]>([]);
   const [loading, setLoading] = useState(true);
