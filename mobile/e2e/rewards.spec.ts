@@ -130,8 +130,16 @@ test.describe('Rewards Shop', () => {
     const bal = page.getByLabel('12,480 Flagrr Cash to spend', { exact: true });
     await expect(bal).toBeVisible();
     await expect(bal).toContainText('12,480');
-    // not tappable
-    await expect(page.getByRole('button', { name: /Flagrr Cash to spend/ })).toHaveCount(0);
+    // Owner decision 24 Nov 2026 (approved small addition): the Flagrr Cash is tappable and opens Member Tiers (was not tappable).
+    await expect(page.getByRole('button', { name: '12,480 Flagrr Cash to spend', exact: true })).toBeVisible();
+  });
+
+  test('Header › tapping the Flagrr Cash opens Member Tiers; Back returns to the shop', async ({ page }) => {
+    await openShop(page);
+    await page.getByRole('button', { name: '12,480 Flagrr Cash to spend', exact: true }).click();
+    await expect(heading(page, 'Member Tiers')).toBeVisible();
+    await page.getByRole('button', { name: 'Back', exact: true }).filter({ visible: true }).first().click();
+    await expect(heading(page, 'Rewards Shop')).toBeVisible();
   });
 
   test('Header › balance counts up again every time the tab regains focus', async ({ page }) => {
@@ -472,7 +480,7 @@ test.describe('Rewards Shop', () => {
     await expect(alertBox(page)).toHaveCount(0);
   });
 
-  test('Redeem sheet › “Redeem reward?” with club · category, name, Cost, Balance after, Redeem Now, Cancel, ×', async ({ page }) => {
+  test('Redeem sheet › “Redeem reward?” with club · category, name, Cost, Left to spend, Redeem Now, Cancel, ×', async ({ page }) => {
     await openShop(page);
     await redeemBtn(page, 'Redeem 9 Hole Round').click();
     const s = sheet(page);
@@ -481,7 +489,7 @@ test.describe('Rewards Shop', () => {
     await expect(s.getByText('9 Hole Round', { exact: true })).toBeVisible();
     await expect(s.getByText('Cost', { exact: true })).toBeVisible();
     await expect(s.getByText('2,128 FC', { exact: true })).toBeVisible();
-    await expect(s.getByText('Balance after', { exact: true })).toBeVisible();
+    await expect(s.getByText('Left to spend', { exact: true })).toBeVisible(); // Brand words decision 24 Nov 2026: no "balance" (was “Balance after”)
     await expect(s.getByText('10,352 FC', { exact: true })).toBeVisible();
     await expect(s.getByRole('button', { name: 'Redeem Now' })).toBeVisible();
     await expect(s.getByRole('button', { name: 'Cancel' })).toBeVisible();
@@ -551,7 +559,7 @@ test.describe('Rewards Shop', () => {
     await redeemBtn(page, 'Redeem Pro Shop Voucher Option A').click();
     await sheet(page).getByRole('button', { name: 'Redeem Now' }).click();
     await expect(heading(page, 'Pro Shop Voucher — Option A')).toBeVisible();
-    await expect(txt(page, 'Balance left')).toBeVisible();
+    await expect(txt(page, 'Left to spend')).toBeVisible(); // Brand words decision 24 Nov 2026: no "balance" (was “Balance left”)
     await expect(txt(page, '11,220 FC')).toBeVisible();
     expect((await mockState(page)).vouchers).toBe(4);
     expect((await mockState(page)).scenario.balance).toBe(11220);
@@ -564,6 +572,27 @@ test.describe('Rewards Shop', () => {
     await expect(page.getByRole('button', { name: /Pro Shop Voucher redeemed/ })).toHaveCount(2);
     await row.first().click();
     await expect(heading(page, 'Pro Shop Voucher — Option A')).toBeVisible();
+  });
+
+  test('Redeem sheet › success shows the “Reward redeemed” toast', async ({ page }) => {
+    await openShop(page);
+    await redeemBtn(page, 'Redeem 9 Hole Round').click();
+    await sheet(page).getByRole('button', { name: 'Redeem Now' }).click();
+    await expect(heading(page, '9 Hole Round')).toBeVisible();
+    // Owner-approved toast (24 Nov 2026), wording from the motion prototype.
+    const toast = page.getByRole('alert').filter({ hasText: 'Reward redeemed' });
+    await expect(toast).toBeVisible();
+    await expect(toast).toContainText('Show the voucher at the club');
+  });
+
+  test('Redeem sheet › no toast when the redeem fails', async ({ page }) => {
+    await openShop(page);
+    await scenario(page, { fail: { 'POST /api/redeem': 500 } });
+    await redeemBtn(page, 'Redeem 9 Hole Round').click();
+    await sheet(page).getByRole('button', { name: 'Redeem Now' }).click();
+    await expect(sheet(page)).toHaveCount(0);
+    await page.waitForTimeout(400);
+    await expect(txt(page, 'Reward redeemed')).toHaveCount(0);
   });
 
   test('Redeem sheet › unverified member can redeem (no verification gate)', async ({ page }) => {
@@ -731,11 +760,11 @@ test.describe('Voucher', () => {
     await expect(txt(page, await fmt(page, v1.expiresAt, 'day'))).toBeVisible();
     await expect(txt(page, 'Cost')).toBeVisible();
     await expect(txt(page, '2,128 FC')).toBeVisible();
-    await expect(txt(page, 'Balance left')).toBeVisible();
-    await expect(txt(page, '12,480 FC')).toBeVisible(); // current balance, not the balance at redemption
+    await expect(txt(page, 'Left to spend')).toBeVisible(); // Brand words decision 24 Nov 2026: no "balance" (was “Balance left”)
+    await expect(txt(page, '12,480 FC')).toBeVisible(); // current Flagrr Cash, not the amount at redemption
     await expect(page.getByRole('button', { name: 'Back to Rewards' })).toBeVisible();
-    // status is never shown on the voucher
-    for (const s of ['Expired', 'Already redeemed', 'Active']) await expect(txt(page, s)).toHaveCount(0);
+    // an active voucher shows no status badge
+    for (const s of ['Expired', 'Already redeemed', 'Active', 'Used']) await expect(txt(page, s)).toHaveCount(0);
   });
 
   test('QR encodes the voucher’s qrValue; voucher code is selectable', async ({ page }) => {
@@ -816,6 +845,24 @@ test.describe('Voucher', () => {
     await expect(txt(page, 'FLGR-GONE-0001')).toBeVisible();
     await expect(txt(page, '500 FC')).toBeVisible();
   });
+
+  for (const [status, badge] of [['redeemed', 'Used'], ['expired', 'Expired']] as const) {
+    test(`Status badge › a ${status} voucher shows “${badge}”`, async ({ page }) => {
+      // Owner decision 24 Nov 2026: a status badge on used or expired vouchers. Today only a voucher
+      // whose status the server returns as non-active reaches the screen this way (the redeem reply).
+      await page.route(/\/api\/redeem(\?|$)/, async (route) => {
+        if (route.request().method() !== 'POST') return route.fallback();
+        const res = await route.fetch();
+        await route.fulfill({ response: res, json: { ...(await res.json()), status } });
+      });
+      await openShop(page);
+      await redeemBtn(page, 'Redeem 9 Hole Round').click();
+      await sheet(page).getByRole('button', { name: 'Redeem Now' }).click();
+      await expect(heading(page, '9 Hole Round')).toBeVisible();
+      await expect(txt(page, badge)).toBeVisible();
+      await expect(txt(page, badge === 'Used' ? 'Expired' : 'Used')).toHaveCount(0);
+    });
+  }
 
   test('Dark mode › voucher renders', async ({ page }) => {
     await openSignedIn(page, { theme: 'dark' });

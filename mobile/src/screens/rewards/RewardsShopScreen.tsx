@@ -14,7 +14,7 @@ import { useBento } from '../../context/ThemeContext';
 import { bentoBrand, bentoType } from '../../theme/bento';
 import type { Reward, RewardCategory, RewardVariant } from '../../data/types';
 import { PressableScale } from '../../components/motion';
-import { Appear, BentoButton, BentoField, BentoIcon, BentoScreen, BentoSheet, BentoTile, CountUp, Eyebrow, H1, Parallax } from '../../components/bento';
+import { Appear, BentoButton, BentoField, BentoIcon, BentoScreen, BentoSheet, CountUp, EmptyState, Eyebrow, H1, Parallax, showToast } from '../../components/bento';
 
 function chunk<T>(items: T[], size: number): T[][] {
   const rows: T[][] = [];
@@ -29,6 +29,14 @@ const NOT_LISTED_POPUP_BODY =
 // Category filter order (only categories with rewards are shown).
 const CATEGORY_ORDER: RewardCategory[] = ['rounds', 'dining', 'practice', 'pro-shop', 'experiences'];
 
+// Category tag over a card photo. Rewards board: Pro Shop is a flag-green tag
+// with white text; Rounds and Experiences (and Dining on the Filters board) are
+// fairway with lime text. Practice is on no board: it keeps the fairway tag.
+const CATEGORY_TAG: Partial<Record<RewardCategory, { bg: string; fg: string }>> = {
+  'pro-shop': { bg: 'rgba(0,128,90,0.88)', fg: '#FFFFFF' },
+};
+const DEFAULT_TAG = { bg: 'rgba(31,66,52,0.85)', fg: bentoBrand.lime };
+
 type Props = CompositeScreenProps<
   BottomTabScreenProps<MainTabParamList, 'Rewards'>,
   NativeStackScreenProps<RootStackParamList>
@@ -39,8 +47,7 @@ export function RewardsShopScreen({ navigation }: Props) {
   const { user, rewards, points, redeemReward } = useApp();
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState<RewardCategory | 'all'>('all');
-  // Redeem confirmation sheet (was a two-button alert): the reward and the
-  // option the member picked.
+  // Redeem confirmation sheet: the reward and the option the member picked.
   const [confirm, setConfirm] = useState<{ reward: Reward; variant: RewardVariant } | null>(null);
   const [redeeming, setRedeeming] = useState(false);
 
@@ -91,6 +98,8 @@ export function RewardsShopScreen({ navigation }: Props) {
     if (voucher) {
       haptic.success();
       navigation.navigate('Voucher', { voucherId: voucher.id });
+      // Owner-approved toast (24 Nov 2026), wording from the motion prototype.
+      showToast('Reward redeemed', 'Show the voucher at the club');
     }
   };
 
@@ -100,10 +109,17 @@ export function RewardsShopScreen({ navigation }: Props) {
         {user.homeClub ? <Eyebrow numberOfLines={1}>{user.homeClub}</Eyebrow> : null}
         <H1 style={{ marginTop: 6 }}>Rewards Shop</H1>
       </View>
-      <View style={{ alignItems: 'flex-end', paddingBottom: 4 }} accessible accessibilityLabel={`${points.balance.toLocaleString()} Flagrr Cash to spend`}>
+      {/* Tapping the Flagrr Cash opens Member Tiers (approved small addition, 24 Nov 2026). */}
+      <Pressable
+        onPress={() => navigation.navigate('MemberTiers')}
+        accessibilityRole="button"
+        accessibilityLabel={`${points.balance.toLocaleString()} Flagrr Cash to spend`}
+        accessibilityHint="Opens Member Tiers"
+        style={({ pressed }) => ({ minHeight: 44, justifyContent: 'flex-end', alignItems: 'flex-end', paddingBottom: 4, opacity: pressed ? 0.7 : 1 })}
+      >
         <CountUp value={points.balance} style={[bentoType.number, { fontSize: 22, color: t.ink }]} />
         <Text style={{ fontSize: 13, color: t.muted }}>FC to spend</Text>
-      </View>
+      </Pressable>
     </View>
   );
 
@@ -115,16 +131,17 @@ export function RewardsShopScreen({ navigation }: Props) {
       {rewards.length === 0 ? (
         <>
           <Appear>
-            <EmptyCard
-              icon="rewards"
-              title={user.isPlaceholderClub ? 'Nothing Here Yet' : 'No Rewards Yet'}
-              body={
-                user.isPlaceholderClub
-                  ? "Your golf club hasn't joined the Flagrr family yet — that's why there's nothing to redeem here."
-                  : "Your club hasn't added any rewards yet — check back soon."
-              }
-              action={user.isPlaceholderClub ? { label: 'Contact Support', onPress: () => navigation.navigate('Contact') } : undefined}
-            />
+            {user.isPlaceholderClub ? (
+              <EmptyState
+                icon="rewards"
+                title="Nothing Here Yet"
+                body="Your golf club hasn't joined the Flagrr family yet — that's why there's nothing to redeem here."
+                actionLabel="Contact Support"
+                onAction={() => navigation.navigate('Contact')}
+              />
+            ) : (
+              <EmptyState icon="rewards" title="No Rewards Yet" body="Your club hasn't added any rewards yet — check back soon." />
+            )}
           </Appear>
           <AdSpace placement="rewardsShop" />
         </>
@@ -150,7 +167,7 @@ export function RewardsShopScreen({ navigation }: Props) {
 
           {filteredRewards.length === 0 ? (
             <Appear>
-              <EmptyCard icon="search" title="No rewards match your search." body="Try another word, or clear the search to see everything." />
+              <EmptyState icon="rewardsSearch" title="No rewards match your search." body="Try another word, or clear the search to see everything." />
             </Appear>
           ) : (
             // Paired rows so two cards in a row always match height; the ad
@@ -177,19 +194,25 @@ export function RewardsShopScreen({ navigation }: Props) {
           <View>
             <View style={{ flexDirection: 'row', gap: 14, alignItems: 'center' }}>
               <RewardImage reward={confirm.reward} style={{ width: 76, height: 76, borderRadius: 20 }} iconSize={28} />
-              <View style={{ flex: 1 }}>
+              <View style={{ flex: 1, minWidth: 0 }}>
                 <Text style={{ fontSize: 13, color: t.muted }}>
                   {[user.homeClub, REWARD_CATEGORY_LABELS[confirm.reward.category]].filter(Boolean).join(' · ')}
                 </Text>
-                <Text style={[bentoType.number, { fontSize: 24, lineHeight: 27, color: t.ink }]}>{variantLabel(confirm.reward, confirm.variant)}</Text>
+                <Text style={[bentoType.number, { fontSize: 24, lineHeight: 26, color: t.ink, marginTop: 2 }]}>{variantLabel(confirm.reward, confirm.variant)}</Text>
               </View>
             </View>
             <View style={{ marginTop: 16, borderRadius: 20, backgroundColor: t.seg, paddingHorizontal: 16, paddingVertical: 2 }}>
               <SheetRow label="Cost" value={`${confirm.variant.cost.toLocaleString()} FC`} />
-              <SheetRow label="Balance after" value={`${(points.balance - confirm.variant.cost).toLocaleString()} FC`} divider />
+              {/* Brand kit: never "balance" for Flagrr Cash; "Left to spend" is the kept-features boards' wording. */}
+              <SheetRow label="Left to spend" value={`${(points.balance - confirm.variant.cost).toLocaleString()} FC`} divider />
             </View>
-            <BentoButton label="Redeem Now" onPress={confirmRedeem} loading={redeeming} style={{ marginTop: 18 }} />
-            <Pressable onPress={() => setConfirm(null)} disabled={redeeming} accessibilityRole="button" style={{ alignSelf: 'center', paddingTop: 14, paddingBottom: 4, paddingHorizontal: 16 }}>
+            <BentoButton label="Redeem Now" onPress={confirmRedeem} loading={redeeming} style={{ minHeight: 54, marginTop: 18 }} />
+            <Pressable
+              onPress={() => setConfirm(null)}
+              disabled={redeeming}
+              accessibilityRole="button"
+              style={{ minHeight: 44, marginTop: 4, alignItems: 'center', justifyContent: 'center', opacity: redeeming ? 0.45 : 1 }}
+            >
               <Text style={{ fontSize: 15, fontWeight: '600', color: t.muted }}>Cancel</Text>
             </Pressable>
           </View>
@@ -204,7 +227,7 @@ function SheetRow({ label, value, divider }: { label: string; value: string; div
   return (
     <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 12, paddingVertical: 12, borderTopWidth: divider ? 1 : 0, borderTopColor: t.hair }}>
       <Text style={{ fontSize: 15, color: t.muted }}>{label}</Text>
-      <Text style={{ fontSize: 15, fontWeight: '600', color: t.ink, textAlign: 'right' }}>{value}</Text>
+      <Text style={{ fontSize: 15, fontWeight: '600', color: t.ink, textAlign: 'right', fontVariant: ['tabular-nums'] }}>{value}</Text>
     </View>
   );
 }
@@ -216,6 +239,8 @@ function FilterPill({ label, active, onPress }: { label: string; active: boolean
       onPress={onPress}
       accessibilityRole="button"
       accessibilityState={{ selected: active }}
+      // 38 pt pill, 44 pt touch target (Filters board).
+      hitSlop={{ top: 3, bottom: 3 }}
       style={{
         minHeight: 38,
         paddingHorizontal: 16,
@@ -258,13 +283,14 @@ function ShopCard({ reward, onRedeem }: { reward: Reward; onRedeem: (variantId: 
   const [selected, setSelected] = useState(0);
   const variant = reward.variants[selected] ?? reward.variants[0];
   if (!variant) return null;
+  const tag = CATEGORY_TAG[reward.category] ?? DEFAULT_TAG;
   return (
     <View style={{ flex: 1, padding: 5, borderRadius: 26, backgroundColor: t.shell, boxShadow: `0 0 0 1px ${t.ring}, ${t.shadow}` }}>
       <View style={{ flex: 1, borderRadius: 21, overflow: 'hidden', backgroundColor: t.tile, boxShadow: t.insetHighlight }}>
         <View>
           <RewardImage reward={reward} style={{ height: 112 }} parallax />
-          <View style={{ position: 'absolute', top: 10, left: 10, paddingVertical: 4, paddingHorizontal: 10, borderRadius: 999, backgroundColor: 'rgba(31,66,52,0.85)' }}>
-            <Text style={{ fontSize: 11, fontWeight: '600', color: bentoBrand.lime }}>{REWARD_CATEGORY_LABELS[reward.category]}</Text>
+          <View style={{ position: 'absolute', top: 10, left: 10, paddingVertical: 4, paddingHorizontal: 10, borderRadius: 999, backgroundColor: tag.bg }}>
+            <Text style={{ fontSize: 11, fontWeight: '600', color: tag.fg }}>{REWARD_CATEGORY_LABELS[reward.category]}</Text>
           </View>
         </View>
         <View style={{ flex: 1, paddingTop: 12, paddingHorizontal: 14, paddingBottom: 14 }}>
@@ -272,29 +298,36 @@ function ShopCard({ reward, onRedeem }: { reward: Reward; onRedeem: (variantId: 
             {reward.title}
           </Text>
           {reward.description ? (
-            <Text style={{ fontSize: 13, lineHeight: 17, color: t.muted, marginTop: 3 }} numberOfLines={2}>
+            // Two lines kept for the description (board: 35 pt box), so costs line up across a row.
+            <Text style={{ fontSize: 13, lineHeight: 17.5, minHeight: 35, color: t.muted, marginTop: 3 }} numberOfLines={2}>
               {reward.description}
             </Text>
           ) : null}
           {reward.variants.length > 1 ? (
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 }} accessibilityRole="radiogroup" accessibilityLabel={`${reward.title} options`}>
-              {reward.variants.map((v, i) => {
-                const on = i === selected;
-                return (
-                  <Pressable
-                    key={v.id}
-                    onPress={() => setSelected(i)}
-                    accessibilityRole="radio"
-                    accessibilityState={{ selected: on, checked: on }}
-                    hitSlop={4}
-                    style={{ minHeight: 30, paddingHorizontal: 10, borderRadius: 999, justifyContent: 'center', backgroundColor: on ? t.accent : t.seg }}
-                  >
-                    <Text style={{ fontSize: 13, fontWeight: '600', color: on ? t.accentInk : t.ink }}>{v.label}</Text>
-                  </Pressable>
-                );
-              })}
+            <View accessibilityRole="radiogroup" accessibilityLabel={`${reward.title} options`} style={{ marginTop: 8 }}>
+              {/* Chips wrap onto a second line rather than scrolling sideways, so every option stays
+                  visible on a narrow card (the board's single row hid options at 375 pt). */}
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 5 }}>
+                {reward.variants.map((v, i) => {
+                  const on = i === selected;
+                  return (
+                    <Pressable
+                      key={v.id}
+                      onPress={() => setSelected(i)}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected: on, checked: on }}
+                      aria-checked={on}
+                      hitSlop={{ top: 11, bottom: 11, left: 2, right: 2 }}
+                      style={{ paddingVertical: 4, paddingHorizontal: 9, borderRadius: 999, borderWidth: 1, borderColor: t.accent, backgroundColor: on ? t.accent : 'transparent' }}
+                    >
+                      <Text style={{ fontSize: 11, fontWeight: '600', color: on ? t.accentInk : t.accent }}>{v.label}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
             </View>
           ) : null}
+          {/* Rows share one height: the cost and Redeem Now sit at the bottom of the card. */}
           <View style={{ flex: 1 }} />
           <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4, marginTop: 10 }}>
             <Text style={[bentoType.number, { fontSize: 18, color: t.ink }]}>{variant.cost.toLocaleString()}</Text>
@@ -312,21 +345,5 @@ function ShopCard({ reward, onRedeem }: { reward: Reward; onRedeem: (variantId: 
         </View>
       </View>
     </View>
-  );
-}
-
-function EmptyCard({ icon, title, body, action }: { icon: 'rewards' | 'search'; title: string; body: string; action?: { label: string; onPress: () => void } }) {
-  const { t } = useBento();
-  return (
-    <BentoTile padding={18}>
-      <View style={{ alignItems: 'center', paddingVertical: 18, paddingHorizontal: 8 }}>
-        <View style={{ width: 64, height: 64, borderRadius: 22, backgroundColor: t.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
-          <BentoIcon name={icon} size={30} color={t.accent} strokeWidth={1.7} />
-        </View>
-        <Text style={[bentoType.number, { fontSize: 22, lineHeight: 26, color: t.ink, marginTop: 14, textAlign: 'center' }]}>{title}</Text>
-        <Text style={[bentoType.body, { color: t.muted, marginTop: 6, textAlign: 'center', maxWidth: 270 }]}>{body}</Text>
-        {action ? <BentoButton label={action.label} nub compact onPress={action.onPress} style={{ marginTop: 18, alignSelf: 'stretch' }} /> : null}
-      </View>
-    </BentoTile>
   );
 }

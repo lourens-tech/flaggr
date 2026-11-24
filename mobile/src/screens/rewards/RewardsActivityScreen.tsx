@@ -7,7 +7,7 @@ import { showAlert } from '../../utils/alert';
 import { useBento } from '../../context/ThemeContext';
 import { bentoType } from '../../theme/bento';
 import type { ActivityEntry } from '../../data/types';
-import { Appear, BentoButton, BentoIcon, BentoScreen, BentoTile, Eyebrow, SegmentedControl } from '../../components/bento';
+import { Appear, BentoIcon, BentoScreen, BentoTile, EmptyState, SegmentedControl, StatusPill } from '../../components/bento';
 
 type Props = StackScreenProps<RootStackParamList, 'Activity'>;
 
@@ -81,17 +81,14 @@ export function RewardsActivityScreen({ navigation }: Props) {
     if (entry.type !== 'redeem' || !entry.voucherId) return null;
     const v = vouchers.find((x) => x.id === entry.voucherId);
     if (!v || v.status === 'active') return null;
-    return (
-      <View style={{ paddingVertical: 3, paddingHorizontal: 9, borderRadius: 999, backgroundColor: v.status === 'expired' ? t.seg : t.accentSoft }}>
-        <Text style={{ fontSize: 12, fontWeight: '600', color: v.status === 'expired' ? t.muted : t.accent }}>{v.status === 'expired' ? 'Expired' : 'Already redeemed'}</Text>
-      </View>
-    );
+    // Reward Activity board: "Already redeemed" grey, "Expired" red.
+    return v.status === 'expired' ? <StatusPill label="Expired" tone="danger" /> : <StatusPill label="Already redeemed" tone="muted" />;
   };
 
   return (
     <BentoScreen title="Reward Activity" onBack={() => navigation.goBack()}>
+      <View style={{ height: 4 }} />
       <SegmentedControl
-        fill
         value={filter}
         onChange={setFilter}
         accessibilityLabel="Show activity"
@@ -100,58 +97,57 @@ export function RewardsActivityScreen({ navigation }: Props) {
           { value: 'earn', label: 'Earned' },
           { value: 'redeem', label: 'Redeemed' },
         ]}
-        style={{ marginTop: 6 }}
       />
 
       {activity.length === 0 ? (
         <Appear>
-          <BentoTile padding={18}>
-            <View style={{ alignItems: 'center', paddingVertical: 18, paddingHorizontal: 8 }}>
-              <View style={{ width: 64, height: 64, borderRadius: 22, backgroundColor: t.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
-                <BentoIcon name="activity" size={30} color={t.accent} strokeWidth={1.7} />
-              </View>
-              <Text style={[bentoType.number, { fontSize: 22, color: t.ink, marginTop: 14, textAlign: 'center' }]}>No activity yet</Text>
-              <Text style={[bentoType.body, { color: t.muted, marginTop: 6, textAlign: 'center', maxWidth: 270 }]}>
-                No activity yet — play a round or scan a receipt to get started.
-              </Text>
-              <BentoButton label="Scan a receipt" nub compact onPress={() => navigation.navigate('ScanFlow')} style={{ marginTop: 18, alignSelf: 'stretch' }} />
-            </View>
-          </BentoTile>
+          <EmptyState
+            icon="rewardsActivity"
+            title="No activity yet"
+            body="No activity yet — play a round or scan a receipt to get started."
+            actionLabel="Scan a receipt"
+            onAction={() => navigation.navigate('ScanFlow')}
+          />
         </Appear>
       ) : grouped.length === 0 ? (
-        <Text style={[bentoType.body, { color: t.muted, textAlign: 'center', marginTop: 12 }]}>
+        <Text style={[bentoType.body, { color: t.muted, textAlign: 'center', paddingVertical: 48 }]}>
           {filter === 'earn' ? 'Nothing earned yet.' : 'Nothing redeemed yet.'}
         </Text>
       ) : null}
 
       {grouped.map((group) => (
-        <Appear key={group.label}>
-          <Eyebrow style={{ marginTop: 8, marginBottom: 8, marginLeft: 4 }}>{group.label}</Eyebrow>
+        <Appear key={group.label} style={{ gap: 12 }}>
+          <Text style={{ fontSize: 13, fontWeight: '600', letterSpacing: 0.12 * 13, textTransform: 'uppercase', color: t.muted, marginTop: 6 }}>{group.label}</Text>
           <BentoTile padding={0}>
             <View style={{ paddingHorizontal: 16 }}>
               {group.entries.map((entry, i) => {
                 const isEarn = entry.type === 'earn';
+                // Only voucher rows open something. "Receipt scanned" rows stay inert for now
+                // (the Receipt History link waits for a receipt id from the server).
                 const isTappable = entry.type === 'redeem' && !!entry.voucherId;
+                const pill = statusPill(entry);
                 return (
                   <Pressable
                     key={entry.id}
                     disabled={!isTappable}
                     onPress={() => handleEntryPress(entry)}
                     accessibilityRole={isTappable ? 'button' : undefined}
-                    style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 13, borderTopWidth: i ? 1 : 0, borderTopColor: t.hair, opacity: pressed ? 0.7 : 1 })}
+                    style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 66, paddingVertical: 13, borderTopWidth: i ? 1 : 0, borderTopColor: t.hair, opacity: pressed ? 0.7 : 1 })}
                   >
                     <View style={{ width: 40, height: 40, borderRadius: 13, backgroundColor: isEarn ? t.accentSoft : t.seg, alignItems: 'center', justifyContent: 'center' }}>
-                      <BentoIcon name={isEarn ? 'receipt' : 'rewards'} size={20} color={isEarn ? t.accent : t.ink} strokeWidth={1.7} />
+                      <BentoIcon name={isEarn ? 'receipt' : 'rewards'} size={20} color={isEarn ? t.accent : t.muted} strokeWidth={1.8} />
                     </View>
-                    <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
+                    <View style={{ flex: 1, minWidth: 0 }}>
                       <Text style={{ fontSize: 15, fontWeight: '600', color: t.ink }}>{entry.title}</Text>
-                      <Text style={{ fontSize: 13, color: t.muted }}>
+                      <Text style={{ fontSize: 13, color: t.muted, marginTop: 2 }}>
                         {isEarn ? 'Earned' : 'Redeemed'} · {formatTime(entry.date)}
                       </Text>
-                      {statusPill(entry) ? <View style={{ flexDirection: 'row' }}>{statusPill(entry)}</View> : null}
+                      {pill ? <View style={{ flexDirection: 'row', marginTop: 6 }}>{pill}</View> : null}
                     </View>
-                    <Text style={{ fontFamily: 'Fraunces_600SemiBold', fontSize: 17, color: isEarn ? t.accent : t.ink, fontVariant: ['tabular-nums'] }}>{formatAmount(entry.amount)}</Text>
-                    {isTappable ? <BentoIcon name="chevronRight" size={16} color={t.muted} /> : null}
+                    <Text numberOfLines={1} style={{ flexShrink: 0, fontSize: 16, fontWeight: '600', color: isEarn ? t.accent : t.ink, fontVariant: ['tabular-nums'] }}>
+                      {formatAmount(entry.amount)}
+                    </Text>
+                    {isTappable ? <BentoIcon name="chevronRight" size={16} color={t.muted} strokeWidth={1.8} /> : null}
                   </Pressable>
                 );
               })}

@@ -7,7 +7,7 @@ import { useApp } from '../../context/AppContext';
 import { useBento } from '../../context/ThemeContext';
 import { bentoBrand, bentoType } from '../../theme/bento';
 import { PopIn } from '../../components/motion';
-import { Appear, BentoButton, BentoScreen, BentoTile, Parallax } from '../../components/bento';
+import { Appear, BentoButton, BentoScreen, BentoTile, Parallax, StatusPill } from '../../components/bento';
 import { LinearGradient } from 'expo-linear-gradient';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Voucher'>;
@@ -28,7 +28,7 @@ export function VoucherScreen({ route, navigation }: Props) {
     return (
       <BentoScreen title="Voucher" onBack={() => navigation.goBack()}>
         <BentoTile>
-          <Text style={[bentoType.body, { color: t.muted, textAlign: 'center' }]}>Voucher not found.</Text>
+          <Text style={[bentoType.body, { color: t.muted, textAlign: 'center', paddingVertical: 18 }]}>Voucher not found.</Text>
         </BentoTile>
       </BentoScreen>
     );
@@ -37,8 +37,13 @@ export function VoucherScreen({ route, navigation }: Props) {
   const reward = rewards.find((r) => r.id === voucher.rewardId);
   const title = `${voucher.rewardTitle}${voucher.variantLabel && voucher.variantLabel !== 'Standard' ? ` — ${voucher.variantLabel}` : ''}`;
 
+  // Owner-approved status badge (24 Nov 2026): "Used" once the club has scanned the
+  // voucher, "Expired" once it has expired. An active voucher shows no badge.
+  const badge =
+    voucher.status === 'redeemed' ? <StatusPill label="Used" tone="muted" /> : voucher.status === 'expired' ? <StatusPill label="Expired" tone="danger" /> : undefined;
+
   return (
-    <BentoScreen title="Voucher" onBack={() => navigation.goBack()}>
+    <BentoScreen title="Voucher" onBack={() => navigation.goBack()} headerRight={badge}>
       <View style={{ height: 4 }} />
 
       {/* The ticket: reward photo, then a fairway stub with the QR and code. */}
@@ -88,7 +93,8 @@ export function VoucherScreen({ route, navigation }: Props) {
             <Row label="Redeemed" value={formatDay(voucher.issuedAt)} />
             {voucher.expiresAt ? <Row label="Expires" value={formatDay(voucher.expiresAt)} divider /> : null}
             <Row label="Cost" value={`${voucher.cost.toLocaleString()} FC`} divider />
-            <Row label="Balance left" value={`${points.balance.toLocaleString()} FC`} divider />
+            {/* Brand kit: never "balance" for Flagrr Cash; "Left to spend" is the kept-features boards' wording. */}
+            <Row label="Left to spend" value={`${points.balance.toLocaleString()} FC`} divider />
           </View>
         </BentoTile>
       </Appear>
@@ -104,7 +110,7 @@ function Row({ label, value, divider }: { label: string; value: string; divider?
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 13, borderTopWidth: divider ? 1 : 0, borderTopColor: t.hair }}>
       <Text style={{ flex: 1, fontSize: 15, fontWeight: '600', color: t.ink }}>{label}</Text>
-      <Text style={{ fontSize: 15, fontWeight: '600', color: t.ink }}>{value}</Text>
+      <Text style={{ fontSize: 15, fontWeight: '600', color: t.ink, fontVariant: ['tabular-nums'] }}>{value}</Text>
     </View>
   );
 }
