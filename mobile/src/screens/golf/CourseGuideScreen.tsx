@@ -1,21 +1,20 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, ScrollView, StatusBar, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View, type LayoutChangeEvent } from 'react-native';
-import type { ScrollViewInstance } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Animated, Easing, Platform, Pressable, ScrollView, StatusBar, StyleSheet, Text, TextInput, View, type LayoutChangeEvent, type TextStyle, type ViewStyle } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { CommonActions } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/types';
 import { api, ApiError } from '../../api/client';
 import { showAlert } from '../../utils/alert';
 import { haptic } from '../../utils/haptics';
-import { useTheme, type ThemeColors } from '../../context/ThemeContext';
-import { PillButton, systemFonts, useBentoLegacy } from '../../components/bento/legacy';
-import { BentoToggle } from '../../components/bento';
-import { fontFamily } from '../../theme';
+import { friendlyError } from '../../utils/errors';
+import { useBento } from '../../context/ThemeContext';
+import { bentoBrand, bentoType, type BentoTokens } from '../../theme/bento';
+import { prefersReducedMotion, useNativeDriver } from '../../theme/motion';
+import { BentoButton, BentoIcon, BentoTile, BentoToggle, type BentoIconName } from '../../components/bento';
 import { GolfHoleMap, DARK_MAP, LIGHT_MAP, type GolfHoleMapHandle } from '../../components/golf/GolfHoleMap';
-import { GolfSheet, sheetText } from '../../components/golf/GolfSheet';
+import { GolfLoading, GolfSheet } from '../../components/golf/GolfSheet';
 import { Scorecard } from '../../components/golf/Scorecard';
 import type { GolfCourseDto, RoundDto } from '../../golf/dto';
 import type { Pt } from '../../golf/courseMap';
@@ -48,6 +47,8 @@ import {
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CourseGuide'>;
 
+// Nested in a Fraunces line, the unit text names the system font so it doesn't inherit Fraunces.
+const SYSTEM_FONT = Platform.select({ ios: 'System', android: 'sans-serif', default: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif' });
 const SAVE_DELAY_MS = 700;
 const RETRY_MS = 15_000;
 const localKey = (id: string) => `flagrr_round_entries_${id}`;
@@ -57,14 +58,12 @@ const dots = (n: number) => (n > 0 ? '●'.repeat(Math.min(n, 4)) : '');
 const shotsText = (st: number) => (st > 0 ? `${st} shot${st > 1 ? 's' : ''}` : st < 0 ? `gives back ${-st}` : 'no shots');
 
 // The in-round screen: full screen (no tab bar), the hole map edge to edge
-// with floating cards over it, and the score bar underneath. Scores save to
-// the server as they're entered, with a local copy in case the signal drops.
+// with a glass header card and floating cards over it, and the score panel
+// at the bottom. Scores save to the server as they're entered, with a local
+// copy in case the signal drops. Boards: AppHole, G-D-Hole*, Dlg* sheets.
 export function CourseGuideScreen({ navigation, route }: Props) {
-  // Bento colours, type and tiles through the legacy bridge: this screen's
-  // layout and logic are unchanged.
-  const { colors, t: bento } = useBentoLegacy();
-  const isDark = useTheme().scheme === 'dark';
-  const styles = useMemo(() => systemFonts(createStyles(colors, bento.ring, bento.shadow)), [colors, bento]);
+  const { t, scheme } = useBento();
+  const isDark = scheme === 'dark';
   const insets = useSafeAreaInsets();
   const roundId = route.params.roundId;
 
@@ -91,7 +90,13 @@ export function CourseGuideScreen({ navigation, route }: Props) {
   const [shotCardH, setShotCardH] = useState(180);
   const [finishing, setFinishing] = useState(false);
   const mapRef = useRef<GolfHoleMapHandle>(null);
-  const pickerRef = useRef<ScrollViewInstance>(null);
+  // Measured heights that place the floating cards (header card, green card,
+  // score panel) and keep the map's fitted hole clear of them.
+  const [headerH, setHeaderH] = useState(150);
+  const [greenH, setGreenH] = useState(90);
+  const [scoreH, setScoreH] = useState(120);
+  const [pillsW, setPillsW] = useState(0);
+  const [bagFocus, setBagFocus] = useState<number | null>(null);
 
   // --- load ---
   useEffect(() => {
@@ -122,7 +127,7 @@ export function CourseGuideScreen({ navigation, route }: Props) {
           }
         } else setMapMissing(true);
       } catch (e) {
-        setLoadError(e instanceof Error ? e.message : 'Could not load the round.');
+        setLoadError(friendlyError(e, 'Could not load the round.'));
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -169,7 +174,7 @@ export function CourseGuideScreen({ navigation, route }: Props) {
     } catch (e) {
       if (e instanceof ApiError && e.status === 400) {
         setSaveState('saved');
-        showAlert('Could not save that score', e.message);
+        showAlert('Could not save that score', friendlyError(e));
         return;
       }
       setSaveState('offline');
@@ -315,7 +320,7 @@ export function CourseGuideScreen({ navigation, route }: Props) {
         { text: 'Close', style: 'cancel', onPress: () => navigation.goBack() },
       ]);
     } catch (err) {
-      showAlert('Could not finish the round', err instanceof Error ? err.message : undefined);
+      showAlert('Could not finish the round', friendlyError(err));
     } finally {
       setFinishing(false);
     }
@@ -333,76 +338,47 @@ export function CourseGuideScreen({ navigation, route }: Props) {
   };
 
   if (loadError) {
+    // G-D-HoleError: a warning chip, the message and Back.
     return (
-      <SafeAreaView style={[styles.screen, styles.center]}>
-        <Text style={styles.loadError}>{loadError}</Text>
-        <PillButton label="Back" onPress={() => navigation.goBack()} variant="outline" />
-      </SafeAreaView>
+      <View style={{ flex: 1, backgroundColor: t.ground }}>
+        <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
+        <View style={{ position: 'absolute', left: 32, right: 32, top: insets.top + 252, alignItems: 'center', gap: 16 }}>
+          <View style={{ width: 56, height: 56, borderRadius: 13, backgroundColor: t.warnBg, alignItems: 'center', justifyContent: 'center' }}>
+            <BentoIcon name="golfWarning" size={27} color={t.warnInk} strokeWidth={1.8} />
+          </View>
+          <Text style={{ fontSize: 16, fontWeight: '600', color: t.ink, textAlign: 'center' }}>{loadError}</Text>
+          <BentoButton label="Back" variant="secondary" compact onPress={() => navigation.goBack()} style={{ width: 140, minHeight: 44 }} />
+        </View>
+      </View>
     );
   }
   if (!round || !setup || (!course && !mapMissing)) {
     return (
-      <View style={[styles.screen, styles.center]}>
-        <ActivityIndicator color={colors.clubGreen} size="large" />
+      <View style={{ flex: 1, backgroundColor: t.ground, alignItems: 'center', justifyContent: 'center' }}>
+        <GolfLoading />
       </View>
     );
   }
 
-  const tee = course?.map.tees.find((t) => t.id === round.teeId);
+  const tee = course?.map.tees.find((tt) => tt.id === round.teeId);
   const completed = round.status === 'completed';
   const st = res?.strokesReceived ?? 0;
+  const hasMap = Boolean(view && course);
+  const headerTop = insets.top + 8;
+  const headerBottom = headerTop + headerH;
+  const greenTop = headerBottom + 2;
+  const controlsTop = greenTop + greenH + 8;
+  const pillW = pillsW ? (pillsW - 5 * 6) / 6 : 52;
+  const saveText = saveState === 'offline' ? 'Not saved yet · will retry' : saveState === 'saving' ? 'Saving…' : completed ? 'Finished round · changes save' : 'Saved';
+  const ready = allIn && !completed;
+  const resultColor = e?.s == null ? t.muted : sbTone === 'good' ? t.accent : sbTone === 'over' ? t.warnInk : t.ink;
 
   return (
-    <View style={styles.screen}>
+    <View style={{ flex: 1, backgroundColor: hasMap ? (isDark ? DARK_MAP : LIGHT_MAP).rough : t.ground }}>
       <StatusBar barStyle="light-content" />
-      <View style={[styles.top, { paddingTop: insets.top + 8 }]}>
-        <View style={styles.topRow}>
-          <TouchableOpacity style={styles.roundBtn} onPress={() => navigation.goBack()} accessibilityLabel={completed ? 'Back' : 'Back. Your round stays in progress'}>
-            <Ionicons name="chevron-back" size={18} color={colors.white} />
-          </TouchableOpacity>
-          <View style={styles.courseTitle}>
-            <Text style={styles.courseName} numberOfLines={1}>
-              {round.courseName}
-            </Text>
-            <Text style={styles.saveState}>
-              {saveState === 'offline' ? 'Not saved yet · will retry' : saveState === 'saving' ? 'Saving…' : completed ? 'Finished round · changes save' : 'Saved'}
-            </Text>
-          </View>
-          <TouchableOpacity style={styles.hcpBtn} onPress={() => setSheet('round')} accessibilityLabel="Your round: tees and handicap">
-            <View style={[styles.teeDot, { backgroundColor: round.teeColor }]} />
-            <Text style={styles.hcpSmall}>HCP</Text>
-            <Text style={styles.hcpValue}>{round.handicapIndex == null ? '–' : formatIndex(round.handicapIndex)}</Text>
-          </TouchableOpacity>
-          {course ? (
-            <TouchableOpacity style={styles.bagBtn} onPress={() => setSheet('bag')} accessibilityLabel="My bag">
-              <MaterialCommunityIcons name="golf-tee" size={15} color={colors.darkGreen} />
-              <Text style={styles.bagText}>Bag</Text>
-            </TouchableOpacity>
-          ) : null}
-        </View>
-        <ScrollView ref={pickerRef} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.picker}>
-          {holes.map((hh, i) => {
-            const on = i === holeIdx;
-            const scored = entries[i]?.s != null;
-            return (
-              <TouchableOpacity
-                key={hh.n}
-                style={[styles.pill, on && styles.pillOn]}
-                onPress={() => goToHole(i)}
-                accessibilityLabel={`Hole ${hh.n}, par ${hh.par}${scored ? ', scored' : ''}`}
-                accessibilityState={{ selected: on }}
-              >
-                <Text style={[styles.pillNo, on && styles.pillTextOn]}>{hh.n}</Text>
-                <Text style={[styles.pillPar, on && styles.pillTextOn]}>P{hh.par}</Text>
-                {scored ? <View style={[styles.scoredDot, on && { backgroundColor: colors.darkGreen }]} /> : null}
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
-      </View>
 
-      <View style={styles.map}>
-        {view && course ? (
+      {view && course ? (
+        <View style={StyleSheet.absoluteFill}>
           <GolfHoleMap
             ref={mapRef}
             hole={view}
@@ -413,7 +389,7 @@ export function CourseGuideScreen({ navigation, route }: Props) {
             showRings={rings}
             showHazards={hazards}
             draggedBall={draggedBall}
-            insets={{ top: 110, bottom: (collapsed ? 70 : shotCardH) + 30, left: 10, right: 60 }}
+            insets={{ top: headerBottom + 8, bottom: scoreH + (collapsed ? 70 : shotCardH) + 24, left: 10, right: 60 }}
             onTouchStart={() => setLayersOpen(false)}
             onBallMove={(p) => {
               setBall(p);
@@ -424,250 +400,371 @@ export function CourseGuideScreen({ navigation, route }: Props) {
               setCustom(true);
             }}
           />
-        ) : (
-          <View style={[styles.center, { flex: 1, padding: 24 }]}>
-            <Text style={styles.loadError}>The map for this course isn’t available any more, but you can still keep score below.</Text>
+        </View>
+      ) : (
+        // G-D-HoleNoMap: the message in a tile on the plain ground.
+        <View style={{ position: 'absolute', left: 24, right: 24, top: headerBottom + 100 }}>
+          <BentoTile padding={20}>
+            <View style={{ alignItems: 'center', gap: 12, paddingVertical: 10, paddingHorizontal: 4 }}>
+              <View style={{ width: 64, height: 64, borderRadius: 20, backgroundColor: t.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
+                <BentoIcon name="golfFlag" size={30} color={t.accent} strokeWidth={1.8} />
+              </View>
+              <Text style={{ fontSize: 16, lineHeight: 23, color: t.ink, textAlign: 'center' }}>The map for this course isn’t available any more, but you can still keep score below.</Text>
+            </View>
+          </BentoTile>
+        </View>
+      )}
+
+      {/* Header card: back, hole, course, HCP, Bag; hole facts and save status; hole pills. */}
+      <MapGlass
+        solid={!hasMap}
+        radius={28}
+        style={{ position: 'absolute', left: 12, right: 12, top: headerTop, padding: 10, zIndex: 3 }}
+        onLayout={(ev) => setHeaderH(Math.round(ev.nativeEvent.layout.height))}
+      >
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <Pressable
+            onPress={() => navigation.goBack()}
+            accessibilityRole="button"
+            accessibilityLabel={completed ? 'Back' : 'Back. Your round stays in progress'}
+            hitSlop={2}
+            style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(10,24,17,0.45)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center' }}
+          >
+            <BentoIcon name="back" size={20} color="#FFFFFF" strokeWidth={1.8} />
+          </Pressable>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={{ ...bentoType.number, fontSize: 21, lineHeight: 23, letterSpacing: -0.5, color: '#FFFFFF' }}>{h ? `Hole ${h.n}` : ''}</Text>
+            <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.82)' }} numberOfLines={1}>
+              {round.courseName}
+            </Text>
           </View>
-        )}
-
-        {view && course ? (
-          <>
-            <View style={[styles.card, styles.holeBadge]} pointerEvents="none">
-              <View style={styles.holeNo}>
-                <Text style={styles.holeNoText}>{view.n}</Text>
-              </View>
-              <View>
-                <Text style={styles.holePar}>
-                  Par {view.par}
-                  {st > 0 ? <Text style={styles.dots}> {dots(st)}</Text> : null}
+          <Pressable
+            onPress={() => setSheet('round')}
+            accessibilityRole="button"
+            accessibilityLabel="Your round: tees and handicap"
+            style={{ height: 44, paddingHorizontal: 12, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.14)', flexDirection: 'row', alignItems: 'center', gap: 7 }}
+          >
+            <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: round.teeColor, boxShadow: '0 0 0 1.5px rgba(255,255,255,0.55)' }} />
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text style={{ fontSize: 13, fontWeight: '600', color: '#FFFFFF' }}>HCP</Text>
+              <Text style={{ fontSize: 13, fontWeight: '600', color: '#FFFFFF', marginLeft: 4 }}>{round.handicapIndex == null ? '–' : formatIndex(round.handicapIndex)}</Text>
+            </View>
+          </Pressable>
+          {course ? (
+            <Pressable
+              onPress={() => setSheet('bag')}
+              accessibilityRole="button"
+              accessibilityLabel="My bag"
+              style={{ height: 44, paddingHorizontal: 15, borderRadius: 999, backgroundColor: bentoBrand.lime, justifyContent: 'center' }}
+            >
+              <Text style={{ fontSize: 14, fontWeight: '600', color: bentoBrand.fairway }}>Bag</Text>
+            </Pressable>
+          ) : null}
+        </View>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', rowGap: 2, columnGap: 10, marginTop: 8, paddingHorizontal: 4 }}>
+          {h ? (
+            <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.86)' }}>
+              Par {h.par}
+              {st > 0 ? (
+                <Text style={{ color: bentoBrand.lime, letterSpacing: 1 }} accessibilityLabel={`${st} shot${st > 1 ? 's' : ''} received`}>
+                  {` ${dots(st)}`}
                 </Text>
-                <Text style={styles.holeMeta}>
-                  {view.length} m · SI {view.si}
-                  {setup.handicaps ? ` · ${shotsText(st)}` : ''}
-                </Text>
-              </View>
-            </View>
-            <View style={styles.gps} pointerEvents="none">
-              <Ionicons name="navigate-outline" size={11} color={colors.white} />
-              <Text style={styles.gpsText}>GPS integration coming soon</Text>
-            </View>
+              ) : null}
+              {' · '}
+              <Text>{`${h.length} m · SI ${h.si}${setup.handicaps ? ` · ${shotsText(st)}` : ''}`}</Text>
+            </Text>
+          ) : null}
+          <SaveStatus state={saveState} text={saveText} />
+        </View>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          onLayout={(ev) => setPillsW(ev.nativeEvent.layout.width)}
+          style={{ marginTop: 10 }}
+          contentContainerStyle={{ gap: 6 }}
+        >
+          {holes.map((hh, i) => {
+            const on = i === holeIdx;
+            const scored = entries[i]?.s != null;
+            return (
+              <Pressable
+                key={hh.n}
+                onPress={() => goToHole(i)}
+                accessibilityRole="button"
+                accessibilityLabel={`Hole ${hh.n}, par ${hh.par}${scored ? ', scored' : ''}`}
+                accessibilityState={{ selected: on }}
+                style={{ width: pillW, height: 44, borderRadius: 13, backgroundColor: on ? bentoBrand.lime : 'rgba(255,255,255,0.10)', alignItems: 'center', justifyContent: 'center' }}
+              >
+                <Text style={{ fontSize: 14, fontWeight: '600', color: on ? bentoBrand.fairway : '#FFFFFF' }}>{hh.n}</Text>
+                <Text style={{ fontSize: 12, color: on ? bentoBrand.fairway : 'rgba(255,255,255,0.72)' }}>P{hh.par}</Text>
+                {scored ? <View style={{ position: 'absolute', top: 5, right: 6, width: 6, height: 6, borderRadius: 3, backgroundColor: on ? bentoBrand.fairway : bentoBrand.lime }} /> : null}
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      </MapGlass>
 
-            <View style={[styles.card, styles.greens]} pointerEvents="none" accessibilityLabel={gd ? `Green: front ${gd[0]}, middle ${gd[1]}, back ${gd[2]} metres` : undefined}>
-              <View style={styles.greenRow}>
-                <Text style={styles.greenLabel}>Back</Text>
-                <Text style={styles.greenVal}>{gd?.[2] ?? '–'}</Text>
+      {view && course ? (
+        <>
+          {/* GPS is not wanted (owner decision 24 Nov 2026): no "GPS integration coming soon" chip. */}
+          <MapGlass
+            radius={18}
+            pointerEvents="none"
+            accessibilityRole="image"
+            accessibilityLabel={gd ? `Green: front ${gd[0]}, middle ${gd[1]}, back ${gd[2]} metres` : undefined}
+            style={{ position: 'absolute', right: 12, top: greenTop, paddingVertical: 10, paddingHorizontal: 14, gap: 2, zIndex: 2 }}
+            onLayout={(ev) => setGreenH(Math.round(ev.nativeEvent.layout.height))}
+          >
+            {(
+              [
+                ['Back', gd?.[2], 15],
+                ['Middle', gd?.[1], 24],
+                ['Front', gd?.[0], 15],
+              ] as const
+            ).map(([label, v, size]) => (
+              <View key={label} style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'flex-end', gap: 8 }}>
+                <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.75)' }}>{label}</Text>
+                <Text style={{ ...bentoType.number, fontSize: size, color: '#FFFFFF' }}>{v ?? '–'}</Text>
               </View>
-              <View style={styles.greenMid}>
-                <Text style={styles.greenMidVal}>{gd?.[1] ?? '–'}</Text>
-                <Text style={styles.greenLabel}>Middle</Text>
-              </View>
-              <View style={styles.greenRow}>
-                <Text style={styles.greenLabel}>Front</Text>
-                <Text style={styles.greenVal}>{gd?.[0] ?? '–'}</Text>
-              </View>
-            </View>
+            ))}
+          </MapGlass>
 
-            <View style={styles.controls}>
-              <View style={[styles.card, styles.ctlGroup]}>
-                <TouchableOpacity style={styles.ctl} onPress={() => mapRef.current?.zoomBy(1.35)} accessibilityLabel="Zoom in">
-                  <Ionicons name="add" size={18} color={colors.textPrimary} />
-                </TouchableOpacity>
-                <TouchableOpacity style={[styles.ctl, styles.ctlSep]} onPress={() => mapRef.current?.zoomBy(1 / 1.35)} accessibilityLabel="Zoom out">
-                  <Ionicons name="remove" size={18} color={colors.textPrimary} />
-                </TouchableOpacity>
-                <TouchableOpacity style={[styles.ctl, styles.ctlSep]} onPress={() => mapRef.current?.fit()} accessibilityLabel="Show the whole hole">
-                  <Ionicons name="scan-outline" size={17} color={colors.textPrimary} />
-                </TouchableOpacity>
-              </View>
-              <View style={[styles.card, styles.ctlGroup]}>
-                <TouchableOpacity
-                  style={[styles.ctl, layersOpen && { backgroundColor: colors.darkGreen }]}
-                  onPress={() => setLayersOpen((o) => !o)}
-                  accessibilityLabel="Map layers"
-                  accessibilityState={{ expanded: layersOpen }}
-                >
-                  <Ionicons name="layers-outline" size={18} color={layersOpen ? colors.lime : colors.textPrimary} />
-                </TouchableOpacity>
-              </View>
+          <View style={{ position: 'absolute', right: 12, top: controlsTop, gap: 8, zIndex: 2 }}>
+            <MapButton icon="plus" label="Zoom in" onPress={() => mapRef.current?.zoomBy(1.35)} />
+            <MapButton icon="golfMinus" label="Zoom out" onPress={() => mapRef.current?.zoomBy(1 / 1.35)} />
+            <MapButton icon="golfFit" label="Show the whole hole" onPress={() => mapRef.current?.fit()} />
+            <MapButton icon="golfLayers" label="Map layers" on={layersOpen} expanded={layersOpen} onPress={() => setLayersOpen((o) => !o)} />
+          </View>
+          {layersOpen ? (
+            <View
+              accessibilityViewIsModal={false}
+              style={{ position: 'absolute', right: 64, top: controlsTop + 70, width: 262, paddingVertical: 4, paddingHorizontal: 16, borderRadius: 22, backgroundColor: t.tile, boxShadow: '0 18px 40px -16px rgba(0,0,0,0.55)', zIndex: 4 }}
+            >
+              <LayerRow t={t} title="Distance arcs" sub="Every 50 m from your ball" value={rings} onChange={setRings} />
+              <LayerRow t={t} title="Hazard distances" sub="Reach / carry, in metres" value={hazards} onChange={setHazards} sep />
             </View>
-            {layersOpen ? (
-              <View style={[styles.card, styles.layers]}>
-                <View style={styles.layerRow}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.layerTitle}>Distance arcs</Text>
-                    <Text style={styles.layerSub}>Every 50 m from your ball</Text>
-                  </View>
-                  <BentoToggle value={rings} onValueChange={setRings} accessibilityLabel="Distance arcs" />
-                </View>
-                <View style={[styles.layerRow, styles.layerSep]}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.layerTitle}>Hazard distances</Text>
-                    <Text style={styles.layerSub}>Reach / carry, in metres</Text>
-                  </View>
-                  <BentoToggle value={hazards} onValueChange={setHazards} accessibilityLabel="Hazard distances" />
-                </View>
-              </View>
-            ) : null}
+          ) : null}
 
-            {shot ? (
-              <View style={[styles.card, styles.shotCard]} onLayout={(ev: LayoutChangeEvent) => { const hgt = ev.nativeEvent.layout.height; if (!collapsed) setShotCardH((cur) => Math.max(cur, hgt)); }} accessibilityLiveRegion="polite">
-                <View style={styles.shotHead}>
-                  <View style={[styles.chip, shot.risky && styles.chipWarn]}>
-                    <Text style={[styles.chipText, shot.risky && styles.chipTextWarn]}>{shot.chip}</Text>
-                  </View>
-                  <View style={styles.headRight}>
-                    <Text style={styles.from}>{atTee ? 'From the tee' : `From your ball · ${m(dist(ball, view.pin))} m to pin`}</Text>
-                    <TouchableOpacity style={styles.collapseBtn} onPress={() => setCollapsed((c) => !c)} accessibilityLabel={collapsed ? 'Show shot details' : 'Hide shot details'}>
-                      <Ionicons name={collapsed ? 'chevron-up' : 'chevron-down'} size={14} color={colors.textSecondary} />
-                    </TouchableOpacity>
-                  </View>
+          {shot ? (
+            <View
+              accessibilityLiveRegion="polite"
+              aria-live="polite"
+              pointerEvents="box-none"
+              style={{ position: 'absolute', left: 12, right: 66, bottom: scoreH + 12, gap: 12, zIndex: 2 }}
+            >
+              {!collapsed && (custom || !atTee) ? (
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                  {custom ? <GlassChip label="Show suggested shot" onPress={() => setCustom(false)} /> : null}
+                  {!atTee ? (
+                    <GlassChip
+                      label="Back to the tee"
+                      onPress={() => {
+                        setBall([view.tee[0], view.tee[1]]);
+                        setCustom(false);
+                      }}
+                    />
+                  ) : null}
                 </View>
-                <View style={styles.shotMain}>
-                  <Text style={styles.club}>{shot.club}</Text>
-                  <Text style={styles.shotDist}>
+              ) : null}
+              <View
+                onLayout={(ev: LayoutChangeEvent) => {
+                  const hgt = ev.nativeEvent.layout.height;
+                  if (!collapsed) setShotCardH((cur) => Math.max(cur, hgt));
+                }}
+                style={{ paddingVertical: 14, paddingHorizontal: 16, borderRadius: 24, backgroundColor: t.tile, boxShadow: '0 14px 30px -14px rgba(0,0,0,0.55)' }}
+              >
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+                  <View style={{ paddingVertical: 3, paddingHorizontal: 10, borderRadius: 999, backgroundColor: shot.risky ? t.warnBg : t.accentSoft }}>
+                    <Text style={{ fontSize: 12, fontWeight: '600', color: shot.risky ? t.warnInk : t.accent }}>{shot.chip}</Text>
+                  </View>
+                  <Pressable
+                    onPress={() => setCollapsed((c) => !c)}
+                    accessibilityRole="button"
+                    accessibilityLabel={collapsed ? 'Show shot details' : 'Hide shot details'}
+                    accessibilityState={{ expanded: !collapsed }}
+                    style={{ minHeight: 44, marginVertical: -12, marginRight: -6, paddingHorizontal: 6, justifyContent: 'center' }}
+                  >
+                    <Text style={{ fontSize: 13, fontWeight: '600', color: t.accent }}>{collapsed ? 'Show shot details' : 'Hide shot details'}</Text>
+                  </Pressable>
+                </View>
+                <Text style={{ fontSize: 13, color: t.muted, marginTop: 6 }}>{atTee ? 'From the tee' : `From your ball · ${m(dist(ball, view.pin))} m to pin`}</Text>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', gap: 10, marginTop: 2 }}>
+                  <Text style={{ ...bentoType.number, fontSize: 24, letterSpacing: -0.6, color: t.ink, flexShrink: 1 }}>{shot.club}</Text>
+                  <Text style={{ ...bentoType.number, fontSize: 24, letterSpacing: -0.6, color: t.ink }}>
                     {m(shot.d)}
-                    <Text style={styles.shotUnit}> m</Text>
+                    <Text style={{ fontFamily: SYSTEM_FONT, fontSize: 13, fontWeight: '400', letterSpacing: 0, color: t.muted }}> m</Text>
                   </Text>
                 </View>
                 {!collapsed ? (
                   <>
-                    <View style={styles.stats}>
-                      <View style={styles.stat}>
-                        <Text style={styles.statLabel}>Leaves</Text>
-                        <Text style={styles.statVal} numberOfLines={1}>
-                          {putting ? '–' : finishesOnGreen ? 'Putt' : `${m(left)} m`}
-                        </Text>
-                      </View>
-                      <View style={[styles.stat, styles.statSep]}>
-                        <Text style={styles.statLabel}>Next</Text>
-                        <Text style={styles.statVal} numberOfLines={1}>
-                          {nextClub}
-                        </Text>
-                      </View>
-                      <View style={[styles.stat, styles.statSep]}>
-                        <Text style={styles.statLabel}>Usual miss</Text>
-                        <Text style={styles.statVal} numberOfLines={1}>
-                          {putting || shot.d < 30 ? '–' : `±${m(spread(shot.d))} m`}
-                        </Text>
-                      </View>
+                    <View style={{ flexDirection: 'row', marginTop: 10, paddingVertical: 8, borderRadius: 14, backgroundColor: t.seg }}>
+                      {(
+                        [
+                          ['Leaves', putting ? '–' : finishesOnGreen ? 'Putt' : `${m(left)} m`],
+                          ['Next', nextClub],
+                          ['Usual miss', putting || shot.d < 30 ? '–' : `±${m(spread(shot.d))} m`],
+                        ] as const
+                      ).map(([k, v], i) => (
+                        <View key={k} style={{ flex: 1, alignItems: 'center', paddingHorizontal: 4, borderLeftWidth: i ? 1 : 0, borderLeftColor: t.hair }}>
+                          <Text style={{ fontSize: 12, color: t.muted }}>{k}</Text>
+                          <Text style={{ fontSize: 14, fontWeight: '600', color: t.ink }} numberOfLines={1}>
+                            {v}
+                          </Text>
+                        </View>
+                      ))}
                     </View>
-                    <Text style={styles.why}>{shot.why}</Text>
-                    {custom || !atTee ? (
-                      <View style={styles.actions}>
-                        {custom ? <PillButton label="Show suggested shot" onPress={() => setCustom(false)} /> : null}
-                        {!atTee ? (
-                          <TouchableOpacity
-                            style={styles.secondaryBtn}
-                            onPress={() => {
-                              setBall([view.tee[0], view.tee[1]]);
-                              setCustom(false);
-                            }}
-                          >
-                            <Text style={styles.secondaryBtnText}>Back to the tee</Text>
-                          </TouchableOpacity>
-                        ) : null}
-                      </View>
-                    ) : null}
+                    <Text style={{ fontSize: 13, lineHeight: 18, color: t.muted, marginTop: 8 }}>{shot.why}</Text>
                   </>
                 ) : null}
               </View>
-            ) : null}
-          </>
-        ) : null}
-      </View>
-
-      {round.trackStats && h ? (
-        <View style={styles.extraBar}>
-          <Text style={styles.extraLabel}>Putts</Text>
-          <View style={styles.miniStepper}>
-            <TouchableOpacity
-              style={styles.miniStep}
-              disabled={typeof e?.s !== 'number' || (e?.putts ?? 0) <= 0}
-              onPress={() => updateEntry(holeIdx, { putts: Math.max(0, (e?.putts ?? 2) - 1) })}
-              accessibilityLabel="One putt fewer"
-            >
-              <Text style={styles.miniStepText}>−</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.miniVal}
-              disabled={typeof e?.s !== 'number'}
-              onPress={() => updateEntry(holeIdx, { putts: e?.putts == null ? Math.min(2, (e?.s as number) - 1) : null })}
-              accessibilityLabel={e?.putts == null ? 'Enter two putts' : `${e.putts} putts. Tap to clear`}
-            >
-              <Text style={[styles.miniValText, e?.putts == null && styles.muted]}>{e?.putts ?? '–'}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.miniStep}
-              disabled={typeof e?.s !== 'number' || (e?.putts ?? 0) >= Math.min(MAX_PUTTS, (e?.s as number) - 1)}
-              onPress={() => updateEntry(holeIdx, { putts: (e?.putts ?? 1) + 1 })}
-              accessibilityLabel="One putt more"
-            >
-              <Text style={styles.miniStepText}>+</Text>
-            </TouchableOpacity>
-          </View>
-          {h.par >= 4 ? (
-            <>
-              <Text style={[styles.extraLabel, { marginLeft: 8 }]}>Fairway</Text>
-              <View style={styles.fwRow}>
-                {(['left', 'hit', 'right'] as const).map((fw) => (
-                  <TouchableOpacity
-                    key={fw}
-                    disabled={typeof e?.s !== 'number'}
-                    style={[styles.fwBtn, e?.fw === fw && styles.fwBtnOn]}
-                    onPress={() => updateEntry(holeIdx, { fw: e?.fw === fw ? null : fw })}
-                    accessibilityLabel={fw === 'hit' ? 'Fairway hit' : `Missed ${fw}`}
-                    accessibilityState={{ selected: e?.fw === fw }}
-                  >
-                    <Text style={[styles.fwText, e?.fw === fw && styles.fwTextOn]}>{fw === 'hit' ? 'Hit' : fw === 'left' ? '← L' : 'R →'}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </>
-          ) : (
-            <Text style={[styles.extraHint]}>Par 3: no fairway</Text>
-          )}
-        </View>
+            </View>
+          ) : null}
+        </>
       ) : null}
 
-      <View style={[styles.scorebar, { paddingBottom: 8 + insets.bottom }]}>
-        <View style={styles.scoreLabel}>
-          {offerPickup ? (
-            <TouchableOpacity onPress={() => setScore('P')} accessibilityRole="button">
-              <Text style={styles.pickup}>Pick up</Text>
-            </TouchableOpacity>
-          ) : (
-            <Text style={styles.sbSmall} numberOfLines={1}>
-              {allIn && !completed ? 'Every hole is in · open the card to finish' : sbSmall}
-            </Text>
-          )}
-          <Text style={[styles.sbResult, sbTone === 'good' && styles.good, sbTone === 'over' && styles.over]} numberOfLines={1}>
-            {sbResult}
-          </Text>
-        </View>
-        <View style={styles.stepper}>
-          <TouchableOpacity style={styles.step} onPress={() => step(-1)} accessibilityLabel="One shot fewer">
-            <Text style={styles.stepText}>−</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.scoreVal, e?.s == null && styles.scoreValEmpty]}
-            onPress={tapScore}
-            onLongPress={() => setScore(null)}
-            accessibilityLabel={e?.s == null ? `Enter par, ${h?.par}` : e.s === 'P' ? 'Picked up. Tap to clear' : `Score ${e.s}`}
-            accessibilityHint={e?.s != null ? 'Press and hold to clear this hole' : undefined}
-          >
-            <Text style={[styles.scoreValText, e?.s == null && styles.scoreValTextEmpty]}>{e?.s == null ? h?.par : e.s}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.step} onPress={() => step(1)} accessibilityLabel="One shot more">
-            <Text style={styles.stepText}>+</Text>
-          </TouchableOpacity>
-        </View>
-        <TouchableOpacity style={[styles.cardBtn, allIn && !completed && styles.cardBtnReady]} onPress={() => setSheet('card')} accessibilityLabel="Open scorecard">
-          <Ionicons name="grid-outline" size={19} color={allIn && !completed ? colors.darkGreen : colors.clubGreen} />
-          <View>
-            <Text style={styles.cardBtnTotal}>{totalText}</Text>
-            <Text style={styles.cardBtnThru}>{allIn && !completed ? 'Finish' : `thru ${totals?.holesPlayed ?? 0}`}</Text>
+      {/* Score panel (G-D-Hole*): putts and fairway when tracked, then the score row. */}
+      <View
+        accessibilityLabel="Score"
+        onLayout={(ev) => setScoreH(Math.round(ev.nativeEvent.layout.height))}
+        style={{
+          position: 'absolute',
+          left: 0,
+          right: 0,
+          bottom: 0,
+          paddingTop: 12,
+          paddingHorizontal: 14 + Math.max(insets.left, insets.right),
+          paddingBottom: Math.max(26, insets.bottom),
+          backgroundColor: t.tile,
+          borderTopWidth: 1,
+          borderTopColor: t.hair,
+          borderTopLeftRadius: 26,
+          borderTopRightRadius: 26,
+          zIndex: 2,
+        }}
+      >
+        {round.trackStats && h ? (
+          <View style={{ flexDirection: 'row', gap: 14, alignItems: 'flex-end', marginBottom: 12 }}>
+            <View style={{ gap: 4 }}>
+              <Text style={{ fontSize: 12, color: t.muted }}>Putts</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', padding: 2, borderRadius: 16, backgroundColor: t.seg }}>
+                <StepButton
+                  t={t}
+                  icon="golfMinus"
+                  label="One putt fewer"
+                  disabled={typeof e?.s !== 'number' || (e?.putts ?? 0) <= 0}
+                  onPress={() => updateEntry(holeIdx, { putts: Math.max(0, (e?.putts ?? 2) - 1) })}
+                />
+                <Pressable
+                  disabled={typeof e?.s !== 'number'}
+                  onPress={() => updateEntry(holeIdx, { putts: e?.putts == null ? Math.min(2, (e?.s as number) - 1) : null })}
+                  accessibilityRole="button"
+                  accessibilityLabel={e?.putts == null ? 'Enter two putts' : `${e.putts} putts. Tap to clear`}
+                  accessibilityState={{ disabled: typeof e?.s !== 'number' }}
+                  aria-disabled={typeof e?.s !== 'number'}
+                  style={[
+                    { width: 40, height: 44, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
+                    e?.putts == null ? { backgroundColor: t.tile, boxShadow: `0 0 0 1px ${t.hair}` } : { backgroundColor: bentoBrand.fairway },
+                  ]}
+                >
+                  {e?.putts == null ? (
+                    <Text style={{ fontSize: 18, fontWeight: '600', color: t.muted }}>–</Text>
+                  ) : (
+                    <Text style={{ ...bentoType.number, fontSize: 20, color: '#FFFFFF' }}>{e.putts}</Text>
+                  )}
+                </Pressable>
+                <StepButton
+                  t={t}
+                  icon="plus"
+                  label="One putt more"
+                  disabled={typeof e?.s !== 'number' || (e?.putts ?? 0) >= Math.min(MAX_PUTTS, (e?.s as number) - 1)}
+                  onPress={() => updateEntry(holeIdx, { putts: (e?.putts ?? 1) + 1 })}
+                />
+              </View>
+            </View>
+            <View style={{ flex: 1, gap: 4 }}>
+              <Text style={{ fontSize: 12, color: t.muted }}>{h.par >= 4 ? 'Fairway' : ' '}</Text>
+              {h.par >= 4 ? (
+                <View style={{ flexDirection: 'row', gap: 6 }}>
+                  {(['left', 'hit', 'right'] as const).map((fw) => {
+                    const on = e?.fw === fw;
+                    const off = typeof e?.s !== 'number';
+                    return (
+                      <Pressable
+                        key={fw}
+                        disabled={off}
+                        onPress={() => updateEntry(holeIdx, { fw: on ? null : fw })}
+                        accessibilityRole="button"
+                        accessibilityLabel={fw === 'hit' ? 'Fairway hit' : `Missed ${fw}`}
+                        accessibilityState={{ selected: on, disabled: off }}
+                        aria-disabled={off}
+                        style={[
+                          { flex: 1, height: 44, borderRadius: 13, alignItems: 'center', justifyContent: 'center', opacity: off ? 0.4 : 1 },
+                          on ? { backgroundColor: t.accent } : { backgroundColor: t.tile, boxShadow: `0 0 0 1px ${t.hair}` },
+                        ]}
+                      >
+                        <Text style={{ fontSize: 13, fontWeight: '600', color: on ? t.accentInk : t.ink }}>{fw === 'hit' ? 'Hit' : fw === 'left' ? '← L' : 'R →'}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              ) : (
+                <View style={{ height: 44, borderRadius: 13, backgroundColor: t.seg, alignItems: 'center', justifyContent: 'center' }}>
+                  <Text style={{ fontSize: 13, color: t.muted }}>Par 3: no fairway</Text>
+                </View>
+              )}
+            </View>
           </View>
-        </TouchableOpacity>
+        ) : null}
+
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            {offerPickup ? (
+              <Pressable onPress={() => setScore('P')} accessibilityRole="button" style={{ minHeight: 24, justifyContent: 'center', alignSelf: 'flex-start' }}>
+                <Text style={{ fontSize: 13, fontWeight: '600', color: t.accent, textDecorationLine: 'underline' }}>Pick up</Text>
+              </Pressable>
+            ) : (
+              <Text style={{ fontSize: 12, lineHeight: 16, color: t.muted }} numberOfLines={2}>
+                {ready ? 'Every hole is in · open the card to finish' : sbSmall}
+              </Text>
+            )}
+            <Text style={{ fontSize: 16, fontWeight: '700', color: resultColor, marginTop: 2 }} numberOfLines={1}>
+              {sbResult}
+            </Text>
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', padding: 2, borderRadius: 16, backgroundColor: t.seg }}>
+            <StepButton t={t} icon="golfMinus" label="One shot fewer" onPress={() => step(-1)} />
+            <Pressable
+              onPress={tapScore}
+              onLongPress={() => setScore(null)}
+              accessibilityRole="button"
+              accessibilityLabel={e?.s == null ? `Enter par, ${h?.par}` : e.s === 'P' ? 'Picked up. Tap to clear' : `Score ${e.s}`}
+              accessibilityHint={e?.s != null ? 'Press and hold to clear this hole' : undefined}
+              style={[
+                { width: 44, height: 44, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
+                e?.s == null
+                  ? { borderWidth: 1.5, borderStyle: 'dashed', borderColor: t.muted }
+                  : e.s === 'P'
+                    ? { backgroundColor: t.warnBg }
+                    : { backgroundColor: bentoBrand.fairway },
+              ]}
+            >
+              <Text style={{ ...bentoType.number, fontSize: 20, color: e?.s == null ? t.muted : e.s === 'P' ? t.warnInk : '#FFFFFF' }}>{e?.s == null ? h?.par : e.s}</Text>
+            </Pressable>
+            <StepButton t={t} icon="plus" label="One shot more" onPress={() => step(1)} />
+          </View>
+          <Pressable
+            onPress={() => setSheet('card')}
+            accessibilityRole="button"
+            accessibilityLabel="Open scorecard"
+            style={{ width: 84, height: 52, borderRadius: 16, backgroundColor: ready ? bentoBrand.lime : t.seg, alignItems: 'center', justifyContent: 'center', gap: 1 }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+              <BentoIcon name="golfCard" size={14} color={ready ? bentoBrand.fairway : t.muted} strokeWidth={2} />
+              <Text style={{ fontSize: 14, fontWeight: '700', color: ready ? bentoBrand.fairway : t.ink }}>{totalText}</Text>
+            </View>
+            <Text style={{ fontSize: 12, fontWeight: ready ? '700' : '400', color: ready ? bentoBrand.fairway : t.muted }}>{ready ? 'Finish' : `thru ${totals?.holesPlayed ?? 0}`}</Text>
+          </Pressable>
+        </View>
       </View>
 
       <GolfSheet
@@ -678,9 +775,15 @@ export function CourseGuideScreen({ navigation, route }: Props) {
         }`}
         onClose={() => setSheet(null)}
         footer={
-          <>
-            {!completed ? (
-              <TouchableOpacity
+          completed ? (
+            <BentoButton label="Done" compact onPress={() => setSheet(null)} style={{ flex: 1, minHeight: 44 }} />
+          ) : (
+            <View style={{ flex: 1, flexDirection: 'row', alignItems: 'flex-start', gap: 10 }}>
+              <BentoButton
+                label="Discard round"
+                variant="secondary"
+                compact
+                style={{ flex: 1, minHeight: 44 }}
                 onPress={() =>
                   showAlert('Discard this round?', 'All the scores in this round will be deleted.', [
                     {
@@ -694,30 +797,20 @@ export function CourseGuideScreen({ navigation, route }: Props) {
                           setSheet(null);
                           navigation.goBack();
                         } catch (err) {
-                          showAlert('Could not discard the round', err instanceof Error ? err.message : undefined);
+                          showAlert('Could not discard the round', friendlyError(err));
                         }
                       },
                     },
                     { text: 'Keep playing', style: 'cancel' },
                   ])
                 }
-                style={styles.secondaryBtn}
-              >
-                <Text style={styles.secondaryBtnText}>Discard round</Text>
-              </TouchableOpacity>
-            ) : (
-              <View />
-            )}
-            {completed ? (
-              <PillButton label="Done" onPress={() => setSheet(null)} />
-            ) : (
-              <View style={{ alignItems: 'flex-end', gap: 4 }}>
-                {/* Digits stay out of the button label: PillButton's display font can't draw them. */}
-                <PillButton label="Finish round" onPress={finish} disabled={!allIn || finishing} loading={finishing} />
-                {!allIn ? <Text style={styles.toGo}>{holes.length - (totals?.holesPlayed ?? 0)} holes to go</Text> : null}
+              />
+              <View style={{ flex: 1.2, alignItems: 'stretch', gap: 4 }}>
+                <BentoButton label="Finish round" compact onPress={finish} disabled={!allIn || finishing} loading={finishing} style={{ minHeight: 44 }} />
+                {!allIn ? <Text style={{ fontSize: 12, color: t.muted, textAlign: 'center' }}>{holes.length - (totals?.holesPlayed ?? 0)} holes to go</Text> : null}
               </View>
-            )}
-          </>
+            </View>
+          )
         }
       >
         <Scorecard
@@ -733,8 +826,13 @@ export function CourseGuideScreen({ navigation, route }: Props) {
         />
       </GolfSheet>
 
-      <GolfSheet visible={sheet === 'round'} title="Your round" onClose={() => setSheet(null)} footer={<><View /><PillButton label="Done" onPress={() => setSheet(null)} /></>}>
-        <RoundInfo round={round} colors={colors} teeName={tee?.name ?? round.teeName} />
+      <GolfSheet
+        visible={sheet === 'round'}
+        title="Your round"
+        onClose={() => setSheet(null)}
+        footer={<BentoButton label="Done" compact onPress={() => setSheet(null)} style={{ flex: 1, minHeight: 44 }} />}
+      >
+        <RoundInfo round={round} t={t} teeName={tee?.name ?? round.teeName} />
       </GolfSheet>
 
       <GolfSheet
@@ -743,38 +841,52 @@ export function CourseGuideScreen({ navigation, route }: Props) {
         subtitle="How far you carry each club, in metres. The suggested shot uses these."
         onClose={saveBag}
         footer={
-          <>
-            <TouchableOpacity
-              style={styles.secondaryBtn}
+          <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <Pressable
               onPress={() => {
                 setBag(DEFAULT_BAG);
                 setBagDirty(true);
               }}
+              accessibilityRole="button"
+              style={{ flex: 1, height: 44, alignItems: 'center', justifyContent: 'center' }}
             >
-              <Text style={styles.secondaryBtnText}>Reset to sample distances</Text>
-            </TouchableOpacity>
-            <PillButton label="Done" onPress={saveBag} />
-          </>
+              <Text style={{ fontSize: 15, fontWeight: '600', color: t.accent }}>Reset to sample distances</Text>
+            </Pressable>
+            <BentoButton label="Done" compact onPress={saveBag} style={{ width: 120, minHeight: 44 }} />
+          </View>
         }
       >
-        <View style={styles.clubs}>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', columnGap: 18 }}>
           {bag.map((c, i) => (
-            <View key={c.name + i} style={styles.clubRow}>
-              <Text style={styles.clubName}>{c.name}</Text>
-              <View style={styles.clubUnit}>
+            <View
+              key={c.name + i}
+              style={{ width: '46%', flexGrow: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, paddingVertical: 6, borderTopWidth: 1, borderTopColor: t.hair }}
+            >
+              <Text style={{ fontSize: 15, color: t.ink, flexShrink: 1 }}>{c.name}</Text>
+              <View
+                style={[
+                  { width: 76, height: 44, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 2 },
+                  bagFocus === i ? { backgroundColor: t.tile, boxShadow: `0 0 0 2px ${t.accent}` } : { backgroundColor: t.seg },
+                ]}
+              >
                 <TextInput
                   value={c.carry ? String(c.carry) : ''}
-                  onChangeText={(t) => {
-                    const v = parseInt(t.replace(/[^0-9]/g, ''), 10);
+                  onChangeText={(text) => {
+                    const v = parseInt(text.replace(/[^0-9]/g, ''), 10);
                     setBag((cur) => cur.map((x, k) => (k === i ? { ...x, carry: Number.isFinite(v) ? Math.max(0, Math.min(350, v)) : 0 } : x)));
                     setBagDirty(true);
                   }}
+                  onFocus={() => setBagFocus(i)}
+                  onBlur={() => setBagFocus((f) => (f === i ? null : f))}
                   keyboardType="number-pad"
-                  style={styles.clubInput}
                   accessibilityLabel={`${c.name} carry in metres`}
                   maxLength={3}
+                  style={[
+                    { ...bentoType.number, width: 38, padding: 0, fontSize: 17, color: t.ink, textAlign: 'right' },
+                    Platform.OS === 'web' ? ({ outlineStyle: 'none' } as unknown as TextStyle) : null,
+                  ]}
                 />
-                <Text style={styles.muted}>m</Text>
+                <Text style={{ fontSize: 12, color: t.muted }}>m</Text>
               </View>
             </View>
           ))}
@@ -784,8 +896,121 @@ export function CourseGuideScreen({ navigation, route }: Props) {
   );
 }
 
-function RoundInfo({ round, colors, teeName }: { round: RoundDto; colors: ThemeColors; teeName: string }) {
-  const t = systemFonts(sheetText(colors));
+// The hole view's dark map glass (bento-kit .mglass): a dark green frosted
+// panel over the map, or solid fairway green when there's no map behind it.
+function MapGlass({
+  children,
+  radius,
+  style,
+  solid = false,
+  ...rest
+}: {
+  children?: React.ReactNode;
+  radius: number;
+  style?: ViewStyle;
+  solid?: boolean;
+  pointerEvents?: 'none' | 'box-none' | 'auto';
+  accessibilityRole?: 'image';
+  accessibilityLabel?: string;
+  onLayout?: (e: LayoutChangeEvent) => void;
+}) {
+  const glass: ViewStyle = solid
+    ? { backgroundColor: bentoBrand.fairway, borderColor: 'rgba(255,255,255,0.10)' }
+    : Platform.OS === 'web'
+      ? ({ backgroundColor: 'rgba(16,34,24,0.62)', borderColor: 'rgba(255,255,255,0.14)', backdropFilter: 'blur(22px) saturate(1.6)', WebkitBackdropFilter: 'blur(22px) saturate(1.6)' } as unknown as ViewStyle)
+      : // Native: no live blur over the SVG map; a slightly denser tint keeps text legible.
+        { backgroundColor: 'rgba(16,34,24,0.78)', borderColor: 'rgba(255,255,255,0.14)' };
+  return (
+    <View {...rest} style={[{ borderRadius: radius, borderWidth: 1 }, glass, style]}>
+      {children}
+    </View>
+  );
+}
+
+function MapButton({ icon, label, onPress, on = false, expanded }: { icon: BentoIconName; label: string; onPress: () => void; on?: boolean; expanded?: boolean }) {
+  return (
+    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={label} accessibilityState={expanded == null ? undefined : { expanded }} aria-expanded={expanded}>
+      <MapGlass radius={14} style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center', ...(on ? { backgroundColor: bentoBrand.lime, borderColor: bentoBrand.lime } : null) }}>
+        <BentoIcon name={icon} size={19} color={on ? bentoBrand.fairway : '#FFFFFF'} strokeWidth={1.9} />
+      </MapGlass>
+    </Pressable>
+  );
+}
+
+function GlassChip({ label, onPress }: { label: string; onPress: () => void }) {
+  return (
+    <Pressable onPress={onPress} accessibilityRole="button">
+      <MapGlass radius={999} style={{ height: 44, paddingHorizontal: 14, justifyContent: 'center' }}>
+        <Text style={{ fontSize: 13, fontWeight: '600', color: '#FFFFFF' }}>{label}</Text>
+      </MapGlass>
+    </Pressable>
+  );
+}
+
+function StepButton({ t, icon, label, onPress, disabled = false }: { t: BentoTokens; icon: BentoIconName; label: string; onPress: () => void; disabled?: boolean }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled }}
+      aria-disabled={disabled}
+      style={{ width: 40, height: 44, alignItems: 'center', justifyContent: 'center', opacity: disabled ? 0.35 : 1 }}
+    >
+      <BentoIcon name={icon} size={18} color={t.ink} strokeWidth={2} />
+    </Pressable>
+  );
+}
+
+function LayerRow({ t, title, sub, value, onChange, sep = false }: { t: BentoTokens; title: string; sub: string; value: boolean; onChange: (v: boolean) => void; sep?: boolean }) {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 11, borderTopWidth: sep ? 1 : 0, borderTopColor: t.hair }}>
+      <View style={{ flex: 1 }}>
+        <Text style={{ fontSize: 15, fontWeight: '600', color: t.ink }}>{title}</Text>
+        <Text style={{ fontSize: 13, color: t.muted, marginTop: 2 }}>{sub}</Text>
+      </View>
+      <BentoToggle value={value} onValueChange={onChange} accessibilityLabel={title} />
+    </View>
+  );
+}
+
+// "Saved" (lime tick), "Saving…" (spinning ring), "Not saved yet · will retry"
+// (amber, no-signal icon) and "Finished round · changes save" (lime tick).
+function SaveStatus({ state, text }: { state: 'saved' | 'saving' | 'offline'; text: string }) {
+  const color = state === 'offline' ? '#F1D39B' : state === 'saving' ? 'rgba(255,255,255,0.85)' : bentoBrand.lime;
+  return (
+    <View accessibilityRole="text" role="status" style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+      {state === 'saving' ? <SpinRing /> : <BentoIcon name={state === 'offline' ? 'golfOffline' : 'check'} size={14} color={color} strokeWidth={state === 'offline' ? 2 : 2.4} />}
+      <Text style={{ fontSize: 12, color }}>{text}</Text>
+    </View>
+  );
+}
+
+function SpinRing() {
+  const v = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (prefersReducedMotion()) return;
+    const loop = Animated.loop(Animated.timing(v, { toValue: 1, duration: 1000, easing: Easing.linear, useNativeDriver }));
+    loop.start();
+    return () => loop.stop();
+  }, [v]);
+  return (
+    <Animated.View
+      style={{
+        width: 11,
+        height: 11,
+        borderRadius: 6,
+        borderWidth: 2,
+        borderColor: 'rgba(255,255,255,0.35)',
+        borderTopColor: '#FFFFFF',
+        transform: [{ rotate: v.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] }) }],
+      }}
+    />
+  );
+}
+
+function RoundInfo({ round, t, teeName }: { round: RoundDto; t: BentoTokens; teeName: string }) {
   const rows: Array<[string, string]> = [
     ['Course', round.courseName],
     ['Tees', `${teeName} · ${round.ratingGender === 'men' ? 'Men' : 'Ladies'} · CR ${round.courseRating.toFixed(1)} · Slope ${round.slope} · Par ${round.par}`],
@@ -797,131 +1022,18 @@ function RoundInfo({ round, colors, teeName }: { round: RoundDto; colors: ThemeC
     rows.push(['Course handicap', formatWhole(round.courseHandicap)], ['Playing handicap', formatWhole(round.playingHandicap)]);
   }
   return (
-    <View style={{ gap: 4 }}>
-      {rows.map(([k, v]) => (
-        <View key={k} style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 12, paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: colors.border }}>
-          <Text style={t.body}>{k}</Text>
-          <Text style={[t.body, t.strong, { flexShrink: 1, textAlign: 'right' }]}>{v}</Text>
-        </View>
-      ))}
-      <Text style={[t.small, { marginTop: 6 }]}>
-        These were fixed when the round started, so your shots and points can’t change mid-round. Change your Handicap Index or format before
-        your next round.
+    <View>
+      <View style={{ borderRadius: 20, backgroundColor: t.seg, paddingVertical: 2, paddingHorizontal: 16 }}>
+        {rows.map(([k, v], i) => (
+          <View key={k} style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 12, paddingVertical: 11, borderTopWidth: i ? 1 : 0, borderTopColor: t.hair }}>
+            <Text style={{ fontSize: 15, color: t.muted }}>{k}</Text>
+            <Text style={{ fontSize: 15, fontWeight: '600', color: t.ink, flexShrink: 1, textAlign: 'right' }}>{v}</Text>
+          </View>
+        ))}
+      </View>
+      <Text style={{ fontSize: 13, lineHeight: 19, color: t.muted, marginTop: 14 }}>
+        These were fixed when the round started, so your shots and points can’t change mid-round. Change your Handicap Index or format before your next round.
       </Text>
     </View>
   );
-}
-
-function createStyles(colors: ThemeColors, ring: string, tileShadow: string) {
-  const shadow = { boxShadow: `0 0 0 1px ${ring}, 0 14px 30px -16px rgba(12,32,22,0.45)` };
-  void tileShadow;
-  return StyleSheet.create({
-    screen: { flex: 1, backgroundColor: colors.background },
-    center: { alignItems: 'center', justifyContent: 'center', gap: 16 },
-    loadError: { fontFamily: fontFamily.body, fontSize: 14, color: colors.textSecondary, textAlign: 'center', paddingHorizontal: 24 },
-    muted: { color: colors.textMuted, fontFamily: fontFamily.body },
-    top: { backgroundColor: colors.darkGreen, paddingHorizontal: 12, paddingBottom: 10, gap: 10, zIndex: 3 },
-    topRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-    roundBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(255,255,255,0.12)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center' },
-    courseTitle: { flex: 1, minWidth: 0 },
-    courseName: { fontFamily: fontFamily.bodySemiBold, fontSize: 17, color: colors.white },
-    saveState: { fontFamily: fontFamily.body, fontSize: 12, color: 'rgba(255,255,255,0.7)' },
-    hcpBtn: { height: 42, borderRadius: 21, borderWidth: 1, borderColor: 'rgba(255,255,255,0.28)', flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12 },
-    teeDot: { width: 11, height: 11, borderRadius: 6, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.65)' },
-    hcpSmall: { fontFamily: fontFamily.body, fontSize: 10, letterSpacing: 0.8, color: 'rgba(255,255,255,0.7)' },
-    hcpValue: { fontFamily: fontFamily.bodySemiBold, fontSize: 13.5, color: colors.white },
-    bagBtn: { backgroundColor: colors.lime, borderRadius: 21, minHeight: 42, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 5 },
-    bagText: { fontFamily: fontFamily.bodySemiBold, fontSize: 12.5, color: colors.darkGreen },
-    picker: { gap: 4, paddingRight: 4 },
-    pill: { minWidth: 44, height: 44, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
-    pillOn: { backgroundColor: colors.lime },
-    pillNo: { fontFamily: fontFamily.bodySemiBold, fontSize: 15, color: colors.white, lineHeight: 17 },
-    pillPar: { fontFamily: fontFamily.body, fontSize: 9.5, color: 'rgba(255,255,255,0.72)', lineHeight: 11 },
-    pillTextOn: { color: colors.darkGreen },
-    scoredDot: { position: 'absolute', top: 5, right: 5, width: 5, height: 5, borderRadius: 3, backgroundColor: colors.lime },
-    map: { flex: 1, position: 'relative' },
-    card: { backgroundColor: colors.surface, borderRadius: 22, ...shadow },
-    holeBadge: { position: 'absolute', left: 10, top: 10, flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 7, paddingLeft: 7, paddingRight: 14 },
-    holeNo: { width: 40, height: 40, borderRadius: 12, backgroundColor: colors.darkGreen, alignItems: 'center', justifyContent: 'center' },
-    holeNoText: { fontFamily: fontFamily.headingBold, fontSize: 21, color: colors.lime },
-    holePar: { fontFamily: fontFamily.bodySemiBold, fontSize: 14, color: colors.textPrimary },
-    holeMeta: { fontFamily: fontFamily.body, fontSize: 11.5, color: colors.textMuted },
-    dots: { color: colors.clubGreen, fontSize: 9, letterSpacing: 1 },
-    gps: { position: 'absolute', left: 10, top: 70, flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(16,34,24,0.72)', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3 },
-    gpsText: { fontFamily: fontFamily.bodyMedium, fontSize: 10, color: colors.white },
-    greens: { position: 'absolute', right: 10, top: 10, width: 86, paddingTop: 8, paddingBottom: 6, alignItems: 'center' },
-    greenRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', width: '100%', paddingHorizontal: 12 },
-    greenLabel: { fontFamily: fontFamily.body, fontSize: 9.5, letterSpacing: 0.7, textTransform: 'uppercase', color: colors.textMuted },
-    greenVal: { fontFamily: fontFamily.bodySemiBold, fontSize: 13, color: colors.textPrimary },
-    greenMid: { alignItems: 'center', paddingVertical: 3, marginVertical: 3, width: '100%', borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.border },
-    greenMidVal: { fontFamily: fontFamily.bodySemiBold, fontSize: 28, lineHeight: 32, color: colors.clubGreen },
-    controls: { position: 'absolute', right: 10, top: 150, gap: 8 },
-    ctlGroup: { overflow: 'hidden' },
-    ctl: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-    ctlSep: { borderTopWidth: 1, borderTopColor: colors.border },
-    layers: { position: 'absolute', right: 58, top: 150, width: 220, paddingHorizontal: 14, paddingVertical: 4, zIndex: 4 },
-    layerRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 9 },
-    layerSep: { borderTopWidth: 1, borderTopColor: colors.border },
-    layerTitle: { fontFamily: fontFamily.body, fontSize: 13, color: colors.textPrimary },
-    layerSub: { fontFamily: fontFamily.body, fontSize: 11, color: colors.textMuted },
-    shotCard: { position: 'absolute', left: 10, right: 10, bottom: 12, paddingHorizontal: 16, paddingTop: 14, paddingBottom: 12, gap: 8 },
-    shotHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
-    chip: { backgroundColor: colors.mintBg, borderRadius: 20, paddingHorizontal: 9, paddingVertical: 3 },
-    chipWarn: { backgroundColor: colors.warningBg },
-    chipText: { fontFamily: fontFamily.bodySemiBold, fontSize: 10.5, letterSpacing: 0.7, textTransform: 'uppercase', color: colors.clubGreen },
-    chipTextWarn: { color: colors.warning },
-    headRight: { flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1 },
-    from: { fontFamily: fontFamily.body, fontSize: 12, color: colors.textMuted, flexShrink: 1, textAlign: 'right' },
-    collapseBtn: { width: 26, height: 26, borderRadius: 13, backgroundColor: colors.inputBg, alignItems: 'center', justifyContent: 'center' },
-    shotMain: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 },
-    club: { fontFamily: fontFamily.headingBold, fontSize: 28, color: colors.textPrimary, flexShrink: 1 },
-    shotDist: { fontFamily: fontFamily.bodySemiBold, fontSize: 28, color: colors.textPrimary },
-    shotUnit: { fontFamily: fontFamily.bodyMedium, fontSize: 14, color: colors.textMuted },
-    stats: { flexDirection: 'row', backgroundColor: colors.inputBg, borderRadius: 12, paddingVertical: 7 },
-    stat: { flex: 1, alignItems: 'center', paddingHorizontal: 4 },
-    statSep: { borderLeftWidth: 1, borderLeftColor: colors.border },
-    statLabel: { fontFamily: fontFamily.body, fontSize: 9.5, letterSpacing: 0.7, textTransform: 'uppercase', color: colors.textMuted },
-    statVal: { fontFamily: fontFamily.bodySemiBold, fontSize: 14, color: colors.textPrimary },
-    why: { fontFamily: fontFamily.body, fontSize: 12.5, lineHeight: 18, color: colors.textSecondary },
-    actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, alignItems: 'center' },
-    toGo: { fontFamily: fontFamily.body, fontSize: 11.5, color: colors.textMuted },
-    secondaryBtn: { borderRadius: 999, minHeight: 40, justifyContent: 'center', paddingHorizontal: 16, paddingVertical: 8, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.inputBg },
-    secondaryBtnText: { fontFamily: fontFamily.bodySemiBold, fontSize: 12.5, color: colors.textPrimary },
-    extraBar: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.border, paddingHorizontal: 16, paddingTop: 8 },
-    extraLabel: { fontFamily: fontFamily.bodyMedium, fontSize: 12, color: colors.textSecondary },
-    extraHint: { fontFamily: fontFamily.body, fontSize: 11.5, color: colors.textMuted, marginLeft: 8 },
-    miniStepper: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.inputBg, borderRadius: 12, borderWidth: 1, borderColor: colors.border },
-    miniStep: { width: 30, height: 32, alignItems: 'center', justifyContent: 'center' },
-    miniStepText: { fontFamily: fontFamily.bodyMedium, fontSize: 18, color: colors.textPrimary },
-    miniVal: { minWidth: 30, height: 32, alignItems: 'center', justifyContent: 'center' },
-    miniValText: { fontFamily: fontFamily.bodySemiBold, fontSize: 15, color: colors.textPrimary },
-    fwRow: { flexDirection: 'row', gap: 4 },
-    fwBtn: { borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.inputBg, paddingHorizontal: 9, height: 32, justifyContent: 'center' },
-    fwBtnOn: { backgroundColor: colors.darkGreen, borderColor: colors.darkGreen },
-    fwText: { fontFamily: fontFamily.bodySemiBold, fontSize: 12, color: colors.textSecondary },
-    fwTextOn: { color: colors.lime },
-    scorebar: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 10, paddingLeft: 16, paddingRight: 12 },
-    scoreLabel: { flex: 1, minWidth: 0 },
-    sbSmall: { fontFamily: fontFamily.body, fontSize: 11, color: colors.textMuted },
-    sbResult: { fontFamily: fontFamily.bodySemiBold, fontSize: 14, color: colors.textPrimary },
-    good: { color: colors.clubGreen },
-    over: { color: colors.warning },
-    pickup: { fontFamily: fontFamily.bodySemiBold, fontSize: 11.5, color: colors.clubGreen, textDecorationLine: 'underline' },
-    stepper: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.inputBg, borderRadius: 999, padding: 3 },
-    step: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 22 },
-    stepText: { fontFamily: fontFamily.bodyMedium, fontSize: 22, color: colors.textPrimary },
-    scoreVal: { width: 46, height: 44, borderRadius: 16, backgroundColor: colors.darkGreen, alignItems: 'center', justifyContent: 'center' },
-    scoreValEmpty: { backgroundColor: 'transparent', borderWidth: 1.5, borderStyle: 'dashed', borderColor: colors.textMuted },
-    scoreValText: { fontFamily: fontFamily.headingBold, fontSize: 24, color: colors.lime },
-    scoreValTextEmpty: { color: colors.textMuted },
-    cardBtn: { height: 48, borderRadius: 16, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, flexDirection: 'row', alignItems: 'center', gap: 7, paddingLeft: 9, paddingRight: 10 },
-    cardBtnReady: { backgroundColor: colors.lime, borderColor: colors.lime },
-    cardBtnTotal: { fontFamily: fontFamily.bodySemiBold, fontSize: 14, color: colors.textPrimary },
-    cardBtnThru: { fontFamily: fontFamily.body, fontSize: 10.5, color: colors.textMuted },
-    clubs: { flexDirection: 'row', flexWrap: 'wrap', columnGap: 16 },
-    clubRow: { width: '46%', flexGrow: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 5, borderBottomWidth: 1, borderBottomColor: colors.border },
-    clubName: { fontFamily: fontFamily.body, fontSize: 13, color: colors.textPrimary },
-    clubUnit: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-    clubInput: { width: 58, paddingVertical: 5, paddingHorizontal: 8, borderRadius: 9, borderWidth: 1, borderColor: colors.inputBorder, backgroundColor: colors.inputBg, color: colors.textPrimary, fontFamily: fontFamily.body, fontSize: 13, textAlign: 'right' },
-  });
 }

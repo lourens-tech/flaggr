@@ -1,21 +1,23 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/types';
 import { Scorecard } from '../../components/golf/Scorecard';
+import { GolfLoading } from '../../components/golf/GolfSheet';
 import { api } from '../../api/client';
 import { showAlert } from '../../utils/alert';
+import { friendlyError } from '../../utils/errors';
 import { useBento } from '../../context/ThemeContext';
 import { bentoType } from '../../theme/bento';
 import type { RoundDto } from '../../golf/dto';
 import { formatIndex, formatWhole, roundTotals } from '../../golf/scoring';
-import { Appear, BentoButton, BentoScreen, BentoTile, CountUp } from '../../components/bento';
+import { Appear, BentoButton, BentoScreen, BentoTile, CountUp, H1 } from '../../components/bento';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'RoundDetail'>;
 
 // A finished round from My Golf: its scorecard, with options to correct a
-// score on the map or delete the round.
+// score on the map or delete the round. Boards: AppRoundDetail, G-D-RoundDetail*.
 export function RoundDetailScreen({ navigation, route }: Props) {
   const { t } = useBento();
   const [round, setRound] = useState<RoundDto | null>(null);
@@ -29,7 +31,7 @@ export function RoundDetailScreen({ navigation, route }: Props) {
           setRound(r);
           setError(null);
         })
-        .catch((e) => setError(e instanceof Error ? e.message : 'Could not load the round.'));
+        .catch((e) => setError(friendlyError(e, 'Could not load the round.')));
     }, [route.params.roundId]),
   );
 
@@ -44,7 +46,7 @@ export function RoundDetailScreen({ navigation, route }: Props) {
             await api.golfRoundDelete(round.id);
             navigation.goBack();
           } catch (e) {
-            showAlert('Could not delete the round', e instanceof Error ? e.message : undefined);
+            showAlert('Could not delete the round', friendlyError(e));
           }
         },
       },
@@ -67,49 +69,43 @@ export function RoundDetailScreen({ navigation, route }: Props) {
 
   return (
     <BentoScreen title="Round" onBack={() => navigation.goBack()}>
-      {!round && !error ? <ActivityIndicator color={t.accent} style={{ marginTop: 24 }} /> : null}
-      {error ? <Text style={[bentoType.body, { color: t.muted }]}>{error}</Text> : null}
+      {!round && !error ? <GolfLoading /> : null}
+      {error ? <Text style={{ fontSize: 15, lineHeight: 22, color: t.ink, textAlign: 'center', marginTop: 42 }}>{error}</Text> : null}
       {round && setup && totals ? (
         <>
+          <H1 style={{ fontSize: 26, lineHeight: Math.round(26 * 1.04), marginTop: 16 }}>{round.courseName}</H1>
           <Appear>
-            <BentoTile tone="hero">
-              <Text style={[bentoType.number, { fontSize: 24, lineHeight: 28, color: '#FFFFFF' }]} accessibilityRole="header">
-                {round.courseName}
-              </Text>
-              <Text style={{ fontSize: 13, lineHeight: 18, color: t.onHeroMuted, marginTop: 4 }}>
+            <BentoTile tone="hero" padding={18}>
+              <Text style={{ fontSize: 14, lineHeight: 20, color: t.onHeroMuted }}>
                 {when ? new Date(when).toLocaleDateString('en-ZA', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' }) : ''} · {round.teeName} tees ({round.ratingGender}) · CR{' '}
                 {round.courseRating.toFixed(1)} / {round.slope}
               </Text>
-              <Text style={{ fontSize: 13, lineHeight: 18, color: t.onHeroMuted, marginTop: 2 }}>
+              <Text style={{ fontSize: 13, lineHeight: 18, color: '#CDDE5C', marginTop: 4 }}>
                 {round.handicapIndex == null
                   ? 'No Handicap Index (scratch)'
                   : `Index ${formatIndex(round.handicapIndex)} · course handicap ${formatWhole(round.courseHandicap ?? 0)} · playing ${formatWhole(round.playingHandicap ?? 0)} (${Math.round(round.allowance * 100)}%)`}
               </Text>
-              <View style={{ flexDirection: 'row', gap: 24, marginTop: 14 }}>
-                <View>
-                  <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 5 }}>
-                    <CountUp value={totals.points} style={[bentoType.number, { fontSize: 38, lineHeight: 42, color: '#FFFFFF' }]} />
-                    <Text style={{ fontSize: 15, color: t.onHeroMuted }}>pts</Text>
-                  </View>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: 14 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4 }}>
+                  <CountUp value={totals.points} style={[bentoType.number, { fontSize: 54, lineHeight: 56, letterSpacing: -0.025 * 54, color: '#FFFFFF' }]} />
+                  <Text style={{ fontSize: 16, fontWeight: '500', color: '#FFFFFF' }}>pts</Text>
                 </View>
                 {totals.gross != null ? (
-                  <View>
-                    <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 5 }}>
-                    <CountUp value={totals.gross} style={[bentoType.number, { fontSize: 38, lineHeight: 42, color: '#FFFFFF' }]} />
-                    <Text style={{ fontSize: 15, color: t.onHeroMuted }}>gross</Text>
-                  </View>
+                  <View style={{ alignItems: 'flex-end' }}>
+                    <CountUp value={totals.gross} style={[bentoType.number, { fontSize: 26, lineHeight: 28, letterSpacing: -0.025 * 26, color: '#FFFFFF' }]} />
+                    <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)' }}>gross</Text>
                   </View>
                 ) : null}
               </View>
             </BentoTile>
           </Appear>
           <Appear>
-            <BentoTile padding={12}>
+            <BentoTile padding={14}>
               <Scorecard setup={setup} entries={round.entries} format={round.format} trackStats={round.trackStats} />
             </BentoTile>
           </Appear>
           <BentoButton label={round.status === 'completed' ? 'Correct a score' : 'Resume round'} nub onPress={() => navigation.navigate('CourseGuide', { roundId: round.id })} />
-          <Pressable onPress={remove} accessibilityRole="button" style={{ alignSelf: 'center', paddingVertical: 12, paddingHorizontal: 16 }}>
+          <Pressable onPress={remove} accessibilityRole="button" style={{ alignSelf: 'stretch', alignItems: 'center', padding: 12 }}>
             <Text style={{ fontSize: 15, fontWeight: '600', color: t.danger }}>Delete round</Text>
           </Pressable>
         </>

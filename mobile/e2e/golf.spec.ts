@@ -1,6 +1,9 @@
 import { test, expect, type Page, type Route } from '@playwright/test';
 import { API, TOKEN, appAlert, openSignedIn, reset, scenario, tab } from './helpers';
 
+// friendlyError's text for a 5xx or a technical message (src/utils/errors.ts SERVER_MESSAGE).
+const SERVER_MESSAGE = 'Something went wrong on our side. Please try again.';
+
 // Click-through of inventory section "D. Golf" (docs/Member-App-Functionality-Inventory.md):
 // Course tab, Start a Round, the hole view (score bar, putts/fairway, sheets, layers,
 // map controls, save/offline), Round detail and My Golf.
@@ -80,6 +83,7 @@ const scoreValue = (page: Page) => page.getByLabel(/^(Enter par, \d+|Score \d+|P
 const cardBtn = (page: Page) => page.getByLabel('Open scorecard');
 const shotCard = (page: Page) => page.locator('[aria-live="polite"]');
 const holeMap = (page: Page) => page.getByLabel('Hole map. Drag to move around, tap to aim.');
+const greenCard = (page: Page) => page.getByLabel(/^Green: front \d+, middle \d+, back \d+ metres$/);
 const status = (page: Page) => page.getByText(/^(Saved|Saving…|Not saved yet · will retry|Finished round · changes save)$/);
 
 async function openCourse(page: Page, opts: { theme?: 'light' | 'dark' } = {}) {
@@ -92,7 +96,7 @@ async function openRound(page: Page, opts: { map?: boolean } = {}) {
   await openCourse(page);
   await page.getByRole('button', { name: 'Resume round' }).click();
   await expect(status(page)).toBeVisible();
-  if (opts.map !== false) await expect(page.getByText('GPS integration coming soon')).toBeVisible();
+  if (opts.map !== false) await expect(greenCard(page)).toBeVisible(); // Owner decision 24 Nov 2026: GPS is not wanted, the "GPS integration coming soon" chip is gone; the green card shows the map has loaded.
 }
 async function openMyGolf(page: Page) {
   await openSignedIn(page);
@@ -183,26 +187,33 @@ test.describe('Course tab', () => {
     await fail(page, 'GET', 'golfHome', 500);
     await openSignedIn(page);
     await tab(page, 'Course');
-    await expect(page.getByText('Internal server error')).toBeVisible();
+    await expect(page.getByText(SERVER_MESSAGE)).toBeVisible(); // Owner decision 24 Nov 2026 (friendly wording): a 5xx or technical message shows the friendly text.
     await expect(page.getByRole('heading', { name: 'Away courses' })).toHaveCount(0);
     await unfail(page, 'GET', 'golfHome');
     await page.getByRole('button', { name: 'Try again' }).click();
     await expect(page.getByRole('heading', { name: 'Away courses' })).toBeVisible();
-    await expect(page.getByText('Internal server error')).toHaveCount(0);
+    await expect(page.getByText(SERVER_MESSAGE)).toHaveCount(0); // Owner decision 24 Nov 2026 (friendly wording): a 5xx or technical message shows the friendly text.
   });
 
-  test('Course › Your game tile missing when stats fail or there are no completed rounds', async ({ page }) => {
+  // Area decision (phase 3): Course always offers the way into My Golf, so the Your game
+  // tile now shows "–" when the stats fail or there are no finished rounds (it used to be left out).
+  test('Course › Your game tile shows “–” and still opens My Golf when stats fail or there are no completed rounds', async ({ page }) => {
     await fail(page, 'GET', 'golfStats', 500);
     await openCourse(page);
     await expect(page.getByRole('button', { name: 'Start a round' })).toBeVisible();
-    await expect(page.getByText('Your game · Stableford average')).toHaveCount(0);
+    const game = page.getByRole('button', { name: 'My Golf' });
+    await expect(game).toContainText('Your game · Stableford average');
+    await expect(game).toContainText('–pts');
+    await expect(page.getByText('Played recently')).toHaveCount(0);
     await unfail(page, 'GET', 'golfStats');
     await scenario(page, { noRounds: true });
     await tab(page, 'Home');
     await tab(page, 'Course');
     await expect(page.getByRole('heading', { name: 'Away courses' })).toBeVisible();
-    await page.waitForTimeout(500);
-    await expect(page.getByText('Your game · Stableford average')).toHaveCount(0);
+    await expect(game).toContainText('–pts');
+    await expect(page.getByText('Played recently')).toHaveCount(0);
+    await game.click();
+    await expect(page.getByText('Play your first round')).toBeVisible();
   });
 
   test('Course › Your game tile opens My Golf; a Played recently row opens the Round', async ({ page }) => {
@@ -285,7 +296,7 @@ test.describe('Course tab', () => {
     await appAlert(page).getByRole('button', { name: 'Discard round' }).click();
     const a = appAlert(page);
     await expect(a).toContainText('Could not discard the round');
-    await expect(a).toContainText('Internal server error');
+    await expect(a).toContainText(SERVER_MESSAGE); // Owner decision 24 Nov 2026 (friendly wording): a 5xx or technical message shows the friendly text.
     await a.getByRole('button', { name: 'OK' }).click();
     await expect(page.getByText('Round in progress')).toBeVisible();
   });
@@ -432,7 +443,7 @@ test.describe('Start a Round', () => {
     await openCourse(page);
     await fail(page, 'GET', 'golfCourse', 500);
     await page.getByRole('button', { name: 'Start a round' }).click();
-    await expect(page.getByText('Internal server error')).toBeVisible();
+    await expect(page.getByText(SERVER_MESSAGE)).toBeVisible(); // Owner decision 24 Nov 2026 (friendly wording): a 5xx or technical message shows the friendly text.
     await expect(page.getByRole('button', { name: 'Start round' })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Try again' })).toHaveCount(0);
   });
@@ -549,7 +560,7 @@ test.describe('Start a Round', () => {
     await page.getByRole('button', { name: 'Start round' }).click();
     a = appAlert(page);
     await a.getByRole('button', { name: 'Resume round' }).click();
-    await expect(page.getByText('GPS integration coming soon')).toBeVisible();
+    await expect(greenCard(page)).toBeVisible(); // Owner decision 24 Nov 2026: GPS is not wanted, the "GPS integration coming soon" chip is gone; the green card shows the map has loaded.
     await expect(page.getByText('344 m · SI 12 · 1 shot')).toBeVisible(); // Yellow hole 1
     await page.getByLabel('Back. Your round stays in progress').click();
     await expect(page.getByRole('heading', { name: 'Away courses' })).toBeVisible(); // setup was replaced
@@ -575,7 +586,7 @@ test.describe('Start a Round', () => {
     await appAlert(page).getByRole('button', { name: 'Discard it' }).click();
     const a = appAlert(page);
     await expect(a).toContainText('Could not discard the round');
-    await expect(a).toContainText('Internal server error');
+    await expect(a).toContainText(SERVER_MESSAGE); // Owner decision 24 Nov 2026 (friendly wording): a 5xx or technical message shows the friendly text.
   });
 
   test('Setup › 409 when the in-progress round cannot be read: fallback “Could not start the round” alert', async ({ page }) => {
@@ -597,7 +608,7 @@ test.describe('Start a Round', () => {
     await page.getByRole('button', { name: 'Start round' }).click();
     const a = appAlert(page);
     await expect(a).toContainText('Could not start the round');
-    await expect(a).toContainText('Internal server error');
+    await expect(a).toContainText(SERVER_MESSAGE); // Owner decision 24 Nov 2026 (friendly wording): a 5xx or technical message shows the friendly text.
     expect((await golfGet(page, 'golfProfile')).handicapIndex).toBe(18.3);
     expect((await golfGet(page, 'golfHome')).inProgress).toBeNull();
   });
@@ -658,7 +669,7 @@ test.describe('Hole view', () => {
     await expect(page.getByLabel('Hole 2, par 5, scored')).toBeVisible();
     // Opens on the first hole without a score.
     await expect(page.getByText('145 m · SI 14 · no shots')).toBeVisible(); // hole 3
-    await expect(page.getByText('GPS integration coming soon')).toBeVisible();
+    await expect(page.getByText('GPS integration coming soon')).toHaveCount(0); // Owner decision 24 Nov 2026: GPS is not wanted, the "GPS integration coming soon" chip is gone; the green card shows the map has loaded.
     await expect(page.getByLabel(/^Green: front \d+, middle \d+, back \d+ metres$/)).toBeVisible();
     await expect(page.getByLabel('Zoom in')).toBeVisible();
     await expect(page.getByLabel('Zoom out')).toBeVisible();
@@ -694,7 +705,7 @@ test.describe('Hole view', () => {
     await openCourse(page);
     await fail(page, 'GET', 'golfRound', 503);
     await page.getByRole('button', { name: 'Resume round' }).click();
-    await expect(page.getByText('Internal server error')).toBeVisible();
+    await expect(page.getByText(SERVER_MESSAGE)).toBeVisible(); // Owner decision 24 Nov 2026 (friendly wording): a 5xx or technical message shows the friendly text.
     await page.getByText('Back', { exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Away courses' })).toBeVisible();
   });
@@ -906,7 +917,7 @@ test.describe('Hole view', () => {
     await page.getByLabel('Enter two putts').click();
     await expect(page.getByLabel('0 putts. Tap to clear')).toBeVisible();
     await cardBtn(page).click();
-    await expect(sheet(page, 'Scorecard').getByText('Putts', { exact: true })).toBeVisible();
+    await expect(sheet(page, 'Scorecard').getByText('Putts', { exact: true }).first()).toBeVisible(); // Owner decision 24 Nov 2026 (horizontal scorecard): each nine and the Total row label their own rows, so the label appears more than once.
   });
 
   test('Hole › no Putts/Fairway bar when the round does not track stats', async ({ page }) => {
@@ -959,7 +970,7 @@ test.describe('Hole view', () => {
     await page.getByLabel('Enter par, 4').click();
     const a = appAlert(page);
     await expect(a).toContainText('Could not save that score');
-    await expect(a).toContainText('Internal server error');
+    await expect(a).toContainText(SERVER_MESSAGE); // Owner decision 24 Nov 2026 (friendly wording): a 5xx or technical message shows the friendly text.
     await a.getByRole('button', { name: 'OK' }).click();
     await expect(page.getByText('Saved', { exact: true })).toBeVisible();
     expect(await page.evaluate((k) => localStorage.getItem(k), `flagrr_round_entries_${r.id}`)).toContain('"s":4');
@@ -994,7 +1005,8 @@ test.describe('Hole view', () => {
     for (const h of ['Hole', 'Par', 'SI', 'Shots', 'Score', 'Pts']) await expect(card.getByText(h, { exact: true }).first()).toBeVisible();
     await expect(card.getByText('Putts', { exact: true })).toHaveCount(0);
     for (const s of ['Out', 'In', 'Total']) await expect(card.getByText(s, { exact: true })).toBeVisible();
-    await expect(card.getByText('328 m')).toBeVisible();
+    await expect(card.getByText('m', { exact: true }).first()).toBeVisible(); // Owner decision 24 Nov 2026 (horizontal scorecard): lengths sit in an "m" row, without the unit on each hole.
+    await expect(card.getByText('328', { exact: true })).toBeVisible();
     for (const k of ['Birdie or better', 'Bogey or worse', 'Shot received']) await expect(card.getByText(k, { exact: true })).toBeVisible();
     await expect(card.getByText('Stableford', { exact: true })).toBeVisible();
     await expect(card.getByText('5 pts thru 2')).toBeVisible();
@@ -1059,7 +1071,7 @@ test.describe('Hole view', () => {
     await sheet(page, 'Scorecard').getByRole('button', { name: 'Finish round' }).click();
     const a = appAlert(page);
     await expect(a).toContainText('Could not finish the round');
-    await expect(a).toContainText('Internal server error');
+    await expect(a).toContainText(SERVER_MESSAGE); // Owner decision 24 Nov 2026 (friendly wording): a 5xx or technical message shows the friendly text.
     expect((await getRound(page, r.id)).status).toBe('in_progress');
   });
 
@@ -1090,7 +1102,7 @@ test.describe('Hole view', () => {
     await appAlert(page).getByRole('button', { name: 'Discard round' }).click();
     const a = appAlert(page);
     await expect(a).toContainText('Could not discard the round');
-    await expect(a).toContainText('Internal server error');
+    await expect(a).toContainText(SERVER_MESSAGE); // Owner decision 24 Nov 2026 (friendly wording): a 5xx or technical message shows the friendly text.
   });
 
   test('Hole › Your round sheet: rows, note and Done', async ({ page }) => {
@@ -1179,12 +1191,14 @@ test.describe('Hole view', () => {
     await expect(page.getByText('Every 50 m from your ball')).toHaveCount(0);
     await layers.click();
     const box = (await holeMap(page).boundingBox())!;
-    await page.mouse.click(box.x + box.width * 0.3, box.y + box.height * 0.45);
+    // Owner rule 1 (boards G-D-Hole*): the map now fills the screen and the layers card sits over its middle,
+    // so the map is touched to the left, between the header card and the layers card.
+    await page.mouse.click(box.x + box.width * 0.08, box.y + box.height * 0.3);
     await expect(page.getByText('Every 50 m from your ball')).toHaveCount(0);
     // Not saved: reopening the hole view turns both back on.
     await page.getByLabel('Back. Your round stays in progress').click();
     await page.getByRole('button', { name: 'Resume round' }).click();
-    await expect(page.getByText('GPS integration coming soon')).toBeVisible();
+    await expect(greenCard(page)).toBeVisible(); // Owner decision 24 Nov 2026: GPS is not wanted, the "GPS integration coming soon" chip is gone; the green card shows the map has loaded.
     await expect(arcLabels.first()).toBeAttached();
     await expect(hazardPills.first()).toBeAttached();
   });
@@ -1381,7 +1395,7 @@ test.describe('Round detail', () => {
     await page.getByRole('button', { name: 'Back' }).click();
     await fail(page, 'GET', 'golfRound', 500);
     await page.getByRole('button', { name: /Yellow tees · 18 holes/ }).first().click();
-    await expect(page.getByText('Internal server error')).toBeVisible();
+    await expect(page.getByText(SERVER_MESSAGE)).toBeVisible(); // Owner decision 24 Nov 2026 (friendly wording): a 5xx or technical message shows the friendly text.
     await expect(page.getByRole('button', { name: 'Correct a score' })).toHaveCount(0);
   });
 
@@ -1408,7 +1422,7 @@ test.describe('Round detail', () => {
     await appAlert(page).getByRole('button', { name: 'Delete round' }).click();
     const a = appAlert(page);
     await expect(a).toContainText('Could not delete the round');
-    await expect(a).toContainText('Internal server error');
+    await expect(a).toContainText(SERVER_MESSAGE); // Owner decision 24 Nov 2026 (friendly wording): a 5xx or technical message shows the friendly text.
   });
 
   test('Round › pick-up round: hero without gross; My Golf row shows “{n} adj.”', async ({ page }) => {
@@ -1435,7 +1449,7 @@ test.describe('Round detail', () => {
     await row.click();
     await expect(page.getByText('No Handicap Index (scratch)')).toBeVisible();
     await expect(page.getByText(/· White tees \(men\) · CR 70\.0 \/ 120$/)).toBeVisible();
-    await expect(page.getByText('Putts', { exact: true })).toBeVisible();
+    await expect(page.getByText('Putts', { exact: true }).first()).toBeVisible(); // Owner decision 24 Nov 2026 (horizontal scorecard): each nine and the Total row label their own rows, so the label appears more than once.
     await expect(page.getByText('Net', { exact: true }).first()).toBeVisible();
     await expect(page.getByText('Pts', { exact: true })).toHaveCount(0);
     await expect(page.getByText('36', { exact: true }).first()).toBeVisible();
@@ -1539,11 +1553,11 @@ test.describe('My Golf', () => {
     await page.unroute(isAction('golfStats'));
     await fail(page, 'GET', 'golfStats', 500);
     await page.getByRole('radio', { name: 'All' }).click();
-    await expect(page.getByText('Internal server error')).toBeVisible();
+    await expect(page.getByText(SERVER_MESSAGE)).toBeVisible(); // Owner decision 24 Nov 2026 (friendly wording): a 5xx or technical message shows the friendly text.
     await expect(page.getByText('Stableford average')).toBeVisible(); // stale data still shows
     await unfail(page, 'GET', 'golfStats');
     await page.getByText('Try again', { exact: true }).click();
-    await expect(page.getByText('Internal server error')).toHaveCount(0);
+    await expect(page.getByText(SERVER_MESSAGE)).toHaveCount(0); // Owner decision 24 Nov 2026 (friendly wording): a 5xx or technical message shows the friendly text.
     await expect(page.getByText(/18-hole rounds? in total/)).toBeVisible();
   });
 
@@ -1687,7 +1701,7 @@ test.describe('My Golf', () => {
     await toggle.click();
     const a = appAlert(page);
     await expect(a).toContainText('Couldn’t save that');
-    await expect(a).toContainText('Internal server error');
+    await expect(a).toContainText(SERVER_MESSAGE); // Owner decision 24 Nov 2026 (friendly wording): a 5xx or technical message shows the friendly text.
     await a.getByRole('button', { name: 'OK' }).click();
     await expect(offCopy).toBeVisible();
     await expect(onCopy).toHaveCount(0);
@@ -1718,7 +1732,7 @@ test.describe('Golf appearance', () => {
     await openCourse(page, { theme: 'dark' });
     await expect(page.getByText('Round in progress')).toBeVisible();
     await page.getByRole('button', { name: 'Resume round' }).click();
-    await expect(page.getByText('GPS integration coming soon')).toBeVisible();
+    await expect(greenCard(page)).toBeVisible(); // Owner decision 24 Nov 2026: GPS is not wanted, the "GPS integration coming soon" chip is gone; the green card shows the map has loaded.
     await page.getByLabel('Back. Your round stays in progress').click();
     await tab(page, 'My Golf');
     await expect(page.getByText('Stableford average', { exact: true })).toBeVisible();
@@ -1732,7 +1746,7 @@ test.describe('Golf appearance', () => {
     await expect(page.getByText(fmt1(s.pointsAverage), { exact: true })).toBeVisible({ timeout: 2000 });
     await tab(page, 'Course');
     await page.getByRole('button', { name: 'Resume round' }).click();
-    await expect(page.getByText('GPS integration coming soon')).toBeVisible();
+    await expect(greenCard(page)).toBeVisible(); // Owner decision 24 Nov 2026: GPS is not wanted, the "GPS integration coming soon" chip is gone; the green card shows the map has loaded.
     await cardBtn(page).click();
     await expect(sheet(page, 'Scorecard')).toBeVisible({ timeout: 2000 });
   });
