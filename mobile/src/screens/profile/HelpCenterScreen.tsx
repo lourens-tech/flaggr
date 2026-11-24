@@ -10,13 +10,14 @@ import { FaqAccordion } from '../../components/common/FaqAccordion';
 import { useApp } from '../../context/AppContext';
 import { articles, faqs } from '../../data/faqData';
 import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
-import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
+import type { ThemeColors } from '../../context/ThemeContext';
+import { systemFonts, useBentoLegacy } from '../../components/bento/legacy';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'HelpCenter'>;
 
 export function HelpCenterScreen({ navigation }: Props) {
-  const colors = useThemeColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { colors, scheme } = useBentoLegacy();
+  const styles = useMemo(() => systemFonts(createStyles(colors)), [colors]);
   const { user } = useApp();
   const [query, setQuery] = useState('');
 
@@ -42,11 +43,11 @@ export function HelpCenterScreen({ navigation }: Props) {
 
   return (
     <View style={styles.screen}>
-      <StatusBar barStyle="light-content" />
+      <StatusBar barStyle={scheme === 'dark' ? 'light-content' : 'dark-content'} />
       <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
         <ScreenHeader title="Help Center" onBack={() => navigation.goBack()} />
         <View style={styles.heroContent}>
-          <Text style={styles.welcome}>Hello, {user.firstName} 👋</Text>
+          <Text style={styles.welcome}>Hello, {user.firstName}</Text>
           <Text style={styles.heroTitle}>How can we help you today?</Text>
           <TextField icon="search" placeholder="Search" variant="onLight" value={query} onChangeText={setQuery} />
         </View>
@@ -93,19 +94,19 @@ export function HelpCenterScreen({ navigation }: Props) {
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  headerSafeArea: { backgroundColor: colors.darkGreen, borderBottomLeftRadius: radius.xl, borderBottomRightRadius: radius.xl },
+  headerSafeArea: { backgroundColor: colors.background },
   heroContent: { paddingHorizontal: screenPadding, paddingBottom: spacing.xl, paddingTop: spacing.sm },
-  welcome: { fontFamily: fontFamily.bodyMedium, fontSize: fontSize.body, color: colors.white },
-  heroTitle: { fontFamily: fontFamily.heading, fontSize: 26, color: colors.white, marginVertical: spacing.md, lineHeight: 32 },
+  welcome: { fontFamily: fontFamily.bodyMedium, fontSize: fontSize.body, color: colors.textSecondary },
+  heroTitle: { fontFamily: 'Fraunces_700Bold', fontSize: 30, color: colors.textPrimary, marginVertical: spacing.md, lineHeight: 32 },
   content: { padding: screenPadding },
   supportRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    backgroundColor: colors.mintBg,
-    borderWidth: 0.5,
-    borderColor: colors.clubGreen,
-    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 23,
     padding: spacing.md,
     marginBottom: spacing.xl,
   },

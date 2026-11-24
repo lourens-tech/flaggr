@@ -8,7 +8,9 @@ import { useApp } from '../../context/AppContext';
 import { ApiError } from '../../api/client';
 import { showAlert } from '../../utils/alert';
 import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
-import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
+import type { ThemeColors } from '../../context/ThemeContext';
+import { systemFonts, useBentoLegacy } from '../../components/bento/legacy';
+import { BentoToggle } from '../../components/bento';
 import type { NotificationPreferences } from '../../data/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'NotificationPreferences'>;
@@ -32,8 +34,8 @@ const ROWS: Array<{ key: keyof NotificationPreferences; label: string; descripti
 ];
 
 export function NotificationPreferencesScreen({ navigation }: Props) {
-  const colors = useThemeColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { colors, scheme } = useBentoLegacy();
+  const styles = useMemo(() => systemFonts(createStyles(colors)), [colors]);
   const { getNotificationPreferences, updateNotificationPreferences } = useApp();
   const [prefs, setPrefs] = useState<NotificationPreferences | null>(null);
   const [loading, setLoading] = useState(true);
@@ -71,7 +73,7 @@ export function NotificationPreferencesScreen({ navigation }: Props) {
 
   return (
     <View style={styles.screen}>
-      <StatusBar barStyle="light-content" />
+      <StatusBar barStyle={scheme === 'dark' ? 'light-content' : 'dark-content'} />
       <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
         <ScreenHeader title="Notification Preferences" onBack={() => navigation.goBack()} />
       </SafeAreaView>
@@ -89,10 +91,10 @@ export function NotificationPreferencesScreen({ navigation }: Props) {
               {savingKey === row.key ? (
                 <ActivityIndicator color={colors.clubGreen} size="small" />
               ) : (
-                <Switch
+                <BentoToggle
                   value={prefs[row.key]}
                   onValueChange={(value) => handleToggle(row.key, value)}
-                  trackColor={{ true: colors.clubGreen }}
+                  accessibilityLabel={row.label}
                 />
               )}
             </View>
@@ -106,11 +108,10 @@ export function NotificationPreferencesScreen({ navigation }: Props) {
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  headerSafeArea: { backgroundColor: colors.clubGreen },
+  headerSafeArea: { backgroundColor: colors.background },
   card: {
     margin: screenPadding,
-    backgroundColor: colors.mintBgAlt,
-    borderRadius: radius.md,
+    backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 23,
   },
   row: {
     flexDirection: 'row',

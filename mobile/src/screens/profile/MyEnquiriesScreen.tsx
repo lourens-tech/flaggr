@@ -8,7 +8,8 @@ import type { RootStackParamList } from '../../navigation/types';
 import { ScreenHeader } from '../../components/common/ScreenHeader';
 import { useApp } from '../../context/AppContext';
 import { enquiryStatusBadges, fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
-import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
+import type { ThemeColors } from '../../context/ThemeContext';
+import { systemFonts, useBentoLegacy } from '../../components/bento/legacy';
 import type { EnquiryStatus, MyEnquirySummary } from '../../data/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'MyEnquiries'>;
@@ -27,8 +28,8 @@ function relativeTime(iso: string): string {
 }
 
 export function MyEnquiriesScreen({ navigation }: Props) {
-  const colors = useThemeColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { colors, scheme } = useBentoLegacy();
+  const styles = useMemo(() => systemFonts(createStyles(colors)), [colors]);
   const { listMyEnquiries } = useApp();
   const [enquiries, setEnquiries] = useState<MyEnquirySummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -78,7 +79,7 @@ export function MyEnquiriesScreen({ navigation }: Props) {
 
   return (
     <View style={styles.screen}>
-      <StatusBar barStyle="light-content" />
+      <StatusBar barStyle={scheme === 'dark' ? 'light-content' : 'dark-content'} />
       <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
         <ScreenHeader title="My Enquiries" onBack={() => navigation.goBack()} />
       </SafeAreaView>
@@ -103,7 +104,7 @@ export function MyEnquiriesScreen({ navigation }: Props) {
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  headerSafeArea: { backgroundColor: colors.clubGreen },
+  headerSafeArea: { backgroundColor: colors.background },
   listContent: { padding: screenPadding, gap: spacing.sm },
   row: {
     flexDirection: 'row',

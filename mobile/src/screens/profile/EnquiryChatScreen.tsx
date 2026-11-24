@@ -21,7 +21,8 @@ import { useLiveThread } from '../../hooks/useLiveThread';
 import { ApiError } from '../../api/client';
 import { showAlert } from '../../utils/alert';
 import { enquiryStatusBadges, fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
-import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
+import type { ThemeColors } from '../../context/ThemeContext';
+import { systemFonts, useBentoLegacy } from '../../components/bento/legacy';
 import type { EnquiryStatus, MyEnquiryThread } from '../../data/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'EnquiryChat'>;
@@ -33,8 +34,8 @@ function formatTime(iso: string): string {
 }
 
 export function EnquiryChatScreen({ route }: Props) {
-  const colors = useThemeColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { colors, scheme } = useBentoLegacy();
+  const styles = useMemo(() => systemFonts(createStyles(colors)), [colors]);
   const { enquiryId } = route.params;
   const { getEnquiryThread, replyToEnquiry } = useApp();
   const [thread, setThread] = useState<MyEnquiryThread | null>(null);
@@ -83,7 +84,7 @@ export function EnquiryChatScreen({ route }: Props) {
 
   return (
     <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <StatusBar barStyle="light-content" />
+      <StatusBar barStyle={scheme === 'dark' ? 'light-content' : 'dark-content'} />
       <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
         <ScreenHeader title={thread?.enquiryType ?? 'Enquiry'} />
       </SafeAreaView>
@@ -141,7 +142,7 @@ export function EnquiryChatScreen({ route }: Props) {
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  headerSafeArea: { backgroundColor: colors.clubGreen },
+  headerSafeArea: { backgroundColor: colors.background },
   statusRow: { paddingHorizontal: screenPadding, paddingTop: spacing.md },
   badge: { alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 5, borderRadius: radius.pill },
   badgeText: { fontFamily: fontFamily.bodySemiBold, fontSize: 10 },
@@ -150,8 +151,8 @@ function createStyles(colors: ThemeColors) {
   bubbleRowLeft: { alignSelf: 'flex-start' },
   bubbleRowRight: { alignSelf: 'flex-end' },
   bubble: { borderRadius: radius.md, padding: spacing.sm },
-  bubbleTheirs: { backgroundColor: colors.inputBg },
-  bubbleMine: { backgroundColor: colors.clubGreen },
+  bubbleTheirs: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+  bubbleMine: { backgroundColor: colors.darkGreen },
   bubbleText: { fontFamily: fontFamily.body, fontSize: fontSize.body, color: colors.textPrimary },
   bubbleTextMine: { color: colors.white },
   bubbleTime: { fontFamily: fontFamily.body, fontSize: 9, color: colors.textSecondary, marginTop: 2, alignSelf: 'flex-end' },
@@ -167,7 +168,7 @@ function createStyles(colors: ThemeColors) {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: colors.clubGreen,
+    backgroundColor: colors.darkGreen,
     alignItems: 'center',
     justifyContent: 'center',
   },

@@ -58,8 +58,11 @@ export function BentoSheet({
 
   const reduced = prefersReducedMotion();
 
+  // Mounted only while showing, so stacking follows the order things open.
+  if (!mounted && !visible) return null;
+
   return (
-    <Modal visible={mounted || visible} transparent animationType="none" onRequestClose={onClose} statusBarTranslucent>
+    <Modal visible transparent animationType="none" onRequestClose={onClose} statusBarTranslucent>
       <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: t.scrim, opacity: fade }, Platform.OS === 'web' ? webBlur : null]}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close" />
       </Animated.View>

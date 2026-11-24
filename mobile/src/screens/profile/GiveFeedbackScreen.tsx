@@ -11,7 +11,8 @@ import { ApiError } from '../../api/client';
 import type { FeedbackCategory } from '../../api/client';
 import { showAlert } from '../../utils/alert';
 import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
-import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
+import type { ThemeColors } from '../../context/ThemeContext';
+import { systemFonts, useBentoLegacy } from '../../components/bento/legacy';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'GiveFeedback'>;
 
@@ -25,8 +26,8 @@ const CATEGORIES: Array<{ value: FeedbackCategory; label: string; icon: keyof ty
 // not the member's own club — see ContactScreen for the club-routed enquiry
 // flow this is deliberately separate from.
 export function GiveFeedbackScreen({ navigation }: Props) {
-  const colors = useThemeColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { colors, scheme } = useBentoLegacy();
+  const styles = useMemo(() => systemFonts(createStyles(colors)), [colors]);
   const { sendFeedback } = useApp();
   const [category, setCategory] = useState<FeedbackCategory | null>(null);
   const [message, setMessage] = useState('');
@@ -57,7 +58,7 @@ export function GiveFeedbackScreen({ navigation }: Props) {
 
   return (
     <View style={styles.screen}>
-      <StatusBar barStyle="light-content" />
+      <StatusBar barStyle={scheme === 'dark' ? 'light-content' : 'dark-content'} />
       <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
         <ScreenHeader title="Give Feedback" onBack={() => navigation.goBack()} />
         <View style={styles.heroContent}>
@@ -77,7 +78,7 @@ export function GiveFeedbackScreen({ navigation }: Props) {
                 onPress={() => setCategory(c.value)}
                 activeOpacity={0.8}
               >
-                <Ionicons name={c.icon} size={16} color={active ? colors.white : colors.clubGreen} />
+                <Ionicons name={c.icon} size={16} color={active ? colors.lime : colors.clubGreen} />
                 <Text style={[styles.categoryChipText, active && styles.categoryChipTextActive]}>{c.label}</Text>
               </TouchableOpacity>
             );
@@ -107,9 +108,9 @@ export function GiveFeedbackScreen({ navigation }: Props) {
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  headerSafeArea: { backgroundColor: colors.darkGreen },
+  headerSafeArea: { backgroundColor: colors.background },
   heroContent: { paddingHorizontal: screenPadding, paddingBottom: spacing.xl, paddingTop: spacing.md },
-  heroTitle: { fontFamily: fontFamily.heading, fontSize: 26, color: colors.white },
+  heroTitle: { fontFamily: 'Fraunces_700Bold', fontSize: 30, lineHeight: 32, letterSpacing: -0.6, color: colors.textPrimary },
   content: { padding: screenPadding },
   sectionLabel: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.small, color: colors.textPrimary, marginBottom: spacing.sm },
   categoryList: { gap: spacing.sm },
@@ -117,18 +118,18 @@ function createStyles(colors: ThemeColors) {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    backgroundColor: colors.inputBg,
+    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.inputBorder,
     borderRadius: radius.md,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm + 4,
   },
-  categoryChipActive: { backgroundColor: colors.clubGreen, borderColor: colors.clubGreen },
+  categoryChipActive: { backgroundColor: colors.darkGreen, borderColor: colors.darkGreen },
   categoryChipText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.textPrimary },
   categoryChipTextActive: { color: colors.white },
   messageInput: {
-    backgroundColor: colors.inputBg,
+    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.inputBorder,
     borderRadius: radius.md,

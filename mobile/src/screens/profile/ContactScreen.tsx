@@ -13,15 +13,16 @@ import { useApp } from '../../context/AppContext';
 import { ApiError } from '../../api/client';
 import { showAlert } from '../../utils/alert';
 import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
-import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
+import type { ThemeColors } from '../../context/ThemeContext';
+import { systemFonts, useBentoLegacy } from '../../components/bento/legacy';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Contact'>;
 
 const ENQUIRY_TYPES = ['Rewards and Points', 'Receipts', 'Membership', 'Technical Issue', 'Other'];
 
 export function ContactScreen({ navigation }: Props) {
-  const colors = useThemeColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { colors, scheme } = useBentoLegacy();
+  const styles = useMemo(() => systemFonts(createStyles(colors)), [colors]);
   const { user, sendContactEnquiry } = useApp();
   const [name, setName] = useState(user.firstName);
   const [surname, setSurname] = useState(user.lastName);
@@ -51,7 +52,7 @@ export function ContactScreen({ navigation }: Props) {
 
   return (
     <View style={styles.screen}>
-      <StatusBar barStyle="light-content" />
+      <StatusBar barStyle={scheme === 'dark' ? 'light-content' : 'dark-content'} />
       <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
         <ScreenHeader title="Contact Us" onBack={() => navigation.goBack()} />
         <View style={styles.heroContent}>
@@ -135,9 +136,9 @@ export function ContactScreen({ navigation }: Props) {
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  headerSafeArea: { backgroundColor: colors.darkGreen },
+  headerSafeArea: { backgroundColor: colors.background },
   heroContent: { paddingHorizontal: screenPadding, paddingBottom: spacing.xl, paddingTop: spacing.md },
-  heroTitle: { fontFamily: fontFamily.heading, fontSize: 26, color: colors.white },
+  heroTitle: { fontFamily: 'Fraunces_700Bold', fontSize: 30, lineHeight: 32, letterSpacing: -0.6, color: colors.textPrimary },
   content: { padding: screenPadding },
   myEnquiriesLink: {
     flexDirection: 'row',
@@ -153,11 +154,11 @@ function createStyles(colors: ThemeColors) {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: colors.inputBg,
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: colors.inputBorder,
-    borderRadius: radius.md,
-    height: 53,
+    borderColor: colors.border,
+    borderRadius: 16,
+    minHeight: 52,
     paddingHorizontal: spacing.md,
   },
   dropdownText: { fontFamily: fontFamily.body, fontSize: fontSize.body, color: colors.textPrimary },
@@ -165,12 +166,12 @@ function createStyles(colors: ThemeColors) {
   dropdownItem: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm + 2 },
   dropdownItemText: { fontFamily: fontFamily.body, fontSize: fontSize.small, color: colors.textPrimary },
   messageInput: {
-    backgroundColor: colors.inputBg,
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: colors.inputBorder,
-    borderRadius: radius.md,
+    borderColor: colors.border,
+    borderRadius: 16,
     padding: spacing.md,
-    minHeight: 100,
+    minHeight: 132,
     fontFamily: fontFamily.body,
     fontSize: fontSize.body,
     color: colors.textPrimary,

@@ -2,7 +2,8 @@ import React, { useState, useMemo } from 'react';
 import { LayoutAnimation, Platform, StyleSheet, Text, TouchableOpacity, UIManager, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { fontFamily, fontSize, radius, spacing } from '../../theme';
-import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
+import type { ThemeColors } from '../../context/ThemeContext';
+import { systemFonts, useBentoLegacy } from '../bento/legacy';
 import type { FaqEntry } from '../../data/faqData';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -10,8 +11,8 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 }
 
 export function FaqAccordion({ items, initialOpenIndex = 0 }: { items: FaqEntry[]; initialOpenIndex?: number }) {
-  const colors = useThemeColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { colors } = useBentoLegacy();
+  const styles = useMemo(() => systemFonts(createStyles(colors)), [colors]);
   const [openIndex, setOpenIndex] = useState<number | null>(initialOpenIndex);
 
   const toggle = (index: number) => {
@@ -39,9 +40,9 @@ export function FaqAccordion({ items, initialOpenIndex = 0 }: { items: FaqEntry[
 
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
-  card: { backgroundColor: colors.mintBgAlt, borderRadius: radius.md, padding: spacing.md },
+  card: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 23, padding: spacing.md },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  question: { flex: 1, fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.small, color: colors.textPrimary, marginRight: spacing.sm },
-  answer: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary, marginTop: spacing.sm, lineHeight: 18 },
+  question: { flex: 1, fontFamily: fontFamily.bodySemiBold, fontSize: 15, color: colors.textPrimary, marginRight: spacing.sm },
+  answer: { fontFamily: fontFamily.body, fontSize: 14, color: colors.textSecondary, marginTop: spacing.sm, lineHeight: 20 },
 });
 }

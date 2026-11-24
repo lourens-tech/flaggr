@@ -10,7 +10,8 @@ import { ProgressBar } from '../../components/common/ProgressBar';
 import { useApp } from '../../context/AppContext';
 import { memberTiers } from '../../data/mockData';
 import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
-import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
+import type { ThemeColors } from '../../context/ThemeContext';
+import { systemFonts, useBentoLegacy } from '../../components/bento/legacy';
 import type { TierName } from '../../data/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'MemberTiers'>;
@@ -22,15 +23,15 @@ const STEPS = [
 ];
 
 export function MemberTiersScreen({ navigation }: Props) {
-  const colors = useThemeColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { colors, scheme } = useBentoLegacy();
+  const styles = useMemo(() => systemFonts(createStyles(colors)), [colors]);
   const { user, points } = useApp();
   const [selectedTier, setSelectedTier] = useState<TierName>(user.tier);
   const tier = memberTiers.find((t) => t.name === selectedTier) ?? memberTiers[0];
 
   return (
     <View style={styles.screen}>
-      <StatusBar barStyle="light-content" />
+      <StatusBar barStyle={scheme === 'dark' ? 'light-content' : 'dark-content'} />
       <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
         <ScreenHeader title="Member Tiers" onBack={() => navigation.goBack()} />
       </SafeAreaView>
@@ -127,7 +128,7 @@ export function MemberTiersScreen({ navigation }: Props) {
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.darkGreen },
-  headerSafeArea: { backgroundColor: colors.clubGreen },
+  headerSafeArea: { backgroundColor: colors.background },
   pointsCard: {
     backgroundColor: colors.background,
     marginHorizontal: screenPadding,

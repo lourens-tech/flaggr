@@ -1,20 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import {
-  ActivityIndicator,
-  FlatList,
-  Image,
-  Modal,
-  Pressable,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
+import React, { useState } from 'react';
+import { ActivityIndicator, Image, Pressable, Text, View } from 'react-native';
 import type { CompositeScreenProps } from '@react-navigation/native';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -23,81 +8,23 @@ import { useApp } from '../../context/AppContext';
 import { api, ApiError, type Course } from '../../api/client';
 import { AvatarPermissionError, pickAndResizeAvatar } from '../../utils/pickAvatar';
 import { showAlert } from '../../utils/alert';
-import { ThemeToggleRow } from '../../components/common/ThemeToggleRow';
-import { TextField } from '../../components/common/TextField';
-import { PillButton } from '../../components/common/PillButton';
 import type { ThemePreference } from '../../context/ThemeContext';
-import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
-import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
+import { useBento, useTheme } from '../../context/ThemeContext';
+import { bentoBrand, bentoType } from '../../theme/bento';
+import { TextField } from '../../components/common/TextField';
+import { Appear, BentoButton, BentoIcon, BentoScreen, BentoSheet, BentoTile, CountUp, Eyebrow, SegmentedControl, type BentoIconName } from '../../components/bento';
+import { BentoAvatar } from '../../components/bento/BentoAvatar';
 
 type Props = CompositeScreenProps<
   BottomTabScreenProps<MainTabParamList, 'Profile'>,
   NativeStackScreenProps<RootStackParamList>
 >;
 
-function ProfileField({ label, value, onPress }: { label: string; value: string; onPress?: () => void }) {
-  const colors = useThemeColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
-  return (
-    <TouchableOpacity style={styles.fieldRow} onPress={onPress} disabled={!onPress} activeOpacity={onPress ? 0.7 : 1}>
-      <View style={{ flex: 1 }}>
-        <Text style={styles.fieldLabel}>{label}</Text>
-        <Text style={styles.fieldValue}>{value}</Text>
-      </View>
-      {onPress ? <Ionicons name="pencil" size={16} color={colors.clubGreen} /> : null}
-    </TouchableOpacity>
-  );
-}
-
-type LinkTone = 'green' | 'darkGreen' | 'lime' | 'amber' | 'red';
-
-// Same tone language as the admin desktop QuickLinkButton — a colored icon
-// chip instead of a plain icon, ported here for the member Profile screen's
-// account-list rows.
-function linkTone(tone: LinkTone, colors: ThemeColors): { bg: string; fg: string } {
-  switch (tone) {
-    case 'darkGreen':
-      return { bg: 'rgba(31,66,52,0.08)', fg: colors.darkGreen };
-    case 'lime':
-      return { bg: 'rgba(205,222,92,0.25)', fg: colors.darkGreen };
-    case 'amber':
-      return { bg: colors.warningBg, fg: colors.warning };
-    case 'red':
-      return { bg: colors.dangerBg, fg: colors.negative };
-    case 'green':
-    default:
-      return { bg: colors.mintBg, fg: colors.clubGreen };
-  }
-}
-
-function LinkRow({
-  icon,
-  label,
-  tone = 'green',
-  onPress,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  label: string;
-  tone?: LinkTone;
-  onPress: () => void;
-}) {
-  const colors = useThemeColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
-  const t = linkTone(tone, colors);
-  return (
-    <TouchableOpacity style={styles.linkRow} onPress={onPress} activeOpacity={0.7}>
-      <View style={[styles.linkIconChip, { backgroundColor: t.bg }]}>
-        <Ionicons name={icon} size={16} color={t.fg} />
-      </View>
-      <Text style={[styles.linkLabel, tone === 'red' && { color: colors.negative }]}>{label}</Text>
-      {tone === 'red' ? null : <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />}
-    </TouchableOpacity>
-  );
-}
+const fmtDate = (iso: string, opts: Intl.DateTimeFormatOptions) => new Date(iso).toLocaleDateString(undefined, opts);
 
 export function MemberProfileScreen({ navigation }: Props) {
-  const colors = useThemeColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { t } = useBento();
+  const { preference } = useTheme();
   const {
     user,
     points,
@@ -114,7 +41,6 @@ export function MemberProfileScreen({ navigation }: Props) {
   } = useApp();
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [savingTheme, setSavingTheme] = useState(false);
-  const [clubPickerOpen, setClubPickerOpen] = useState(false);
   const [courses, setCourses] = useState<Course[]>([]);
   const [loadingCourses, setLoadingCourses] = useState(false);
   const [changingClub, setChangingClub] = useState(false);
@@ -124,6 +50,12 @@ export function MemberProfileScreen({ navigation }: Props) {
   const [exportingData, setExportingData] = useState(false);
   const [deletePassword, setDeletePassword] = useState('');
   const [deletingAccount, setDeletingAccount] = useState(false);
+
+  // Which Bento sheet is open: the club picker, Change password, or Delete
+  // account. (The club picker was a modal; password and delete were inline.)
+  const [sheet, setSheet] = useState<'club' | 'password' | 'delete' | null>(null);
+  const setClubPickerOpen = (open: boolean) => setSheet(open ? 'club' : null);
+  const clubPickerOpen = sheet === 'club';
 
   const openClubPicker = async () => {
     setClubPickerOpen(true);
@@ -202,6 +134,7 @@ export function MemberProfileScreen({ navigation }: Props) {
       await changePassword(currentPassword, newPassword);
       setCurrentPassword('');
       setNewPassword('');
+      setSheet(null);
       showAlert('Password changed', 'Use your new password next time you log in.');
     } catch (err) {
       const message = err instanceof ApiError ? err.message : 'Something went wrong. Please try again.';
@@ -255,406 +188,229 @@ export function MemberProfileScreen({ navigation }: Props) {
   };
 
   return (
-    <View style={styles.screen}>
-      <StatusBar barStyle="light-content" />
-      <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>My Profile</Text>
-          <View style={styles.headerRight}>
-            <TouchableOpacity
-              onPress={() => navigation.navigate('Notifications')}
-              accessibilityLabel="Notifications"
-              accessibilityRole="button"
-            >
-              <Ionicons name="notifications" size={20} color={colors.white} />
-              {unreadNotificationCount > 0 ? <View style={styles.badge} /> : null}
-            </TouchableOpacity>
-            <View style={styles.avatarSmall}>
-              {user.avatarUrl ? (
-                <Image source={{ uri: user.avatarUrl }} style={styles.avatarSmallImage} />
-              ) : (
-                <Ionicons name="person" size={18} color={colors.darkGreen} />
-              )}
+    <BentoScreen tabBar>
+      {/* Who you are: photo (tap to change), name, club and tier, three stats */}
+      <Appear>
+        <View style={{ alignItems: 'center', paddingTop: 8 }}>
+          <Pressable onPress={handleChangeAvatar} disabled={uploadingAvatar} accessibilityRole="button" accessibilityLabel="Change profile photo">
+            <BentoAvatar size={88} />
+            <View style={{ position: 'absolute', right: -2, bottom: -2, width: 30, height: 30, borderRadius: 15, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center', boxShadow: `0 0 0 3px ${t.ground}` }}>
+              {uploadingAvatar ? <ActivityIndicator size="small" color={t.accentInk} /> : <BentoIcon name="camera" size={15} color={t.accentInk} strokeWidth={1.9} />}
             </View>
-          </View>
-        </View>
-        <Text style={styles.welcome}>Hello, {user.firstName} 👋</Text>
-      </SafeAreaView>
-
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.profileCard}>
-          <TouchableOpacity
-            style={styles.avatarLarge}
-            onPress={handleChangeAvatar}
-            disabled={uploadingAvatar}
-            activeOpacity={0.8}
-          >
-            <View style={styles.avatarLargeClip}>
-              {user.avatarUrl ? (
-                <Image source={{ uri: user.avatarUrl }} style={styles.avatarLargeImage} />
-              ) : (
-                <Ionicons name="person" size={48} color={colors.clubGreen} />
-              )}
-              {uploadingAvatar ? (
-                <View style={styles.avatarLoadingOverlay}>
-                  <ActivityIndicator color={colors.white} />
-                </View>
-              ) : null}
-            </View>
-            {!uploadingAvatar ? (
-              <View style={styles.avatarEditBadge}>
-                <Ionicons name="camera" size={14} color={colors.white} />
-              </View>
-            ) : null}
-          </TouchableOpacity>
-          <LinearGradient
-            colors={[colors.goldGradientStart, colors.goldGradientEnd]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.tierBadge}
-          >
-            <Text style={styles.tierBadgeText}>{user.tier} Member</Text>
-            <MaterialCommunityIcons name="crown" size={12} color={colors.white} />
-          </LinearGradient>
-          <Text style={styles.name}>
+          </Pressable>
+          <Text accessibilityRole="header" style={[bentoType.h1, { fontSize: 28, lineHeight: 31, color: t.ink, marginTop: 12, textAlign: 'center' }]}>
             {user.firstName} {user.lastName}
           </Text>
-          <Text style={styles.club}>{user.homeClub}</Text>
-
-          <View style={styles.miniStatRow}>
-            <View style={styles.miniStat}>
-              <Text style={styles.miniStatValue}>{points.balance.toLocaleString()}</Text>
-              <Text style={styles.miniStatLabel}>Flagrr Cash</Text>
-            </View>
-            <View style={styles.miniStatDivider} />
-            <View style={styles.miniStat}>
-              <Text style={styles.miniStatValue}>{streak.weeks}</Text>
-              <Text style={styles.miniStatLabel}>Week Streak</Text>
-            </View>
-            <View style={styles.miniStatDivider} />
-            <View style={styles.miniStat}>
-              <Text style={styles.miniStatValue}>{stats.roundsPlayed9 + stats.roundsPlayed18}</Text>
-              <Text style={styles.miniStatLabel}>Rounds Played</Text>
-            </View>
-          </View>
-
-          <View style={styles.fieldsWrapper}>
-            <ProfileField
-              label="Name"
-              value={`${user.firstName} ${user.lastName}`}
-              onPress={() => navigation.navigate('EditProfile')}
-            />
-            <ProfileField label="Phone" value={user.phone ?? '—'} onPress={() => navigation.navigate('EditProfile')} />
-            <ProfileField label="Email" value={user.email} onPress={() => navigation.navigate('EditProfile')} />
-            <ProfileField
-              label="Birthday"
-              value={
-                user.dateOfBirth
-                  ? new Date(user.dateOfBirth).toLocaleDateString(undefined, {
-                      day: '2-digit',
-                      month: '2-digit',
-                      year: 'numeric',
-                    })
-                  : '—'
-              }
-              onPress={() => navigation.navigate('EditProfile')}
-            />
-            <ProfileField
-              label="Club"
-              value={changingClub ? 'Updating…' : user.homeClub}
-              onPress={changingClub ? undefined : openClubPicker}
-            />
-            <ProfileField
-              label="Member Since"
-              value={new Date(user.memberSince).toLocaleDateString(undefined, {
-                day: '2-digit',
-                month: '2-digit',
-                year: 'numeric',
-              })}
-            />
-          </View>
-        </View>
-
-        <Text style={styles.sectionLabel}>Activity</Text>
-        <View style={styles.linksGroup}>
-          <LinkRow icon="receipt-outline" label="Receipt History" tone="darkGreen" onPress={() => navigation.navigate('ReceiptHistory')} />
-          <LinkRow icon="gift-outline" label="Refer a Friend" tone="lime" onPress={() => navigation.navigate('Referral')} />
-        </View>
-
-        <Text style={styles.sectionLabel}>Support</Text>
-        <View style={styles.linksGroup}>
-          <LinkRow icon="help-circle-outline" label="Help Center" tone="green" onPress={() => navigation.navigate('HelpCenter')} />
-          <LinkRow icon="headset-outline" label="Contact Your Club" tone="amber" onPress={() => navigation.navigate('Contact')} />
-          <LinkRow icon="chatbubbles-outline" label="My Enquiries" tone="green" onPress={() => navigation.navigate('MyEnquiries')} />
-          <LinkRow icon="megaphone-outline" label="Give Feedback" tone="lime" onPress={() => navigation.navigate('GiveFeedback')} />
-          <LinkRow
-            icon="notifications-outline"
-            label="Notification Preferences"
-            tone="lime"
-            onPress={() => navigation.navigate('NotificationPreferences')}
-          />
-        </View>
-
-        <Text style={styles.sectionLabel}>Appearance</Text>
-        <View style={[styles.linksCard, { padding: spacing.sm }]}>
-          <ThemeToggleRow onChange={handleThemeChange} disabled={savingTheme} />
-        </View>
-
-        <Text style={styles.sectionLabel}>Security</Text>
-        <View style={[styles.linksCard, { padding: spacing.md }]}>
-          <TextField
-            placeholder="Current Password"
-            variant="onLight"
-            isPassword
-            value={currentPassword}
-            onChangeText={setCurrentPassword}
-          />
-          <View style={{ height: spacing.md }} />
-          <TextField placeholder="New Password" variant="onLight" isPassword value={newPassword} onChangeText={setNewPassword} />
-          <View style={{ height: spacing.md }} />
-          <PillButton label="Update Password" variant="outline" onPress={handleChangePassword} loading={changingPassword} />
-        </View>
-
-        <Text style={styles.sectionLabel}>Account</Text>
-        <View style={[styles.linksCard, { padding: spacing.md }]}>
-          <PillButton
-            label="Export My Data"
-            icon="download-outline"
-            variant="outline"
-            onPress={handleExportData}
-            loading={exportingData}
-          />
-          <View style={{ height: spacing.md }} />
-          <Text style={styles.helpText}>
-            Deleting your account permanently removes your profile, points, receipts, and reward history. This can’t
-            be undone.
+          <Text style={{ fontSize: 14, color: t.muted, marginTop: 4, textAlign: 'center' }}>
+            {user.homeClub ? `${user.homeClub} · ` : ''}
+            <Text style={{ color: t.accent, fontWeight: '600' }}>{user.tier}</Text>
           </Text>
-          <View style={{ height: spacing.sm }} />
-          <TextField
-            placeholder="Current Password"
-            variant="onLight"
-            isPassword
-            value={deletePassword}
-            onChangeText={setDeletePassword}
-          />
-          <View style={{ height: spacing.md }} />
-          <TouchableOpacity style={styles.deleteAccountButton} onPress={handleDeleteAccount} disabled={deletingAccount}>
-            {deletingAccount ? (
-              <ActivityIndicator color={colors.negative} />
-            ) : (
-              <Text style={styles.deleteAccountText}>Delete Account</Text>
-            )}
-          </TouchableOpacity>
         </View>
+      </Appear>
 
-        <Text style={styles.sectionLabel}>Legal</Text>
-        <View style={styles.linksGroup}>
-          <LinkRow
-            icon="shield-checkmark-outline"
-            label="Terms and Privacy"
-            tone="green"
-            onPress={() => navigation.navigate('TermsPrivacy')}
-          />
+      <Appear>
+        <BentoTile>
+          <View style={{ flexDirection: 'row' }}>
+            {[
+              { v: points.balance, l: 'Flagrr Cash' },
+              { v: streak.weeks, l: 'Week Streak' },
+              { v: stats.roundsPlayed9 + stats.roundsPlayed18, l: 'Rounds Played' },
+            ].map((x, i) => (
+              <View key={x.l} style={{ flex: 1, alignItems: 'center', borderLeftWidth: i ? 1 : 0, borderLeftColor: t.hair, paddingHorizontal: 4 }}>
+                <CountUp value={x.v} style={[bentoType.number, { fontSize: 24, color: t.ink }]} />
+                <Text style={{ fontSize: 12, color: t.muted, marginTop: 2, textAlign: 'center' }}>{x.l}</Text>
+              </View>
+            ))}
+          </View>
+        </BentoTile>
+      </Appear>
+
+      {/* Refer a Friend */}
+      <Appear>
+        <BentoTile tone="hero" onPress={() => navigation.navigate('Referral')} accessibilityLabel="Refer a Friend">
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <View style={{ flex: 1 }}>
+              <Text style={[bentoType.eyebrow, { color: bentoBrand.lime }]}>Refer a Friend</Text>
+              <Text style={[bentoType.number, { fontSize: 22, lineHeight: 26, color: '#FFFFFF', marginTop: 6 }]}>Bring your four-ball</Text>
+            </View>
+            <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: bentoBrand.lime, alignItems: 'center', justifyContent: 'center' }}>
+              <BentoIcon name="arrowUpRight" size={17} color={bentoBrand.fairway} strokeWidth={2} />
+            </View>
+          </View>
+        </BentoTile>
+      </Appear>
+
+      <Section label="Activity">
+        <Row icon="activity" label="Reward Activity" onPress={() => navigation.navigate('Activity')} />
+        <Row icon="receipt" label="Receipt History" onPress={() => navigation.navigate('ReceiptHistory')} divider />
+      </Section>
+
+      <Section label="Details">
+        <Field label="Name" value={`${user.firstName} ${user.lastName}`} onPress={() => navigation.navigate('EditProfile')} />
+        <Field label="Phone" value={user.phone ?? '—'} onPress={() => navigation.navigate('EditProfile')} divider />
+        <Field label="Email" value={user.email} onPress={() => navigation.navigate('EditProfile')} divider />
+        <Field
+          label="Birthday"
+          value={user.dateOfBirth ? fmtDate(user.dateOfBirth, { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'}
+          onPress={() => navigation.navigate('EditProfile')}
+          divider
+        />
+        <Field label="Club" value={changingClub ? 'Updating…' : user.homeClub} onPress={changingClub ? undefined : openClubPicker} divider />
+        <Field label="Member Since" value={fmtDate(user.memberSince, { day: '2-digit', month: '2-digit', year: 'numeric' })} divider />
+      </Section>
+
+      <Section label="Support">
+        <Row icon="info" label="Help Center" onPress={() => navigation.navigate('HelpCenter')} />
+        <Row icon="golfFlag" label="Contact Your Club" onPress={() => navigation.navigate('Contact')} divider />
+        <Row icon="bell" label="My Enquiries" onPress={() => navigation.navigate('MyEnquiries')} divider />
+        <Row icon="check" label="Give Feedback" onPress={() => navigation.navigate('GiveFeedback')} divider />
+      </Section>
+
+      <Section label="Settings">
+        <View style={{ paddingVertical: 13, gap: 10 }}>
+          <Text style={{ fontSize: 15, fontWeight: '600', color: t.ink }}>Appearance</Text>
+          <View pointerEvents={savingTheme ? 'none' : 'auto'}>
+            <SegmentedControl
+              fill
+              value={preference}
+              onChange={(v) => handleThemeChange(v as ThemePreference)}
+              accessibilityLabel="Theme"
+              options={[
+                { value: 'light', label: 'Light' },
+                { value: 'dark', label: 'Dark' },
+                { value: 'system', label: 'System' },
+              ]}
+            />
+          </View>
         </View>
+        <Row icon="bell" label="Notification Preferences" onPress={() => navigation.navigate('NotificationPreferences')} divider />
+        <Row icon="info" label="Security" sub="Change your password" onPress={() => setSheet('password')} divider />
+      </Section>
 
-        <View style={styles.linksGroup}>
-          <LinkRow icon="log-out-outline" label="Log Out" tone="red" onPress={logout} />
-        </View>
+      <Section label="Account">
+        <Row icon="arrowUpRight" label="Export My Data" onPress={handleExportData} busy={exportingData} />
+        <Row icon="info" label="Terms and Privacy" onPress={() => navigation.navigate('TermsPrivacy')} divider />
+        <Row icon="back" label="Log Out" onPress={logout} divider plain />
+        <Row icon="close" label="Delete Account" onPress={() => setSheet('delete')} divider danger />
+      </Section>
 
-        <View style={{ height: 120 }} />
-      </ScrollView>
+      <BentoSheet visible={sheet === 'password'} title="Change your password" subtitle="Security" onClose={() => setSheet(null)}>
+        <TextField placeholder="Current Password" variant="onLight" isPassword value={currentPassword} onChangeText={setCurrentPassword} accessibilityLabel="Current password" />
+        <TextField placeholder="New Password" variant="onLight" isPassword value={newPassword} onChangeText={setNewPassword} accessibilityLabel="New password" />
+        <Text style={{ fontSize: 13, color: t.muted }}>At least 8 characters. Use your new password next time you log in.</Text>
+        <BentoButton label="Update Password" onPress={handleChangePassword} loading={changingPassword} style={{ marginTop: 6 }} />
+      </BentoSheet>
 
-      <Modal visible={clubPickerOpen} transparent animationType="fade" onRequestClose={() => setClubPickerOpen(false)}>
-        <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={() => setClubPickerOpen(false)}>
-          <Pressable style={styles.sheet} onPress={() => {}}>
-            <Text style={styles.sheetTitle}>Choose Golf Club</Text>
-            {loadingCourses ? (
-              <ActivityIndicator color={colors.clubGreen} style={{ marginVertical: spacing.lg }} />
-            ) : (
-              <FlatList
-                data={courses}
-                keyExtractor={(c) => c.id}
-                renderItem={({ item }) => (
-                  <TouchableOpacity style={styles.clubOptionRow} onPress={() => handleSelectClub(item)}>
-                    <Text style={styles.clubOptionText}>{item.name}</Text>
-                    {item.id === user.courseId ? (
-                      <Ionicons name="checkmark" size={18} color={colors.clubGreen} />
-                    ) : null}
-                  </TouchableOpacity>
-                )}
-              />
-            )}
-          </Pressable>
-        </TouchableOpacity>
-      </Modal>
-    </View>
+      <BentoSheet visible={sheet === 'delete'} title="Delete your account?" onClose={() => setSheet(null)}>
+        <Text style={[bentoType.body, { color: t.muted }]}>
+          Deleting your account permanently removes your profile, points, receipts, and reward history. This can’t be undone. Enter your current password to confirm.
+        </Text>
+        <TextField placeholder="Current Password" variant="onLight" isPassword value={deletePassword} onChangeText={setDeletePassword} accessibilityLabel="Current password" />
+        <Pressable
+          onPress={handleDeleteAccount}
+          disabled={deletingAccount}
+          accessibilityRole="button"
+          style={{ minHeight: 52, borderRadius: 999, borderWidth: 1, borderColor: t.danger, alignItems: 'center', justifyContent: 'center', marginTop: 6 }}
+        >
+          {deletingAccount ? <ActivityIndicator color={t.danger} /> : <Text style={{ fontSize: 16, fontWeight: '600', color: t.danger }}>Delete Account</Text>}
+        </Pressable>
+        <Pressable onPress={() => setSheet(null)} accessibilityRole="button" style={{ alignSelf: 'center', paddingVertical: 10, paddingHorizontal: 16 }}>
+          <Text style={{ fontSize: 15, fontWeight: '600', color: t.muted }}>Cancel</Text>
+        </Pressable>
+      </BentoSheet>
+
+      <BentoSheet visible={clubPickerOpen} title="Choose Golf Club" onClose={() => setClubPickerOpen(false)}>
+        {loadingCourses ? (
+          <ActivityIndicator color={t.accent} style={{ marginVertical: 24 }} />
+        ) : (
+          <View style={{ borderRadius: 20, boxShadow: `0 0 0 1px ${t.hair}`, paddingHorizontal: 16 }}>
+            {courses.map((c, i) => (
+              <Pressable
+                key={c.id}
+                onPress={() => handleSelectClub(c)}
+                accessibilityRole="radio"
+                accessibilityState={{ checked: c.id === user.courseId }}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 15, borderTopWidth: i ? 1 : 0, borderTopColor: t.hair }}
+              >
+                <Text style={{ flex: 1, fontSize: 16, color: t.ink }}>{c.name}</Text>
+                <View style={{ width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: c.id === user.courseId ? t.accent : t.hair, alignItems: 'center', justifyContent: 'center' }}>
+                  {c.id === user.courseId ? <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: t.accent }} /> : null}
+                </View>
+              </Pressable>
+            ))}
+          </View>
+        )}
+      </BentoSheet>
+    </BentoScreen>
   );
 }
 
-function createStyles(colors: ThemeColors) {
-  return StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.clubGreen },
-  headerSafeArea: { backgroundColor: colors.clubGreen },
-  header: {
-    height: 46,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: screenPadding,
-  },
-  headerTitle: { fontFamily: fontFamily.heading, fontSize: fontSize.title, color: colors.white },
-  headerRight: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  badge: { position: 'absolute', top: -2, right: -4, width: 8, height: 8, borderRadius: 4, backgroundColor: colors.lime },
-  avatarSmall: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: colors.lime,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  avatarSmallImage: { width: '100%', height: '100%' },
-  welcome: {
-    fontFamily: fontFamily.heading,
-    fontSize: fontSize.cardTitle,
-    color: colors.white,
-    paddingHorizontal: screenPadding,
-    paddingVertical: spacing.md,
-  },
-  content: { backgroundColor: colors.background, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, paddingTop: spacing.xl },
-  profileCard: { alignItems: 'center', paddingHorizontal: screenPadding },
-  avatarLarge: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    borderWidth: 3,
-    borderColor: colors.lime,
-  },
-  avatarLargeClip: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 45,
-    backgroundColor: colors.mintBg,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  avatarLargeImage: { width: '100%', height: '100%' },
-  avatarLoadingOverlay: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(0,0,0,0.35)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarEditBadge: {
-    position: 'absolute',
-    right: -2,
-    bottom: -2,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: colors.clubGreen,
-    borderWidth: 2,
-    borderColor: colors.white,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  tierBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 6,
-    borderRadius: radius.pill,
-    marginTop: -12,
-  },
-  tierBadgeText: { fontFamily: fontFamily.heading, fontSize: 11, color: colors.white, textTransform: 'uppercase' },
-  name: { fontFamily: fontFamily.heading, fontSize: fontSize.title, color: colors.textPrimary, marginTop: spacing.sm },
-  club: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary, marginTop: 2 },
-  miniStatRow: {
-    width: '100%',
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.lg,
-    padding: spacing.md,
-    marginTop: spacing.lg,
-  },
-  miniStat: { flex: 1, alignItems: 'center' },
-  miniStatValue: { fontFamily: fontFamily.heading, fontSize: 19, color: colors.textPrimary },
-  miniStatLabel: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary, marginTop: 2 },
-  miniStatDivider: { width: 1, height: 32, backgroundColor: colors.border },
-  fieldsWrapper: { width: '100%', marginTop: spacing.lg, gap: spacing.sm },
-  fieldRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.mintBgAlt,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm + 2,
-  },
-  fieldLabel: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary },
-  fieldValue: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.small, color: colors.textPrimary, marginTop: 2 },
-  sectionLabel: {
-    fontFamily: fontFamily.heading,
-    fontSize: fontSize.cardTitle,
-    color: colors.textPrimary,
-    paddingHorizontal: screenPadding,
-    marginTop: spacing.xl,
-    marginBottom: spacing.sm,
-  },
-  linksCard: {
-    marginHorizontal: screenPadding,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-  },
-  // Transparent wrapper for a group of standalone LinkRow pills (Activity,
-  // Support, Legal, Log Out) — each row carries its own border/background,
-  // matching the admin desktop QuickLinkButton pattern, rather than being
-  // grouped inside one flat card the way linksCard's other sections are.
-  linksGroup: { marginHorizontal: screenPadding, gap: spacing.sm },
-  linkRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm + 4,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.pill,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm + 4,
-  },
-  linkIconChip: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
-  linkLabel: { flex: 1, fontFamily: fontFamily.heading, fontSize: 14.5, color: colors.textPrimary },
-  helpText: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary },
-  deleteAccountButton: { alignItems: 'center', justifyContent: 'center', height: 44 },
-  deleteAccountText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.small, color: colors.negative },
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
-  sheet: {
-    backgroundColor: colors.background,
-    borderTopLeftRadius: radius.lg,
-    borderTopRightRadius: radius.lg,
-    padding: spacing.lg,
-    maxHeight: '60%',
-  },
-  sheetTitle: {
-    fontFamily: fontFamily.heading,
-    fontSize: fontSize.cardTitle,
-    color: colors.textPrimary,
-    marginBottom: spacing.md,
-  },
-  clubOptionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  clubOptionText: { fontFamily: fontFamily.body, fontSize: fontSize.body, color: colors.textPrimary },
-});
+function Section({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <Appear>
+      <Eyebrow style={{ marginTop: 8, marginBottom: 8, marginLeft: 4 }}>{label}</Eyebrow>
+      <BentoTile padding={0}>
+        <View style={{ paddingHorizontal: 16 }}>{children}</View>
+      </BentoTile>
+    </Appear>
+  );
+}
+
+function Row({
+  icon,
+  label,
+  sub,
+  onPress,
+  divider,
+  danger,
+  plain,
+  busy,
+}: {
+  icon: BentoIconName;
+  label: string;
+  sub?: string;
+  onPress: () => void;
+  divider?: boolean;
+  danger?: boolean;
+  plain?: boolean;
+  busy?: boolean;
+}) {
+  const { t } = useBento();
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={busy}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, borderTopWidth: divider ? 1 : 0, borderTopColor: t.hair, opacity: pressed ? 0.7 : 1 })}
+    >
+      <View style={{ width: 40, height: 40, borderRadius: 13, backgroundColor: danger ? 'rgba(200,50,42,0.10)' : t.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
+        <BentoIcon name={icon} size={19} color={danger ? t.danger : t.accent} strokeWidth={1.8} />
+      </View>
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text style={{ fontSize: 15, fontWeight: '600', color: danger ? t.danger : t.ink }}>{label}</Text>
+        {sub ? <Text style={{ fontSize: 13, color: t.muted, marginTop: 2 }}>{sub}</Text> : null}
+      </View>
+      {busy ? <ActivityIndicator color={t.accent} /> : danger || plain ? null : <BentoIcon name="chevronRight" size={16} color={t.muted} />}
+    </Pressable>
+  );
+}
+
+function Field({ label, value, onPress, divider }: { label: string; value: string; onPress?: () => void; divider?: boolean }) {
+  const { t } = useBento();
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={!onPress}
+      accessibilityRole={onPress ? 'button' : undefined}
+      accessibilityLabel={`${label}: ${value}`}
+      style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 13, borderTopWidth: divider ? 1 : 0, borderTopColor: t.hair }}
+    >
+      <Text style={{ width: 110, fontSize: 15, color: t.muted }}>{label}</Text>
+      <Text style={{ flex: 1, fontSize: 15, fontWeight: '600', color: t.ink, textAlign: 'right' }} numberOfLines={2}>
+        {value}
+      </Text>
+      {onPress ? <BentoIcon name="chevronRight" size={16} color={t.muted} /> : <View style={{ width: 16 }} />}
+    </Pressable>
+  );
 }

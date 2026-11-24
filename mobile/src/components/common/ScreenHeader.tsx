@@ -1,9 +1,9 @@
-import React, { useMemo } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import React from 'react';
+import { Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { fontFamily, fontSize, spacing } from '../../theme';
-import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
+import { useBento } from '../../context/ThemeContext';
+import { bentoLayout as L, bentoType } from '../../theme/bento';
+import { GlassIconButton } from '../bento/primitives';
 
 interface Props {
   title: string;
@@ -11,48 +11,20 @@ interface Props {
   right?: React.ReactNode;
 }
 
-// The compact green header used on sub-screens (Scan Receipt, Help Center, etc.)
+// Header row for member sub-screens (Help Center, Edit Profile, …), in the
+// Bento style: a glass back button, the title centred in the system font,
+// and an optional right-hand slot. Sits on the screen's ground colour.
 export function ScreenHeader({ title, onBack, right }: Props) {
-  const colors = useThemeColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { t } = useBento();
   const navigation = useNavigation();
   return (
-    <View style={styles.container}>
-      <TouchableOpacity
-        onPress={onBack ?? (() => navigation.goBack())}
-        hitSlop={12}
-        style={styles.iconButton}
-        accessibilityLabel="Back"
-        accessibilityRole="button"
-      >
-        <Ionicons name="chevron-back" size={24} color={colors.white} />
-      </TouchableOpacity>
-      <Text style={styles.title}>{title}</Text>
-      <View style={styles.iconButton}>{right}</View>
+    <View style={{ minHeight: 58, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: L.screenPadding, paddingVertical: 8, backgroundColor: t.ground }}>
+      <GlassIconButton icon="back" onPress={onBack ?? (() => navigation.goBack())} accessibilityLabel="Back" />
+      <Text accessibilityRole="header" numberOfLines={2} style={[bentoType.navTitle, { flex: 1, color: t.ink }]}>
+        {title}
+      </Text>
+      {/* minWidth (not a fixed width) so a wider right-hand node can grow. */}
+      <View style={{ minWidth: L.iconButton, alignItems: 'flex-end', justifyContent: 'center' }}>{right}</View>
     </View>
   );
-}
-
-function createStyles(colors: ThemeColors) {
-  return StyleSheet.create({
-  container: {
-    height: 62,
-    backgroundColor: colors.clubGreen,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.md,
-  },
-  // minWidth (not a fixed width) so a `right` node with more than one icon
-  // (e.g. SuperAdminCourseAdsScreen's export + add buttons) can grow instead
-  // of getting clipped into a box sized for just the back button.
-  iconButton: { minWidth: 32, alignItems: 'center', justifyContent: 'center' },
-  title: {
-    // Every screen passes a short, punctuation-free static title, so this is
-    // safe for the Ws Paradose demo build (see typography.ts).
-    fontFamily: fontFamily.headingDisplay,
-    fontSize: fontSize.title,
-    color: colors.white,
-  },
-});
 }

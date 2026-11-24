@@ -59,8 +59,12 @@ export function AppAlertHost() {
   const buttons = twoUp ? [...config.buttons].sort((a, b) => Number(a.style === 'cancel') - Number(b.style === 'cancel')) : config.buttons;
   const cardWidth = Math.min(296, width - 48);
 
+  // The Modal mounts only while an alert is showing, so on the web its portal
+  // is added last and draws above any sheet that is already open.
+  if (!mounted && !config.visible) return null;
+
   return (
-    <Modal visible={mounted || config.visible} transparent animationType="none" onRequestClose={dismissAlert} statusBarTranslucent>
+    <Modal visible transparent animationType="none" onRequestClose={dismissAlert} statusBarTranslucent>
       <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: t.scrim, opacity: fade }, Platform.OS === 'web' ? webBlur : null]} />
       <View style={styles.center} pointerEvents="box-none">
         <Animated.View
