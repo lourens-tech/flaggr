@@ -19,8 +19,9 @@ import { pushOptions } from './transitions';
 const Stack = createStackNavigator<AuthStackParamList>();
 
 export function AuthNavigator() {
+  // headerMode 'float': lets pushed screens scroll on web (see RootNavigator).
   return (
-    <Stack.Navigator screenOptions={() => ({ ...pushOptions(), headerShown: false })}>
+    <Stack.Navigator screenOptions={() => ({ ...pushOptions(), headerShown: false, headerMode: 'float' })}>
       <Stack.Screen name="Landing" component={LandingScreen} />
       <Stack.Screen name="Login" component={LoginScreen} />
       {IS_STORE_BUILD ? null : (

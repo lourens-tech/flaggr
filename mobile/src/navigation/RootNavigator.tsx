@@ -64,7 +64,10 @@ export function RootNavigator() {
   return (
     <Stack.Navigator
       // JS stack so the Bento prototype's transitions are exact (navigation/transitions.ts).
-      screenOptions={() => ({ ...pushOptions(), headerShown: false })}
+      // headerMode 'float' (iOS's default; no header is shown anywhere): on web, @react-navigation/stack
+      // otherwise puts the focused card in "page" mode (min-height 100%) so the browser page scrolls,
+      // but Expo's web body never scrolls, so pushed screens could not scroll at all (CardContent.tsx).
+      screenOptions={() => ({ ...pushOptions(), headerShown: false, headerMode: 'float' })}
       // Black behind the screens: what shows around a screen that shrinks under the scan flow.
       layout={({ children, state, navigation }) => (
         <View style={{ flex: 1, backgroundColor: '#000' }}>

@@ -12,8 +12,9 @@ import { pushOptions } from './transitions';
 const Stack = createStackNavigator<ScanFlowParamList>();
 
 export function ScanFlowNavigator() {
+  // headerMode 'float': lets pushed screens scroll on web (see RootNavigator).
   return (
-    <Stack.Navigator screenOptions={() => ({ ...pushOptions(), headerShown: false })}>
+    <Stack.Navigator screenOptions={() => ({ ...pushOptions(), headerShown: false, headerMode: 'float' })}>
       {/* "Submit Another Receipt" replaces Success with Scan: it moves back, so it animates as a pop. */}
       <Stack.Screen name="ScanReceipt" component={ScanReceiptScreen} options={{ animationTypeForReplace: 'pop' }} />
       <Stack.Screen name="ReviewReceipt" component={ReviewReceiptScreen} />
