@@ -21,7 +21,7 @@ export const faqs: FaqEntry[] = [
   {
     question: 'What do the tiers actually get me?',
     answer:
-      'Your tier sets how much Flagrr Cash you earn per R1 spent: Bronze 1x, Silver 1.2x, Gold 1.5x, Platinum 1.7x. Every member also gets an automatic birthday bonus (50/100/150/200 Flagrr Cash by tier), and Gold and Platinum members get a free bar voucher (R100/R200) each quarter they qualify — no need to redeem it, it appears in your Rewards Activity automatically.',
+      'Your tier sets how much Flagrr Cash you earn on your receipts: Bronze 1x, Silver 1.2x, Gold 1.5x, Platinum 1.7x. Every member also gets an automatic birthday bonus (50/100/150/200 Flagrr Cash by tier), and Gold and Platinum members get a free bar voucher each quarter they qualify — no need to redeem it, it appears in your Rewards Activity automatically.',
   },
   {
     question: 'What’s the benefit of keeping a streak going?',

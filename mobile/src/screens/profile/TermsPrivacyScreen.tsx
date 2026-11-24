@@ -1,16 +1,18 @@
-import React, { useMemo } from 'react';
-import { ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { ScreenHeader } from '../../components/common/ScreenHeader';
-import { fontFamily, fontSize, screenPadding, spacing } from '../../theme';
-import type { ThemeColors } from '../../context/ThemeContext';
-import { systemFonts, useBentoLegacy } from '../../components/bento/legacy';
+import React, { useState } from 'react';
+import { Text, View } from 'react-native';
+import { useBento } from '../../context/ThemeContext';
+import { bentoType } from '../../theme/bento';
+import { Appear, BentoScreen, SegmentedControl } from '../../components/bento';
 
-// Registered under RootStack (member), AdminStack (course_admin/staff), and
-// SuperAdminStack (super_admin/support_agent) alike — only goBack() is used,
-// so the prop type is kept loose instead of tying it to one param list.
+type DocKey = 'terms' | 'privacy';
+
+// Registered under RootStack (member) and AuthStack (signed out); the admin
+// stacks use AdminTermsPrivacyScreen, which imports the copy below. Only
+// goBack() and the optional `section` param are used, so the prop types are
+// kept loose instead of tying them to one param list.
 interface Props {
   navigation: { goBack: () => void };
+  route?: { params?: { section?: DocKey } };
 }
 
 export const LAST_UPDATED = 'July 2026';
@@ -191,12 +193,16 @@ export const PRIVACY_SECTIONS: Section[] = [
   },
 ];
 
-function SectionBlock({ section, styles }: { section: Section; styles: ReturnType<typeof createStyles> }) {
+
+function SectionBlock({ section }: { section: Section }) {
+  const { t } = useBento();
   return (
-    <View style={styles.sectionBlock}>
-      <Text style={styles.sectionTitle}>{section.heading}</Text>
+    <View>
+      <Text accessibilityRole="header" style={{ fontSize: 16, fontWeight: '600', color: t.ink }}>
+        {section.heading}
+      </Text>
       {section.body.map((paragraph, i) => (
-        <Text key={i} style={[styles.paragraph, i > 0 ? styles.paragraphSpacing : null]}>
+        <Text key={i} style={{ marginTop: 6, fontSize: 14, lineHeight: 21, color: t.muted }}>
           {section.body.length > 1 ? `• ${paragraph}` : paragraph}
         </Text>
       ))}
@@ -204,67 +210,36 @@ function SectionBlock({ section, styles }: { section: Section; styles: ReturnTyp
   );
 }
 
-export function TermsPrivacyScreen({ navigation }: Props) {
-  const { colors, scheme } = useBentoLegacy();
-  const styles = useMemo(() => systemFonts(createStyles(colors), { minFontSize: 12 }), [colors]);
+// Terms of Use | Privacy Policy toggle (owner decision 24 Nov 2026; G-E-TermsLive / PrivacyLive).
+// `section` picks the document it opens on (signed-out links from Landing and Sign up).
+export function TermsPrivacyScreen({ navigation, route }: Props) {
+  const { t } = useBento();
+  const [doc, setDoc] = useState<DocKey>(route?.params?.section === 'privacy' ? 'privacy' : 'terms');
+  const title = doc === 'terms' ? 'Terms of Use' : 'Privacy Policy';
+  const sections = doc === 'terms' ? TERMS_SECTIONS : PRIVACY_SECTIONS;
   return (
-    <View style={styles.screen}>
-      <StatusBar barStyle={scheme === 'dark' ? 'light-content' : 'dark-content'} />
-      <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
-        <ScreenHeader title="Terms and Privacy" onBack={() => navigation.goBack()} />
-      </SafeAreaView>
-
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={styles.lastUpdated}>Last updated: {LAST_UPDATED}</Text>
-
-        <Text style={styles.docTitle}>Terms of Use</Text>
-        {TERMS_SECTIONS.map((section) => (
-          <SectionBlock key={section.heading} section={section} styles={styles} />
-        ))}
-
-        <View style={styles.divider} />
-
-        <Text style={styles.docTitle}>Privacy Policy</Text>
-        {PRIVACY_SECTIONS.map((section) => (
-          <SectionBlock key={section.heading} section={section} styles={styles} />
-        ))}
-
-        <View style={{ height: 60 }} />
-      </ScrollView>
-    </View>
+    <BentoScreen title="Terms and Privacy" onBack={() => navigation.goBack()}>
+      <SegmentedControl
+        fill
+        value={doc}
+        onChange={setDoc}
+        accessibilityLabel="Document"
+        options={[
+          { value: 'terms', label: 'Terms of Use' },
+          { value: 'privacy', label: 'Privacy Policy' },
+        ]}
+      />
+      <Text style={{ fontSize: 13, color: t.muted }}>Last updated: {LAST_UPDATED}</Text>
+      <Appear key={doc}>
+        <Text accessibilityRole="header" style={[bentoType.h1, { fontSize: 22, lineHeight: 24, letterSpacing: -0.44, color: t.ink }]}>
+          {title}
+        </Text>
+        <View style={{ gap: 12, marginTop: 12 }}>
+          {sections.map((section) => (
+            <SectionBlock key={section.heading} section={section} />
+          ))}
+        </View>
+      </Appear>
+    </BentoScreen>
   );
-}
-
-function createStyles(colors: ThemeColors) {
-  return StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.background },
-  headerSafeArea: { backgroundColor: colors.background },
-  content: { padding: screenPadding },
-  lastUpdated: {
-    fontFamily: fontFamily.body,
-    fontSize: fontSize.tiny,
-    color: colors.textSecondary,
-    marginBottom: spacing.md,
-  },
-  docTitle: {
-    fontFamily: fontFamily.headingDisplay,
-    fontSize: fontSize.title,
-    color: colors.textPrimary,
-    marginBottom: spacing.md,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: colors.border,
-    marginVertical: spacing.xl,
-  },
-  sectionBlock: { marginBottom: spacing.lg },
-  sectionTitle: {
-    fontFamily: fontFamily.heading,
-    fontSize: fontSize.cardTitle,
-    color: colors.textPrimary,
-    marginBottom: spacing.sm,
-  },
-  paragraph: { fontFamily: fontFamily.body, fontSize: fontSize.small, color: colors.textSecondary, lineHeight: 20 },
-  paragraphSpacing: { marginTop: 6 },
-});
 }

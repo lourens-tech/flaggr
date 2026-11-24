@@ -1,7 +1,7 @@
 import { test, expect, type Page, type Route, type Locator } from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
-import { API, TOKEN, TEST_EMAIL, TEST_PASSWORD, openSignedIn, reset, scenario, tab } from './helpers';
+import { API, TOKEN, TEST_EMAIL, TEST_PASSWORD, openSignedIn, openSignedOut, reset, scenario, tab } from './helpers';
 
 // Click-through of inventory section "E. Profile and support"
 // (docs/Member-App-Functionality-Inventory.md): Member Profile (rows, sheets,
@@ -13,7 +13,10 @@ import { API, TOKEN, TEST_EMAIL, TEST_PASSWORD, openSignedIn, reset, scenario, t
 // browser with page.route, so the mock and the app stay untouched.
 
 const PHOTO = path.resolve(__dirname, '../assets/images/strand-golf-club-fairway.jpg');
-const GENERIC = 'Something went wrong. Please try again.';
+// Friendly wording (owner decision 24 Nov 2026, utils/errors.ts friendlyError): a server error (500)
+// and a network failure no longer show raw technical text.
+const SERVER = 'Something went wrong on our side. Please try again.';
+const NETWORK = 'We couldn’t reach Flagrr. Check your connection and try again.';
 const auth = { Authorization: `Bearer ${TOKEN}` };
 
 // ---------------------------------------------------------------- helpers
@@ -225,6 +228,16 @@ test.describe('Member Profile', () => {
     await expect(btn(page, 'Log Out')).toHaveCount(0);
   });
 
+  // The header's Edit Profile button (boards AppProfile and G-E-ProfileTop) opens Edit Profile, like the Details rows.
+  test('Profile › Edit Profile button opens Edit Profile and Back returns', async ({ page }) => {
+    await openProfile(page);
+    await btn(page, 'Edit Profile').click();
+    await expect(heading(page, 'Edit Profile')).toBeVisible();
+    await expect(page.getByPlaceholder('First Name')).toHaveValue('Sam');
+    await back(page);
+    await expectOnProfile(page);
+  });
+
   // ---------------- Appearance
   test('Appearance › Light/Dark/System saves to the server, applies and persists', async ({ page }) => {
     await openProfile(page);
@@ -267,7 +280,7 @@ test.describe('Member Profile', () => {
     await openProfile(page);
     const group = page.getByRole('radiogroup', { name: 'Theme' });
     await group.getByRole('radio', { name: 'Dark' }).click();
-    await expectAlert(page, 'Couldn’t update appearance', 'Internal server error');
+    await expectAlert(page, 'Couldn’t update appearance', SERVER); // friendly wording (owner decision 24 Nov 2026)
     await tapAlert(page, 'Couldn’t update appearance', 'OK');
     await expect.poll(() => selectedTheme(page)).toBe('Light');
     expect((await serverUser(page)).themePreference).toBe('light');
@@ -275,14 +288,15 @@ test.describe('Member Profile', () => {
 
   // ---------------- Change password sheet
   test('Password › sheet shows title, subtitle, fields, helper and eye toggles', async ({ page }) => {
+    // Labelled fields with no placeholder, as on the boards (owner rule 1; G-E-PasswordSheet, G-E-DeleteSheet, G-E-ContactFAQ): found by label.
     await openProfile(page);
     await btn(page, 'Security').click();
     const s = sheet(page, 'Change your password');
     await expect(s).toBeVisible();
     await expect(s.getByText('Security', { exact: true })).toBeVisible();
     await expect(s.getByText('At least 8 characters. Use your new password next time you log in.', { exact: true })).toBeVisible();
-    const cur = s.getByPlaceholder('Current Password');
-    const next = s.getByPlaceholder('New Password');
+    const cur = s.getByLabel('Current password', { exact: true });
+    const next = s.getByLabel('New password', { exact: true });
     await expect(cur).toHaveAttribute('type', 'password');
     await expect(next).toHaveAttribute('type', 'password');
     await expect(s.getByLabel('Current password')).toBeVisible();
@@ -297,6 +311,7 @@ test.describe('Member Profile', () => {
   });
 
   test('Password › missing current or short new password shows “Missing info”', async ({ page }) => {
+    // Labelled fields with no placeholder, as on the boards (owner rule 1; G-E-PasswordSheet, G-E-DeleteSheet, G-E-ContactFAQ): found by label.
     await openProfile(page);
     await btn(page, 'Security').click();
     const s = sheet(page, 'Change your password');
@@ -304,49 +319,52 @@ test.describe('Member Profile', () => {
     await s.getByRole('button', { name: 'Update Password' }).click();
     await expectAlert(page, 'Missing info', msg);
     await tapAlert(page, 'Missing info', 'OK');
-    await s.getByPlaceholder('Current Password').fill(TEST_PASSWORD);
-    await s.getByPlaceholder('New Password').fill('short77');
+    await s.getByLabel('Current password', { exact: true }).fill(TEST_PASSWORD);
+    await s.getByLabel('New password', { exact: true }).fill('short77');
     await s.getByRole('button', { name: 'Update Password' }).click();
     await expectAlert(page, 'Missing info', msg);
     await tapAlert(page, 'Missing info', 'OK');
-    await s.getByPlaceholder('Current Password').fill('');
-    await s.getByPlaceholder('New Password').fill('LongEnough1');
+    await s.getByLabel('Current password', { exact: true }).fill('');
+    await s.getByLabel('New password', { exact: true }).fill('LongEnough1');
     await s.getByRole('button', { name: 'Update Password' }).click();
     await expectAlert(page, 'Missing info', msg);
   });
 
   test('Password › wrong current password shows “Couldn’t change password” and keeps the sheet filled', async ({ page }) => {
+    // Labelled fields with no placeholder, as on the boards (owner rule 1; G-E-PasswordSheet, G-E-DeleteSheet, G-E-ContactFAQ): found by label.
     await openProfile(page);
     await btn(page, 'Security').click();
     const s = sheet(page, 'Change your password');
-    await s.getByPlaceholder('Current Password').fill('WrongPass1');
-    await s.getByPlaceholder('New Password').fill('NewGolf2027!');
+    await s.getByLabel('Current password', { exact: true }).fill('WrongPass1');
+    await s.getByLabel('New password', { exact: true }).fill('NewGolf2027!');
     await s.getByRole('button', { name: 'Update Password' }).click();
     await expectAlert(page, 'Couldn’t change password', 'Current password is incorrect');
     await tapAlert(page, 'Couldn’t change password', 'OK');
     await expect(s).toBeVisible();
-    await expect(s.getByPlaceholder('Current Password')).toHaveValue('WrongPass1');
-    await expect(s.getByPlaceholder('New Password')).toHaveValue('NewGolf2027!');
+    await expect(s.getByLabel('Current password', { exact: true })).toHaveValue('WrongPass1');
+    await expect(s.getByLabel('New password', { exact: true })).toHaveValue('NewGolf2027!');
   });
 
   test('Password › server error shows its message', async ({ page }) => {
+    // Labelled fields with no placeholder, as on the boards (owner rule 1; G-E-PasswordSheet, G-E-DeleteSheet, G-E-ContactFAQ): found by label.
     await scenario(page, { fail: { 'POST /api/profile?action=changePassword': 500 } });
     await openProfile(page);
     await btn(page, 'Security').click();
     const s = sheet(page, 'Change your password');
-    await s.getByPlaceholder('Current Password').fill(TEST_PASSWORD);
-    await s.getByPlaceholder('New Password').fill('NewGolf2027!');
+    await s.getByLabel('Current password', { exact: true }).fill(TEST_PASSWORD);
+    await s.getByLabel('New password', { exact: true }).fill('NewGolf2027!');
     await s.getByRole('button', { name: 'Update Password' }).click();
-    await expectAlert(page, 'Couldn’t change password', 'Internal server error');
+    await expectAlert(page, 'Couldn’t change password', SERVER); // friendly wording (owner decision 24 Nov 2026)
   });
 
   test('Password › success clears and closes the sheet, shows “Password changed”, new password works', async ({ page }) => {
+    // Labelled fields with no placeholder, as on the boards (owner rule 1; G-E-PasswordSheet, G-E-DeleteSheet, G-E-ContactFAQ): found by label.
     await openProfile(page);
     await btn(page, 'Security').click();
     const s = sheet(page, 'Change your password');
     const release = await hold(page, { method: 'POST', path: '/api/profile', action: 'changePassword' });
-    await s.getByPlaceholder('Current Password').fill(TEST_PASSWORD);
-    await s.getByPlaceholder('New Password').fill('NewGolf2027!');
+    await s.getByLabel('Current password', { exact: true }).fill(TEST_PASSWORD);
+    await s.getByLabel('New password', { exact: true }).fill('NewGolf2027!');
     await s.getByRole('button', { name: 'Update Password' }).click();
     await expect(s.getByRole('progressbar')).toHaveCount(1); // saving spinner replaces the button label
     await expect(s.getByText('Update Password', { exact: true })).toHaveCount(0);
@@ -356,8 +374,8 @@ test.describe('Member Profile', () => {
     await tapAlert(page, 'Password changed', 'OK');
     // Fields were cleared.
     await btn(page, 'Security').click();
-    await expect(sheet(page, 'Change your password').getByPlaceholder('Current Password')).toHaveValue('');
-    await expect(sheet(page, 'Change your password').getByPlaceholder('New Password')).toHaveValue('');
+    await expect(sheet(page, 'Change your password').getByLabel('Current password', { exact: true })).toHaveValue('');
+    await expect(sheet(page, 'Change your password').getByLabel('New password', { exact: true })).toHaveValue('');
     // Server effect: the new password logs in, the old one no longer does; this device stays signed in.
     const ok = await page.request.post(`${API}/api/auth/login`, { data: { email: TEST_EMAIL, password: 'NewGolf2027!' } });
     expect(ok.status()).toBe(200);
@@ -366,15 +384,16 @@ test.describe('Member Profile', () => {
   });
 
   test('Password › closing without saving keeps what was typed (× and backdrop)', async ({ page }) => {
+    // Labelled fields with no placeholder, as on the boards (owner rule 1; G-E-PasswordSheet, G-E-DeleteSheet, G-E-ContactFAQ): found by label.
     await openProfile(page);
     await btn(page, 'Security').click();
     let s = sheet(page, 'Change your password');
-    await s.getByPlaceholder('Current Password').fill('typed-1');
+    await s.getByLabel('Current password', { exact: true }).fill('typed-1');
     await s.getByRole('button', { name: 'Close' }).last().click(); // × button
     await expect(s).toHaveCount(0);
     await btn(page, 'Security').click();
     s = sheet(page, 'Change your password');
-    await expect(s.getByPlaceholder('Current Password')).toHaveValue('typed-1');
+    await expect(s.getByLabel('Current password', { exact: true })).toHaveValue('typed-1');
     await page.getByRole('button', { name: 'Close' }).first().click({ position: { x: 20, y: 20 } }); // backdrop
     await expect(s).toHaveCount(0);
   });
@@ -385,11 +404,13 @@ test.describe('Member Profile', () => {
 
   // ---------------- Delete account
   test('Delete › sheet copy, empty password “Missing info”, Cancel closes', async ({ page }) => {
+    // Labelled fields with no placeholder, as on the boards (owner rule 1; G-E-PasswordSheet, G-E-DeleteSheet, G-E-ContactFAQ): found by label.
     await openProfile(page);
     await btn(page, 'Delete Account').click();
     const s = sheet(page, 'Delete your account?');
-    await expect(s.getByText('Deleting your account permanently removes your profile, points, receipts, and reward history. This can’t be undone. Enter your current password to confirm.', { exact: true })).toBeVisible();
-    await expect(s.getByPlaceholder('Current Password')).toHaveAttribute('type', 'password');
+    // Brand words (owner decision 24 Nov 2026): "Flagrr Cash", not "points".
+    await expect(s.getByText('Deleting your account permanently removes your profile, Flagrr Cash, receipts, and reward history. This can’t be undone. Enter your current password to confirm.', { exact: true })).toBeVisible();
+    await expect(s.getByLabel('Current password', { exact: true })).toHaveAttribute('type', 'password');
     await expect(s.getByLabel('Current password')).toBeVisible();
     await expect(s.getByRole('button', { name: 'Show password' })).toBeVisible();
     await s.getByRole('button', { name: 'Delete Account', exact: true }).click();
@@ -401,22 +422,25 @@ test.describe('Member Profile', () => {
   });
 
   test('Delete › second confirmation alert; Cancel keeps the account and the sheet', async ({ page }) => {
+    // Labelled fields with no placeholder, as on the boards (owner rule 1; G-E-PasswordSheet, G-E-DeleteSheet, G-E-ContactFAQ): found by label.
     await openProfile(page);
     await btn(page, 'Delete Account').click();
     const s = sheet(page, 'Delete your account?');
-    await s.getByPlaceholder('Current Password').fill(TEST_PASSWORD);
+    await s.getByLabel('Current password', { exact: true }).fill(TEST_PASSWORD);
     await s.getByRole('button', { name: 'Delete Account', exact: true }).click();
-    await expectAlert(page, 'Delete your account?', 'This permanently removes your profile, points, receipts, vouchers, and message history. This can’t be undone.', ['Cancel', 'Delete Account']);
+    // Brand words (owner decision 24 Nov 2026): "Flagrr Cash", not "points".
+    await expectAlert(page, 'Delete your account?', 'This permanently removes your profile, Flagrr Cash, receipts, vouchers, and message history. This can’t be undone.', ['Cancel', 'Delete Account']);
     await tapAlert(page, 'Delete your account?', 'Cancel');
     await expect(s).toBeVisible();
-    await expect(s.getByPlaceholder('Current Password')).toHaveValue(TEST_PASSWORD);
+    await expect(s.getByLabel('Current password', { exact: true })).toHaveValue(TEST_PASSWORD);
   });
 
   test('Delete › wrong password shows “Couldn’t delete account”; sheet stays, button re-enabled', async ({ page }) => {
+    // Labelled fields with no placeholder, as on the boards (owner rule 1; G-E-PasswordSheet, G-E-DeleteSheet, G-E-ContactFAQ): found by label.
     await openProfile(page);
     await btn(page, 'Delete Account').click();
     const s = sheet(page, 'Delete your account?');
-    await s.getByPlaceholder('Current Password').fill('WrongPass1');
+    await s.getByLabel('Current password', { exact: true }).fill('WrongPass1');
     await s.getByRole('button', { name: 'Delete Account', exact: true }).click();
     await tapAlert(page, 'Delete your account?', 'Delete Account');
     await expectAlert(page, 'Couldn’t delete account', 'Current password is incorrect');
@@ -426,10 +450,11 @@ test.describe('Member Profile', () => {
   });
 
   test('Delete › confirmed delete shows a spinner, then returns to Landing (signed out)', async ({ page }) => {
+    // Labelled fields with no placeholder, as on the boards (owner rule 1; G-E-PasswordSheet, G-E-DeleteSheet, G-E-ContactFAQ): found by label.
     await openProfile(page);
     await btn(page, 'Delete Account').click();
     const s = sheet(page, 'Delete your account?');
-    await s.getByPlaceholder('Current Password').fill(TEST_PASSWORD);
+    await s.getByLabel('Current password', { exact: true }).fill(TEST_PASSWORD);
     const release = await hold(page, { method: 'POST', path: '/api/profile', action: 'deleteAccount' });
     await s.getByRole('button', { name: 'Delete Account', exact: true }).click();
     await tapAlert(page, 'Delete your account?', 'Delete Account');
@@ -450,7 +475,8 @@ test.describe('Member Profile', () => {
     await expect(spinner(s)).toBeVisible();
     release();
     const radios = s.getByRole('radio');
-    await expect(radios).toHaveText(['Strand Golf Club', 'Sample Links Golf Club', "My Club Isn't Listed Yet"]);
+    // Each row now also shows the club's monogram (board G-E-ClubList), so the names are read from the rows' labels.
+    await expect.poll(() => radios.evaluateAll((els) => els.map((e) => e.getAttribute('aria-label')))).toEqual(['Strand Golf Club', 'Sample Links Golf Club', "My Club Isn't Listed Yet"]);
     expect(await clubChecked(s.getByRole('radio', { name: 'Strand Golf Club' }))).toBe(true);
     expect(await clubChecked(s.getByRole('radio', { name: 'Sample Links Golf Club' }))).toBe(false);
     expect(await clubChecked(s.getByRole('radio', { name: "My Club Isn't Listed Yet" }))).toBe(false);
@@ -513,7 +539,7 @@ test.describe('Member Profile', () => {
     await btn(page, 'Club: Strand Golf Club').click();
     await sheet(page, 'Choose Golf Club').getByRole('radio', { name: 'Sample Links Golf Club' }).click();
     await tapAlert(page, 'Change home club?', 'Switch');
-    await expectAlert(page, 'Couldn’t change club', 'Internal server error');
+    await expectAlert(page, 'Couldn’t change club', SERVER); // friendly wording (owner decision 24 Nov 2026)
     await tapAlert(page, 'Couldn’t change club', 'OK');
     await expect(btn(page, 'Club: Strand Golf Club')).toBeVisible();
   });
@@ -527,6 +553,30 @@ test.describe('Member Profile', () => {
     await expect(spinner(s)).toHaveCount(0);
     await expect(s.getByRole('radio')).toHaveCount(0);
     await noAlert(page);
+  });
+
+  // Approved small addition (24 Nov 2026): search in Choose Golf Club.
+  test('Club › search filters the club list by name; reopening starts with the full list', async ({ page }) => {
+    await openProfile(page);
+    await btn(page, 'Club: Strand Golf Club').click();
+    const s = sheet(page, 'Choose Golf Club');
+    const names = () => s.getByRole('radio').evaluateAll((els) => els.map((e) => e.getAttribute('aria-label')));
+    await expect.poll(names).toEqual(['Strand Golf Club', 'Sample Links Golf Club', "My Club Isn't Listed Yet"]);
+    await s.getByLabel('Search clubs', { exact: true }).fill('LINKS');
+    await expect.poll(names).toEqual(['Sample Links Golf Club']);
+    await s.getByLabel('Search clubs', { exact: true }).fill('zzqx');
+    await expect.poll(names).toEqual([]);
+    await expect(s.getByText('Nothing matches that search.', { exact: true })).toBeVisible();
+    await s.getByLabel('Search clubs', { exact: true }).fill('listed');
+    await expect.poll(names).toEqual(["My Club Isn't Listed Yet"]);
+    // Choosing from a filtered list works as before.
+    await s.getByRole('radio', { name: "My Club Isn't Listed Yet" }).click();
+    await expectAlert(page, 'Change home club?', "Switch your home club to My Club Isn't Listed Yet? Your rewards and any ads shown in the app will update to match.", ['Switch', 'Cancel']);
+    await tapAlert(page, 'Change home club?', 'Cancel');
+    // Reopening starts with the full list again.
+    await btn(page, 'Club: Strand Golf Club').click();
+    await expect(sheet(page, 'Choose Golf Club').getByLabel('Search clubs', { exact: true })).toHaveValue('');
+    await expect.poll(() => sheet(page, 'Choose Golf Club').getByRole('radio').count()).toBe(3);
   });
 
   // ---------------- Export, log out, avatar
@@ -550,7 +600,7 @@ test.describe('Member Profile', () => {
     await scenario(page, { fail: { 'GET /api/profile?action=exportMyData': 500 } });
     await openProfile(page);
     await btn(page, 'Export My Data').click();
-    await expectAlert(page, 'Couldn’t export your data', 'Could not generate your data export');
+    await expectAlert(page, 'Couldn’t export your data', SERVER); // friendly wording (owner decision 24 Nov 2026): a 500 export failure
     await tapAlert(page, 'Couldn’t export your data', 'OK');
     await expect(btn(page, 'Export My Data')).toBeEnabled();
   });
@@ -591,7 +641,7 @@ test.describe('Member Profile', () => {
     const chooser = page.waitForEvent('filechooser');
     await btn(page, 'Change profile photo').click();
     await (await chooser).setFiles(PHOTO);
-    await expectAlert(page, 'Couldn’t update profile picture', 'Internal server error');
+    await expectAlert(page, 'Couldn’t update profile picture', SERVER); // friendly wording (owner decision 24 Nov 2026)
     await tapAlert(page, 'Couldn’t update profile picture', 'OK');
     await expect(btn(page, 'Change profile photo')).toContainText('SM');
   });
@@ -696,7 +746,7 @@ test.describe('Edit Profile', () => {
     await openFromProfile(page, 'Name: Sam Mokoena', 'Edit Profile');
     await page.getByPlaceholder('First Name').fill('Samuel');
     await T(page, 'Save Changes').click();
-    await expectAlert(page, 'Couldn’t save changes', 'Internal server error');
+    await expectAlert(page, 'Couldn’t save changes', SERVER); // friendly wording (owner decision 24 Nov 2026)
     await tapAlert(page, 'Couldn’t save changes', 'OK');
     await expect(heading(page, 'Edit Profile')).toBeVisible();
     await expect(page.getByPlaceholder('First Name')).toHaveValue('Samuel');
@@ -778,22 +828,34 @@ test.describe('Refer a Friend', () => {
     await expect(T(page, 'FLG7K2')).toBeVisible();
   });
 
-  test('Referral › load failure shows “Couldn’t load your referral code” then a blank body', async ({ page }) => {
+  // No silent failures (owner decision 24 Nov 2026): the failed load shows a message with Try again
+  // in the screen (it was an alert, then a blank body with no retry).
+  test('Referral › load failure shows “Couldn’t load your referral code” with Try again, which loads it', async ({ page }) => {
     await scenario(page, { fail: { 'GET /api/profile?action=referralInfo': 500 } });
     await openFromProfile(page, 'Refer a Friend', 'Refer a Friend');
-    await expectAlert(page, 'Couldn’t load your referral code', 'Internal server error');
-    await tapAlert(page, 'Couldn’t load your referral code', 'OK');
+    await expect(heading(page, 'Couldn’t load your referral code')).toBeVisible();
+    await expect(T(page, SERVER)).toBeVisible();
+    await noAlert(page);
     await expect(T(page, 'Earn Flagrr Cash')).toBeVisible();
     await expect(T(page, 'Your referral code')).toHaveCount(0);
     await expect(T(page, 'Share My Code')).toHaveCount(0);
     await expect(spinner(page)).toHaveCount(0);
+    // Try again runs the same load.
+    await scenario(page, { fail: { 'GET /api/profile?action=referralInfo': 0 } }); // 0 = stop failing
+    const loads = page.waitForRequest((r) => r.url().includes('action=referralInfo') && r.method() === 'GET');
+    await btn(page, 'Try again').click();
+    await loads;
+    await expect(T(page, 'FLG7K2')).toBeVisible();
+    await expect(T(page, '2 of 10 referral bonuses earned')).toBeVisible();
+    await expect(heading(page, 'Couldn’t load your referral code')).toHaveCount(0);
   });
 
   test('Referral › expired session (401) shows “Not authenticated” and does not log out', async ({ page }) => {
     await fulfill(page, { method: 'GET', path: '/api/profile', action: 'referralInfo' }, 401, { error: 'Not authenticated' });
     await openFromProfile(page, 'Refer a Friend', 'Refer a Friend');
-    await expectAlert(page, 'Couldn’t load your referral code', 'Not authenticated');
-    await tapAlert(page, 'Couldn’t load your referral code', 'OK');
+    // Shown in the screen's load-error message, not an alert (owner decision 24 Nov 2026: no silent failures, with Try again).
+    await expect(heading(page, 'Couldn’t load your referral code')).toBeVisible();
+    await expect(T(page, 'Not authenticated')).toBeVisible();
     await back(page);
     await expectOnProfile(page);
   });
@@ -852,18 +914,28 @@ test.describe('Notification Preferences', () => {
     await scenario(page, { fail: { 'POST /api/profile?action=updateNotificationPreferences': 500 } });
     await openFromProfile(page, 'Notification Preferences', 'Notification Preferences');
     await page.getByRole('switch', { name: 'Support Replies' }).click();
-    await expectAlert(page, 'Couldn’t update preferences', 'Internal server error');
+    await expectAlert(page, 'Couldn’t update preferences', SERVER); // friendly wording (owner decision 24 Nov 2026)
     await tapAlert(page, 'Couldn’t update preferences', 'OK');
     await expectSwitch(page, 'Support Replies', true);
   });
 
-  test('Notification Preferences › load failure shows “Couldn’t load preferences” and the spinner stays', async ({ page }) => {
+  // No silent failures (owner decision 24 Nov 2026): the failed load shows a message with Try again
+  // in the screen (it was an alert, then a spinner that never stopped).
+  test('Notification Preferences › load failure shows “Couldn’t load preferences” with Try again, which loads them', async ({ page }) => {
     await scenario(page, { fail: { 'GET /api/profile?action=notificationPreferences': 500 } });
     await openFromProfile(page, 'Notification Preferences', 'Notification Preferences');
-    await expectAlert(page, 'Couldn’t load preferences', 'Internal server error');
-    await tapAlert(page, 'Couldn’t load preferences', 'OK');
-    await expect(spinner(page)).toBeVisible();
+    await expect(heading(page, 'Couldn’t load preferences')).toBeVisible();
+    await expect(T(page, SERVER)).toBeVisible();
+    await noAlert(page);
+    await expect(spinner(page)).toHaveCount(0);
     await expect(page.getByRole('switch')).toHaveCount(0);
+    await scenario(page, { fail: { 'GET /api/profile?action=notificationPreferences': 0 } }); // 0 = stop failing
+    const loads = page.waitForRequest((r) => r.url().includes('action=notificationPreferences') && r.method() === 'GET');
+    await btn(page, 'Try again').click();
+    await loads;
+    await expectSwitch(page, 'Account Activity', true);
+    await expectSwitch(page, 'Club and Flagrr Announcements', false);
+    await expect(heading(page, 'Couldn’t load preferences')).toHaveCount(0);
   });
 });
 
@@ -968,16 +1040,18 @@ test.describe('Help Center', () => {
 // ================================================================ Contact Your Club
 
 test.describe('Contact Your Club', () => {
-  const TYPES = ['Rewards and Points', 'Receipts', 'Membership', 'Technical Issue', 'Other'];
+  // Brand words (owner decision 24 Nov 2026): "Rewards and Flagrr Cash", not "Rewards and Points".
+  const TYPES = ['Rewards and Flagrr Cash', 'Receipts', 'Membership', 'Technical Issue', 'Other'];
 
   test('Contact › pre-filled form, link, type placeholder, message box, Submit and FAQ', async ({ page }) => {
+    // Labelled fields with no placeholder, as on the boards (owner rule 1; G-E-PasswordSheet, G-E-DeleteSheet, G-E-ContactFAQ): found by label.
     await openFromProfile(page, 'Contact Your Club', 'Contact Us');
     await expect(T(page, 'Have Any Questions?')).toBeVisible();
     await expect(T(page, 'View my previous enquiries')).toBeVisible();
-    await expect(page.getByPlaceholder('Name', { exact: true })).toHaveValue('Sam');
-    await expect(page.getByPlaceholder('Surname', { exact: true })).toHaveValue('Mokoena');
-    await expect(page.getByPlaceholder('Phone', { exact: true })).toHaveValue('0820000000');
-    await expect(page.getByPlaceholder('Email', { exact: true })).toHaveValue(TEST_EMAIL);
+    await expect(page.getByLabel('Name', { exact: true })).toHaveValue('Sam');
+    await expect(page.getByLabel('Surname', { exact: true })).toHaveValue('Mokoena');
+    await expect(page.getByLabel('Phone', { exact: true })).toHaveValue('0820000000');
+    await expect(page.getByLabel('Email', { exact: true })).toHaveValue(TEST_EMAIL);
     await expect(T(page, 'Choose Type Of Support Enquiry')).toBeVisible();
     await expect(page.getByPlaceholder('Type Your Message Here')).toBeVisible();
     await expect(T(page, 'Submit Enquiry')).toBeVisible();
@@ -987,19 +1061,26 @@ test.describe('Contact Your Club', () => {
     await expect(T(page, 'Open the Rewards Shop, choose a reward you can afford, and tap Redeem Now to receive a QR voucher.')).toBeVisible();
   });
 
-  test('Contact › enquiry type dropdown lists 5 types, selecting one shows it and closes the list', async ({ page }) => {
+  // The type picker is a bottom sheet (owner decision 24 Nov 2026), so it closes by choosing or with × (it was an inline list toggled by the field).
+  test('Contact › enquiry type sheet lists 5 types, selecting one shows it and closes the sheet', async ({ page }) => {
     await openFromProfile(page, 'Contact Your Club', 'Contact Us');
     await T(page, 'Choose Type Of Support Enquiry').click();
-    for (const t of TYPES) await expect(T(page, t)).toBeVisible();
-    await T(page, 'Membership').click();
+    const s = sheet(page, 'Enquiry type');
+    await expect(s).toBeVisible();
+    await expect(s.getByText('Choose Type Of Support Enquiry', { exact: true })).toBeVisible();
+    await expect(s.getByRole('radio')).toHaveText(TYPES);
+    await s.getByRole('radio', { name: 'Membership' }).click();
+    await expect(s).toHaveCount(0);
     await expect(T(page, 'Choose Type Of Support Enquiry')).toHaveCount(0);
     await expect(T(page, 'Membership')).toBeVisible();
     await expect(T(page, 'Technical Issue')).toHaveCount(0);
-    // Toggle open and closed again; it cannot be cleared back to none.
+    // Open again: the chosen type is marked; × closes; it cannot be cleared back to none.
     await T(page, 'Membership').click();
-    await expect(T(page, 'Technical Issue')).toBeVisible();
-    await T(page, 'Membership').first().click();
-    await expect(T(page, 'Technical Issue')).toHaveCount(0);
+    await expect(sheet(page, 'Enquiry type').getByRole('radio', { name: 'Membership' }).locator('svg')).toHaveCount(1);
+    await expect(sheet(page, 'Enquiry type').getByRole('radio', { name: 'Technical Issue' }).locator('svg')).toHaveCount(0);
+    await sheet(page, 'Enquiry type').getByRole('button', { name: 'Close' }).last().click();
+    await expect(sheet(page, 'Enquiry type')).toHaveCount(0);
+    await expect(T(page, 'Membership')).toBeVisible();
     await expect(T(page, 'Choose Type Of Support Enquiry')).toHaveCount(0);
   });
 
@@ -1014,10 +1095,11 @@ test.describe('Contact Your Club', () => {
   });
 
   test('Contact › Submit Enquiry (spinner) replaces Contact with the new Pending chat; Back skips Contact', async ({ page }) => {
+    // Labelled fields with no placeholder, as on the boards (owner rule 1; G-E-PasswordSheet, G-E-DeleteSheet, G-E-ContactFAQ): found by label.
     await openFromProfile(page, 'Contact Your Club', 'Contact Us');
     let sent: any = null;
     page.on('request', (r) => { if (r.url().includes('action=contact') && r.method() === 'POST') sent = r.postDataJSON(); });
-    await page.getByPlaceholder('Phone', { exact: true }).fill('0839999999');
+    await page.getByLabel('Phone', { exact: true }).fill('0839999999');
     await T(page, 'Choose Type Of Support Enquiry').click();
     await T(page, 'Receipts').click();
     await page.getByPlaceholder('Type Your Message Here').fill('  My slip from Saturday did not earn.  ');
@@ -1050,7 +1132,7 @@ test.describe('Contact Your Club', () => {
     await openFromProfile(page, 'Contact Your Club', 'Contact Us');
     await page.getByPlaceholder('Type Your Message Here').fill('Hello club');
     await T(page, 'Submit Enquiry').click();
-    await expectAlert(page, 'Couldn’t send your enquiry', 'Internal server error');
+    await expectAlert(page, 'Couldn’t send your enquiry', SERVER); // friendly wording (owner decision 24 Nov 2026)
     await tapAlert(page, 'Couldn’t send your enquiry', 'OK');
     await expect(heading(page, 'Contact Us')).toBeVisible();
     await expect(page.getByPlaceholder('Type Your Message Here')).toHaveValue('Hello club');
@@ -1061,7 +1143,7 @@ test.describe('Contact Your Club', () => {
     await openFromProfile(page, 'Contact Your Club', 'Contact Us');
     await page.getByPlaceholder('Type Your Message Here').fill('Hello club');
     await T(page, 'Submit Enquiry').click();
-    await expectAlert(page, 'Couldn’t send your enquiry', GENERIC);
+    await expectAlert(page, 'Couldn’t send your enquiry', NETWORK); // friendly wording (owner decision 24 Nov 2026)
   });
 
   test('Contact › View my previous enquiries opens My Enquiries', async ({ page }) => {
@@ -1132,18 +1214,41 @@ test.describe('My Enquiries', () => {
     await expect(T(page, 'Chat in Progress')).toBeVisible();
   });
 
-  test('My Enquiries › empty state “You haven\'t sent any enquiries yet.”', async ({ page }) => {
+  // Approved small addition (24 Nov 2026): "Contact Your Club" on the empty list (board AppEnquiriesEmpty, title “No enquiries”).
+  test('My Enquiries › empty state “No enquiries” with “Contact Your Club”, which opens Contact', async ({ page }) => {
     await scenario(page, { noEnquiries: true });
     await openFromProfile(page, 'My Enquiries', 'My Enquiries');
+    await expect(heading(page, 'No enquiries')).toBeVisible();
     await expect(T(page, "You haven't sent any enquiries yet.")).toBeVisible();
-    await expect(T(page, 'Contact Your Club')).toHaveCount(0); // no button in the live empty state
+    await btn(page, 'Contact Your Club').click();
+    await expect(heading(page, 'Contact Us')).toBeVisible();
+    await back(page);
+    await expect(heading(page, 'My Enquiries')).toBeVisible();
   });
 
-  test('My Enquiries › failed load silently shows the empty message (no alert)', async ({ page }) => {
+  // No silent failures (owner decision 24 Nov 2026): a failed load shows a message with Try again (it looked like an empty list).
+  test('My Enquiries › failed load shows a message with Try again, which loads the list', async ({ page }) => {
     await scenario(page, { fail: { 'GET /api/profile?action=myEnquiries': 500 } });
     await openFromProfile(page, 'My Enquiries', 'My Enquiries');
-    await expect(T(page, "You haven't sent any enquiries yet.")).toBeVisible();
+    await expect(heading(page, 'Couldn’t load this')).toBeVisible();
+    await expect(T(page, SERVER)).toBeVisible();
+    await expect(T(page, "You haven't sent any enquiries yet.")).toHaveCount(0);
     await noAlert(page);
+    await scenario(page, { fail: { 'GET /api/profile?action=myEnquiries': 0 } }); // 0 = stop failing
+    const loads = page.waitForRequest((r) => r.url().includes('action=myEnquiries') && r.method() === 'GET');
+    await btn(page, 'Try again').click();
+    await loads;
+    await expect(T(page, 'Bookings')).toBeVisible();
+    await expect(heading(page, 'Couldn’t load this')).toHaveCount(0);
+  });
+
+  // Approved small addition (24 Nov 2026): "+" on My Enquiries opens Contact.
+  test('My Enquiries › “New enquiry” (+) opens Contact', async ({ page }) => {
+    await openFromProfile(page, 'My Enquiries', 'My Enquiries');
+    await btn(page, 'New enquiry').click();
+    await expect(heading(page, 'Contact Us')).toBeVisible();
+    await back(page);
+    await expect(heading(page, 'My Enquiries')).toBeVisible();
   });
 
   test('My Enquiries › spinner on every focus; row opens the chat', async ({ page }) => {
@@ -1232,7 +1337,7 @@ test.describe('Enquiry Chat', () => {
     await T(page, 'Bookings').click();
     await page.getByPlaceholder('Type a message…').fill('Hello?');
     await btn(page, 'Send message').click();
-    await expectAlert(page, 'Couldn’t send message', 'Internal server error');
+    await expectAlert(page, 'Couldn’t send message', SERVER); // friendly wording (owner decision 24 Nov 2026)
     await tapAlert(page, 'Couldn’t send message', 'OK');
     await expect(page.getByPlaceholder('Type a message…')).toHaveValue('Hello?');
   });
@@ -1242,7 +1347,7 @@ test.describe('Enquiry Chat', () => {
     await openFromProfile(page, 'My Enquiries', 'My Enquiries');
     await scenario(page, { fail: { 'GET /api/profile?action=enquiryThread': 500 } });
     await T(page, 'Bookings').click();
-    await expectAlert(page, 'Couldn’t load enquiry', 'Internal server error');
+    await expectAlert(page, 'Couldn’t load enquiry', SERVER); // friendly wording (owner decision 24 Nov 2026)
     await tapAlert(page, 'Couldn’t load enquiry', 'OK');
     await expect(heading(page, 'Enquiry')).toBeVisible();
     await expect(spinner(page)).toBeVisible();
@@ -1370,7 +1475,7 @@ test.describe('Give Feedback', () => {
     await T(page, 'General Feedback').click();
     await page.getByPlaceholder("What's on your mind?").fill('Great app');
     await T(page, 'Send Feedback').click();
-    await expectAlert(page, 'Couldn’t send feedback', 'Internal server error');
+    await expectAlert(page, 'Couldn’t send feedback', SERVER); // friendly wording (owner decision 24 Nov 2026)
     await tapAlert(page, 'Couldn’t send feedback', 'OK');
     await expect(page.getByPlaceholder("What's on your mind?")).toHaveValue('Great app');
   });
@@ -1381,28 +1486,92 @@ test.describe('Give Feedback', () => {
     await T(page, 'General Feedback').click();
     await page.getByPlaceholder("What's on your mind?").fill('Great app');
     await T(page, 'Send Feedback').click();
-    await expectAlert(page, 'Couldn’t send feedback', GENERIC);
+    await expectAlert(page, 'Couldn’t send feedback', NETWORK); // friendly wording (owner decision 24 Nov 2026)
   });
 });
 
 // ================================================================ Terms and Privacy
 
 test.describe('Terms and Privacy', () => {
-  test('Terms › last updated, both documents with all 25 section headings, bullets for multi-paragraph sections', async ({ page }) => {
+  // Terms | Privacy toggle on one screen (owner decision 24 Nov 2026): one document shows at a time
+  // (they were stacked in one scroll with a divider).
+  test('Terms › toggle shows Terms of Use or Privacy Policy, each with last updated, all section headings in order and bullets', async ({ page }) => {
     await openFromProfile(page, 'Terms and Privacy', 'Terms and Privacy');
-    await expect(T(page, 'Last updated: July 2026')).toBeVisible();
-    await expect(T(page, 'Terms of Use')).toBeVisible();
-    await expect(T(page, 'Privacy Policy')).toBeAttached();
     const terms = ['1. Acceptance of These Terms', '2. What Flagrr Is', '3. Eligibility', '4. Your Account', '5. Flagrr Cash and Rewards', '6. Submitting Receipts', '7. Acceptable Use', '8. Your Relationship With Your Club', '9. Intellectual Property', '10. Suspension and Termination', '11. Disclaimers', '12. Changes to These Terms', '13. Governing Law', '14. Contact'];
     const privacy = ['1. Introduction', '2. Information We Collect', '3. How We Use Your Information', '4. How We Share Your Information', '5. Data Retention', '6. Your Rights and Choices', '7. Push Notifications', '8. Security', '9. Children’s Privacy', '10. Changes to This Policy', '11. Contact Us'];
-    for (const h of [...terms, ...privacy]) await expect(T(page, h)).toBeAttached();
-    // Order: all Terms, then Privacy Policy, then all Privacy sections.
-    const all = await page.getByText(/^(\d+\. .+|Terms of Use|Privacy Policy)$/).allTextContents();
-    expect(all).toEqual(['Terms of Use', ...terms, 'Privacy Policy', ...privacy]);
-    // Single-paragraph sections have no bullet; multi-paragraph ones do (5 bullets under Terms §5 etc.).
+    const toggle = page.getByRole('radiogroup', { name: 'Document' }).filter({ visible: true });
+    await expect(toggle.getByRole('radio')).toHaveText(['Terms of Use', 'Privacy Policy']);
+    const docHeadings = () => page.getByRole('heading').filter({ visible: true }).filter({ hasText: /^(\d+\. .+|Terms of Use|Privacy Policy)$/ }).allTextContents();
+
+    // Opens on Terms of Use.
+    await expect(T(page, 'Last updated: July 2026')).toBeVisible();
+    await expect.poll(docHeadings).toEqual(['Terms of Use', ...terms]);
+    // Single-paragraph sections have no bullet; multi-paragraph ones do (5 under Terms §5).
     await expect(page.getByText(/^Welcome to Flagrr\. These Terms of Use/)).toBeVisible();
-    expect(await page.getByText(/^• /).count()).toBe(5 + 4 + 4 + 5);
+    expect(await page.getByText(/^• /).filter({ visible: true }).count()).toBe(5);
+
+    await toggle.getByRole('radio', { name: 'Privacy Policy' }).click();
+    await expect(T(page, 'Last updated: July 2026')).toBeVisible();
+    await expect.poll(docHeadings).toEqual(['Privacy Policy', ...privacy]);
+    await expect(T(page, '1. Acceptance of These Terms')).toHaveCount(0);
+    expect(await page.getByText(/^• /).filter({ visible: true }).count()).toBe(4 + 4 + 5);
+
+    await toggle.getByRole('radio', { name: 'Terms of Use' }).click();
+    await expect.poll(docHeadings).toEqual(['Terms of Use', ...terms]);
     await back(page);
     await expectOnProfile(page);
+  });
+
+  // Landing's "Privacy Notice" / "Terms of Use" links and Sign up open TermsPrivacy with { section }; the toggle
+  // starts on that side (Terms when absent), signed in and signed out. No control in this area passes the param,
+  // so the test opens the route the way those links do, through the screen's own navigation object.
+  async function openTermsWith(page: Page, anchorText: string, params?: { section: 'terms' | 'privacy' }) {
+    await page.evaluate(
+      ([text, p]) => {
+        const el = Array.from(document.querySelectorAll('div, span')).find((n) => n.textContent === text && (n as HTMLElement).offsetParent !== null);
+        if (!el) throw new Error(`no element with text ${text}`);
+        const key = Object.keys(el).find((k) => k.startsWith('__reactFiber$'))!;
+        let f = (el as any)[key];
+        while (f && !f.memoizedProps?.navigation?.navigate) f = f.return;
+        if (!f) throw new Error('no navigation in the tree');
+        f.memoizedProps.navigation.navigate('TermsPrivacy', p ?? undefined);
+      },
+      [anchorText, params ?? null] as const,
+    );
+    await expect(heading(page, 'Terms and Privacy')).toBeVisible();
+  }
+  // The selected side's label is drawn in ink (as the screen title), the other in muted grey.
+  const selectedDoc = async (page: Page) => {
+    const ink = await heading(page, 'Terms and Privacy').evaluate((el) => getComputedStyle(el).color);
+    return page.getByRole('radiogroup', { name: 'Document' }).filter({ visible: true }).evaluate((g, inkColor) => {
+      const radios = Array.from(g.querySelectorAll('[role="radio"]')) as HTMLElement[];
+      const on = radios.filter((r) => getComputedStyle(r.querySelector('div[dir], span, div') ?? r).color === inkColor);
+      return on.length === 1 ? on[0].textContent : null;
+    }, ink);
+  };
+
+  test('Terms › section param: { section: "privacy" } opens on Privacy Policy, "terms" or none on Terms of Use (signed in)', async ({ page }) => {
+    await openProfile(page);
+    await openTermsWith(page, 'Reward Activity', { section: 'privacy' });
+    await expect.poll(() => selectedDoc(page)).toBe('Privacy Policy');
+    await expect(heading(page, 'Privacy Policy')).toBeVisible();
+    await expect(T(page, '1. Introduction')).toBeVisible();
+    await back(page);
+    await openTermsWith(page, 'Reward Activity', { section: 'terms' });
+    await expect.poll(() => selectedDoc(page)).toBe('Terms of Use');
+    await expect(T(page, '1. Acceptance of These Terms')).toBeVisible();
+    await back(page);
+    await openTermsWith(page, 'Reward Activity');
+    await expect.poll(() => selectedDoc(page)).toBe('Terms of Use');
+  });
+
+  test('Terms › section param works signed out (Auth stack): { section: "privacy" } opens on Privacy Policy', async ({ page }) => {
+    await openSignedOut(page);
+    await expect(page.getByText('Get Started')).toBeVisible();
+    await openTermsWith(page, 'Get Started', { section: 'privacy' });
+    await expect.poll(() => selectedDoc(page)).toBe('Privacy Policy');
+    await expect(T(page, '1. Introduction')).toBeVisible();
+    await back(page);
+    await expect(page.getByText('Get Started')).toBeVisible();
   });
 });
