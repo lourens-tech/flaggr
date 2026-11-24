@@ -116,7 +116,8 @@ const receipt = (id: string, courseName: string, total: number, days: number, st
   id, imageUri: null, status, courseName, items: [], subtotal: total, tax: 0, total, submittedAt: daysAgo(days), pointsAwarded: pts,
   receiptNumber: null, transactionNumber: null, tillNumber: null, receiptTime: null, ocrConfidence: 90, flagged, flagReason,
 });
-const act = (id: string, type: string, title: string, amount: number, days: number, voucherId: string | null = null) => ({ id, type, title, subtitle: 'Strand Golf Club', amount, voucherId, date: daysAgo(days) });
+// receiptId mirrors activity.receipt_id (migration 052): set on "Receipt scanned" rows the server links to their receipt.
+const act = (id: string, type: string, title: string, amount: number, days: number, voucherId: string | null = null, receiptId: string | null = null) => ({ id, type, title, subtitle: 'Strand Golf Club', amount, voucherId, receiptId, date: daysAgo(days) });
 
 let state = fresh();
 function fresh() {
@@ -136,9 +137,9 @@ function fresh() {
       receipt('rc4', 'Strand Golf Club', 312, 10, 'rejected', null),
     ] as any[],
     activity: [
-      act('a1', 'earn', 'Receipt scanned', 196, 0),
+      act('a1', 'earn', 'Receipt scanned', 196, 0, null, 'rc1'),
       act('a2', 'redeem', '9 Hole Round redeemed', -2128, 1, 'v1'),
-      act('a3', 'earn', 'Receipt scanned', 1450, 3),
+      act('a3', 'earn', 'Receipt scanned', 1450, 3, null, 'rc2'),
       act('a5', 'redeem', '18 Hole Round redeemed', -4200, 12, 'v2'),
       act('a6', 'redeem', 'Pro Shop Voucher redeemed', -1260, 120, 'v3'),
     ] as any[],
@@ -309,7 +310,7 @@ function route(p: string, method: string, q: URLSearchParams, body: any, authed:
       if (!scenario.flagged) {
         // Unflagged: balance, a "Receipt scanned" activity row and a "Flagrr Cash earned" notification, as the server does.
         scenario.balance += 196;
-        s.activity.unshift(act(`a${Date.now()}`, 'earn', 'Receipt scanned', 196, 0));
+        s.activity.unshift(act(`a${Date.now()}`, 'earn', 'Receipt scanned', 196, 0, null, r.id));
         s.notifications.unshift({ id: `n${Date.now()}`, title: 'Flagrr Cash earned', body: 'You earned 196 Flagrr Cash from your receipt at Strand Golf Club.', date: daysAgo(0), read: false, enquiryId: null });
       }
       return [200, r];

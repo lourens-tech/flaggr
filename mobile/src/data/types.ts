@@ -208,6 +208,9 @@ export interface ActivityEntry {
   subtitle: string;
   amount: number;
   voucherId: string | null;
+  // The receipt a "Receipt scanned" row came from (API, migration 052); null for every other row,
+  // for rows written before 1.1.0, and from a server without the migration.
+  receiptId?: string | null;
   date: string;
 }
 

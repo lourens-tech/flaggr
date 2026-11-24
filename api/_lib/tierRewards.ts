@@ -85,12 +85,12 @@ export async function grantDueTierRewards(
           `,
           sql`
             insert into notifications (user_id, title, body)
-            values (${userId}, 'Happy Birthday!', ${`We've added ${amount} Flagrr Cash to your wallet as your birthday reward.`})
+            values (${userId}, 'Happy Birthday!', ${`We've added ${amount} Flagrr Cash as your birthday reward.`})
           `,
         ]);
         await sendPushToUser(
           userId,
-          { title: 'Happy Birthday!', body: `We've added ${amount} Flagrr Cash to your wallet as your birthday reward.` },
+          { title: 'Happy Birthday!', body: `We've added ${amount} Flagrr Cash as your birthday reward.` },
           'accountActivity',
         );
       }

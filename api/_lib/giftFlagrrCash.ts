@@ -49,7 +49,7 @@ export async function giftFlagrrCash(params: GiftFlagrrCashParams): Promise<Gift
   const title = isGift ? 'Flagrr Cash gifted to you' : 'Flagrr Cash adjusted';
   const body = isGift
     ? `You've been gifted ${amount} Flagrr Cash: ${reason}`
-    : `${Math.abs(amount)} Flagrr Cash was deducted from your balance: ${reason}`;
+    : `${Math.abs(amount)} Flagrr Cash was deducted: ${reason}`;
   await sql`insert into notifications (user_id, title, body) values (${userId}, ${title}, ${body})`;
   await sendPushToUser(userId, { title, body }, 'accountActivity');
 

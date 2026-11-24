@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { sql } from '../_lib/db';
+import { activityHasReceiptId } from '../_lib/activityReceiptLink';
 import { requireAuthedUser } from '../_lib/auth';
 import { HttpError, withErrorHandling } from '../_lib/http';
 import { checkDuplicateReceipt, describeFraudReasons, evaluateFraudSignals } from '../_lib/fraudChecks';
@@ -216,9 +217,9 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     const notificationBody =
       `You earned ${finalPointsAwarded} Flagrr Cash from your receipt${courseName ? ` at ${courseName}` : ''}.` +
       (nonParticipatingClub
-        ? ' Your club is between subscriptions right now, so this was earned at the standard rate of R1 = 1 Flagrr Cash.'
+        ? ' Your club is between subscriptions right now, so this was earned at the standard rate.'
         : awayClub
-          ? ' Earned at the standard away-club rate of R1 = 1 Flagrr Cash.'
+          ? ' Earned at the standard away-club rate.'
           : '');
 
     // A flagged receipt holds its Flagrr Cash until a human approves it
@@ -254,6 +255,8 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     await clearScanExtraction(authed.id, imageHash);
 
     const monthNumber = new Date().getMonth() + 1;
+    // Links the Reward Activity row to this receipt (migration 052), when the column exists.
+    const linkReceipt = await activityHasReceiptId();
 
     await sql.transaction([
       ...items.map(
@@ -281,10 +284,15 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
               values (${authed.id}, extract(year from now())::int, ${monthNumber}, ${finalPointsAwarded})
               on conflict (user_id, year, month) do update set value = monthly_points.value + excluded.value
             `,
-            sql`
-              insert into activity (user_id, type, title, subtitle, amount)
-              values (${authed.id}, 'earn', 'Receipt scanned', ${courseName}, ${finalPointsAwarded})
-            `,
+            linkReceipt
+              ? sql`
+                  insert into activity (user_id, type, title, subtitle, amount, receipt_id)
+                  values (${authed.id}, 'earn', 'Receipt scanned', ${courseName}, ${finalPointsAwarded}, ${receiptId})
+                `
+              : sql`
+                  insert into activity (user_id, type, title, subtitle, amount)
+                  values (${authed.id}, 'earn', 'Receipt scanned', ${courseName}, ${finalPointsAwarded})
+                `,
             sql`
               insert into notifications (user_id, title, body)
               values (${authed.id}, 'Flagrr Cash earned', ${notificationBody})

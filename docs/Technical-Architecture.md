@@ -94,7 +94,7 @@ Vercel's Hobby plan allows **12 serverless functions**, and the API uses exactly
 | `api/rewards/index.ts` | Reward catalogue |
 | `api/redeem.ts` | Redeem a reward for a voucher |
 | `api/vouchers/index.ts` | A member's vouchers |
-| `api/activity/index.ts` | Earn/redeem ledger (last 100) |
+| `api/activity/index.ts` | Earn/redeem ledger (last 100); each row has `voucherId` and `receiptId` (null when not linked) |
 | `api/notifications/index.ts` | In-app notifications, `?action=read` |
 | `api/receipts/index.ts` | List, `?action=scan` (preview), POST (confirm), `?action=image` |
 | `api/profile/index.ts` | Avatar upload (default), plus actions: `update`, `changeClub`, `contact`, `feedbackCreate`, `enquiryReply`, `myEnquiries`, `enquiryThread`, `adClick`, `adImpression`, `registerPushToken`, `themePreference`, `notificationPreferences`, `updateNotificationPreferences`, `changePassword`, `deleteAccount`, `exportMyData`, `referralInfo` |
@@ -129,7 +129,7 @@ Unit tests (`npm test`, which runs `tsx --test api/_lib/*.test.ts`) cover `match
 
 ## Database
 
-Full schema: `db/schema.sql`. Migrations are `db/migrations/001`–`051`, applied by hand in the Neon console. There is no migration runner or tracking table.
+Full schema: `db/schema.sql`. Migrations are `db/migrations/001`–`052`, applied by hand in the Neon console. There is no migration runner or tracking table.
 
 **Important:** `db/schema.sql` is behind the migrations and cannot rebuild the current database on its own (see [Known Limitations](Known-Limitations-and-Future-Work)). Treat the migrations, applied in order, as the source of truth.
 
@@ -142,7 +142,7 @@ Main groups of tables (some are created only by migrations):
 - **Password-reset audit** (`050`): `password_reset_events` (members and admins: event, SHA-256 hash of the email/username typed, matched `user_id` or `admin_id`, IP address, user agent, time). Used for the reset limits and to trace who requested a reset.
 - **Catalogue and vouchers**: `rewards`, `reward_variants`, `vouchers` (code format `FLGR-XXXX-XXXX`, 90-day expiry), `merchants`, `golf_products`, `golf_activities`.
 - **Receipts**: `receipts`, `receipt_items`, `receipt_scan_cache`, duplicate-attempt records.
-- **Earning**: `activity`, ledgers `birthday_rewards_granted`, `quarterly_tier_vouchers_granted`, `streak_rewards_granted`, `referrals`.
+- **Earning**: `activity` (`receipt_id`, from `052`, links a "Receipt scanned" row to its receipt; set by the member's scan and by an admin approving a flagged receipt; null for every other row and for rows written before it), ledgers `birthday_rewards_granted`, `quarterly_tier_vouchers_granted`, `streak_rewards_granted`, `referrals`.
 - **Ads**: `ads`, `ad_courses`, `ad_clicks`, `ad_impressions`.
 - **Support**: `enquiries`, `enquiry_messages`, support tickets.
 - **Course Guide and My Golf** (`048`): `golf_courses` (one course map per row, `club_id` linking it to a Flagrr club or null for an away-only course, `status` draft or live, the whole map file in `map` jsonb), `scorecard_photos`, `golf_profiles` (Handicap Index as entered, rating gender, format, allowance, bag, putts-and-fairways setting, and `share_with_club` from `049`, default true), `golf_rounds` (a snapshot of holes, ratings and handicaps, the per-hole `entries`, and totals recomputed on every save; one in progress per member, enforced by a partial unique index; `049` adds an index on course and completion date for the admin Golf pages).

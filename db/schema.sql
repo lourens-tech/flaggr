@@ -240,7 +240,8 @@ create table activity (
   subtitle text not null default '',
   amount integer not null,
   voucher_id uuid references vouchers(id), -- set for redeem entries, so the timeline can open the voucher's QR code
-  date timestamptz not null default now()
+  date timestamptz not null default now(),
+  receipt_id uuid references receipts(id) on delete set null -- set for "Receipt scanned" entries (migration 052), so the timeline can open the receipt
 );
 
 -- A member's Contact Us enquiry, as a real two-way thread with a course
@@ -389,6 +390,7 @@ create index receipts_user_id_idx on receipts(user_id);
 create index receipts_course_id_idx on receipts(course_id);
 create index activity_user_id_idx on activity(user_id);
 create index activity_voucher_id_idx on activity(voucher_id);
+create index activity_receipt_id_idx on activity(receipt_id);
 create index notifications_user_id_idx on notifications(user_id);
 create index enquiries_course_id_idx on enquiries(course_id);
 create index enquiries_user_id_idx on enquiries(user_id);

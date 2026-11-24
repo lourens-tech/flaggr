@@ -1313,7 +1313,7 @@ One screen with four visual modes: **blank** (permission unknown), **Camera perm
     - credits the balance and `total_earned`;
     - adds to the monthly points;
     - writes the activity row "Receipt scanned" (subtitle = merchant);
-    - writes the member notification "Flagrr Cash earned" with the body "You earned {N} Flagrr Cash from your receipt[ at {merchant}]." plus " Your club is between subscriptions right now, so this was earned at the standard rate of R1 = 1 Flagrr Cash." or " Earned at the standard away-club rate of R1 = 1 Flagrr Cash.";
+    - writes the member notification "Flagrr Cash earned" with the body "You earned {N} Flagrr Cash from your receipt[ at {merchant}]." plus " Your club is between subscriptions right now, so this was earned at the standard rate." or " Earned at the standard away-club rate." (brand wording changed 24 Nov 2026, owner decision: no "R1 = 1", no "wallet"/"balance");
     - sends the same push (preference category `accountActivity`).
   - Every submit (flagged or not) increments `user_stats.total_receipts_scanned` and sets `last_scan_date`.
   - The app then calls `GET /api/me?…` (with the current stats period), `GET /api/activity` and `GET /api/notifications`. It updates points, user, streak, stats, activity and notifications in context, and prepends the new receipt to `receipts`.
@@ -1482,8 +1482,8 @@ One screen with four visual modes: **blank** (permission unknown), **Camera perm
     - Server serialises each row as `{ id, imageUri, status, courseName, items[{label, amount}], subtotal, tax, total, submittedAt, pointsAwarded, receiptNumber, transactionNumber, tillNumber, receiptTime, ocrConfidence, flagged, flagReason }`, with `flagReason` already converted to readable labels.
   - `api.receiptImage(id)` → `GET /api/receipts?action=image&id=…`, called on "View Photo". Scoped to the member's own receipt: `404 "Receipt not found"` otherwise, and `400 "id is required"` if no id is given. Returns `{ imageData: string | null }`.
   - How status changes happen (server, admin-driven; shown only after reload):
-    - An admin approving a held receipt sets it to `approved`, credits FC, and sends the member notification and push "Receipt approved": "Your receipt[ at X] was reviewed and approved. N Flagrr Cash has been added to your balance."
-    - Confirming fraud sets it to `rejected` and sends "Receipt rejected": "A receipt you submitted[ at X] was confirmed as fraudulent: {admin reason}[ N Flagrr Cash awarded for it has been reversed from your balance.]"
+    - An admin approving a held receipt sets it to `approved`, credits FC, and sends the member notification and push "Receipt approved": "Your receipt[ at X] was reviewed and approved. N Flagrr Cash has been added." (brand wording changed 24 Nov 2026, owner decision: no "R1 = 1", no "wallet"/"balance")
+    - Confirming fraud sets it to `rejected` and sends "Receipt rejected": "A receipt you submitted[ at X] was confirmed as fraudulent: {admin reason}[ N Flagrr Cash awarded for it has been reversed.]" (brand wording changed 24 Nov 2026, owner decision: no "R1 = 1", no "wallet"/"balance")
     - Those notifications belong to the Notifications area.
 
 - **Board coverage:**
