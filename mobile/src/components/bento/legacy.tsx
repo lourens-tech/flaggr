@@ -71,7 +71,7 @@ export function systemFonts<T extends Record<string, unknown>>(styles: T, opts: 
       out[k] = v;
       continue;
     }
-    const next: TextStyle = { ...s };
+    const next: { -readonly [K in keyof TextStyle]: TextStyle[K] } = { ...s };
     if (mapped) {
       next.fontFamily = mapped.fontFamily;
       if (mapped.fontWeight && s.fontWeight === undefined) next.fontWeight = mapped.fontWeight;

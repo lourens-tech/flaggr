@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { Animated, View, type LayoutChangeEvent, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
+import type { ViewInstance } from 'react-native';
 import { NavigationContext } from '@react-navigation/native';
 import Svg, { Circle } from 'react-native-svg';
 import { CountUpText } from '../motion/CountUpText';
@@ -21,7 +22,7 @@ interface ScrollCtx {
   // Kept current by BentoScreen; starts at the window height so tiles that
   // lay out before the scroll view has measured itself still know the fold.
   viewport: { current: number };
-  content: React.RefObject<View | null>;
+  content: React.RefObject<ViewInstance | null>;
   // Hands each Appear that is on screen at first paint its place in the
   // opening cascade.
   nextOrder: () => number;
@@ -54,7 +55,7 @@ export function Appear({
   const scroll = useBentoScroll();
   const [reduced] = useState(() => prefersReducedMotion());
   const progress = useRef(new Animated.Value(reduced ? 1 : 0)).current;
-  const ref = useRef<View>(null);
+  const ref = useRef<ViewInstance>(null);
   const [phase, setPhase] = useState<Phase>(reduced ? 'done' : 'measuring');
   const [kind, setKind] = useState<'rise' | 'reveal'>('rise');
 
@@ -137,7 +138,7 @@ export function Appear({
 export function Parallax({ children, style, travel = 14 }: { children: React.ReactNode; style?: StyleProp<ViewStyle>; travel?: number }) {
   const scroll = useBentoScroll();
   const [y, setY] = useState<number | null>(null);
-  const ref = useRef<View>(null);
+  const ref = useRef<ViewInstance>(null);
   const reduced = prefersReducedMotion();
 
   if (!scroll || reduced) return <View style={style}>{children}</View>;

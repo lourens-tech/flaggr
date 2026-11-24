@@ -14,7 +14,7 @@ How to run and deploy each piece, which services and variables it needs, and the
 **Backend tests** (repo root):
 ```sh
 npm ci
-npm test            # tsx --test api/_lib/*.test.ts  (31 tests)
+npm test            # tsx --test api/_lib/*.test.ts  (63 tests)
 npx tsc --noEmit -p .
 ```
 
@@ -31,7 +31,18 @@ npx expo start                      # dev server
 npx expo export --platform web      # production web export to mobile/dist
 npx tsc --noEmit
 ```
-Read the Expo SDK 57 docs (`https://docs.expo.dev/versions/v57.0.0/`) before changing code. Set `EXPO_PUBLIC_API_URL` to point the app at a local backend; otherwise it calls `https://flagrr-loyalty.vercel.app`.
+**Member app click-through tests** (`mobile/`, added 24 Nov 2026):
+```sh
+cd mobile && npx playwright install chromium   # once per machine
+npm run e2e                                    # web export against the mock API, then every spec in e2e/
+npx playwright test e2e/smoke.spec.ts          # one spec (after npm run e2e:build)
+npx tsc --noEmit -p e2e                        # type-check the tests
+```
+They run the production web export against `e2e/mock-api/server.ts`, a sample-data stand-in that answers every call in `src/api/client.ts` (port 4020; web on 8090). Tests switch scenarios through `POST /api/__scenario` and restore seed data with `POST /api/__reset`. The mock's test-only sign-in and reset code are written at the top of `server.ts`; they are not a real account. `E2E_API_PORT`, `E2E_WEB_PORT` and `E2E_WEB_DIR` let several runs work side by side. Output folders (`e2e/.web*`, `e2e/.results*`, `e2e/.report*`) are git-ignored. Run the suite before every member-app commit: it checks the [functionality inventory](Member-App-Functionality-Inventory) still works. It covers what the web build can do; camera, push, haptics and other native-only items need a device.
+
+As of 24 Nov 2026 the suite has 543 tests in six files (`signin-home`, `scan`, `rewards`, `golf`, `profile`, `smoke`), one `test.describe` per inventory screen. A full run takes about 15 minutes and ends with 495 passed and 48 skipped: 40 are marked native only (live camera, OS permission prompts, push taps, haptics, gestures, Reduce Motion) and 8 are `test.fixme` for known differences listed in [Known Limitations](Known-Limitations-and-Future-Work). The mock copies the real server's rules where a screen depends on them (duplicate image → 409, an approved receipt adds the activity row and notification, the latest-100 activity cap, "General" enquiry type, member replies reopening a resolved enquiry, finished-round save validation); `/api/__reset` also restores the golf settings so no test leaks into the next.
+
+Read the Expo SDK 58 docs (`https://docs.expo.dev/versions/v58.0.0/`) before changing code. Set `EXPO_PUBLIC_API_URL` to point the app at a local backend; otherwise it calls `https://flagrr-loyalty.vercel.app`.
 
 **Marketing site** (separate repo):
 ```sh
@@ -109,7 +120,7 @@ From `mobile/app.json` and `mobile/eas.json`:
 | | |
 |---|---|
 | App name / slug | Flagrr / `flagrr` |
-| Version | 1.0.1 |
+| Version | 1.1.0 in the code (Expo SDK 58, not built yet). The store apps are 1.0.1 (SDK 57). |
 | iOS bundle ID / build number | `com.flagrr.loyalty` / 6 |
 | Android package / version code | `com.flagrr.loyalty` / 9 |
 | EAS project ID | `12ea4b7f-59dd-490e-8286-443a03ab9b6b`, owner `ewo-solutions` |
@@ -118,7 +129,7 @@ From `mobile/app.json` and `mobile/eas.json`:
 | `appVersionSource` | `local` (the production profile auto-increments) |
 | iOS submit | Apple team `KGZPMLYFZQ`, App Store Connect app `6796048910` |
 | Android | `google-services.json` committed (Firebase project `flagrr-8b915`); no Android submit block in `eas.json` |
-| Orientation / theme | Portrait; `userInterfaceStyle` is `light` (this stops the app following the phone's dark mode) |
+| Orientation / theme | Portrait; `userInterfaceStyle` is `automatic` from 1.1.0 (1.0.1 builds had `light`, which stopped the app following the phone's dark mode) |
 
 Push notifications need working credentials in EAS (an Apple APNs key and Android FCM v1). These cannot be checked from the repository.
 
@@ -181,7 +192,7 @@ Checked 2026-10-28 against `mobile/app.json`, `mobile/eas.json`, `mobile/package
 
 Rules and gotchas:
 
-- `runtimeVersion` uses the `appVersion` policy. An update only reaches builds with the **same app version** (currently 1.0.1). Bumping `version` in `app.json` creates a new runtime that existing installs will not receive updates for; they stay on the old runtime until the user installs the new store build.
+- `runtimeVersion` uses the `appVersion` policy. An update only reaches builds with the **same app version**. The store apps are 1.0.1; the code on `claude/member-store-build` is 1.1.0 (SDK 58). An update for today's 1.0.1 installs must be published from a commit before the SDK 58 upgrade (the last is `ff32192`); an update published from 1.1.0 code reaches only 1.1.0 builds. Node.js for SDK 58: 22.13+ on the 22 line or 24.3+ on the 24 line (odd-numbered releases unsupported). Bumping `version` in `app.json` creates a new runtime that existing installs will not receive updates for; they stay on the old runtime until the user installs the new store build.
 - Anything native needs a new build and store submission: a new native module or Expo plugin, permission changes, an Expo SDK upgrade, icon or splash changes.
 - **`EXPO_PUBLIC_STORE_BUILD` is set only in the `eas.json` build profiles.** From SDK 55, `eas update` ignores local `.env` files and uses variables stored on EAS servers for the chosen `--environment`. If `EXPO_PUBLIC_STORE_BUILD=1` is not also defined in the EAS `production` environment, an update would be bundled with it unset, which re-enables the admin-login links in the store apps (`mobile/src/config/buildConfig.ts`). It is now defined there (2026-10-28); keep it if the environment is ever recreated.
 - The web app on Vercel is separate: it updates on every Vercel deploy and needs no store step.

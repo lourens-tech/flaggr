@@ -2,6 +2,17 @@
 
 A practical checklist for manually testing the member-facing app end-to-end at https://flagrr-loyalty.vercel.app. Test on both a desktop and a mobile browser (the live app is a web export; run the native build too once one is available). Check off each item; note anything that fails with enough detail to reproduce it. Admin, staff, and support screens are tested separately — see [Admin Console Features](Admin-Console-Features).
 
+For the Bento store build, use this page together with [Member App Functionality Inventory](Member-App-Functionality-Inventory), which lists every control, state and alert per screen; nothing on it may be lost.
+
+## 0. Store build 1.1.0 (Expo SDK 58) upgrade checks
+
+- [ ] Install 1.0.1, sign in with "Keep me logged in", then install the 1.1.0 build over it: the member is still signed in and the Appearance choice is kept.
+- [ ] On an iPhone with dark mode on and Appearance set to System, the 1.1.0 app is dark; with Light or Dark chosen, it ignores the phone setting.
+- [ ] Profile → Export My Data opens the share sheet with a complete `flagrr-my-data.json`.
+- [ ] Push notifications still arrive and show while the app is open.
+- [ ] Camera scan, photo upload, date picker, video ads and the share sheet all work on iOS and Android.
+- [ ] `cd mobile && npm run e2e` is green (495 passed, 48 skipped as of 24 Nov 2026) before the build. It covers the web build only; the items above and the native-only skips need a device.
+
 ## 1. Onboarding
 
 - [ ] Sign up as a brand-new member: full name, email, phone, date of birth, pick a golf club, set a password (at least 8 characters).

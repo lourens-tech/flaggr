@@ -63,13 +63,13 @@ Still open:
 
 ## Push notifications and native builds
 
-- A native build is configured (`mobile/app.json` version 1.0.1, iOS build 6, Android versionCode 9; EAS project id present), but whether builds have been submitted to the stores is **unverified**.
+- A native build is configured (`mobile/app.json` version 1.1.0 since the SDK 58 upgrade on 24 Nov 2026, not built yet; the store apps are 1.0.1; iOS build 6, Android versionCode 9; EAS project id present), but whether builds have been submitted to the stores is **unverified**.
 - Android FCM v1 credentials and the iOS APNs key in EAS cannot be checked from the repo. **Unverified.**
 - Logging out does not unregister the device token, so a logged-out phone can keep receiving the previous member's pushes until someone else logs in on it. `mobile/src/context/AppContext.tsx:197`, `api/_lib/pushNotifications.ts:15`
 - The permission prompt appears on the first load with no explanation first. `mobile/src/context/AppContext.tsx:162`
 - Push does nothing on the web build, which is the only deployed target today.
 - `android.permission.RECORD_AUDIO` is requested though nothing records audio, and the camera plugin has no microphone usage string. `mobile/app.json:37`
-- `userInterfaceStyle: "light"` stops the app following the phone's dark mode. `mobile/app.json:8`
+- Fixed in code, ships with the 1.1.0 store build: `userInterfaceStyle` was `"light"`, so on iPhones the System appearance setting always gave light. It is now `"automatic"`. `mobile/app.json:8`
 - No `splash` entry in `app.json`, although `assets/splash-icon.png` exists.
 - `eas.json` has no Android `submit` configuration.
 - Comments that say "no EAS project exists yet" are out of date. `mobile/src/context/AppContext.tsx:159`, `mobile/src/utils/pushNotifications.ts:21,29`, `mobile/App.tsx:33`
@@ -78,7 +78,7 @@ Still open:
 
 These need native code, so they wait for a new App Store / Play Store build (everything else in the motion system ships over the air; see [Technical Architecture](Technical-Architecture)):
 
-- Haptic feedback on taps (`expo-haptics` is not installed). The Bento redesign brief asks for a light haptic on primary actions; it was deliberately left out on 2026-11-24 so the redesign ships over the air.
+- Haptic feedback on taps. The Bento brief asks for a light haptic on primary actions. `expo-haptics` is installed in the 1.1.0 code (24 Nov 2026) but no screen uses it yet; it is wired in phase 2 of the store-build plan.
 - Bento motion uses `Animated` with the native driver instead of Reanimated (owner's decision, 2026-11-24). Transforms and opacity run off the JS thread; the tier ring's stroke and the segmented-control thumb width run on the JS thread.
 - **Bento Home (2026-11-24) differs from its board where the app has no data for it:** the Resume round tile is fairway green instead of a course photo (rounds carry no photo); the hero shows the tier name without a multiplier ("Gold · ×1.5" on the board), because tier multipliers are not in the member data; the bell shows the unread count rather than only a dot, so the count isn't lost.
 - **Bento scan flow (2026-11-24) differs from its boards where the app has no such feature or rule:** no flash button on the camera (the app has no torch control; adding one would be new behaviour); "This week counts for your streak" on Receipt submitted is left out (the app has no rule tying a receipt to the streak); a non-flagged receipt keeps the app's "added to your wallet" message instead of the board's "being reviewed", because only flagged receipts are held. The live camera view was checked only in code; the web preview had no camera.
@@ -139,6 +139,16 @@ These need native code, so they wait for a new App Store / Play Store build (eve
 - Tier numbers are written out in three places that must be kept in step: `api/_lib/tiers.ts`, `mobile/src/data/mockData.ts` (despite its name this is real tier copy) and `mobile/src/data/faqData.ts:24`.
 - The Claude receipt settings (default model `claude-opus-5`, beta flag and `fallbacks` parameter) should be checked against the current API, and the silent fallback to Tesseract hides failures. `api/_lib/claudeReceipt.ts:10,121-129`
 - **Multi-club scanning needs setup per club.** The away-club rate only applies once a receipt is matched to a `merchants` row with its own `course_id`. A club created without that row is treated as having no merchant of its own.
+
+## Member app: found by the click-through tests (2026-11-24)
+
+The Playwright suite in `mobile/e2e/` keeps these as `test.fixme` until they are decided or fixed.
+
+- **"View Current Balance", "Back to Rewards" and "See My Golf" stack a second copy of the tabs.** They call `navigation.navigate('Main')`. Since React Navigation 7 (in the app since it was scaffolded), `navigate` to a screen lower in the stack pushes a new one instead of going back: the router only goes back when asked to (`popTo`). So the member lands on Home (or My Golf) in a fresh tab state, not the tab they came from, and Back afterwards returns to the receipt success, voucher or hole screen. This is in the shipped 1.0.1 app. The fix (`popTo`) is planned for phase 2 of the store build; the owner chose the destinations on 24 Nov 2026 (Home, the Rewards tab and My Golf; see [Technical Architecture](Technical-Architecture)). `mobile/src/screens/receipts/ReceiptSuccessScreen.tsx:101`, `rewards/VoucherScreen.tsx:96`, `golf/CourseGuideScreen.tsx:301`
+- **The Voucher screen's "Voucher not found." state cannot be reached.** Every way in passes a voucher id from the member's own list. Harmless, but untestable without a deep link.
+- **Web build only: some accessibility states are not exposed.** react-native-web renders the tab bar's `role="tab"` without `aria-selected`, the My Stats and Theme segments' `role="radio"` without `aria-checked`, and busy pill buttons without `aria-busy`. Native (VoiceOver, TalkBack) uses `accessibilityState` directly; not checked on a device (**unverified**).
+- **Web build only: the pill button's spinner box is 0 px wide** (`flex: 0` becomes `0 1 0%` in the browser). The spinner graphic overflows the box and is still drawn centred, so members see it. `mobile/src/components/bento/primitives.tsx:228`
+- **Nine-hole rounds cannot be started at Strand Golf Club** because its card has no nine-hole ratings (the setup screen says so). The nine-hole hole view and scorecard are tested by rewriting a round's response; starting a nine needs a course with nine ratings.
 
 ## Accessibility and content
 

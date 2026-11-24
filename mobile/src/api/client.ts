@@ -331,7 +331,8 @@ export async function downloadMyDataExport(): Promise<boolean> {
   const file = new File(new Directory(Paths.cache), 'flagrr-my-data.json');
   if (file.exists) file.delete();
   file.create();
-  file.write(text);
+  // SDK 58: File.write() is async; wait for it before sharing the file.
+  await file.write(text);
   await Sharing.shareAsync(file.uri, { mimeType: 'application/json', dialogTitle: 'Your Flagrr Data' });
   return true;
 }

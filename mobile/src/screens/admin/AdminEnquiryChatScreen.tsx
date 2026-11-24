@@ -8,6 +8,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import type { ScrollViewInstance } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AdminStackParamList } from '../../navigation/types';
@@ -47,7 +48,7 @@ export function AdminEnquiryChatScreen({ route }: Props) {
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ScrollViewInstance>(null);
 
   const load = useCallback(async () => {
     try {

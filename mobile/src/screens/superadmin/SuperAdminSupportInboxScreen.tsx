@@ -1,5 +1,6 @@
 import React, { useCallback, useRef, useState, useMemo } from 'react';
 import { ActivityIndicator, FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import type { ViewInstance } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, type CompositeScreenProps } from '@react-navigation/native';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
@@ -295,7 +296,7 @@ function MenuPill<K extends string>({
   busy?: boolean;
 }) {
   const { c } = useAdminTheme();
-  const anchorRef = useRef<View>(null);
+  const anchorRef = useRef<ViewInstance>(null);
   const [anchor, setAnchor] = useState<{ x: number; y: number; h: number } | null>(null);
   const [hovered, hoverHandlers] = useHover();
   const win = useWindowDimensions();

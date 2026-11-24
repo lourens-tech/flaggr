@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo, useRef } from 'react';
 import { Animated, Platform, StatusBar, StyleSheet, View, useWindowDimensions, type RefreshControlProps, type StyleProp, type ViewStyle } from 'react-native';
+import type { ViewInstance } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 import { useBento } from '../../context/ThemeContext';
@@ -72,7 +73,7 @@ export function BentoScreen({
   const insets = useSafeAreaInsets();
   const scrollY = useRef(new Animated.Value(0)).current;
   const scrollTop = useRef(0);
-  const content = useRef<View>(null);
+  const content = useRef<ViewInstance>(null);
   const { height: windowHeight } = useWindowDimensions();
   const viewport = useRef(windowHeight);
   const setViewportHeight = (h: number) => {

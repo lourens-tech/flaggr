@@ -129,6 +129,8 @@ export function HomeScreen({ navigation }: Props) {
   const progress = inProgress ? roundProgress(inProgress) : null;
   const topTier = points.nextTier === null;
   const balanceSize = points.balance >= 100000 ? 30 : points.balance >= 10000 ? 38 : 42;
+  // The tier gauge fills the hero tile's width (measured), between 96 and 148 pt.
+  const [ringSize, setRingSize] = useState(132);
   const weeksLeft = Math.max(0, streak.nextMilestoneWeeks - streak.weeks);
   const streakSince =
     streak.weeks > 0
@@ -193,18 +195,19 @@ export function HomeScreen({ navigation }: Props) {
                 <Text style={{ color: bentoBrand.lime, fontWeight: '600' }}>{user.tier}</Text> Member
               </Text>
             </View>
+            {/* Tier gauge: as wide as the tile and centred (owner's choice, 24 Nov 2026), so the tile reads balanced. */}
+            <View style={{ alignSelf: 'stretch', alignItems: 'center' }} onLayout={(e) => setRingSize(Math.max(96, Math.min(148, Math.floor(e.nativeEvent.layout.width))))}>
             <PressableScale
               onPress={() => navigation.navigate('MemberTiers')}
               accessibilityRole="button"
               accessibilityLabel={topTier ? `Member tiers: ${user.tier}, top tier` : `Member tiers: ${points.pointsToNextTier.toLocaleString()} to ${points.nextTier}`}
-              style={{ alignSelf: 'flex-start' }}
             >
-              <Ring progress={topTier ? 1 : points.tierProgress} color={bentoBrand.lime} track="rgba(255,255,255,0.14)">
+              <Ring size={ringSize} stroke={9} progress={topTier ? 1 : points.tierProgress} color={bentoBrand.lime} track="rgba(255,255,255,0.14)">
                 {topTier ? (
-                  <Text style={{ fontSize: 12, fontWeight: '600', color: t.onHero, textAlign: 'center' }}>Top tier</Text>
+                  <Text style={{ fontSize: 13, fontWeight: '600', color: t.onHero, textAlign: 'center' }}>Top tier</Text>
                 ) : (
                   <>
-                    <Text style={[bentoType.number, { fontSize: 19, lineHeight: 20, color: t.onHero }]}>{points.pointsToNextTier < 100000 ? points.pointsToNextTier.toLocaleString() : compactNumber(points.pointsToNextTier)}</Text>
+                    <Text style={[bentoType.number, { fontSize: 22, lineHeight: 24, color: t.onHero }]}>{points.pointsToNextTier < 100000 ? points.pointsToNextTier.toLocaleString() : compactNumber(points.pointsToNextTier)}</Text>
                     <Text maxFontSizeMultiplier={1.3} style={{ fontSize: 11, color: 'rgba(255,255,255,0.8)', marginTop: 3 }}>
                       to {points.nextTier}
                     </Text>
@@ -212,6 +215,7 @@ export function HomeScreen({ navigation }: Props) {
                 )}
               </Ring>
             </PressableScale>
+            </View>
             <BentoButton label="Redeem" variant="lime" nub compact onPress={() => navigation.navigate('Rewards')} accessibilityLabel="Redeem Flagrr Cash" />
           </BentoTile>
         </Appear>

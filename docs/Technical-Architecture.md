@@ -4,7 +4,7 @@ _Last verified against code on 2026-10-28._
 
 ## Stack
 
-- **Client**: one Expo (React Native) SDK 57 codebase in `mobile/`, using React Navigation. It renders the member app, the club-admin console and the super-admin console, chosen by who is logged in (see `mobile/src/navigation/RootNavigator.tsx`). It is deployed as a **web export** (`expo export --platform web`) to Vercel. Native iOS/Android builds are configured (`mobile/app.json`, `mobile/eas.json`, bundle id `com.flagrr.loyalty`) but push notifications are not yet running end to end (see [Known Limitations](Known-Limitations-and-Future-Work)).
+- **Client**: one Expo SDK 58 (React Native 0.88, React 19.3) codebase in `mobile/`, using React Navigation. It renders the member app, the club-admin console and the super-admin console, chosen by who is logged in (see `mobile/src/navigation/RootNavigator.tsx`). It is deployed as a **web export** (`expo export --platform web`) to Vercel. Native iOS/Android builds are configured (`mobile/app.json`, `mobile/eas.json`, bundle id `com.flagrr.loyalty`) but push notifications are not yet running end to end (see [Known Limitations](Known-Limitations-and-Future-Work)).
 - **API**: Vercel serverless functions in TypeScript under `api/`.
 - **Database**: Neon serverless Postgres via `@neondatabase/serverless` (HTTP driver, tagged-template queries, so every query is parameterised).
 - **Receipt reading**: `tesseract.js` by default; Claude vision optionally (`@anthropic-ai/sdk`).
@@ -25,12 +25,34 @@ _Last verified against code on 2026-10-28._
 
 ## Motion and transitions
 
-All animation uses React Native's built-in `Animated` API plus native modules the store binary already ships (`react-native-screens` transitions), so motion changes can go out as an EAS Update with no new store build. No `react-native-reanimated`, `expo-haptics` or Lottie.
+All animation uses React Native's built-in `Animated` API plus native modules the store binary already ships (`react-native-screens` transitions), so motion changes can go out as an EAS Update with no new store build. No `react-native-reanimated` or Lottie. `expo-haptics` is installed from version 1.1.0 (the SDK 58 store build) but not used by any screen yet.
 
 - **Tokens**: `mobile/src/theme/motion.ts` holds every duration, easing curve and spring, the shared stagger (`nextStaggerDelay`: things that mount together cascade 40ms apart, max 8 steps) and the Reduce Motion check (`prefersReducedMotion`, from the OS accessibility setting or the browser's `prefers-reduced-motion`). With Reduce Motion on, every animation jumps to its end state.
 - **Components** (`mobile/src/components/motion/`): `FadeIn` (rise + fade on mount), `PopIn` (spring scale for success moments), `PressableScale` (press-in scale instead of opacity dimming, optional hover scale on web), `CountUpText` (numbers roll to their value and from old to new on change; with `allowDecimals`, which the Bento `CountUp` passes, strings with one or two decimals such as "30.0" roll too, while admin stat cards keep showing amounts with decimals as-is), `ScreenFade` (screen/content fade).
 - **Where they are used**: `PillButton`, `RewardCard`, `StatCard`, `AdminStatCard`, `DesktopStatCard`, `DesktopPanel`, `DesktopDataTable` (first 20 rows), `ProgressBar` (fills), `BarChart` (bars grow), `BentoTabBar` (sliding tab highlight), `AdminTabBar` (phone tabs), `AppAlertHost` (Bento alert scales in from 1.1), `BentoSheet` (rises with overshoot), `DesktopShell` (content area fades), Home (balance roll-up, section cascade), Voucher (QR pops in, photo parallax), Receipt Success (trophy pops, Flagrr Cash rolls up), Rewards Shop (balance roll-up, card photos parallax; never the ad), Course (Stableford average), Round detail (points and gross), My Golf (average and stat tiles, rolling from the old to the new value when the period changes), Member Tiers and Profile (balance).
 - **Navigation** (`mobile/src/navigation/motionOptions.tsx`): stacks use the native iOS push with full-screen swipe-back, and the same iOS-style slide on Android (`ios_from_right`). The receipt camera slides up; Voucher and Receipt Success fade up. Tab navigators crossfade on phones. Native-stack doesn't animate on web, so web screens fade in through `screenLayout`; on desktop admin only the content area fades, so the sidebar never flickers.
+
+## Store build 1.1.0 (in progress)
+
+The exact-match Bento store build (plan agreed with the owner on 24 Nov 2026) is being built on branch `claude/member-store-build`. Phase 1, the native upgrade, is in:
+
+- Expo SDK 57 → 58: React Native 0.86 → 0.88.1, React 19.3, every `expo-*` module on its SDK 58 version (`npx expo install expo@^58.0.0 --fix`, `expo-doctor` 20/20). The installer also listed the config plugins of installed modules in `app.json` (`@react-native-community/datetimepicker`, `expo-font`, `expo-sharing`, `expo-splash-screen`, `expo-status-bar`, `expo-video`).
+- `@react-native-async-storage/async-storage` stays on 3.1.1, the version the app has always used, although SDK 58 recommends 2.2.0: moving back a major version risks losing stored sign-in sessions and theme choices. `package.json` lists it under `expo.install.exclude` so `expo install --fix` leaves it alone.
+- React Native 0.87 made its strict TypeScript API the default, so component refs are typed with the new instance types (`ScrollViewInstance`, `ViewInstance`, `TextInputInstance`). Types only; nothing changes at run time.
+- `expo-file-system`'s `File.write()` is async from SDK 58, so the member data export (`api/client.ts`) now waits for the write before sharing the file.
+- `app.json`: `version` 1.1.0 (a new runtime under the `appVersion` policy), `userInterfaceStyle` `automatic` (so the System appearance setting can pick dark on iPhones), and `expo-haptics` added.
+
+### Owner decisions for the store build (24 Nov 2026)
+
+These are decided but not built yet; each lands in a later phase with its doc and test updates.
+
+- **Navigation.** "View Current Balance" closes the scan screens and shows Home; "Back to Rewards" closes the voucher and shows the Rewards tab; "See My Golf" goes back to the existing tabs. None of them stacks a second copy of the tabs any more (`popTo`). "Receipt scanned" rows in Reward Activity open that receipt in Receipt History; bonus rows stay plain.
+- **Errors.** Raw technical text ("Internal server error", "Network request failed") is replaced by plain messages; server messages written for members are kept. Messages are added where failures are silent today: a failed redeem, the club list at sign-up, loading My Enquiries, Notification Preferences and Refer a Friend (with Try again), and an Open Settings button when camera access was denied for good.
+- **Empty states and new copy.** No booked ad means no ad slot at all. New: an empty Notifications state, a "Code sent" toast after Send it again, Used / Expired badges on vouchers, and "Receipt submitted" / "Reward redeemed" toasts. Receipt History refreshes each time it opens.
+- **Brand wording** (the brand kit wins). No "R1 = 1 FC" in the away-club or between-subscriptions notices; tier perks keep the multiplier but drop rands ("1.5x Flagrr Cash on your receipts", "A bar voucher each quarter you qualify"), in Member Tiers and the FAQ; "wallet", "balance" and "points" for Flagrr Cash are replaced everywhere.
+- **Layouts: the mockup wins** for the scorecard (9-column grid per nine with Out / In), the receipt photo (full screen), Terms and Privacy (a toggle), Member Tiers (quarterly progress plus all four tiers as rows) and the enquiry type picker (bottom sheet).
+- **Extras.** No voucher share. Terms and Privacy links on Landing and Sign up for signed-out people. The FAQ's first answer and the three Help Center articles are rewritten (owner approves the text first). Web screen readers get the selected / checked / busy states. The "GPS integration coming soon" chip is hidden until GPS exists. Members can read support's replies to Give Feedback (a "My Feedback" list and thread plus a reply notification; two new API actions; screens drawn before they are built). Strand Golf Club's nine-hole ratings will be added when the owner sends them.
+- **Builds.** A preview now to check the SDK 58 upgrade on phones (iOS through TestFlight internal testing, Android as an internal build), and a final one after every phase. iPhone Duo screens are checked in the Xcode iPhone Duo simulator against the Duo mockups.
 
 ## Member app Bento redesign (in progress)
 
@@ -82,6 +104,8 @@ Vercel's Hobby plan allows **12 serverless functions**, and the API uses exactly
 Shared logic that is not a route lives in `api/_lib/`: `db`, `auth`, `http`, `email`, `emailTemplate`, `welcomeEmail`, `passwordReset`, `ocr`, `receiptParser`, `receiptExtraction`, `claudeReceipt`, `scanPipeline`, `scanCache`, `matching`, `pointsEngine`, `fraudChecks`, `imageHash`, `tiers`, `tierRewards`, `streak`, `streakRewards`, `quarter`, `periods`, `monthly`, `referrals`, `ads`, `adAnalytics`, `pushNotifications`, `payfast`, `memberRoster`, `memberRosterFileParsing`, `xlsx`, `enquiries`, `supportTickets`, `adminNotifications`, `adminReports`, `auditLog`, `giftFlagrrCash`, `golf`, `golfAdmin`, `golfClub`.
 
 **Shared with the app:** the golf scoring and stats code lives in `mobile/src/golf/` (`courseMap.ts` the map file format and its checks, `scoring.ts` the World Handicap System handicaps, strokes and Stableford, `stats.ts` My Golf, `clubStats.ts` a club's Golf page (built on `stats.ts`), `holeGeometry.ts` the hole view and shot suggestion, `dto.ts` / `adminDto.ts` the response shapes). It has no React Native imports, and `api/_lib/golf.ts`, `golfAdmin.ts` and `golfClub.ts` import it directly, so the totals the API stores always match what the member saw.
+
+The member app has Playwright click-through tests in `mobile/e2e/` (`npm run e2e` in `mobile/`): they run the web export against a sample-data mock of the API (`e2e/mock-api/server.ts`, which reuses the app's own golf scoring and stats code) and walk the flows listed in [Member App Functionality Inventory](Member-App-Functionality-Inventory). See [Environment and Setup](Environment-and-Setup) for how to run them. The tests have their own `e2e/tsconfig.json`; the app's `tsconfig.json` excludes them. 543 tests, 495 run on the web build (24 Nov 2026); the rest are native-only skips or known differences marked `test.fixme`.
 
 Unit tests (`npm test`, which runs `tsx --test api/_lib/*.test.ts`) cover `matching`, `pointsEngine`, `receiptParser` and the golf scoring, stats, club Golf numbers and map checks (`golfScoring.test.ts`).
 

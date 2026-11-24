@@ -1,5 +1,6 @@
 import React, { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { PanResponder, Platform, StyleSheet, View, type GestureResponderEvent, type LayoutChangeEvent } from 'react-native';
+import type { ViewInstance } from 'react-native';
 import Svg, { Circle, Ellipse, G, Line, Path, Rect, Text as SvgText } from 'react-native-svg';
 import { fontFamily } from '../../theme';
 import type { Pt, TeeDef } from '../../golf/courseMap';
@@ -177,7 +178,7 @@ export const GolfHoleMap = forwardRef<GolfHoleMapHandle, Props>(function GolfHol
   const { hole, tees, palette, ball, target, showRings, showHazards, draggedBall, insets } = props;
   const [size, setSize] = useState({ W: 0, H: 0 });
   const [view, setView] = useState<View2D>({ cx: 0, cy: 0, s: 1 });
-  const containerRef = useRef<View>(null);
+  const containerRef = useRef<ViewInstance>(null);
   const offset = useRef({ x: 0, y: 0 });
 
   // Everything the gesture handlers read, kept in refs so the PanResponder

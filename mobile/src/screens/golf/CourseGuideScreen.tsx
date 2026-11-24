@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, ScrollView, StatusBar, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View, type LayoutChangeEvent } from 'react-native';
+import type { ScrollViewInstance } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -88,7 +89,7 @@ export function CourseGuideScreen({ navigation, route }: Props) {
   const [shotCardH, setShotCardH] = useState(180);
   const [finishing, setFinishing] = useState(false);
   const mapRef = useRef<GolfHoleMapHandle>(null);
-  const pickerRef = useRef<ScrollView>(null);
+  const pickerRef = useRef<ScrollViewInstance>(null);
 
   // --- load ---
   useEffect(() => {

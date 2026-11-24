@@ -16,6 +16,7 @@ import {
   type ViewProps,
   type ViewStyle,
 } from 'react-native';
+import type { TextInputInstance } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { useBento } from '../../context/ThemeContext';
 import { bentoBrand, bentoLayout as L, bentoType } from '../../theme/bento';
@@ -352,7 +353,7 @@ export function SegmentedControl<V extends string>({
 // ── Text field ──────────────────────────────────────────────────────────────
 
 export const BentoField = React.forwardRef<
-  TextInput,
+  TextInputInstance,
   TextInputProps & {
     label?: string;
     helper?: string;

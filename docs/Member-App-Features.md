@@ -23,7 +23,7 @@ The member's dashboard, shown after login. Since 2026-11-24 it uses the Bento de
 
 - **Header** — today's date, a time-of-day greeting with the member's first name ("Morning, / Afternoon, / Evening,"), a notification bell with the unread count (opens Notifications) and the member's avatar or initials (opens Profile).
 - **Membership not verified** — an amber notice above the tiles: "Your club hasn't verified your membership yet — you can still earn Flagrr Cash, but tier progress is on hold."
-- **Flagrr Cash hero** — the balance (counts up each time Home opens), the tier name, a ring showing progress to the next tier with the FC still needed (tap for Member Tiers; "Top tier" at Platinum), and **Redeem** (opens the Rewards Shop).
+- **Flagrr Cash hero** — the balance (counts up each time Home opens), the tier name, a ring showing progress to the next tier with the FC still needed (since 24 Nov 2026 the ring is as wide as the tile, 96–148 pt depending on the phone, and centred under the balance) (tap for Member Tiers; "Top tier" at Platinum), and **Redeem** (opens the Rewards Shop).
 - **Streak tile** — weeks in the streak, a dot per recent week, and "N more weeks to a Y FC bonus". See [Streaks](#streaks).
 - **Resume round tile** — when a round is in progress: the next hole to play and the Stableford points so far ("14 pts thru 6"); tap to reopen the hole view. Read from the same `golfHome` call as the Course tab, refreshed each time Home opens. With no round in progress (or if that call fails) the tile is **Play a round**, which opens the Course tab.
 - **Your Club** — the home club name and crest; opens Profile.
@@ -184,7 +184,7 @@ Tier is based on **Flagrr Cash earned in the current calendar quarter** (Jan–M
 - **My Profile** shows name, phone, email, birthday, home club, and member-since date. Name, phone, email, and birthday are editable on the Edit Profile screen (email must be valid and unique).
 - **Avatar**: tap the profile photo to pick a new one from the photo library (resized on the device before upload).
 - **Change home club**: tap the Club field to open a picker of every club and switch at any time, with a confirmation dialog (the reward catalog and ads change to match the new club). Flagrr Cash balance, tier, and history belong to the member, not the club, so they carry over. Note that roster verification status also carries over (see [Known Limitations](Known-Limitations-and-Future-Work)).
-- **Theme**: system, light, or dark, saved to the account.
+- **Theme**: system, light, or dark, saved to the account. On iPhones, "System" follows the phone's dark mode only from version 1.1.0; the 1.0.1 store build always resolves it to light.
 - **Receipt History**: every submitted receipt with its status (Pending, Approved, or Rejected), the Flagrr Cash earned or pending, and the receipt image on demand.
 - **Refer a Friend**: see [Referrals](#referrals).
 - **Change password**: enter the current password and a new one (at least 8 characters) on the Profile screen.

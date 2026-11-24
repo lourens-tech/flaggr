@@ -11,6 +11,7 @@ import {
   View,
   useWindowDimensions,
 } from 'react-native';
+import type { ScrollViewInstance, ViewInstance } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SuperAdminStackParamList } from '../../navigation/types';
@@ -77,7 +78,7 @@ export function SuperAdminSupportTicketChatScreen({ route }: Props) {
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [updatingPriority, setUpdatingPriority] = useState(false);
   const [updatingAssignment, setUpdatingAssignment] = useState(false);
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ScrollViewInstance>(null);
 
   const load = useCallback(async () => {
     try {
@@ -314,7 +315,7 @@ function MenuPill<K extends string>({
   busy?: boolean;
 }) {
   const { c } = useAdminTheme();
-  const anchorRef = useRef<View>(null);
+  const anchorRef = useRef<ViewInstance>(null);
   const [anchor, setAnchor] = useState<{ x: number; y: number; h: number } | null>(null);
   const [hovered, hoverHandlers] = useHover();
   const win = useWindowDimensions();
