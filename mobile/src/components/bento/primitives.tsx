@@ -395,6 +395,9 @@ export const BentoField = React.forwardRef<
           placeholderTextColor={t.muted}
           accessibilityLabel={rest.accessibilityLabel ?? label}
           accessibilityHint={error ?? helper}
+          // As the legacy TextField did: invalid state on the input and a polite live region on the
+          // error, so screen readers announce a validation message when it appears.
+          aria-invalid={!!error}
           onFocus={(e) => {
             setFocused(true);
             onFocus?.(e);
@@ -436,7 +439,13 @@ export const BentoField = React.forwardRef<
           </Pressable>
         ) : null}
       </View>
-      {error || helper ? <Text style={[bentoType.helper, { color: error ? t.danger : t.muted }]}>{error ?? helper}</Text> : null}
+      {error ? (
+        <Text style={[bentoType.helper, { color: t.danger }]} accessibilityLiveRegion="polite">
+          {error}
+        </Text>
+      ) : helper ? (
+        <Text style={[bentoType.helper, { color: t.muted }]}>{helper}</Text>
+      ) : null}
     </View>
   );
 });

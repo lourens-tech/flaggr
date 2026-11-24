@@ -850,12 +850,12 @@ test.describe('Refer a Friend', () => {
     await expect(heading(page, 'Couldn’t load your referral code')).toHaveCount(0);
   });
 
-  test('Referral › expired session (401) shows “Not authenticated” and does not log out', async ({ page }) => {
+  test('Referral › expired session (401) asks to log in again and does not log out', async ({ page }) => {
     await fulfill(page, { method: 'GET', path: '/api/profile', action: 'referralInfo' }, 401, { error: 'Not authenticated' });
     await openFromProfile(page, 'Refer a Friend', 'Refer a Friend');
     // Shown in the screen's load-error message, not an alert (owner decision 24 Nov 2026: no silent failures, with Try again).
     await expect(heading(page, 'Couldn’t load your referral code')).toBeVisible();
-    await expect(T(page, 'Not authenticated')).toBeVisible();
+    await expect(T(page, 'Your session has ended. Please log in again.')).toBeVisible(); // Friendly errors (owner decision 24 Nov 2026): an expired session (401 "Not authenticated") asks the member to log in again; technical text (camelCase field names, "data URI") gets the screen's fallback.
     await back(page);
     await expectOnProfile(page);
   });

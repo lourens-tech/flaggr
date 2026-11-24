@@ -418,15 +418,19 @@ test.describe('Home', () => {
     await expect(text(page, 'Cash Earned')).toBeVisible();
   });
 
-  test('Home › a failed period refetch keeps the old numbers silently', async ({ page }) => {
+  // Owner decision 24 Nov 2026 (no silent failures): a failed period switch says so and the previous
+  // period stays selected (was: silent, and the year's numbers showed under "Month").
+  test('Home › a failed period switch shows “Couldn’t load your stats” and keeps the previous period', async ({ page }) => {
     await patchMe(page, (me, url) => { if (url.searchParams.get('period') === 'month') me.stats.bucksEarned = 1111; });
     await openSignedIn(page);
     await expect(text(page, '9,860')).toBeVisible();
     await scenario(page, { fail: { 'GET /api/me': 500 } });
     await statsRadio(page, 'Month').click();
-    await expect(text(page, '−53% vs Last Month')).toBeVisible();
+    await expectAlert(page, 'Couldn’t load your stats', 'Something went wrong on our side. Please try again.');
+    await dismissAlert(page);
+    await expect(statsRadio(page, 'Year')).toBeChecked();
+    await expect(text(page, '−53% vs Last Year')).toBeVisible();
     await expect(text(page, '9,860')).toBeVisible();
-    await expect(page.getByRole('alert')).toHaveCount(0);
   });
 
   test('Home › the chosen period persists across tab switches', async ({ page }) => {
@@ -746,14 +750,17 @@ test.describe('Notifications', () => {
     await expect(text(page, 'Can I book a tee time for Saturday morning?')).toBeVisible();
   });
 
-  test('Notifications › mark-read failure is ignored (optimistic: badge still drops)', async ({ page }) => {
+  // Owner decision 24 Nov 2026 (no silent failures): "View" failing says so and the row is unread
+  // again (was: ignored, the badge dropped although the server never marked it read).
+  test('Notifications › “View” failing shows “Couldn’t mark as read” and the row stays unread', async ({ page }) => {
     await scenario(page, { fail: { 'POST /api/notifications?action=read': 500 } });
     await openSignedIn(page);
     await openNotifications(page);
     await vis(page.getByText('View', { exact: true })).first().click();
+    await expectAlert(page, 'Couldn’t mark as read', 'Something went wrong. Please try again.');
+    await dismissAlert(page);
     await button(page, 'Back').click();
-    await expect(bell(page)).toHaveAccessibleName('Notifications, 1 unread');
-    await expect(page.getByRole('alert')).toHaveCount(0);
+    await expect(bell(page)).toHaveAccessibleName('Notifications, 2 unread');
   });
 
   // Owner decision 24 Nov 2026: the empty list shows the board's empty state (was a blank screen).

@@ -603,39 +603,46 @@ test.describe('Rewards Shop', () => {
     await expect(heading(page, 'Golf Cart Hire')).toBeVisible();
   });
 
-  const failures: Array<[string, Record<string, unknown>]> = [
-    ['server error 500', { fail: { 'POST /api/redeem': 500 } }],
-    ['404 Reward not found', { fail: { 'POST /api/redeem': 404 } }],
-    ['401 Not authenticated', { fail: { 'POST /api/redeem': 401 } }],
-    ['400 Not enough Flagrr Cash (balance changed elsewhere)', { balance: 100 }],
+  // Owner decision 24 Nov 2026 (no silent failures): a failed redeem closes the sheet and shows
+  // "Couldn’t redeem" with a plain message (was: closes with no message). Member-facing server text
+  // ("Not enough Flagrr Cash", "Reward not found") shows word for word.
+  const SERVER = 'Something went wrong on our side. Please try again.';
+  const failures: Array<[string, (page: Page) => Promise<unknown>, string]> = [
+    ['server error 500', (page) => scenario(page, { fail: { 'POST /api/redeem': 500 } }), SERVER],
+    ['404 “Reward not found”', (page) => page.route(/\/api\/redeem/, (r) => r.fulfill({ status: 404, json: { error: 'Reward not found' } })), 'Reward not found'],
+    ['401 expired session', (page) => page.route(/\/api\/redeem/, (r) => r.fulfill({ status: 401, json: { error: 'Not authenticated' } })), 'Your session has ended. Please log in again.'],
+    ['400 Not enough Flagrr Cash (balance changed elsewhere)', (page) => scenario(page, { balance: 100 }), 'Not enough Flagrr Cash'],
   ];
-  for (const [name, sc] of failures) {
-    test(`Redeem sheet › silent failure: ${name} closes the sheet with no message`, async ({ page }) => {
+  for (const [name, arrange, message] of failures) {
+    test(`Redeem sheet › failure: ${name} closes the sheet and says why`, async ({ page }) => {
       await openShop(page);
-      await scenario(page, sc); // after sign-in: the app still holds the old balance
+      await arrange(page); // after sign-in: the app still holds the old balance
       await redeemBtn(page, 'Redeem 9 Hole Round').click();
       await sheet(page).getByRole('button', { name: 'Redeem Now' }).click();
       await expect(sheet(page)).toHaveCount(0);
+      const a = alertBox(page);
+      await expect(a.getByRole('heading', { name: 'Couldn’t redeem' })).toBeVisible();
+      await expect(a).toContainText(message);
+      await a.getByRole('button', { name: 'OK' }).click();
       await expect(heading(page, 'Rewards Shop')).toBeVisible();
-      await page.waitForTimeout(400);
-      await expect(alertBox(page)).toHaveCount(0);
-      await expect(heading(page, 'Voucher')).toHaveCount(0);
+      await expect(page.getByRole('button', { name: 'Back to Rewards' })).toHaveCount(0); // no voucher opened
       expect((await mockState(page)).vouchers).toBe(3);
     });
   }
 
-  test('Redeem sheet › partial failure: voucher issued but refetch fails, stays on shop with stale balance', async ({ page }) => {
+  // Owner decision 24 Nov 2026 (no silent failures): once the voucher is issued the member gets it,
+  // even if the follow-up refresh fails (was: stayed on the shop with no message).
+  test('Redeem sheet › partial failure: voucher issued but the refresh fails, the voucher still opens', async ({ page }) => {
     await openShop(page);
     await scenario(page, { fail: { 'GET /api/me': 500 } });
     await redeemBtn(page, 'Redeem 9 Hole Round').click();
     await sheet(page).getByRole('button', { name: 'Redeem Now' }).click();
     await expect(sheet(page)).toHaveCount(0);
-    await expect(heading(page, 'Rewards Shop')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Back to Rewards' })).toBeVisible(); // the new voucher is open
     await expect(alertBox(page)).toHaveCount(0);
     const st = await mockState(page);
     expect(st.vouchers).toBe(4);
     expect(st.scenario.balance).toBe(10352);
-    await expect(page.getByLabel('12,480 Flagrr Cash to spend')).toBeVisible();
   });
 
   test('Empty catalogue (listed club) › “No Rewards Yet”, no button, ad slot, no search or pills', async ({ page }) => {
@@ -1071,12 +1078,24 @@ test.describe('Reward Activity', () => {
     await expect(page.getByRole('button', { name: /^9 Hole Round redeemed/ })).toContainText('Already redeemed');
   });
 
+  // Owner decision 24 Nov 2026: a "Receipt scanned" row opens that receipt in Receipt History (the API's
+  // receiptId, migration 052; the mock links a3 to receipt rc2, R1,450.00).
+  test('Rows › a linked “Receipt scanned” row opens that receipt’s photo in Receipt History', async ({ page }) => {
+    await openActivity(page);
+    const row = page.getByRole('button', { name: /^Receipt scanned/ }).filter({ hasText: '+1,450 FC' });
+    await expect(row).toHaveCount(1);
+    await row.click();
+    await expect(heading(page, 'Receipt Photo')).toBeVisible();
+    await expect(txt(page, /R\s?1[ ,]?450\.00/).first()).toBeVisible();
+  });
+
   test('Rows › earn rows and redeem rows without a voucher are inert; “Redeemed” used for adjustments', async ({ page }) => {
     const now = new Date().toISOString();
     await patchJson(page, ACTIVITY, (list) => [
       { id: 'adj1', type: 'redeem', title: 'Flagrr Cash adjusted', subtitle: 'Correction', amount: -50, voucherId: null, date: now },
       { id: 'rej1', type: 'redeem', title: 'Receipt rejected', subtitle: 'Flagrr Cash reversed', amount: -196, voucherId: null, date: now },
-      ...list,
+      // Rows with no receipt link (written before migration 052, or a server without it) stay inert.
+      ...list.map((e: any) => ({ ...e, receiptId: null })),
     ]);
     await openActivity(page);
     await expect(txt(page, 'Flagrr Cash adjusted')).toBeVisible();
