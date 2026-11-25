@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, ScrollView, StatusBar, Text, View } from 'react-native';
+import { Pressable, ScrollView, StatusBar, Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from '../../navigation/types';
@@ -21,6 +21,11 @@ type Props = NativeStackScreenProps<AuthStackParamList, 'Landing'>;
 export function LandingScreen({ navigation }: Props) {
   const { t } = useBento();
   const insets = useSafeAreaInsets();
+  const { height } = useWindowDimensions();
+  // The gap above the headline: 200 pt as on the boards on phones 820 pt or taller,
+  // shrinking on short screens (the iPhone Duo's 678 pt cover screen) so the headline,
+  // buttons and legal line fit without scrolling. The screen still scrolls if needed.
+  const gap = Math.min(200, Math.max(24, height - 620));
   const line = { fontFamily: 'Fraunces_700Bold', fontSize: 52, lineHeight: Math.round(52 * 0.98), letterSpacing: -1.56, color: t.ink } as const;
 
   return (
@@ -41,7 +46,7 @@ export function LandingScreen({ navigation }: Props) {
         <View style={{ alignItems: 'center' }}>
           <FlagrrLogo color="white" size={48} />
         </View>
-        <View style={{ flex: 1, minHeight: 200 }} />
+        <View style={{ flex: 1, minHeight: gap }} />
         <Appear>
           <View accessible accessibilityRole="header" accessibilityLabel="Play. Earn. Redeem. Repeat." style={{ marginBottom: 18 }}>
             <Text style={line}>Play.</Text>
