@@ -121,7 +121,7 @@ From `mobile/app.json` and `mobile/eas.json`:
 |---|---|
 | App name / slug | Flagrr / `flagrr` |
 | Version | 1.1.0 (Expo SDK 58). First 1.1.0 builds on 24 Nov 2026: iOS build 7 (production profile, sent to TestFlight for internal testing) and an Android internal preview. The store apps are 1.0.1 (SDK 57). |
-| iOS bundle ID / build number | `com.flagrr.loyalty` / 7 |
+| iOS bundle ID / build number | `com.flagrr.loyalty` / 8 (25 Nov 2026: iOS build 8, production profile, Xcode 27.2 image, sent to TestFlight) |
 | Android package / version code | `com.flagrr.loyalty` / 9 |
 | EAS project ID | `12ea4b7f-59dd-490e-8286-443a03ab9b6b`, owner `ewo-solutions` |
 | OTA updates | `expo-updates`, runtime version policy `appVersion` |
