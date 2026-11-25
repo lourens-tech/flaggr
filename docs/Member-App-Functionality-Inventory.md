@@ -44,6 +44,8 @@ Plus app-wide surfaces: the font splash, the session-restore spinner, the tab ba
 
 #### 1. Landing (`screens/onboarding/LandingScreen.tsx`)
 
+> **1.1.0 (phase 3, 25 Nov 2026), what changed from the 1.0.1 description below:** **Terms of Use** and **Privacy Notice** in the legal line are links to `TermsPrivacy` (`section` 'terms' / 'privacy') in the signed-out stack (owner decision). The web-only Golf Course Admin Login link is 13 pt on its own row with a 44 pt padded target (hitSlop does nothing on web). Shared sign-in parts live in `screens/onboarding/authParts.tsx`. Everything else below is unchanged.
+
 - **Reached from:**
   - Cold start with no stored member token and no admin session: this is the AuthNavigator's first route.
   - Logging out from Profile ("Log Out" row): the root stack swaps to `Auth`, which opens on Landing.
@@ -80,6 +82,8 @@ Plus app-wide surfaces: the font splash, the session-restore spinner, the tab ba
 ---
 
 #### 2. Login (`screens/onboarding/LoginScreen.tsx`)
+
+> **1.1.0 (phase 3, 25 Nov 2026), what changed from the 1.0.1 description below:** Bento layout per the kept boards: dark glass Back, labelled fields (the field icons and the wordmark are gone, as on the boards), the password eye, keep-me-logged-in as a checkbox. The screen scrolls and avoids the keyboard on iOS. Technical server errors (500 and the like) show "Something went wrong on our side. Please try again."; 401, 429 and 400 texts are unchanged. Shared sign-in parts live in `screens/onboarding/authParts.tsx`. Everything else below is unchanged.
 
 - **Reached from:**
   - Landing: "I already have an account".
@@ -153,6 +157,8 @@ Plus app-wide surfaces: the font splash, the session-restore spinner, the tab ba
 
 #### 3. Sign up step 1 (`screens/onboarding/SignUpStep1Screen.tsx`)
 
+> **1.1.0 (phase 3, 25 Nov 2026), what changed from the 1.0.1 description below:** Labelled fields (no wordmark or field icons). Golf Club opens a `PickerSheet` (radio rows, server order kept). A failed club list shows `LoadError` ("Couldn’t load this", `friendlyError` body) with **Try again**, and the Golf Club field is disabled meanwhile (owner decision: no silent failures). Date of Birth keeps `DateField`. Shared sign-in parts live in `screens/onboarding/authParts.tsx`. Everything else below is unchanged.
+
 - **Reached from:** Landing "Get Started"; Login "Sign Up!"; back from step 2.
 - **Shows:**
   - `AuthBackdrop` (fairway photo, 280 pt), back chevron, logo (72).
@@ -217,6 +223,8 @@ Plus app-wide surfaces: the font splash, the session-restore spinner, the tab ba
 
 #### 4. Sign up step 2 (`screens/onboarding/SignUpStep2Screen.tsx`)
 
+> **1.1.0 (phase 3, 25 Nov 2026), what changed from the 1.0.1 description below:** Labelled fields; a legal line under Sign Up with Terms of Use and Privacy Notice links (owner decision: links for signed-out people on Sign up); coming back keeps the form. Shared sign-in parts live in `screens/onboarding/authParts.tsx`. Everything else below is unchanged.
+
 - **Reached from:** Sign up step 1 "Next Step" only, with route params.
 - **Shows:**
   - `AuthBackdrop` with the **tee photo** (`strand-golf-club-tee.jpg`), back chevron, logo (72).
@@ -271,6 +279,8 @@ Plus app-wide surfaces: the font splash, the session-restore spinner, the tab ba
 ---
 
 #### 5. Forgot / reset password (`screens/onboarding/ForgotPasswordScreen.tsx`)
+
+> **1.1.0 (phase 3, 25 Nov 2026), what changed from the 1.0.1 description below:** Labelled fields. **Send it again** shows a "Code sent" / "Check your email for the new code." toast on success (owner-approved copy); the first Send Code shows none; a failed resend keeps the "Couldn’t send code" alert. Update Password keeps the arrow nub (the board's check icon needs a shared button change). Shared sign-in parts live in `screens/onboarding/authParts.tsx`. Everything else below is unchanged.
 
 One screen with two internal steps, `request` and `reset`.
 
@@ -344,6 +354,8 @@ One screen with two internal steps, `request` and `reset`.
 ---
 
 #### 6. Home (`screens/home/HomeScreen.tsx`)
+
+> **1.1.0 (phase 3, 25 Nov 2026), what changed from the 1.0.1 description below:** small board-matching sizes (bell badge, ring text, "Play a round", tier line). A failed My Stats period switch now keeps the previous period selected and shows "Couldn’t load your stats" with `friendlyError` (was silent, with the old numbers under the new label; owner decision). No booked ad means no ad slot. Everything else below is unchanged.
 
 - **Reached from:**
   - After login, sign-up or session restore (the first tab of `Main`).
@@ -489,7 +501,7 @@ One screen with two internal steps, `request` and `reset`.
 
 #### 7. Notifications (`screens/profile/NotificationsScreen.tsx`)
 
-> **1.1.0 (phase 3, 25 Nov 2026), what changed from the 1.0.1 description below:** Bento screen (`BentoScreen`, no `ScreenHeader`). A gear in the header opens Notification Preferences (approved addition). Group headings are uppercase. Each row has an unread dot, a 40 pt chip with a bell (unread) or check (read), the title, a **time** (clock time for Today/Yesterday, weekday for This Week, date for Earlier and for a row exactly 7 days old; phone locale) and the body. "View" is a button named "View, {title}" (hint "Marks this notification as read"). Empty feed: "No notifications yet" / "Updates about your receipts, rewards and enquiries will show here." (owner-approved copy). Everything else below is unchanged: grouping rule, enquiry rows, mark-read, no refetch, push-tap entry.
+> **1.1.0 (phase 3, 25 Nov 2026), what changed from the 1.0.1 description below:** Bento screen (`BentoScreen`, no `ScreenHeader`). A gear in the header opens Notification Preferences (approved addition). Group headings are uppercase. Each row has an unread dot, a 40 pt chip with a bell (unread) or check (read), the title, a **time** (clock time for Today/Yesterday, weekday for This Week, date for Earlier and for a row exactly 7 days old; phone locale) and the body. "View" is a button named "View, {title}" (hint "Marks this notification as read"). Empty feed: "No notifications yet" / "Updates about your receipts, rewards and enquiries will show here." (owner-approved copy). Mark-read is still optimistic, but a failed server call now puts the row back to unread, and for "View" an alert "Couldn’t mark as read" / "Something went wrong. Please try again." says so (owner decision: no silent failures). Everything else below is unchanged: grouping rule, enquiry rows, no refetch, push-tap entry.
 
 - **Reached from:**
   - The Home bell.
@@ -1084,6 +1096,8 @@ Verified against code on 2026-11-24 (branch `claude/member-store-build`, working
 
 #### Scan Receipt (`mobile/src/screens/receipts/ScanReceiptScreen.tsx`)
 
+> **1.1.0 (phase 3, 25 Nov 2026), what changed from the 1.0.1 description below:** Bento camera chrome matched to the boards (frame and hint positions, 34 pt Reading ring, blurred Close and hint). Torch button on phones (approved addition; `enableTorch`; off whenever the screen loses focus). Camera access denied for good: **Open Settings** (`Linking.openSettings()`) replaces Continue, and the permission is re-read when the app returns to the foreground (phones; web always reports `canAskAgain`). A failed capture or photo pick now shows an alert (was silent). Error alerts use `friendlyError` (technical text → plain message; member-facing server text kept). Everything else below is unchanged.
+
 One screen with four visual modes: **blank** (permission unknown), **Camera permission card**, **Live camera**, **Reading** (processing).
 
 - **Reached from:**
@@ -1216,6 +1230,8 @@ One screen with four visual modes: **blank** (permission unknown), **Camera perm
 ---
 
 #### Review Receipt (`mobile/src/screens/receipts/ReviewReceiptScreen.tsx`)
+
+> **1.1.0 (phase 3, 25 Nov 2026), what changed:** notices without "R1 = 1 FC": between subscriptions "Your club is between subscriptions right now — this slip earns Flagrr Cash at the standard rate." (accent), away club "Not your home club — Flagrr Cash earned at the standard away-club rate." (warn colours, pin icon). "Not eligible for points" is now "Not eligible for Flagrr Cash" (and its footnote). The "—" amount reads "No Flagrr Cash" to screen readers. Submit errors use `friendlyError`. Everything else below is unchanged.
 
 - **Reached from:** only from Scan Receipt after a successful, non-duplicate, valid scan (`navigation.navigate('ReviewReceipt', { imageUri, imageBase64, scanResult })`). No other entry point. It cannot be reopened later.
 
@@ -1353,6 +1369,8 @@ One screen with four visual modes: **blank** (permission unknown), **Camera perm
 
 #### Receipt Success (`mobile/src/screens/receipts/ReceiptSuccessScreen.tsx`)
 
+> **1.1.0 (phase 3, 25 Nov 2026), what changed:** the button is **View My Flagrr Cash** (still `popTo` Home), followed 450 ms later by a "Receipt submitted" toast (flagged: "+N FC once your club approves it"); no toast after Submit Another Receipt. Approved copy: "N Flagrr Cash added and ready to spend." and the info tile "Your new Flagrr Cash is ready to redeem on rewards at your club."; flagged copy: "…will be added to your Flagrr Cash — …" (no "wallet" or "balance", kept-board wording). Everything else below is unchanged.
+
 - **Reached from:** only from Review Receipt after a successful submit (`navigation.replace`). Params: `{ pointsAwarded: number; flagged?: boolean }`.
 
 - **Shows:** `BentoScreen` with **no header, title or back button**.
@@ -1409,6 +1427,8 @@ One screen with four visual modes: **blank** (permission unknown), **Camera perm
 ---
 
 #### Receipt History (`mobile/src/screens/receipts/ReceiptHistoryScreen.tsx`)
+
+> **1.1.0 (phase 3, 25 Nov 2026), what changed:** the list is fetched again (`GET /api/receipts`) every time the screen gains focus; the loaded list stays on show while it refreshes and if the refresh fails (no alert). The photo opens **full screen** (was a sheet): X, a tap anywhere or system back closes it. Status pills use `StatusPill`; View Photo has an eye icon with an 18 pt ring while loading. The `receiptId` param still opens that receipt's photo. Everything else below is unchanged.
 
 - **Reached from:**
   1. Profile tab (`MemberProfileScreen`), row "Receipt History" (receipt icon).
@@ -1657,6 +1677,8 @@ Verified against the code on branch `claude/member-store-build` (working tree, 2
 
 #### Rewards Shop (`mobile/src/screens/rewards/RewardsShopScreen.tsx`)
 
+> **1.1.0 (phase 3, 25 Nov 2026), what changed from the 1.0.1 description below:** Bento styling from the main boards (tags, 40 pt Redeem Now, 38 pt filter pills, all as minimum heights). The header Flagrr Cash is a button that opens Member Tiers (approved addition; label unchanged, hint "Opens Member Tiers"). Option chips are outlined pills that wrap. The sheet says **Left to spend** (was "Balance after"). After a successful redeem a "Reward redeemed" / "Show the voucher at the club" toast shows (prototype wording, owner-approved toast). A failed redeem shows a "Couldn’t redeem" alert with `friendlyError` (was silent; owner decision); after a partial failure (voucher issued, refresh failed) the voucher opens (was: stayed on the shop). Everything else below is unchanged.
+
 - **Reached from:**
   - Tab bar tab **Rewards** (icon `rewards`, label "Rewards"), in the 4-tab bar (Home, Course | Scan | Rewards, Profile) since 1.1.0 (1.0.1: six tabs). Tab screens stay mounted, so search text, category and per-card option choice persist while switching tabs.
   - Home: the hero **Redeem** button (accessibility label "Redeem Flagrr Cash").
@@ -1752,6 +1774,8 @@ Verified against the code on branch `claude/member-store-build` (working tree, 2
 
 #### Voucher (`mobile/src/screens/rewards/VoucherScreen.tsx`)
 
+> **1.1.0 (phase 3, 25 Nov 2026), what changed:** **Left to spend** (was "Balance left"). A **Used** (status `redeemed`) or **Expired** (status `expired`) badge sits in the header's right slot (owner-approved; no board places it). No share button. Everything else below is unchanged.
+
 - **Reached from:**
   - Rewards Shop, automatically after a successful redeem (`navigate('Voucher', { voucherId })`).
   - Reward Activity: tapping a redeem row whose voucher is `active`.
@@ -1803,6 +1827,8 @@ Verified against the code on branch `claude/member-store-build` (working tree, 2
 ---
 
 #### Reward Activity (`mobile/src/screens/rewards/RewardsActivityScreen.tsx`)
+
+> **1.1.0 (phase 3, 25 Nov 2026), what changed:** Bento rows from the main boards (system-font amounts, earn/redeem chips, "Already redeemed" grey and "Expired" red pills), natural-width filter, `EmptyState`. "Receipt scanned" rows with a `receiptId` (API, migration 052) open `ReceiptHistory` with that `receiptId`, which opens the receipt's photo (owner decision); rows without one stay inert. Every tap and alert below is unchanged.
 
 - **Reached from:**
   - Tab bar tab **Activity** (icon `activity`, label "Activity") in the live 6-tab bar.
@@ -1982,6 +2008,8 @@ Conventions used below: "copy" is quoted verbatim from code, `{x}` marks an inte
 
 #### Course tab (`screens/golf/CourseHomeScreen.tsx`)
 
+> **1.1.0 (phase 3, 25 Nov 2026), what changed from the 1.0.1 description below:** Bento layout per the boards; the hero is a fairway-green gradient tile (no club photo: the API returns none). **Your game** is always shown and opens My Golf ("–" with no stats or when the stats read fails) (owner decision: Course must lead to My Golf before the first round). With no away course, no search field and no "Coming soon" chip (as before). Error texts go through `friendlyError`. Everything else below is unchanged.
+
 - **Reached from:**
   - Bottom tab "Course" (6-tab bar: Home, Course, My Golf, Scan, Rewards, Activity, Profile; `MainTabNavigator.tsx`).
   - Home screen tile "Play a round" / "Hole maps and your scorecard" when no round is in progress (`HomeScreen.tsx:265–281`).
@@ -2042,6 +2070,8 @@ Conventions used below: "copy" is quoted verbatim from code, `{x}` marks an inte
 
 #### Start a Round (`screens/golf/RoundSetupScreen.tsx`)
 
+> **1.1.0 (phase 3, 25 Nov 2026), what changed from the 1.0.1 description below:** Bento styling only; every field, rule, alert and the 409 flow below is unchanged; technical errors go through `friendlyError`.
+
 - **Reached from:** Course tab "Start a round" (home course), home course row, any away course row (only when no round is in progress). Stack screen; not reachable from elsewhere.
 - **Shows:**
   - Header title "Start a Round" with back button (a11y "Back").
@@ -2090,6 +2120,8 @@ Conventions used below: "copy" is quoted verbatim from code, `{x}` marks an inte
 ---
 
 #### Hole view / Course Guide (`screens/golf/CourseGuideScreen.tsx`)
+
+> **1.1.0 (phase 3, 25 Nov 2026), what changed from the 1.0.1 description below:** The "GPS integration coming soon" chip is gone (owner decision). Header card holds the hole facts and save status; hole pills are six wide; map palettes follow the kept boards; the status bar is dark over a light no-map screen. The **Scorecard** sheet is horizontal (owner decision): per nine a 9-column grid with an Out / In column, rows Hole, m, Par, SI, Shots (left out on scratch rounds), Score with marks, Putts (blank on unplayed holes) and Pts or Net; 18-hole rounds add a Total row; tapping a hole number jumps to it. Scoring, saving, retry, finish, discard and delete logic is unchanged line for line (errors through `friendlyError`).
 
 Full-screen stack screen (no tab bar), presented with a slide-up animation, swipe-back gesture disabled (`gestureEnabled: false`). Layout top to bottom: dark-green header (back, course name and save status, HCP button, Bag button, hole pills) → map area with floating cards → optional Putts/Fairway bar → score bar.
 
@@ -2264,6 +2296,8 @@ Full-screen stack screen (no tab bar), presented with a slide-up animation, swip
 
 #### Round (`screens/golf/RoundDetailScreen.tsx`)
 
+> **1.1.0 (phase 3, 25 Nov 2026), what changed from the 1.0.1 description below:** Uses the same horizontal Scorecard. Everything else below is unchanged; errors through `friendlyError`.
+
 - **Reached from:** My Golf "Recent rounds" rows (up to 8); Course tab "Played recently" rows (up to 3). Both lists contain completed rounds only.
 - **Shows:** header "Round" with back. Hero tile: course name (header role); "{date} · {tee} tees ({men|ladies}) · CR {cr 1dp} / {slope}" where date = completedAt (or startedAt) in en-ZA "weekday short, day, month long, year" (e.g. "Sat 21 November 2026"; exact rendering locale-dependent); handicap line "No Handicap Index (scratch)" or "Index {index} · course handicap {c} · playing {p} ({pct}%)"; big "{points}" "pts" (count-up) and "{gross}" "gross" when there was no pick-up. Scorecard tile (full Scorecard component, not tappable, no highlight). Primary button "Correct a score" (completed) or "Resume round" (in progress; not reachable from current lists). Text button "Delete round" (danger colour).
 - **Actions:**
@@ -2285,6 +2319,8 @@ Full-screen stack screen (no tab bar), presented with a slide-up animation, swip
 ---
 
 #### My Golf tab (`screens/golf/MyGolfScreen.tsx`)
+
+> **1.1.0 (phase 3, 25 Nov 2026), what changed from the 1.0.1 description below:** Bento layout per the boards; the points chart sits in the hero, keeps its 0/10/20/30/40 values and gridlines, and a tapped bar turns white. Everything else below is unchanged.
 
 - **Reached from:** bottom tab "My Golf"; Home "My Golf" link on the Points Earned Per Month tile (`HomeScreen.tsx:334`); Course tab "Your game" tile; hole view finish alert "See My Golf".
 - **Shows:**
@@ -2469,6 +2505,8 @@ Conventions used below:
 
 #### Member Profile (`screens/profile/MemberProfileScreen.tsx`)
 
+> **1.1.0 (phase 3, 25 Nov 2026), what changed from the 1.0.1 description below:** Bento layout per the boards: 68 pt avatar with camera badge, an **Edit Profile** header button (as on the boards; opens the same Edit Profile), Phone among the Details rows, Log Out as a secondary button and Delete Account as a red link. Password and Delete sheets use labelled fields with eye toggles; the delete copy says "Flagrr Cash" (was "points"). **Choose Golf Club** has search (approved) and club monograms; a failed list still shows an empty box. Alerts use `friendlyError` (technical text → plain message; member-facing server text kept). Everything else below is unchanged.
+
 - **Reached from:**
   - Bottom tab bar `Profile` tab (`MainTabNavigator`, 6 tabs today: Home, Course, MyGolf, Rewards, Activity, Profile; Scan sits in the custom `BentoTabBar`).
   - Home: avatar button top-right (`accessibilityLabel="Profile"`, `HomeScreen.tsx:164`).
@@ -2583,6 +2621,8 @@ Conventions used below:
 
 #### Edit Profile (`screens/profile/EditProfileScreen.tsx`)
 
+> **1.1.0 (phase 3, 25 Nov 2026), what changed from the 1.0.1 description below:** Labelled `BentoField`s (errors announced again: live region and `aria-invalid`); a Bento date field (iOS inline calendar card with Done, Android system dialog, web date input). Alerts use `friendlyError` (technical text → plain message; member-facing server text kept). Everything else below is unchanged.
+
 - **Reached from:** Member Profile → Details rows `Name`, `Phone`, `Email`, `Birthday` (four entry points, same destination). Nothing else navigates here.
 - **Shows:** legacy-bridged screen; header `Edit Profile` with back button; scrollable form pre-filled from `user`:
   - `TextField` icon person-outline, placeholder `First Name` ← `user.firstName`
@@ -2628,6 +2668,8 @@ Conventions used below:
 
 #### Refer a Friend (`screens/profile/ReferralScreen.tsx`)
 
+> **1.1.0 (phase 3, 25 Nov 2026), what changed from the 1.0.1 description below:** Hero with the code (selectable) and a lime Share button (the phone's own share sheet), a progress tile with a bar. A failed load shows `LoadError` with **Try again** (owner decision; was an alert / endless spinner). Alerts use `friendlyError` (technical text → plain message; member-facing server text kept). Everything else below is unchanged.
+
 - **Reached from:** Member Profile → `Refer a Friend` hero tile (only entry point).
 - **Shows:** legacy-bridged; header `Refer a Friend` + back; hero title `Earn Flagrr Cash` (Fraunces 30 pt). Then, once loaded (`GET /api/profile?action=referralInfo`):
   - Code card: label `Your referral code`; the code (`info.code`, 34 pt, letter-spacing 4, fairway green); `PillButton` `Share My Code` with share icon; progress line:
@@ -2668,6 +2710,8 @@ Conventions used below:
 
 #### Notification Preferences (`screens/profile/NotificationPreferencesScreen.tsx`)
 
+> **1.1.0 (phase 3, 25 Nov 2026), what changed from the 1.0.1 description below:** One tile of switches with a spinner in place of a switch while saving (revert plus alert on failure, as before). A failed load shows `LoadError` with **Try again** (owner decision). Alerts use `friendlyError` (technical text → plain message; member-facing server text kept). Everything else below is unchanged.
+
 - **Reached from:** Member Profile → Settings → `Notification Preferences` (only entry point; Terms/Privacy text mentions it).
 - **Shows:** legacy-bridged; header `Notification Preferences` + back; one card with three rows (label + description + `BentoToggle` switch):
   - `Account Activity` — `Receipts earned, redemptions, tier and streak rewards.`
@@ -2702,6 +2746,8 @@ Conventions used below:
 ---
 
 #### Help Center (`screens/profile/HelpCenterScreen.tsx`)
+
+> **1.1.0 (phase 3, 25 Nov 2026), what changed from the 1.0.1 description below:** Board layout (greeting, hero, search, Contact Your Club tile, article rows still not tappable, FAQ cards). FAQ text unchanged except the tier answer's brand wording (see `faqData.ts`). Alerts use `friendlyError` (technical text → plain message; member-facing server text kept). Everything else below is unchanged.
 
 - **Reached from:** Member Profile → Support → `Help Center` (only entry point).
 - **Shows:** legacy-bridged; fixed header block (does not scroll): header `Help Center` + back; `Hello, {user.firstName}` (muted); hero `How can we help you today?` (Fraunces 30 pt); search `TextField` (icon search, placeholder `Search`).
@@ -2740,6 +2786,8 @@ Conventions used below:
 ---
 
 #### Contact Us / Contact Your Club (`screens/profile/ContactScreen.tsx`)
+
+> **1.1.0 (phase 3, 25 Nov 2026), what changed from the 1.0.1 description below:** Labelled two-column fields (no placeholders). The enquiry type is a bottom sheet (`PickerSheet`, owner decision); "Rewards and Points" is now "Rewards and Flagrr Cash" (stored as text by the server, so older enquiries keep the old label). Alerts use `friendlyError` (technical text → plain message; member-facing server text kept). Everything else below is unchanged.
 
 - **Reached from:**
   - Member Profile → Support → `Contact Your Club`.
@@ -2791,6 +2839,8 @@ Conventions used below:
 
 #### My Enquiries (`screens/profile/MyEnquiriesScreen.tsx`)
 
+> **1.1.0 (phase 3, 25 Nov 2026), what changed from the 1.0.1 description below:** One tile of rows (chip, type, unread dot, last message or —, status pill, relative time). **+** in the header opens Contact (approved addition). Empty: "No enquiries" with **Contact Your Club** (approved). A failed load shows `LoadError` ("Couldn’t load this") with **Try again** (owner decision; was an empty-looking list). Alerts use `friendlyError` (technical text → plain message; member-facing server text kept). Everything else below is unchanged.
+
 - **Reached from:** Member Profile → Support → `My Enquiries`; Contact → `View my previous enquiries`.
 - **Shows:** legacy-bridged; header `My Enquiries` + back; `FlatList` of the member's enquiries from `GET /api/profile?action=myEnquiries`, newest activity first (server `order by updated_at desc`). Each row (bordered card, 0.5 pt accent border):
   - `enquiryType` (semibold) + red unread dot (8 pt, `t.danger`) when `hasUnread` (any message with `read_by_member = false`, i.e. an unread admin reply).
@@ -2824,6 +2874,8 @@ Conventions used below:
 ---
 
 #### Enquiry Chat (`screens/profile/EnquiryChatScreen.tsx`)
+
+> **1.1.0 (phase 3, 25 Nov 2026), what changed from the 1.0.1 description below:** Bento title, centred status pill and `ChatBubble`s (member bubbles use the accent colour, lime in dark mode). The message box is unchanged (still the legacy `TextField` composer with its sending spinner). Polling, auto-scroll and alerts are unchanged. Alerts use `friendlyError` (technical text → plain message; member-facing server text kept). Everything else below is unchanged.
 
 - **Reached from:**
   - My Enquiries → row.
@@ -2869,6 +2921,8 @@ Conventions used below:
 
 #### Give Feedback (`screens/profile/GiveFeedbackScreen.tsx`)
 
+> **1.1.0 (phase 3, 25 Nov 2026), what changed from the 1.0.1 description below:** Category pill chips with icons and a labelled message field; checks and alerts unchanged. Alerts use `friendlyError` (technical text → plain message; member-facing server text kept). Everything else below is unchanged.
+
 - **Reached from:** Member Profile → Support → `Give Feedback` (only entry point).
 - **Shows:** legacy-bridged; header `Give Feedback` + back; hero `Help Us Improve Flagrr`. Body: label `What kind of feedback is this?`; three full-width category chips with icons — `Bug Found` (bug-outline), `General Feedback` (chatbox-ellipses-outline), `Improvement Idea` (bulb-outline); selected chip turns fairway green with white text and lime icon. Label `Your message`; multiline box (min 140 pt) placeholder `What's on your mind?`; `PillButton` `Send Feedback`.
 - **Actions:**
@@ -2895,6 +2949,8 @@ Conventions used below:
 ---
 
 #### Terms and Privacy (`screens/profile/TermsPrivacyScreen.tsx`)
+
+> **1.1.0 (phase 3, 25 Nov 2026), what changed from the 1.0.1 description below:** One screen with a **Terms of Use | Privacy Policy** toggle (owner decision), "Last updated" and a Fraunces title per document. It opens on `route.params.section` ('privacy' or 'terms', Terms when absent), signed in and signed out (Landing and Sign up 2 link to it). The exported copy used by the admin screen is unchanged. Alerts use `friendlyError` (technical text → plain message; member-facing server text kept). Everything else below is unchanged.
 
 - **Reached from:** Member Profile → Account → `Terms and Privacy` (member stack). The same section constants (`LAST_UPDATED`, `TERMS_SECTIONS`, `PRIVACY_SECTIONS`) are imported by `screens/admin/AdminTermsPrivacyScreen.tsx`, which the admin, staff, super-admin and support stacks use — editing the copy here changes it there too. Landing screen's `Terms of Use` / `Privacy Notice` words are plain bold text, not links to this screen.
 - **Shows:** legacy-bridged; header `Terms and Privacy` + back; one long scroll:
@@ -2936,6 +2992,8 @@ Conventions used below:
 - Card per FAQ (tile, hairline, radius 23); question 15 pt semibold + chevron up/down (accent); answer 14 pt muted when open; single-open accordion; `LayoutAnimation.Presets.easeInEaseOut` on every toggle (ignores Reduce Motion); keyed by question text; no accessibility role/expanded state.
 
 #### `data/faqData.ts` (verbatim)
+
+> **1.1.0 (phase 3, 25 Nov 2026), what changed from the 1.0.1 description below:** The tier answer now says "on your receipts" (was "per R1 spent") and no longer gives the bar voucher's rand value (owner decision: perks drop rands "in Member Tiers and the FAQ"). Every other answer is verbatim as below.
 - FAQs:
   1. `How Do I Earn Flagrr Cash?` — `You can earn Flagrr Cash by playing qualifying rounds, scanning eligible receipts, participating in promotions, and completing selected in-app activities.`
   2. `How do I redeem rewards?` — `Open the Rewards Shop, choose a reward you can afford, and tap Redeem Now to receive a QR voucher.`

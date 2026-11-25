@@ -9,17 +9,17 @@ For the Bento store build, use this page together with [Member App Functionality
 - [ ] Install 1.0.1, sign in with "Keep me logged in", then install the 1.1.0 build over it: the member is still signed in and the Appearance choice is kept.
 - [ ] Screen movement (1.1.0): pushes slide in with the screen behind sliding left and dimming; Scan rises with the screen behind shrinking; swipe-back from anywhere on iPhone, including over Home's reward rail and the Rewards categories (it must not fight horizontal scrolling); no swipe-back during a round. With Reduce Motion on, screens just fade.
 - [ ] Haptics (1.1.0, phones): a tick on tab and segment changes, a light tap on main buttons and Scan, a success buzz when a receipt is submitted, a reward redeemed and a round saved.
-- [ ] "View Current Balance" after a scan shows Home and Back does not return to the success screen; "Back to Rewards" on a voucher shows the Rewards tab; "See My Golf" after finishing a round shows My Golf and Back returns to the tabs; "Submit Another Receipt" opens one scanner and Close leaves the flow.
+- [ ] "View My Flagrr Cash" after a scan shows Home and Back does not return to the success screen; "Back to Rewards" on a voucher shows the Rewards tab; "See My Golf" after finishing a round shows My Golf and Back returns to the tabs; "Submit Another Receipt" opens one scanner and Close leaves the flow.
 - [ ] On an iPhone with dark mode on and Appearance set to System, the 1.1.0 app is dark; with Light or Dark chosen, it ignores the phone setting.
 - [ ] Profile → Export My Data opens the share sheet with a complete `flagrr-my-data.json`.
 - [ ] Push notifications still arrive and show while the app is open.
 - [ ] Camera scan, photo upload, date picker, video ads and the share sheet all work on iOS and Android.
-- [ ] `cd mobile && npm run e2e` is green (503 passed, 42 skipped as of 24 Nov 2026) before the build. It covers the web build only; the items above and the native-only skips need a device.
+- [ ] `cd mobile && npm run e2e` is green (531 passed, 44 skipped as of 25 Nov 2026) before the build. It covers the web build only; the items above and the native-only skips need a device.
 
 ## 1. Onboarding
 
 - [ ] Sign up as a brand-new member: full name, email, phone, date of birth, pick a golf club, set a password (at least 8 characters).
-- [ ] Golf club list on sign-up loads and shows every signed-up club.
+- [ ] Golf club list on sign-up loads and shows every signed-up club (a bottom sheet). With no connection, the field shows "Couldn’t load this" with Try again, and Try again loads the list once the connection is back.
 - [ ] A password shorter than 8 characters is rejected with a clear message.
 - [ ] Sign-up rejects a duplicate email with a clear error, not a silent failure.
 - [ ] Welcome email arrives after sign-up (check spam folder) and shows the correct club name.
@@ -29,6 +29,7 @@ For the Bento store build, use this page together with [Member App Functionality
 - [ ] "Keep me logged in" unchecked: closing and reopening the app requires login again.
 - [ ] "Keep me logged in" checked (default): reopening the app stays logged in.
 - [ ] On a store build (`EXPO_PUBLIC_STORE_BUILD=1`), the Landing and Login screens do not show an Admin Login option. On the web build they do.
+- [ ] Signed out, Landing's **Terms of Use** and **Privacy Notice** open Terms and Privacy on that part, and Back returns to Landing; the same links under Sign Up on step 2 keep the form filled when you come back.
 - [ ] The opening screen (Landing, Bento) shows the photo fading into the ground, the wordmark, the headline with "Repeat." in the accent colour and the buttons without clipping or sideways scrolling at phone width (375 px), on a foldable's cover and inner screens, on a landscape phone (it scrolls) and on desktop web, in both light and dark mode (it follows the member's Appearance setting). Get Started opens sign-up, Golf Course Admin Login opens the admin sign-in and I already have an account opens member login.
 - [ ] With Reduce Motion on, the opening screen's headline appears without rising in.
 - [ ] Bento sign-in screens, light and dark: Login shows "Welcome back" under the photo; sign-up step 1 shows "Step 1 of 2", the progress bar and "Create your account", and step 2 "Step 2 of 2" and "Set a password"; Forgot password shows the wordmark and "Reset Password" on the contour background. The back button, password eye, Keep me logged in, Golf Club picker, Date of Birth picker, Recover here, Sign Up! and Login! links all work, and validation messages (missing name or email, passwords that don't match, password under 8 characters) still show under the right field. When the step 1 form scrolls, the fields pass under a clear gap below the title.
@@ -40,7 +41,7 @@ For the Bento store build, use this page together with [Member App Functionality
 - [ ] Enter the code and a new password (at least 8 characters): the reset succeeds and the new password works at login.
 - [ ] A wrong code is rejected with a clear error.
 - [ ] A code used once cannot be used a second time.
-- [ ] Request a second code: the first code no longer works, only the newest does.
+- [ ] Request a second code (Send it again): a "Code sent" toast appears; the first code no longer works, only the newest does.
 - [ ] A code older than 30 minutes is rejected.
 - [ ] Request a code 4 times within 30 minutes for the same email: the 4th shows “Too many password reset attempts. Please contact Flagrr support at Swing@flagrr.com or 071 759 9553.”
 - [ ] Enter a wrong code 5 times: the 5th shows the same support message, and even the correct code is then refused until 30 minutes pass.
@@ -83,12 +84,13 @@ For the Bento store build, use this page together with [Member App Functionality
 - [ ] Scanning a blurry/unclear photo still reaches the Review screen and shows the "wasn't fully clear" warning.
 - [ ] **If a second participating club's merchant exists in the system**: scanning a receipt from that other club shows the away-club note and awards the flat rate (1 FC per R1 of the receipt total) regardless of tier.
 - [ ] Scanning a receipt from an unrelated/generic retailer behaves the same as a home-club receipt (catalog match + tier multiplier), not the away-club flat rate.
-- [ ] Receipt History lists the submitted receipt with the right status, amount, and an image that loads on demand (View Photo opens it in a sheet; the close button and backdrop close it).
+- [ ] Receipt History lists the submitted receipt with the right status, amount, and an image that loads on demand (View Photo opens it full screen; X, a tap anywhere and system back close it). Leaving and reopening Receipt History shows a status an admin just changed.
 - [ ] Receipt History's summary shows the Flagrr Cash from receipts approved this month and the number of receipts submitted this month; with no receipts, the empty card's **Scan a receipt** opens the camera.
-- [ ] Camera permission card reads "Flagrr needs camera access…" (not "Flaggr"); Continue asks for access; "Upload from gallery instead" works; the close button leaves the screen.
+- [ ] Camera permission card reads "Flagrr needs camera access…" (not "Flaggr"); Continue asks for access; "Upload from gallery instead" works; the close button leaves the screen. After denying access for good, the card shows **Open Settings**; granting access there and coming back opens the camera.
+- [ ] Torch (phones): the button lights the torch, and the torch is off again after moving on to Review or closing the scanner.
 - [ ] While a receipt is read, the photo shows dimmed behind the "Reading your receipt…" sheet.
 - [ ] Review Receipt: the back button and Rescan both return to the camera; Submit Receipt still submits.
-- [ ] Receipt submitted: a normal receipt shows "+N FC" and the added-to-balance message; a flagged one shows "Your receipt is being reviewed" and the manual-review note. View Current Balance goes Home; Submit Another Receipt opens the camera.
+- [ ] Receipt submitted: a normal receipt shows "+N FC" and "N Flagrr Cash added and ready to spend."; a flagged one shows "Your receipt is being reviewed" and the manual-review note. View My Flagrr Cash goes Home and shows a "Receipt submitted" toast; Submit Another Receipt opens the camera (no toast).
 - [ ] Duplicate ("Already redeemed"), "This is not a valid slip" (Back / Try Again) and "Couldn’t read that image" alerts appear in the Bento alert style with the same wording and buttons.
 
 ## 6. Receipts Held for Review
@@ -137,10 +139,10 @@ Use test receipts that trigger a flag: a very unclear photo (low OCR confidence)
 - [ ] Reward Activity timeline shows the redemption; tapping it opens the voucher's QR code.
 - [ ] When club staff redeem the voucher at the counter, the member gets a "Reward validated" notification and the voucher then shows as used.
 - [ ] A used/expired voucher, when tapped from Reward Activity, explains its state instead of opening a QR code.
-- [ ] Redeem Now opens the "Redeem reward?" sheet showing the right option, Cost and Balance after; Cancel, the close button and the backdrop all close it without redeeming; Redeem Now redeems once and opens the voucher.
+- [ ] Redeem Now opens the "Redeem reward?" sheet showing the right option, Cost and Left to spend; Cancel, the close button and the backdrop all close it without redeeming; Redeem Now redeems once, opens the voucher and shows the "Reward redeemed" toast. Tapping the Flagrr Cash at the top of the shop opens Member Tiers. A reward with four options shows every option chip on a 360-wide phone.
 - [ ] Rewards Shop search and category filters work (tapping the active filter returns to All); a search with no matches shows "No rewards match your search."
 - [ ] A member at a club not on Flagrr sees "Nothing Here Yet" with Contact Support (opens Contact Your Club), the ad, and the "You're Almost In the Family" alert on every visit.
-- [ ] Voucher shows the ticket with QR code, voucher code, Redeemed and Expires dates, Cost and Balance left; Back to Rewards and the back button both work.
+- [ ] Voucher shows the ticket with QR code, voucher code, Redeemed and Expires dates, Cost and Left to spend; Back to Rewards and the back button both work.
 - [ ] Reward Activity's All / Earned / Redeemed filter works; used and expired vouchers are labelled in the list; an empty account sees the empty card with Scan a receipt.
 
 ## 11. Profile
@@ -198,11 +200,13 @@ Needs migration `048` applied and at least one live course map.
 - [ ] The tee distance on the green card matches the card length within 15 m from every tee.
 - [ ] Score bar: tap for par, − / +, press and hold to clear; Stableford points and net results are right on a hole with a shot; **Pick up** appears once a hole is worth 0 points.
 - [ ] Putts and fairways (when turned on): putts can't reach the score; fairway buttons only on par 4s and 5s.
-- [ ] Scorecard: Out / In / Total add up; Finish round only when every hole is in; Discard round deletes it.
+- [ ] Scorecard (horizontal grid per nine): Out / In / Total add up; every hole's par, SI, shots, score marks, putts and points show; tapping a hole number goes to that hole; it fits a 360-wide phone; Finish round only when every hole is in; Discard round deletes it.
+- [ ] Course always shows Your game ("–" before the first finished round) and it opens My Golf; no "GPS integration coming soon" label anywhere; with no map, the hole view's status bar is readable in light mode.
+- [ ] My Golf's points chart shows its 0 / 10 / 20 / 30 / 40 values.
 - [ ] Turn off the network, enter a score, see "Not saved yet · will retry", turn it back on and see it save; leave and resume the round and the scores are still there.
 - [ ] My Golf after a few rounds: the Month / Year / All toggle changes the numbers; tapping a chart column shows that round; Recent rounds opens the scorecard; Correct a score saves; Delete round removes it from the stats.
 - [ ] Bento Profile: every row opens the same screen as before (Reward Activity, Receipt History, each Details field → Edit Profile, Club → Choose Golf Club sheet → "Change home club?"); Appearance switches Light / Dark / System and saves; Security opens the Change your password sheet (an empty or short password shows "Missing info" above the sheet; a correct change closes the sheet and shows "Password changed"); Export My Data still exports (or says it isn't available); Delete Account opens its sheet and still asks for confirmation; Log Out works.
-- [ ] Support screens in light and dark: Help Center search and FAQ, Contact Your Club (enquiry type list, Submit Enquiry), My Enquiries and the chat, Give Feedback, Notification Preferences toggles, Notifications, Member Tiers, Edit Profile, Refer a Friend (Share My Code opens the phone's share sheet) and Terms all work and are readable.
+- [ ] Support screens in light and dark: Help Center search and FAQ, Contact Your Club (enquiry type sheet, Submit Enquiry), My Enquiries (+ opens Contact; empty list offers Contact Your Club) and the chat, Give Feedback, Notification Preferences toggles, Notifications, Member Tiers, Edit Profile, Refer a Friend (Share My Code opens the phone's share sheet) and Terms (Terms of Use | Privacy Policy toggle) all work and are readable. Choose Golf Club's search narrows the list. With no connection, My Enquiries, Notification Preferences and Refer a Friend show an error with Try again that recovers once the connection is back.
 - [ ] An alert raised while a sheet is open draws above the sheet (web and phone).
 - [ ] Bento golf screens: the Course tab shows the in-progress tile (next hole, points, thru), Your club with Start a round, and Your game with My Golf and Played recently (each opens its scorecard); Start a Round's tiles, toggles and Start round work; in the hole view the header buttons are at least 44 pt, the Scorecard, Your round and My bag sheets open and close (close button, backdrop, Done), and the map layers toggles switch arcs and hazard distances; Round detail shows points and gross; all of it in light and dark.
 - [ ] Bento polish: the Course average, Round detail points and gross, My Golf's average and tiles, and the Member Tiers, Profile, Rewards and Home balances count up each time the screen opens and end on the exact value (decimals keep one place, e.g. 30.0); switching My Golf between Month / Year / All rolls them to the new values. Reward card photos and the Voucher photo drift slightly as the page scrolls; the ad never moves. With Reduce Motion on, numbers show their final value at once and photos don't move. In dark mode, switching tabs never flashes a light background. Help Center article cards and support-screen timestamps and badges are readable (no text under 12 pt).
