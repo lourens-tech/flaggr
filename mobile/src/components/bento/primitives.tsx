@@ -196,7 +196,9 @@ export function BentoButton({
   const { t, scheme } = useBento();
   const colors =
     variant === 'primary'
-      ? { bg: t.accent, fg: t.accentInk, border: 'transparent', nubBg: scheme === 'dark' ? 'rgba(31,66,52,0.14)' : 'rgba(255,255,255,0.18)', nubFg: t.accentInk }
+      ? // Dark: a solid fairway nub with a lime arrow on the lime button (all 32 nubs on the dark boards);
+        // light: translucent white with a white arrow on the green button.
+        { bg: t.accent, fg: t.accentInk, border: 'transparent', nubBg: scheme === 'dark' ? bentoBrand.fairway : 'rgba(255,255,255,0.18)', nubFg: scheme === 'dark' ? bentoBrand.lime : t.accentInk }
       : variant === 'lime'
         ? { bg: bentoBrand.lime, fg: bentoBrand.fairway, border: 'transparent', nubBg: bentoBrand.fairway, nubFg: bentoBrand.lime }
         : { bg: t.tile, fg: t.ink, border: t.hair, nubBg: t.seg, nubFg: t.ink };
