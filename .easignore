@@ -1,0 +1,49 @@
+# What EAS Build uploads for the mobile app. When this file exists EAS ignores every .gitignore,
+# so the rules from /.gitignore and /mobile/.gitignore are repeated here first. Keep them in step.
+
+# ---- from /.gitignore
+node_modules/
+.vercel/
+.env
+.env.local
+marketing/dist/
+# Real member receipts: personal data, never uploaded.
+scripts/receipt-eval/fixtures/
+scripts/receipt-eval/results.json
+
+# ---- from /mobile/.gitignore
+mobile/.expo/
+mobile/dist/
+mobile/web-build/
+mobile/expo-env.d.ts
+mobile/.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+mobile/.metro-health-check*
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+.DS_Store
+*.pem
+.env*.local
+*.tsbuildinfo
+mobile/ios/
+mobile/android/
+mobile/e2e/.web*/
+mobile/e2e/.results*/
+mobile/e2e/.report*/
+
+# ---- not needed to build the app
+.claude/
+.claude-scratch*
+reels/
+refresh-assets/
+marketing/
+scripts/
+docs/
+/*.html
+/vercel-support-ticket.md

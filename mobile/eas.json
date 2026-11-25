@@ -6,13 +6,19 @@
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "ios": {
+        "image": "macos-tahoe-26.6-xcode-27.2"
+      }
     },
     "preview": {
       "distribution": "internal",
       "channel": "preview",
       "env": {
         "EXPO_PUBLIC_STORE_BUILD": "1"
+      },
+      "ios": {
+        "image": "macos-tahoe-26.6-xcode-27.2"
       }
     },
     "production": {
@@ -20,6 +26,9 @@
       "channel": "production",
       "env": {
         "EXPO_PUBLIC_STORE_BUILD": "1"
+      },
+      "ios": {
+        "image": "macos-tahoe-26.6-xcode-27.2"
       }
     }
   },

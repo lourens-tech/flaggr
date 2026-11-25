@@ -40,6 +40,12 @@ export const STAGGER_MAX_ITEMS = 8;
 // JS thread either way and warns if asked for it).
 export const useNativeDriver = Platform.OS !== 'web';
 
+// The click-through test build (npm run e2e:build) sets EXPO_PUBLIC_E2E=1. There, screen
+// pushes, tab switches and tile entrances (Appear) happen at once, so a test never clicks
+// something that is still sliding into place. Never set for real web or phone builds; the
+// motion itself is checked separately against the prototype.
+export const E2E_INSTANT_MOTION = process.env.EXPO_PUBLIC_E2E === '1';
+
 // "Reduce Motion" (iOS/Android accessibility setting, or the browser's
 // prefers-reduced-motion). Read synchronously at animation time via
 // prefersReducedMotion(); kept current by a listener started once on import.
@@ -86,3 +92,29 @@ export function nextStaggerDelay() {
   waveCount += 1;
   return delay;
 }
+
+// ── Bento redesign ──────────────────────────────────────────────────────────
+// The two curves from the redesign brief. `move` is for anything travelling
+// (push, rise, reveal); `overshoot` settles slightly past its target and back
+// (tab highlight, sheets, charts, toasts).
+export const bentoEasing = {
+  move: Easing.bezier(0.32, 0.72, 0, 1),
+  overshoot: Easing.bezier(0.34, 1.36, 0.64, 1),
+  // The sheet's softer overshoot from the prototype.
+  sheet: Easing.bezier(0.34, 1.2, 0.64, 1),
+} as const;
+
+export const bentoDuration = {
+  press: 500,
+  tab: 420,
+  rise: 560,
+  reveal: 700,
+  count: 1150,
+  sheet: 600,
+  alert: 450,
+  fill: 1400,
+  toast: 3000,
+} as const;
+
+// First tiles on a screen rise in this far apart.
+export const BENTO_RISE_STEP = 50;

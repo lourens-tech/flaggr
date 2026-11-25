@@ -14,7 +14,7 @@ How to run and deploy each piece, which services and variables it needs, and the
 **Backend tests** (repo root):
 ```sh
 npm ci
-npm test            # tsx --test api/_lib/*.test.ts  (31 tests)
+npm test            # tsx --test api/_lib/*.test.ts  (63 tests)
 npx tsc --noEmit -p .
 ```
 
@@ -31,7 +31,18 @@ npx expo start                      # dev server
 npx expo export --platform web      # production web export to mobile/dist
 npx tsc --noEmit
 ```
-Read the Expo SDK 57 docs (`https://docs.expo.dev/versions/v57.0.0/`) before changing code. Set `EXPO_PUBLIC_API_URL` to point the app at a local backend; otherwise it calls `https://flagrr-loyalty.vercel.app`.
+**Member app click-through tests** (`mobile/`, added 24 Nov 2026):
+```sh
+cd mobile && npx playwright install chromium   # once per machine
+npm run e2e                                    # web export against the mock API, then every spec in e2e/
+npx playwright test e2e/smoke.spec.ts          # one spec (after npm run e2e:build)
+npx tsc --noEmit -p e2e                        # type-check the tests
+```
+They run the production web export against `e2e/mock-api/server.ts`, a sample-data stand-in that answers every call in `src/api/client.ts` (port 4020; web on 8090). Tests switch scenarios through `POST /api/__scenario` and restore seed data with `POST /api/__reset`. The mock's test-only sign-in and reset code are written at the top of `server.ts`; they are not a real account. `E2E_API_PORT`, `E2E_WEB_PORT` and `E2E_WEB_DIR` let several runs work side by side. Output folders (`e2e/.web*`, `e2e/.results*`, `e2e/.report*`) are git-ignored. Run the suite before every member-app commit: it checks the [functionality inventory](Member-App-Functionality-Inventory) still works. It covers what the web build can do; camera, push, haptics and other native-only items need a device.
+
+As of 25 Nov 2026 (after phase 3, the owner's morning answers and My Feedback) the suite has 589 tests in seven files (`auth`, `home`, `scan`, `rewards`, `golf`, `profile`, `smoke`), one `test.describe` per inventory screen. `auth` and `home` were one `signin-home` file until 24 Nov 2026, split so each part of the app has its own test file. A full run takes about 13 minutes and ends with 545 passed and 44 skipped: 42 are marked native only (live camera, OS permission prompts, push taps, haptics, gestures, Reduce Motion) and 2 are `test.fixme` for known differences listed in [Known Limitations](Known-Limitations-and-Future-Work). The mock copies the real server's rules where a screen depends on them (duplicate image → 409, an approved receipt adds the activity row and notification, the latest-100 activity cap, "General" enquiry type, member replies reopening a resolved enquiry, finished-round save validation); `/api/__reset` also restores the golf settings so no test leaks into the next. The test build sets `EXPO_PUBLIC_E2E=1` (only in `npm run e2e:build`; read as `E2E_INSTANT_MOTION` in `mobile/src/theme/motion.ts`), which makes screen pushes, tab switches and tile entrances (`Appear`) instant, so a test never meets two screens mid-slide or clicks a tile that is still sliding into place (seen once under load: a click on Home's My Golf link landed while its tile was rising 46 pt and was lost); real web and phone builds never set it. The transitions themselves were measured separately in headless Chromium against `navigation/transitions.ts`.
+
+Read the Expo SDK 58 docs (`https://docs.expo.dev/versions/v58.0.0/`) before changing code. Set `EXPO_PUBLIC_API_URL` to point the app at a local backend; otherwise it calls `https://flagrr-loyalty.vercel.app`.
 
 **Marketing site** (separate repo):
 ```sh
@@ -109,16 +120,21 @@ From `mobile/app.json` and `mobile/eas.json`:
 | | |
 |---|---|
 | App name / slug | Flagrr / `flagrr` |
-| Version | 1.0.1 |
-| iOS bundle ID / build number | `com.flagrr.loyalty` / 6 |
+| Version | 1.1.0 (Expo SDK 58). First 1.1.0 builds on 24 Nov 2026: iOS build 7 (production profile, sent to TestFlight for internal testing) and an Android internal preview. The store apps are 1.0.1 (SDK 57). |
+| iOS bundle ID / build number | `com.flagrr.loyalty` / 8 (25 Nov 2026: iOS build 8, production profile, Xcode 27.2 image, sent to TestFlight) |
 | Android package / version code | `com.flagrr.loyalty` / 9 |
 | EAS project ID | `12ea4b7f-59dd-490e-8286-443a03ab9b6b`, owner `ewo-solutions` |
 | OTA updates | `expo-updates`, runtime version policy `appVersion` |
 | Profiles | `development` (dev client, internal), `preview` and `production` (channels of the same names, `EXPO_PUBLIC_STORE_BUILD=1`) |
 | `appVersionSource` | `local` (the production profile auto-increments) |
+| Build upload | `/.easignore` (repo root) decides what EAS Build uploads. While it exists EAS ignores every `.gitignore`, so it repeats their rules (above all `scripts/receipt-eval/fixtures/`, real member receipts) and adds folders the app build doesn't need (`reels/`, `refresh-assets/`, `marketing/`, `scripts/`, `docs/`). Add new ignore rules to both files. |
 | iOS submit | Apple team `KGZPMLYFZQ`, App Store Connect app `6796048910` |
 | Android | `google-services.json` committed (Firebase project `flagrr-8b915`); no Android submit block in `eas.json` |
-| Orientation / theme | Portrait; `userInterfaceStyle` is `light` (this stops the app following the phone's dark mode) |
+| iOS build image | `macos-tahoe-26.6-xcode-27.2` in every profile (pinned 25 Nov 2026 for the iPhone Duo work; see Technical Architecture) |
+| Local native module | `mobile/modules/flagrr-vertical-bar` (iOS, autolinked from `mobile/modules/`); uploaded by EAS (not in `.easignore`) |
+| Orientation / theme | Portrait; `userInterfaceStyle` is `automatic` from 1.1.0 (1.0.1 builds had `light`, which stopped the app following the phone's dark mode) |
+
+Local iOS simulator build (as used for the Duo checks): Xcode 27.2 selected with `xcode-select`, CocoaPods (Homebrew `cocoapods` 1.17.0), then in `mobile/`: `npx expo prebuild --platform ios --no-install` (it rewrites the `ios`/`android` scripts in `package.json`; restore them), `cd ios && pod install`, and `xcodebuild -workspace Flagrr.xcworkspace -scheme Flagrr -configuration Release -sdk iphonesimulator -derivedDataPath build CODE_SIGNING_ALLOWED=NO` with `EXPO_PUBLIC_API_URL=http://localhost:4050` to use the sample-data mock (`E2E_API_PORT=4050 npx tsx e2e/mock-api/server.ts`; test login in `e2e/helpers.ts`). The generated `ios/` folder is ignored by git and EAS.
 
 Push notifications need working credentials in EAS (an Apple APNs key and Android FCM v1). These cannot be checked from the repository.
 
@@ -127,7 +143,7 @@ Known issues in `app.json`: it requests `android.permission.RECORD_AUDIO`, which
 ## Database
 
 - `db/schema.sql` is a **partial, older** snapshot. It does not include about 13 tables and many columns that later migrations added. Do not treat it as the current schema.
-- `db/migrations/001` to `051` are plain SQL files. There is **no migration runner and no tracking table**: apply them in numeric order by hand against Neon, and keep a record of which have been applied.
+- `db/migrations/001` to `053` are plain SQL files. There is **no migration runner and no tracking table**: apply them in numeric order by hand against Neon, and keep a record of which have been applied.
 - Migration `018_admin_broadcasts.sql` uses `create table` without `if not exists`, so it fails if the table already exists. Migrations `003` and `017` are destructive; read them before running on a database with data.
 - `db/seed.sql` no longer works as written: it inserts `golf_products` without `course_id`, which became `NOT NULL` in migration `042`, and uses `on conflict` on a table without a matching unique constraint.
 - Any new schema change needs a new numbered file in `db/migrations/`.
@@ -135,6 +151,8 @@ Known issues in `app.json`: it requests `android.permission.RECORD_AUDIO`, which
 - `049_golf_share_with_club.sql` adds `golf_profiles.share_with_club` (default true) and an index for the admin Golf pages. Apply it **before** deploying the code that uses it: until it is applied, the member Course and My Golf tabs, the member data export and the admin Golf pages fail with a missing-column error. It is additive and safe to run more than once.
 - `050_password_reset_events.sql` adds the `password_reset_events` table used to rate-limit and log password resets. Apply it **before** deploying the code that uses it: until it is applied, member and admin forgot password and reset fail with a server error. It is additive and safe to run more than once.
 - `051_login_events.sql` adds the `login_events` table used for the sign-in lockout and audit trail, and cuts existing super admin and support agent sessions to at most 12 hours. Apply it **before** deploying the code that uses it. If the code ships first, sign-in still works but has no lockout, and each sign-in logs `login_events table missing`. Safe to run more than once (running it again only shortens super admin and support sessions again).
+- `052_activity_receipt_id.sql` adds `activity.receipt_id`, so a "Receipt scanned" row in Reward Activity can open its receipt (1.1.0 member app). It can be applied before or after the deploy: until it is applied the API leaves the link out and logs `[schema] activity.receipt_id missing` (`api/_lib/schemaColumns.ts`), and rows written in that time stay unlinked. Rows from before the migration are not linked.
+- `053_notification_support_ticket.sql` adds `notifications.support_ticket_id`, so a "Reply to your feedback" notification can open the member's feedback thread. Like 052 it can be applied before or after the deploy: until then the notification is sent without the link and the API logs `[schema] notifications.support_ticket_id missing` (`api/_lib/schemaColumns.ts`).
 
 ## Course maps
 
@@ -181,7 +199,7 @@ Checked 2026-10-28 against `mobile/app.json`, `mobile/eas.json`, `mobile/package
 
 Rules and gotchas:
 
-- `runtimeVersion` uses the `appVersion` policy. An update only reaches builds with the **same app version** (currently 1.0.1). Bumping `version` in `app.json` creates a new runtime that existing installs will not receive updates for; they stay on the old runtime until the user installs the new store build.
+- `runtimeVersion` uses the `appVersion` policy. An update only reaches builds with the **same app version**. The store apps are 1.0.1; the code on `claude/member-store-build` is 1.1.0 (SDK 58). An update for today's 1.0.1 installs must be published from a commit before the SDK 58 upgrade (the last is `ff32192`); an update published from 1.1.0 code reaches only 1.1.0 builds. Node.js for SDK 58: 22.13+ on the 22 line or 24.3+ on the 24 line (odd-numbered releases unsupported). Bumping `version` in `app.json` creates a new runtime that existing installs will not receive updates for; they stay on the old runtime until the user installs the new store build.
 - Anything native needs a new build and store submission: a new native module or Expo plugin, permission changes, an Expo SDK upgrade, icon or splash changes.
 - **`EXPO_PUBLIC_STORE_BUILD` is set only in the `eas.json` build profiles.** From SDK 55, `eas update` ignores local `.env` files and uses variables stored on EAS servers for the chosen `--environment`. If `EXPO_PUBLIC_STORE_BUILD=1` is not also defined in the EAS `production` environment, an update would be bundled with it unset, which re-enables the admin-login links in the store apps (`mobile/src/config/buildConfig.ts`). It is now defined there (2026-10-28); keep it if the environment is ever recreated.
 - The web app on Vercel is separate: it updates on every Vercel deploy and needs no store step.

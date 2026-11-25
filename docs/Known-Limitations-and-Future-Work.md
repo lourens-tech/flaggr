@@ -1,6 +1,6 @@
 # Known Limitations & Future Work
 
-_Last verified against code on 2026-11-20._
+_Last verified against code on 2026-11-25._
 
 Open issues found by reading the code, grouped by severity. Paths are relative to this repo unless a repo is named. Items marked **unverified** could not be confirmed from the code alone, for example because they depend on settings in Vercel, EAS or DNS.
 
@@ -39,8 +39,8 @@ Open issues found by reading the code, grouped by severity. Paths are relative t
 ## Launch and legal
 
 1. **Terms and privacy pages are drafts** ("Draft — pending legal review") and `[ SUPPORT@DOMAIN ]` still appears in the footer and both pages. `flagrr-marketing: src/components/legal/LegalPage.tsx:32`, `Footer.tsx:59`, `content/terms.ts:72`, `content/privacy.ts:64,87`
-2. **No 18+ check at sign-up,** although the terms require it. `mobile/src/screens/onboarding/SignUpStep1Screen.tsx:152`
-3. **The terms cannot be read before sign-up.** The acceptance line is plain text and the terms screen exists only in the logged-in stack. `mobile/src/screens/onboarding/LandingScreen.tsx:98-101`
+2. **No 18+ check at sign-up,** although the terms require it. `mobile/src/screens/onboarding/SignUpStep1Screen.tsx:150`
+3. **Fixed in the 1.1.0 code (25 Nov 2026): the terms could not be read before sign-up.** Landing's acceptance line and Sign up step 2 now link to Terms and Privacy in the signed-out stack. Still in the 1.0.1 store app.
 4. **Dead `#` links on the marketing site:** Terms and Privacy on the signup, success and cancel pages, "Club login" and "Contact". `flagrr-marketing: src/app/clubs/signup/page.tsx:87-88`, `src/content/home.ts:152,161`
 5. **No privacy contact.** The privacy and delete-account pages point only to in-app Contact Us. `mobile/static/privacy.html:97`, `delete-account.html:75`
 6. **A personal email address** is the fallback contact in code and on a public page. `api/profile/index.ts:19`, `api/admin/index.ts:69`, `mobile/static/support.html:73`
@@ -63,13 +63,13 @@ Still open:
 
 ## Push notifications and native builds
 
-- A native build is configured (`mobile/app.json` version 1.0.1, iOS build 6, Android versionCode 9; EAS project id present), but whether builds have been submitted to the stores is **unverified**.
+- A native build is configured (`mobile/app.json` version 1.1.0 since the SDK 58 upgrade on 24 Nov 2026, not built yet; the store apps are 1.0.1; iOS build 6, Android versionCode 9; EAS project id present), but whether builds have been submitted to the stores is **unverified**.
 - Android FCM v1 credentials and the iOS APNs key in EAS cannot be checked from the repo. **Unverified.**
 - Logging out does not unregister the device token, so a logged-out phone can keep receiving the previous member's pushes until someone else logs in on it. `mobile/src/context/AppContext.tsx:197`, `api/_lib/pushNotifications.ts:15`
 - The permission prompt appears on the first load with no explanation first. `mobile/src/context/AppContext.tsx:162`
 - Push does nothing on the web build, which is the only deployed target today.
 - `android.permission.RECORD_AUDIO` is requested though nothing records audio, and the camera plugin has no microphone usage string. `mobile/app.json:37`
-- `userInterfaceStyle: "light"` stops the app following the phone's dark mode. `mobile/app.json:8`
+- Fixed in code, ships with the 1.1.0 store build: `userInterfaceStyle` was `"light"`, so on iPhones the System appearance setting always gave light. It is now `"automatic"`. `mobile/app.json:8`
 - No `splash` entry in `app.json`, although `assets/splash-icon.png` exists.
 - `eas.json` has no Android `submit` configuration.
 - Comments that say "no EAS project exists yet" are out of date. `mobile/src/context/AppContext.tsx:159`, `mobile/src/utils/pushNotifications.ts:21,29`, `mobile/App.tsx:33`
@@ -78,7 +78,17 @@ Still open:
 
 These need native code, so they wait for a new App Store / Play Store build (everything else in the motion system ships over the air; see [Technical Architecture](Technical-Architecture)):
 
-- Haptic feedback on taps (`expo-haptics` is not installed).
+- Haptic feedback on taps. The Bento brief asks for a light haptic on primary actions. `expo-haptics` is installed in the 1.1.0 code (24 Nov 2026) but no screen uses it yet; it is wired in phase 2 of the store-build plan.
+- Bento motion uses `Animated` with the native driver instead of Reanimated (owner's decision, 2026-11-24). Transforms and opacity run off the JS thread; the tier ring's stroke and the segmented-control thumb width run on the JS thread.
+- **Bento Home (2026-11-24) differs from its board where the app has no data for it:** the Resume round tile is fairway green instead of a course photo (rounds carry no photo); the hero shows the tier name without a multiplier ("Gold · ×1.5" on the board), because tier multipliers are not in the member data; the bell shows the unread count rather than only a dot, so the count isn't lost.
+- **Bento scan flow (2026-11-24) differs from its boards where the app has no such feature or rule:** a torch button was added in 1.1.0 (approved); "This week counts for your streak" on Receipt submitted is left out (the app has no rule tying a receipt to the streak); a non-flagged receipt shows the kept board's "added and ready to spend" message (1.1.0; "wallet" removed), not the main board's "being reviewed", because only flagged receipts are held. The live camera view was checked only in code; the web preview had no camera.
+- **Bento Rewards and Voucher (2026-11-24) differ from their boards where the app has no such feature:** no Share button on the Voucher (sharing a voucher isn't a feature today); the "Not enough Flagrr Cash" alert keeps the app's real-shortfall message, not the board's generic text. The Rewards Shop and Reward Activity headers no longer carry their own notification bell and avatar (Notifications is still on Home; the board drops them).
+- **Bento golf screens (2026-11-24) are re-skinned in place**, not rebuilt to the boards' exact layouts: the hole view keeps its existing layout (fairway header with hole pills, floating map cards, score bar) in Bento colours, type, tiles and controls; My Golf keeps its charts. They go through `components/bento/legacy.tsx`, which maps the old colour names to Bento tokens. The hole board's photo-free "whole hole" header and some spacing differ.
+- **Bento profile and support screens (1.1.0, 25 Nov 2026)** are rebuilt to the boards. A failed Choose Golf Club list now shows "Couldn’t load clubs" with Try again (owner decision 25 Nov 2026). Refer a Friend's hero uses the app's Strand fairway photo for every member (question for the owner).
+- Receipt History now draws every receipt in one scrolling list (it was a virtualised `FlatList`). Fine at today's volumes; revisit if members end up with hundreds of receipts.
+- **Bento sign-in screens (1.1.0, 25 Nov 2026)** are rebuilt to the boards (labels above fields, no wordmark on Login, sign-up and Forgot, as the boards draw them). Differences left: Date of Birth keeps the phone's own picker (no Bento calendar); where the main and kept boards differ on Login and Reset the kept boards are followed; a no-network failure on Login still says "Something went wrong. Please try again." (as the kept board does).
+- **Bento motion (polish pass, 2026-11-24) differs from the brief's motion table where it would need native work or change behaviour:** push and pop use the platform's native slide (iOS's own push, `ios_from_right` on Android, a fade on the web), not a custom 0.56 s slide with the old screen dimmed to 82%; the receipt camera keeps its full-screen slide up, so the screen behind doesn't shrink to 92% (that needs a modal presentation, which changes how it is dismissed); no haptics. The hole view's map and hole-pill labels and My Golf's chart labels stay below 12 pt because of the space they sit in.
+- Bento glass is a solid fill on Android (a real blur needs a `BlurTargetView` behind every screen and is costly on mid-range phones).
 - Gesture-driven 120Hz motion such as swipe-to-dismiss sheets (`react-native-reanimated`).
 - Apple's real Liquid Glass material on iOS 26 (`expo-glass-effect`).
 - Skeleton loaders while lists load are not built yet; screens still show a spinner.
@@ -130,11 +140,28 @@ These need native code, so they wait for a new App Store / Play Store build (eve
 - The Claude receipt settings (default model `claude-opus-5`, beta flag and `fallbacks` parameter) should be checked against the current API, and the silent fallback to Tesseract hides failures. `api/_lib/claudeReceipt.ts:10,121-129`
 - **Multi-club scanning needs setup per club.** The away-club rate only applies once a receipt is matched to a `merchants` row with its own `course_id`. A club created without that row is treated as having no merchant of its own.
 
+## Member app: found by the click-through tests (2026-11-24)
+
+Two of these are still `test.fixme` in the Playwright suite in `mobile/e2e/`: the unreachable "Voucher not found." state and starting a nine-hole round at Strand. The others are fixed or covered by passing tests.
+
+- **Fixed in the 1.1.0 code (25 Nov 2026), web build only: pushed screens could not be scrolled** (My Golf, Round detail, Start a Round, Sign up in a short window). The JS stack's web "page" mode expects the browser page to scroll, which Expo's web page does not. It came in with the JS stack in the 1.1.0 navigation work and was never in a store build. The stacks now use `headerMode: 'float'`; `e2e/smoke.spec.ts` checks it. Phones are not expected to be affected (CardContent's page mode is web only; unverified on a device).
+- **Web build only: `hitSlop` does nothing on `Pressable`** (react-native-web 0.21.4 reads it only in the legacy `Touchable`), so on the web the touch area of small controls is their drawn size. Phones are not affected. The web-only admin link on Landing uses padding instead.
+- **Fixed in the 1.1.0 code (24 Nov 2026), still in the 1.0.1 store app:** "View Current Balance", "Back to Rewards" and "See My Golf" stacked a second copy of the tabs (React Navigation 7's `navigate` pushes rather than going back), landing on Home and leaving Back pointing at the old screen. They now close what was opened and show Home, the Rewards tab and My Golf (owner's choice).
+- **The Voucher screen's "Voucher not found." state cannot be reached.** Every way in passes a voucher id from the member's own list. Harmless, but untestable without a deep link.
+- **Fixed (24 Nov 2026): web screen-reader states.** The tab bar now sets `aria-selected`, segments and toggles `aria-checked`, and busy buttons `aria-busy`; react-native-web did not map `accessibilityState` for these.
+- **Fixed in the 1.1.0 code (25 Nov 2026), web build only: the button spinner's box was 0 px wide** (`flex: 0` became `0 1 0%`). The spinner now has no flex style and is centred by its row; while a button is busy its arrow nub is hidden, as every busy-button board draws it.
+- **iPhone Duo, closed (found on TestFlight build 7, 24 Nov 2026), fixed in the 1.1.0 code (25 Nov 2026):** the camera cutout covered Home's bell and avatar. In the Xcode 27.2 Duo simulator iOS reports the right-hand strip as a safe area and Home keeps clear of it; build 7 was made on EAS's default image (Xcode 27.1 RC, inferred from its `sdk-58` tag), so iOS builds are now pinned to the Xcode 27.2 image. The hole view, scan camera, sheets, alerts and toasts were still under the strip and now keep clear of it; the tabs sit in the strip.
+- **iPhone Duo, TestFlight build 8 (25 Nov 2026):** the iOS system tab bar used there was missing at launch on the closed Duo and flipped between horizontal and vertical from screen to screen, and ad pictures were cropped. Both replaced in the 1.1.0 code: our own Bento tab bar drawn in the strip, and ads that take their pictures' shape. **Unverified on a real Duo** until the next TestFlight build.
+- **Fixed in the 1.1.0 code (25 Nov 2026): Landing on the Duo's cover screen** ended below the fold (the screen scrolled, but nothing showed it). The gap above the headline now shrinks on screens shorter than 820 pt (200 pt on taller phones, as before), so everything fits on the 678 pt cover screen; measured on the web build at 466 × 678. Not yet seen in the Duo simulator: its iPhone Duo runtime disappeared from this Mac on 25 Nov 2026.
+- **With no finished rounds, Course has no way into My Golf** (the Your game tile appears only once there are rounds); Home's My Golf link always works. The Course rebuild in phase 3 follows the board, which shows the way in.
+- **Hole view: a press-and-hold on the score started while the course map is still loading can be cancelled** when the map appears and the screen re-lays out (seen on web; the member simply presses again). Check on a phone over a slow connection.
+- **Nine-hole rounds cannot be started at Strand Golf Club** because its card has no nine-hole ratings (the setup screen says so). The nine-hole hole view and scorecard are tested by rewriting a round's response; starting a nine needs a course with nine ratings.
+
 ## Accessibility and content
 
 - About 110 touchable elements in member screens and 2 accessibility labels. Icon-only buttons (notification bells, avatars) have none, and the unread badge count is not announced. `mobile/src/screens/home/HomeScreen.tsx:161`, `rewards/RewardsActivityScreen.tsx:84`
-- The first FAQ answer describes ways to earn (promotions, in-app activities) that the backend does not implement, and the three help articles are stubs ending in "...". `mobile/src/data/faqData.ts:9, 46-50`
-- With no ad configured, the ad slot shows a plain "Ad Space" box. `mobile/src/components/common/AdSpace.tsx:93`
+- **Fixed in the 1.1.0 code (25 Nov 2026):** the first FAQ answer described ways to earn (rounds, promotions, in-app activities) that the backend does not have, and the three help articles were stubs ending in "...". Rewritten from the server's rules and approved by the owner (`mobile/src/data/faqData.ts`).
+- **Fixed in the 1.1.0 code (24 Nov 2026):** with no ad configured, the ad slot showed a plain "Ad Space" box; it is now not shown at all (owner decision). `mobile/src/components/common/AdSpace.tsx`
 - The PWA manifest describes the app as admin tools only, though members use the same web export. `mobile/static/manifest.json`
 - Pilot launch email images and links use `flagrr.com` (which does serve the marketing site, verified 2026-11-02), and the QR script docstrings still mention `app.flagrr.com`. `marketing/strand-golf-club-pilot-launch.html:223`
 - `app.flagrr.com` DNS is not configured, so the API base URL is pinned to `flagrr-loyalty.vercel.app`. `mobile/src/api/client.ts:26-30`
@@ -155,6 +182,6 @@ See the table in `docs/Environment-and-Setup.md`. Open items from that check:
 - **Push credentials** (Apple key, Android FCM v1) still need checking in the Expo dashboard; the API cannot show them.
 - **Export My Data** has not been run on a physical phone.
 
-## Support: replies to member feedback tickets are not visible to the member (2026-11-17)
+## Support: replies to member feedback tickets (fixed in 1.1.0, 25 Nov 2026)
 
-A member's Give Feedback submission becomes a ticket in the support inbox, and agents can reply to it, but the member app has no screen or endpoint that shows ticket replies (only course admins and staff can read their ticket threads), and no notification or email is sent when an agent replies. Agents should not expect a member to see a reply. Fixing it needs a member-side "my feedback" thread view and a notification on reply.
+Fixed in the 1.1.0 code (not yet in a store build or deployed): members see their Give Feedback tickets in **My Feedback** (Profile → Support), read the Flagrr team's replies, get a "Reply to your feedback" notification and push, and can reply in the thread. Still true: a member's reply sends no email to the team; it shows as unread in the Support Centre inbox, so agents need to check the inbox. Members on an older app build still cannot see replies until they update.

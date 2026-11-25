@@ -7,21 +7,21 @@ export const memberTiers: MemberTier[] = [
   {
     name: 'Bronze',
     minPoints: 0,
-    perks: ['Earn 1 Flagrr Cash per R1 spent', 'Birthday reward (50 Flagrr Cash)'],
+    perks: ['Flagrr Cash on your receipts', 'Birthday reward of 50 FC'],
   },
   {
     name: 'Silver',
     minPoints: 5000,
-    perks: ['1.2x Flagrr Cash per R1 spent', 'Birthday reward (100 Flagrr Cash)'],
+    perks: ['1.2x Flagrr Cash on your receipts', 'Birthday reward of 100 FC'],
   },
   {
     name: 'Gold',
     minPoints: 10000,
-    perks: ['1.5x Flagrr Cash per R1 spent', 'Birthday reward (150 Flagrr Cash)', 'R100 bar voucher each quarter you qualify'],
+    perks: ['1.5x Flagrr Cash on your receipts', 'Birthday reward of 150 FC', 'A bar voucher each quarter you qualify'],
   },
   {
     name: 'Platinum',
     minPoints: 15000,
-    perks: ['1.7x Flagrr Cash per R1 spent', 'Birthday reward (200 Flagrr Cash)', 'R200 bar voucher each quarter you qualify'],
+    perks: ['1.7x Flagrr Cash on your receipts', 'Birthday reward of 200 FC', 'A bar voucher each quarter you qualify'],
   },
 ];

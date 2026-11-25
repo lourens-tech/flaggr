@@ -87,9 +87,12 @@ interface AppContextValue extends AppState {
   login: (email: string, password: string, keepLoggedIn?: boolean) => Promise<void>;
   signup: (payload: SignupPayload) => Promise<void>;
   logout: () => Promise<void>;
-  redeemReward: (rewardId: string, variantId: string) => Promise<Voucher | null>;
+  // Throws when the redeem itself fails (the caller shows a friendly alert). If the voucher was
+  // issued but the follow-up refresh fails, the voucher is still returned.
+  redeemReward: (rewardId: string, variantId: string) => Promise<Voucher>;
   submitReceipt: (imageBase64: string, imageUri: string | null) => Promise<Receipt>;
-  markNotificationRead: (id: string) => Promise<void>;
+  // Optimistic; resolves false (and puts the row back to unread) when the server call fails.
+  markNotificationRead: (id: string) => Promise<boolean>;
   updateAvatar: (imageBase64: string) => Promise<void>;
   updateProfile: (payload: UpdateProfilePayload) => Promise<void>;
   updateThemePreference: (preference: ThemePreference) => Promise<void>;
@@ -109,7 +112,10 @@ interface AppContextValue extends AppState {
   logAdClick: (adId: string) => void;
   logAdImpression: (adId: string) => void;
   statsPeriod: StatsPeriod;
+  // Throws when the new period's stats cannot be loaded; the previous period stays selected.
   setStatsPeriod: (period: StatsPeriod) => Promise<void>;
+  // Reloads the receipt list from the server (Receipt History refreshes each time it opens).
+  refreshReceipts: () => Promise<void>;
   unreadNotificationCount: number;
 }
 
@@ -210,10 +216,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setStatsPeriodState('year');
   };
 
-  const redeemReward = async (rewardId: string, variantId: string): Promise<Voucher | null> => {
+  // Owner decision (24 Nov 2026): no silent failures. A failed redeem now reaches the caller,
+  // which shows a friendly alert. Once the voucher is issued it is returned even if the refresh of
+  // the balance, activity and notifications fails (they catch up at the next load).
+  const redeemReward = async (rewardId: string, variantId: string): Promise<Voucher> => {
+    const voucher = await api.redeem(rewardId, variantId);
+    setVouchers((prev) => [voucher, ...prev]);
     try {
-      const voucher = await api.redeem(rewardId, variantId);
-      setVouchers((prev) => [voucher, ...prev]);
       const [me, activityRes, notificationsRes] = await Promise.all([
         api.me(statsPeriod),
         api.activity(),
@@ -224,10 +233,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setStats(me.stats);
       setActivity(activityRes);
       setNotifications(notificationsRes);
-      return voucher;
     } catch {
-      return null;
+      // The voucher exists; the numbers refresh at the next load.
     }
+    return voucher;
   };
 
   const submitReceipt: AppContextValue['submitReceipt'] = async (imageBase64, imageUri) => {
@@ -318,24 +327,36 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
+  // Owner decision (24 Nov 2026): no silent failures. If the new period's stats cannot be loaded,
+  // the previous period is selected again (it was left showing the old numbers under the new
+  // period's label) and the error reaches the caller.
   const setStatsPeriod = async (period: StatsPeriod) => {
+    const previous = statsPeriod;
     setStatsPeriodState(period);
     try {
       const me = await api.me(period);
       setStats(me.stats);
-    } catch {
-      // Keep showing the previous period's stats if the refetch fails.
+    } catch (err) {
+      setStatsPeriodState(previous);
+      throw err;
     }
   };
 
-  const markNotificationRead = async (id: string) => {
+  const markNotificationRead = async (id: string): Promise<boolean> => {
     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
     try {
       await api.markNotificationRead(id);
+      return true;
     } catch {
-      // Best-effort — the optimistic update stands even if the request fails.
+      setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: false } : n)));
+      return false;
     }
   };
+
+  // Stable identity (screens use it in focus effects; a new function each render would refetch in a loop).
+  const refreshReceipts = useCallback(async () => {
+    setReceipts(await api.receipts());
+  }, []);
 
   const unreadNotificationCount = useMemo(
     () => notifications.filter((n) => !n.read).length,
@@ -381,6 +402,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     logAdImpression,
     statsPeriod,
     setStatsPeriod,
+    refreshReceipts,
     unreadNotificationCount,
   };
 

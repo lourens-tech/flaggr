@@ -719,7 +719,7 @@ export function SuperAdminCoursesScreen({ navigation }: Props) {
         ListFooterComponent={
           !loading && !loadError && filtered.length > 0 && showAddCard ? (
             <AddCourseCard onPress={() => navigation.navigate('SuperAdminCourseCreate')} />
-          ) : null
+          ) : undefined
         }
       />
     </View>

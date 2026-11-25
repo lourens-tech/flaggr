@@ -2,8 +2,9 @@ import React, { useState, useMemo } from 'react';
 import { StyleSheet, Text, TextInput, TextInputProps, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { fontFamily, fontSize, radius, spacing } from '../../theme';
-import { useOptionalAdminTheme, useThemeColors, type ThemeColors } from '../../context/ThemeContext';
+import { useBento, useOptionalAdminTheme, useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 import { adminFont, adminRadius } from '../../theme/admin';
+import { systemFonts } from '../bento/legacy';
 
 interface Props extends TextInputProps {
   icon?: keyof typeof Ionicons.glyphMap;
@@ -15,13 +16,15 @@ interface Props extends TextInputProps {
 // The browser's own focus outline is replaced by the field's accent ring.
 const webNoOutline = { outlineStyle: 'none' } as unknown as { outlineWidth: number };
 
-export function TextField({ icon, isPassword, variant = 'onDark', error, style, ...rest }: Props) {
+export function TextField({ icon, isPassword, variant = 'onLight', error, style, ...rest }: Props) {
   const colors = useThemeColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  // Member fields use the system font (Bento); admin fields override it.
+  const styles = useMemo(() => systemFonts(createStyles(colors)), [colors]);
   const [hidden, setHidden] = useState(!!isPassword);
   const [focused, setFocused] = useState(false);
   const onDark = variant === 'onDark';
   const admin = useOptionalAdminTheme();
+  const { t: bt } = useBento();
 
   // In the admin consoles every field sits on an opaque tile or sheet, so
   // both variants share one look: a neutral fill, a hairline edge, an accent
@@ -61,6 +64,49 @@ export function TextField({ icon, isPassword, variant = 'onDark', error, style, 
           ) : null}
         </View>
         {error ? <Text style={[styles.adminError, { color: c.neg }]} accessibilityLiveRegion="polite">{error}</Text> : null}
+      </View>
+    );
+  }
+
+  // On light (member forms): the Bento field. On dark (sign-in screens over
+  // a photo) keeps its translucent look until those screens are restyled.
+  if (!onDark) {
+    const { onFocus, onBlur, ...inputProps } = rest;
+    return (
+      <View>
+        <View
+          style={[
+            styles.bentoContainer,
+            { backgroundColor: bt.tile, borderColor: error ? bt.danger : focused ? bt.accent : bt.hair },
+          ]}
+        >
+          {icon ? <Ionicons name={icon} size={18} color={bt.muted} style={{ marginRight: spacing.sm }} /> : null}
+          <TextInput
+            placeholderTextColor={bt.muted}
+            secureTextEntry={hidden}
+            aria-invalid={!!error}
+            onFocus={(e) => {
+              setFocused(true);
+              onFocus?.(e);
+            }}
+            onBlur={(e) => {
+              setFocused(false);
+              onBlur?.(e);
+            }}
+            style={[styles.bentoInput, { color: bt.ink }, webNoOutline, style]}
+            {...inputProps}
+          />
+          {isPassword ? (
+            <TouchableOpacity onPress={() => setHidden((h) => !h)} hitSlop={12} accessibilityRole="button" accessibilityLabel={hidden ? 'Show password' : 'Hide password'}>
+              <Ionicons name={hidden ? 'eye-off-outline' : 'eye-outline'} size={18} color={bt.muted} />
+            </TouchableOpacity>
+          ) : null}
+        </View>
+        {error ? (
+          <Text style={[styles.bentoError, { color: bt.danger }]} accessibilityLiveRegion="polite">
+            {error}
+          </Text>
+        ) : null}
       </View>
     );
   }
@@ -112,6 +158,9 @@ function createStyles(colors: ThemeColors) {
     borderRadius: radius.md,
     paddingHorizontal: spacing.md,
   },
+  bentoContainer: { flexDirection: 'row', alignItems: 'center', minHeight: 52, borderRadius: 16, borderWidth: 1, paddingHorizontal: 16 },
+  bentoInput: { flex: 1, fontSize: 16, minHeight: 50 },
+  bentoError: { fontSize: 13, marginTop: 6, marginLeft: 4 },
   containerOnDark: { backgroundColor: 'rgba(255,255,255,0.12)' },
   containerOnLight: { backgroundColor: colors.inputBg, borderWidth: 1, borderColor: colors.inputBorder },
   containerError: { borderWidth: 1, borderColor: colors.negative },

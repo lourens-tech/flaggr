@@ -22,6 +22,8 @@ export const fontFamily = {
 
 export const fontsToLoad = {
   Fraunces_600SemiBold: require('@expo-google-fonts/fraunces/600SemiBold/Fraunces_600SemiBold.ttf'),
+  // Bento titles and big numbers (theme/bento.ts).
+  Fraunces_700Bold: require('@expo-google-fonts/fraunces/700Bold/Fraunces_700Bold.ttf'),
   Fraunces_800ExtraBold: require('@expo-google-fonts/fraunces/800ExtraBold/Fraunces_800ExtraBold.ttf'),
   Fraunces_800ExtraBold_Italic: require('@expo-google-fonts/fraunces/800ExtraBold_Italic/Fraunces_800ExtraBold_Italic.ttf'),
   'WsParadose-Regular': require('../../assets/fonts/WsParadose-Regular.ttf'),

@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useMemo, useRef, useState 
 import { AccessibilityInfo, Platform, useColorScheme } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { darkColors, lightColors, type ThemeColors } from '../theme';
+import { bentoDark, bentoLight, type BentoTokens } from '../theme/bento';
 import { adminDark, adminLegacyDark, adminLegacyLight, adminLight, type AdminColors } from '../theme/admin';
 import { AdminAlertHost } from '../components/admin/AdminAlertHost';
 
@@ -21,12 +22,17 @@ interface ThemeContextValue {
    * with no local choice yet adopts the account's preference. Never
    * overrides a preference this device has already set for itself. */
   hydrateFromAccount: (pref: ThemePreference) => void;
+  // iOS "Reduce Transparency" or the browser's prefers-reduced-transparency:
+  // Bento glass turns into solid fills.
+  reduceTransparency: boolean;
 }
 
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 
-export function ThemeProvider({ children }: { children: React.ReactNode }) {
+// `forceScheme` pins light or dark regardless of the setting (dev gallery only).
+export function ThemeProvider({ children, forceScheme }: { children: React.ReactNode; forceScheme?: 'light' | 'dark' }) {
   const systemScheme = useColorScheme();
+  const reduceTransparency = useReduceTransparency();
   const [preference, setPreferenceState] = useState<ThemePreference>('system');
   const hasLocalOverride = useRef(false);
 
@@ -53,12 +59,12 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     AsyncStorage.setItem(THEME_PREFERENCE_KEY, pref).catch(() => {});
   };
 
-  const scheme: 'light' | 'dark' = preference === 'system' ? (systemScheme === 'dark' ? 'dark' : 'light') : preference;
+  const scheme: 'light' | 'dark' = forceScheme ? forceScheme : preference === 'system' ? (systemScheme === 'dark' ? 'dark' : 'light') : preference;
   const colors = scheme === 'dark' ? darkColors : lightColors;
 
   const value = useMemo<ThemeContextValue>(
-    () => ({ preference, scheme, colors, setPreference, hydrateFromAccount }),
-    [preference, scheme, colors],
+    () => ({ preference, scheme, colors, setPreference, hydrateFromAccount, reduceTransparency }),
+    [preference, scheme, colors, reduceTransparency],
   );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
@@ -72,6 +78,13 @@ export function useTheme(): ThemeContextValue {
 
 export function useThemeColors(): ThemeColors {
   return useTheme().colors;
+}
+
+// Bento redesign tokens (theme/bento.ts) for the current light/dark scheme.
+// Follows the same System / Light / Dark preference as the rest of the app.
+export function useBento(): { t: BentoTokens; scheme: 'light' | 'dark'; reduceTransparency: boolean } {
+  const { scheme, reduceTransparency } = useTheme();
+  return useMemo(() => ({ t: scheme === 'dark' ? bentoDark : bentoLight, scheme, reduceTransparency }), [scheme, reduceTransparency]);
 }
 
 // ── Admin consoles ──────────────────────────────────────────────────────────

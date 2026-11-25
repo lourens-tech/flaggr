@@ -1,27 +1,25 @@
-import React, { useState, useMemo } from 'react';
-import { ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import React, { useState } from 'react';
+import { Pressable, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/types';
-import { ScreenHeader } from '../../components/common/ScreenHeader';
-import { TextField } from '../../components/common/TextField';
-import { PillButton } from '../../components/common/PillButton';
 import { FaqAccordion } from '../../components/common/FaqAccordion';
 import { faqs } from '../../data/faqData';
 import { useApp } from '../../context/AppContext';
-import { ApiError } from '../../api/client';
+import { useBento } from '../../context/ThemeContext';
 import { showAlert } from '../../utils/alert';
-import { fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
-import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
+import { friendlyError } from '../../utils/errors';
+import { bentoLayout as L, bentoType } from '../../theme/bento';
+import { BentoButton, BentoField, BentoIcon, BentoScreen, PickerSheet } from '../../components/bento';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Contact'>;
 
-const ENQUIRY_TYPES = ['Rewards and Points', 'Receipts', 'Membership', 'Technical Issue', 'Other'];
+// Brand words (owner decision 24 Nov 2026): "Rewards and Flagrr Cash", not "Rewards and Points" (G-E-ContactTypes).
+const ENQUIRY_TYPES = ['Rewards and Flagrr Cash', 'Receipts', 'Membership', 'Technical Issue', 'Other'] as const;
+const TYPE_PLACEHOLDER = 'Choose Type Of Support Enquiry';
 
+// Layout from G-E-ContactFAQ / ContactTypes / ContactSubmitting.
 export function ContactScreen({ navigation }: Props) {
-  const colors = useThemeColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { t } = useBento();
   const { user, sendContactEnquiry } = useApp();
   const [name, setName] = useState(user.firstName);
   const [surname, setSurname] = useState(user.lastName);
@@ -42,140 +40,85 @@ export function ContactScreen({ navigation }: Props) {
       const enquiryId = await sendContactEnquiry({ name, surname, phone, email, enquiryType, message: message.trim() });
       navigation.replace('EnquiryChat', { enquiryId });
     } catch (err) {
-      const errMessage = err instanceof ApiError ? err.message : 'Something went wrong. Please try again.';
-      showAlert('Couldn’t send your enquiry', errMessage);
+      showAlert('Couldn’t send your enquiry', friendlyError(err));
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <View style={styles.screen}>
-      <StatusBar barStyle="light-content" />
-      <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
-        <ScreenHeader title="Contact Us" onBack={() => navigation.goBack()} />
-        <View style={styles.heroContent}>
-          <Text style={styles.heroTitle}>Have Any Questions?</Text>
-        </View>
-      </SafeAreaView>
+    <BentoScreen title="Contact Us" onBack={() => navigation.goBack()}>
+      <View style={{ height: 2 }} />
+      <Text accessibilityRole="header" style={[bentoType.h1, { fontSize: 30, lineHeight: 31, color: t.ink }]}>
+        Have Any Questions?
+      </Text>
 
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <TouchableOpacity style={styles.myEnquiriesLink} onPress={() => navigation.navigate('MyEnquiries')}>
-          <Ionicons name="chatbubbles-outline" size={16} color={colors.clubGreen} />
-          <Text style={styles.myEnquiriesText}>View my previous enquiries</Text>
-          <Ionicons name="chevron-forward" size={14} color={colors.clubGreen} />
-        </TouchableOpacity>
+      <Pressable
+        onPress={() => navigation.navigate('MyEnquiries')}
+        accessibilityRole="button"
+        accessibilityLabel="View my previous enquiries"
+        style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44, opacity: pressed ? 0.6 : 1 })}
+      >
+        <BentoIcon name="chatBubble" size={18} color={t.accent} strokeWidth={1.8} />
+        <Text style={{ flex: 1, fontSize: 15, fontWeight: '600', color: t.accent }}>View my previous enquiries</Text>
+        <BentoIcon name="chevronRight" size={16} color={t.accent} strokeWidth={1.8} />
+      </Pressable>
 
-        <View style={styles.formCard}>
-          <View style={styles.row}>
-            <View style={{ flex: 1 }}>
-              <TextField variant="onLight" placeholder="Name" value={name} onChangeText={setName} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <TextField variant="onLight" placeholder="Surname" value={surname} onChangeText={setSurname} />
-            </View>
-          </View>
-          <View style={{ height: spacing.md }} />
-          <View style={styles.row}>
-            <View style={{ flex: 1 }}>
-              <TextField variant="onLight" placeholder="Phone" keyboardType="phone-pad" value={phone} onChangeText={setPhone} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <TextField variant="onLight" placeholder="Email" autoCapitalize="none" value={email} onChangeText={setEmail} />
-            </View>
-          </View>
-          <View style={{ height: spacing.md }} />
+      <View style={{ flexDirection: 'row', gap: 10 }}>
+        <BentoField label="Name" value={name} onChangeText={setName} containerStyle={{ flex: 1 }} />
+        <BentoField label="Surname" value={surname} onChangeText={setSurname} containerStyle={{ flex: 1 }} />
+      </View>
+      <View style={{ flexDirection: 'row', gap: 10 }}>
+        <BentoField label="Phone" keyboardType="phone-pad" value={phone} onChangeText={setPhone} containerStyle={{ flex: 1 }} />
+        <BentoField label="Email" autoCapitalize="none" value={email} onChangeText={setEmail} containerStyle={{ flex: 1 }} />
+      </View>
 
-          <TouchableOpacity style={styles.dropdown} onPress={() => setShowTypes((v) => !v)}>
-            <Text style={[styles.dropdownText, !enquiryType && { color: colors.textSecondary }]}>
-              {enquiryType || 'Choose Type Of Support Enquiry'}
-            </Text>
-            <Ionicons name={showTypes ? 'chevron-up' : 'chevron-down'} size={16} color={colors.textSecondary} />
-          </TouchableOpacity>
-          {showTypes ? (
-            <View style={styles.dropdownList}>
-              {ENQUIRY_TYPES.map((type) => (
-                <TouchableOpacity
-                  key={type}
-                  style={styles.dropdownItem}
-                  onPress={() => {
-                    setEnquiryType(type);
-                    setShowTypes(false);
-                  }}
-                >
-                  <Text style={styles.dropdownItemText}>{type}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          ) : null}
+      {/* Enquiry type: a bottom sheet (owner decision 24 Nov 2026). Optional: none chosen is filed as General. */}
+      <View style={{ gap: 8 }}>
+        <Text style={[bentoType.label, { color: t.ink }]}>Enquiry type</Text>
+        <Pressable
+          onPress={() => setShowTypes(true)}
+          accessibilityRole="button"
+          accessibilityLabel={`Enquiry type: ${enquiryType || TYPE_PLACEHOLDER}`}
+          style={{
+            minHeight: L.controlHeight,
+            borderRadius: L.fieldRadius,
+            borderWidth: 1,
+            borderColor: t.hair,
+            backgroundColor: t.tile,
+            paddingHorizontal: 16,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 10,
+          }}
+        >
+          <Text style={{ flex: 1, fontSize: 16, color: enquiryType ? t.ink : t.muted }}>{enquiryType || TYPE_PLACEHOLDER}</Text>
+          <BentoIcon name="chevronDown" size={18} color={t.muted} strokeWidth={1.8} />
+        </Pressable>
+      </View>
 
-          <View style={{ height: spacing.md }} />
-          <TextInput
-            placeholder="Type Your Message Here"
-            placeholderTextColor={colors.textSecondary}
-            value={message}
-            onChangeText={setMessage}
-            multiline
-            style={styles.messageInput}
-          />
+      <BentoField label="Message" placeholder="Type Your Message Here" value={message} onChangeText={setMessage} multiline />
 
-          <View style={{ height: spacing.lg }} />
-          <PillButton label="Submit Enquiry" onPress={handleSubmit} loading={submitting} />
-        </View>
+      <BentoButton label="Submit Enquiry" nub onPress={handleSubmit} loading={submitting} />
 
-        <Text style={styles.sectionLabel}>Frequently Asked Questions</Text>
-        <FaqAccordion items={faqs} initialOpenIndex={0} />
+      <Text accessibilityRole="header" style={[bentoType.h1, { fontSize: 22, lineHeight: 24, letterSpacing: -0.44, color: t.ink }]}>
+        Frequently Asked Questions
+      </Text>
+      <FaqAccordion items={faqs} initialOpenIndex={0} />
 
-        <View style={{ height: 60 }} />
-      </ScrollView>
-    </View>
+      <PickerSheet
+        visible={showTypes}
+        title="Enquiry type"
+        subtitle={TYPE_PLACEHOLDER}
+        options={ENQUIRY_TYPES.map((v) => ({ value: v, label: v }))}
+        selected={enquiryType || null}
+        onSelect={(v) => {
+          setEnquiryType(v);
+          setShowTypes(false);
+        }}
+        onClose={() => setShowTypes(false)}
+      />
+    </BentoScreen>
   );
-}
-
-function createStyles(colors: ThemeColors) {
-  return StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.background },
-  headerSafeArea: { backgroundColor: colors.darkGreen },
-  heroContent: { paddingHorizontal: screenPadding, paddingBottom: spacing.xl, paddingTop: spacing.md },
-  heroTitle: { fontFamily: fontFamily.heading, fontSize: 26, color: colors.white },
-  content: { padding: screenPadding },
-  myEnquiriesLink: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    alignSelf: 'flex-start',
-    marginBottom: spacing.lg,
-  },
-  myEnquiriesText: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.small, color: colors.clubGreen },
-  formCard: { backgroundColor: colors.background },
-  row: { flexDirection: 'row', gap: spacing.sm },
-  dropdown: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: colors.inputBg,
-    borderWidth: 1,
-    borderColor: colors.inputBorder,
-    borderRadius: radius.md,
-    height: 53,
-    paddingHorizontal: spacing.md,
-  },
-  dropdownText: { fontFamily: fontFamily.body, fontSize: fontSize.body, color: colors.textPrimary },
-  dropdownList: { backgroundColor: colors.background, borderWidth: 1, borderColor: colors.inputBorder, borderRadius: radius.md, marginTop: 4 },
-  dropdownItem: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm + 2 },
-  dropdownItemText: { fontFamily: fontFamily.body, fontSize: fontSize.small, color: colors.textPrimary },
-  messageInput: {
-    backgroundColor: colors.inputBg,
-    borderWidth: 1,
-    borderColor: colors.inputBorder,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    minHeight: 100,
-    fontFamily: fontFamily.body,
-    fontSize: fontSize.body,
-    color: colors.textPrimary,
-    textAlignVertical: 'top',
-  },
-  sectionLabel: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.small, color: colors.textPrimary, marginTop: spacing.xl, marginBottom: spacing.sm },
-});
 }

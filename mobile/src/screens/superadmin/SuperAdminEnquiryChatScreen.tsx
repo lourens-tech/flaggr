@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import type { ScrollViewInstance } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SuperAdminStackParamList } from '../../navigation/types';
@@ -48,7 +49,7 @@ export function SuperAdminEnquiryChatScreen({ route }: Props) {
   const breadcrumb = ['Courses', clubName, 'Enquiries'].filter(Boolean).join(' › ');
   const [thread, setThread] = useState<AdminEnquiryThread | null>(null);
   const [loading, setLoading] = useState(true);
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ScrollViewInstance>(null);
 
   const load = useCallback(async () => {
     try {

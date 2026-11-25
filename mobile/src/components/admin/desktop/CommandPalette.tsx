@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import type { TextInputInstance } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAdminTheme } from '../../../context/ThemeContext';
 import { adminFont, adminRadius } from '../../../theme/admin';
@@ -34,7 +35,7 @@ export function CommandPalette({ visible, onClose, navGroups, onSection, searchM
   const [members, setMembers] = useState<PaletteMember[]>([]);
   const [searching, setSearching] = useState(false);
   const [cursor, setCursor] = useState(0);
-  const inputRef = useRef<TextInput>(null);
+  const inputRef = useRef<TextInputInstance>(null);
 
   useEffect(() => {
     if (!visible) return;

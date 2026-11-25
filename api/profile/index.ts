@@ -1,12 +1,19 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { sql } from '../_lib/db';
 import { bearerToken, hashPassword, requireAuthedUser, verifyPassword } from '../_lib/auth';
-import { HttpError, withErrorHandling } from '../_lib/http';
+import { HttpError, uuidOrNotFound, withErrorHandling } from '../_lib/http';
 import { logAdClick, logAdImpression } from '../_lib/ads';
 import { registerPushToken, type PushPlatform } from '../_lib/pushNotifications';
 import { notifyCourseAdmins } from '../_lib/adminNotifications';
 import { addMemberMessage, createEnquiry, listEnquiryMessages, markThreadReadByMember } from '../_lib/enquiries';
-import { createSupportTicket, SUPPORT_TICKET_CATEGORIES, type SupportTicketCategory } from '../_lib/supportTickets';
+import {
+  createSupportTicket,
+  fetchMemberFeedbackThread,
+  listMemberFeedback,
+  replyToMemberFeedback,
+  SUPPORT_TICKET_CATEGORIES,
+  type SupportTicketCategory,
+} from '../_lib/supportTickets';
 import { sendEmail } from '../_lib/email';
 import {
   getOrCreateReferralCode,
@@ -76,6 +83,11 @@ interface RegisterPushTokenBody {
   platform?: PushPlatform;
 }
 
+interface FeedbackReplyBody {
+  ticketId?: string;
+  message?: string;
+}
+
 interface EnquiryReplyBody {
   enquiryId?: string;
   message?: string;
@@ -132,6 +144,22 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
         hasUnread: r.has_unread,
       })),
     );
+    return;
+  }
+
+  // My Feedback: the member's own Give Feedback submissions and the Flagrr
+  // team's replies (owner decision 24 Nov 2026); the member replies with
+  // ?action=feedbackReply below (owner decision 25 Nov 2026).
+  if (action === 'myFeedback' && req.method === 'GET') {
+    res.status(200).json(await listMemberFeedback(authed.id));
+    return;
+  }
+
+  if (action === 'feedbackThread' && req.method === 'GET') {
+    const id = uuidOrNotFound(req.query.id, 'Feedback');
+    const thread = await fetchMemberFeedbackThread(id, authed.id);
+    if (!thread) throw new HttpError(404, 'Feedback not found');
+    res.status(200).json(thread);
     return;
   }
 
@@ -413,6 +441,17 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     });
 
     res.status(200).json({ ok: true, ticketId });
+    return;
+  }
+
+  if (action === 'feedbackReply') {
+    const { ticketId, message } = req.body as FeedbackReplyBody;
+    const body = message?.trim();
+    if (!body) throw new HttpError(400, 'message is required');
+    const id = uuidOrNotFound(ticketId, 'Feedback');
+    const thread = await replyToMemberFeedback(id, authed.id, body);
+    if (!thread) throw new HttpError(404, 'Feedback not found');
+    res.status(200).json(thread);
     return;
   }
 

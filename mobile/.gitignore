@@ -39,3 +39,8 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# click-through test output (npm run e2e)
+e2e/.web*/
+e2e/.results*/
+e2e/.report*/

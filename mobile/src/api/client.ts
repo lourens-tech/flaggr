@@ -9,6 +9,8 @@ import type {
   EnquiryMessage,
   MyEnquirySummary,
   MyEnquiryThread,
+  MyFeedbackSummary,
+  MyFeedbackThread,
   NotificationPreferences,
   PointsAccount,
   Receipt,
@@ -239,6 +241,11 @@ export const api = {
   myEnquiries: () => request<MyEnquirySummary[]>('/profile?action=myEnquiries'),
 
   enquiryThread: (id: string) => request<MyEnquiryThread>(`/profile?action=enquiryThread&id=${id}`),
+  // My Feedback: Give Feedback submissions, the Flagrr team's replies, and the member's replies.
+  myFeedback: () => request<MyFeedbackSummary[]>('/profile?action=myFeedback'),
+  feedbackThread: (id: string) => request<MyFeedbackThread>(`/profile?action=feedbackThread&id=${encodeURIComponent(id)}`),
+  replyToFeedback: (ticketId: string, message: string) =>
+    request<MyFeedbackThread>('/profile?action=feedbackReply', { method: 'POST', body: { ticketId, message } }),
 
   replyToEnquiry: (enquiryId: string, message: string) =>
     request<EnquiryMessage[]>('/profile?action=enquiryReply', { method: 'POST', body: { enquiryId, message } }),
@@ -331,7 +338,8 @@ export async function downloadMyDataExport(): Promise<boolean> {
   const file = new File(new Directory(Paths.cache), 'flagrr-my-data.json');
   if (file.exists) file.delete();
   file.create();
-  file.write(text);
+  // SDK 58: File.write() is async; wait for it before sharing the file.
+  await file.write(text);
   await Sharing.shareAsync(file.uri, { mimeType: 'application/json', dialogTitle: 'Your Flagrr Data' });
   return true;
 }

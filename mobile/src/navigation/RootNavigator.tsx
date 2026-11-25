@@ -1,13 +1,15 @@
 import React, { useMemo } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { createStackNavigator } from '@react-navigation/stack';
 import type { RootStackParamList } from './types';
 import { AuthNavigator } from './AuthNavigator';
 import { MainTabNavigator } from './MainTabNavigator';
 import { VoucherScreen } from '../screens/rewards/VoucherScreen';
-import { ScanReceiptScreen } from '../screens/receipts/ScanReceiptScreen';
-import { ReviewReceiptScreen } from '../screens/receipts/ReviewReceiptScreen';
-import { ReceiptSuccessScreen } from '../screens/receipts/ReceiptSuccessScreen';
+import { ScanFlowNavigator } from './ScanFlowNavigator';
+import { MyGolfScreen } from '../screens/golf/MyGolfScreen';
+import { RewardsActivityScreen } from '../screens/rewards/RewardsActivityScreen';
+import { MemberTabBar } from './MemberTabBar';
+import { useVerticalBarEdge } from '../hooks/useVerticalBarTabs';
 import { ReceiptHistoryScreen } from '../screens/receipts/ReceiptHistoryScreen';
 import { MemberTiersScreen } from '../screens/profile/MemberTiersScreen';
 import { NotificationsScreen } from '../screens/profile/NotificationsScreen';
@@ -19,6 +21,8 @@ import { EditProfileScreen } from '../screens/profile/EditProfileScreen';
 import { TermsPrivacyScreen } from '../screens/profile/TermsPrivacyScreen';
 import { MyEnquiriesScreen } from '../screens/profile/MyEnquiriesScreen';
 import { EnquiryChatScreen } from '../screens/profile/EnquiryChatScreen';
+import { MyFeedbackScreen } from '../screens/profile/MyFeedbackScreen';
+import { FeedbackThreadScreen } from '../screens/profile/FeedbackThreadScreen';
 import { NotificationPreferencesScreen } from '../screens/profile/NotificationPreferencesScreen';
 import { RoundSetupScreen } from '../screens/golf/RoundSetupScreen';
 import { CourseGuideScreen } from '../screens/golf/CourseGuideScreen';
@@ -31,31 +35,52 @@ import { withAdminScope } from '../components/admin/AdminScope';
 
 const ScopedForceChangePassword = withAdminScope(AdminForceChangePasswordScreen);
 const ScopedStaffWelcome = withAdminScope(AdminStaffWelcomeScreen);
-import { fadeUpOptions, slideUpOptions, stackScreenOptions, webScreenLayout } from './motionOptions';
+import { fadeOptions, modalOptions, pushOptions } from './transitions';
 import { useApp } from '../context/AppContext';
 import { useAdmin } from '../context/AdminContext';
-import { useThemeColors, type ThemeColors } from '../context/ThemeContext';
+import { useBento, useThemeColors, type ThemeColors } from '../context/ThemeContext';
 
-const Stack = createNativeStackNavigator<RootStackParamList>();
+const Stack = createStackNavigator<RootStackParamList>();
 
 export function RootNavigator() {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  // Member screens sit on the Bento ground. The tab cross-fade shows what's
+  // behind the tab scenes for a moment, so the Main screen's own background
+  // must be the ground too (not the navigation default light grey).
+  const { t } = useBento();
   const { isAuthenticated, isInitializing } = useApp();
   const { isAdminAuthenticated, isInitializing: isAdminInitializing, admin, staffWelcomePending } = useAdmin();
+  // iPhone Duo: start reading the vertical strip's edge now, so it is known before the tabs first render.
+  useVerticalBarEdge();
 
   if (isInitializing || isAdminInitializing) {
     // Restoring a stored session (member and/or admin) before deciding which
     // stack to mount — avoids a flash of the Landing screen on a warm start.
     return (
-      <View style={styles.loading}>
-        <ActivityIndicator color={colors.clubGreen} size="large" />
+      <View style={[styles.loading, { backgroundColor: t.ground }]}>
+        <ActivityIndicator color={t.accent} size="large" />
       </View>
     );
   }
 
+  const memberSignedIn = isAuthenticated && !isAdminAuthenticated;
+
   return (
-    <Stack.Navigator screenOptions={stackScreenOptions} screenLayout={webScreenLayout}>
+    <Stack.Navigator
+      // JS stack so the Bento prototype's transitions are exact (navigation/transitions.ts).
+      // headerMode 'float' (iOS's default; no header is shown anywhere): on web, @react-navigation/stack
+      // otherwise puts the focused card in "page" mode (min-height 100%) so the browser page scrolls,
+      // but Expo's web body never scrolls, so pushed screens could not scroll at all (CardContent.tsx).
+      screenOptions={() => ({ ...pushOptions(), headerShown: false, headerMode: 'float' })}
+      // Black behind the screens: what shows around a screen that shrinks under the scan flow.
+      layout={({ children, state, navigation }) => (
+        <View style={{ flex: 1, backgroundColor: '#000' }}>
+          {children}
+          {memberSignedIn ? <MemberTabBar state={state} navigation={navigation} /> : null}
+        </View>
+      )}
+    >
       {isAdminAuthenticated ? (
         // A course-admin/staff session takes priority — these are separate
         // identities (see api/_lib/auth.ts), but a device is realistically
@@ -63,21 +88,24 @@ export function RootNavigator() {
         // member with a system-generated temp password must set their own
         // before they can reach any other screen.
         admin.mustChangePassword ? (
-          <Stack.Screen name="AdminForceChangePassword" component={ScopedForceChangePassword} />
+          <Stack.Screen name="AdminForceChangePassword" component={ScopedForceChangePassword} options={fadeOptions} />
         ) : staffWelcomePending ? (
-          <Stack.Screen name="AdminStaffWelcome" component={ScopedStaffWelcome} />
+          <Stack.Screen name="AdminStaffWelcome" component={ScopedStaffWelcome} options={fadeOptions} />
         ) : admin.role === 'super_admin' || admin.role === 'support_agent' ? (
-          <Stack.Screen name="SuperAdminMain" component={SuperAdminNavigator} />
+          <Stack.Screen name="SuperAdminMain" component={SuperAdminNavigator} options={fadeOptions} />
         ) : (
-          <Stack.Screen name="AdminMain" component={AdminNavigator} />
+          <Stack.Screen name="AdminMain" component={AdminNavigator} options={fadeOptions} />
         )
       ) : isAuthenticated ? (
         <>
-          <Stack.Screen name="Main" component={MainTabNavigator} />
-          <Stack.Screen name="Voucher" component={VoucherScreen} options={fadeUpOptions} />
-          <Stack.Screen name="ScanReceipt" component={ScanReceiptScreen} options={slideUpOptions} />
-          <Stack.Screen name="ReviewReceipt" component={ReviewReceiptScreen} />
-          <Stack.Screen name="ReceiptSuccess" component={ReceiptSuccessScreen} options={fadeUpOptions} />
+          {/* Signing in cross-fades into the app (and signing out back to Landing). */}
+          <Stack.Screen name="Main" component={MainTabNavigator} options={() => ({ ...fadeOptions(), cardStyle: { backgroundColor: t.ground } })} />
+          <Stack.Screen name="Voucher" component={VoucherScreen} />
+          {/* Scan → Review → Success rise together as one modal; the screen behind shrinks. */}
+          <Stack.Screen name="ScanFlow" component={ScanFlowNavigator} options={() => ({ ...modalOptions(), gestureEnabled: false })} />
+          {/* My Golf keeps the tab bar (Course lit). Closed by a tab press, it cross-fades like a tab switch. */}
+          <Stack.Screen name="MyGolf" component={MyGolfScreen} options={({ route }) => (route.params?.closeAs === 'tab' ? fadeOptions() : pushOptions())} />
+          <Stack.Screen name="Activity" component={RewardsActivityScreen} />
           <Stack.Screen name="ReceiptHistory" component={ReceiptHistoryScreen} />
           <Stack.Screen name="MemberTiers" component={MemberTiersScreen} />
           <Stack.Screen name="Notifications" component={NotificationsScreen} />
@@ -89,14 +117,16 @@ export function RootNavigator() {
           <Stack.Screen name="TermsPrivacy" component={TermsPrivacyScreen} />
           <Stack.Screen name="MyEnquiries" component={MyEnquiriesScreen} />
           <Stack.Screen name="EnquiryChat" component={EnquiryChatScreen} />
+          <Stack.Screen name="MyFeedback" component={MyFeedbackScreen} />
+          <Stack.Screen name="FeedbackThread" component={FeedbackThreadScreen} />
           <Stack.Screen name="NotificationPreferences" component={NotificationPreferencesScreen} />
           <Stack.Screen name="RoundSetup" component={RoundSetupScreen} />
-          {/* Full screen during a round, like Scan Receipt, so the tab bar never covers the map or score bar. */}
-          <Stack.Screen name="CourseGuide" component={CourseGuideScreen} options={{ ...slideUpOptions, gestureEnabled: false }} />
+          {/* No swipe-back during a round: horizontal drags on the hole map must stay with the map. */}
+          <Stack.Screen name="CourseGuide" component={CourseGuideScreen} options={{ gestureEnabled: false }} />
           <Stack.Screen name="RoundDetail" component={RoundDetailScreen} />
         </>
       ) : (
-        <Stack.Screen name="Auth" component={AuthNavigator} />
+        <Stack.Screen name="Auth" component={AuthNavigator} options={fadeOptions} />
       )}
     </Stack.Navigator>
   );

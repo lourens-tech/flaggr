@@ -7,6 +7,7 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { BentoButton } from '../bento/primitives';
 import { fontFamily, fontSize, radius } from '../../theme';
 import { useOptionalAdminTheme, useThemeColors, type ThemeColors } from '../../context/ThemeContext';
 import { adminFont, adminRadius } from '../../theme/admin';
@@ -86,49 +87,17 @@ export function PillButton({
     );
   }
 
+  // Member screens: the Bento button (components/bento). Primary and dark
+  // are the accent pill; outline variants are the tile pill with a hairline.
   return (
-    <PressableScale
-      onPress={onPress}
-      disabled={disabled || loading}
-      accessibilityRole="button"
-      hoverScale={1.015}
-      onHoverIn={hoverHandlers.onMouseEnter}
-      onHoverOut={hoverHandlers.onMouseLeave}
-      style={[
-        styles.base,
-        hoverTransitionNoTransform,
-        isPrimary && { backgroundColor: colors.lime },
-        isDark && { backgroundColor: colors.darkGreen },
-        (isOutline || isOutlineLight) && { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: outlineColor },
-        fullWidth && { alignSelf: 'stretch' },
-        canHover && styles.hovered,
-        disabled && styles.disabled,
-      ]}
-    >
-      {loading ? (
-        <ActivityIndicator color={isPrimary ? colors.darkGreen : isOutline || isOutlineLight ? outlineColor : colors.white} />
-      ) : (
-        <View style={styles.content}>
-          <Text
-            style={[
-              styles.label,
-              isPrimary && { color: colors.darkGreen },
-              (isOutline || isOutlineLight) && { color: outlineColor },
-              isDark && { color: colors.white },
-            ]}
-          >
-            {label}
-          </Text>
-          {icon ? (
-            <Ionicons
-              name={icon}
-              size={18}
-              color={isPrimary ? colors.darkGreen : isOutline || isOutlineLight ? outlineColor : colors.white}
-            />
-          ) : null}
-        </View>
-      )}
-    </PressableScale>
+    <BentoButton
+      label={label}
+      onPress={onPress ? () => (onPress as () => void)() : undefined}
+      variant={isOutline || isOutlineLight ? 'secondary' : 'primary'}
+      disabled={disabled}
+      loading={loading}
+      style={fullWidth ? { alignSelf: 'stretch' } : { alignSelf: 'flex-start', minWidth: 120 }}
+    />
   );
 }
 

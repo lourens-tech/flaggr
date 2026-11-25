@@ -4,8 +4,8 @@ Everything below describes the app as it exists today for a signed-up member. Se
 
 ## Onboarding
 
-- **Landing screen** (the opening screen) → **Get Started** (sign-up) or **I already have an account** (login). A **Golf Course Admin Login** button is also shown unless the build is a store build (`EXPO_PUBLIC_STORE_BUILD=1`, set in the `preview` and `production` EAS profiles). The "By continuing, you're accepting our Terms of Use and Privacy Notice" line is plain text, not links.
-  - Since 2026-10-30 it uses the same Liquid Glass look as the admin sign-in screen: the Flagrr fairway photo under a dark scrim, the lime Flagrr wordmark, "Play. Earn. *Redeem.* Repeat." in Fraunces 800 with "Redeem." in lime italic, and the three actions on a frosted glass panel in the system font (lime primary button in dark mode, Flag Green in light mode). Phones, foldables and tablets stack it with the panel at the bottom; windows 900 px and wider put the headline left and the panel right. Content scrolls when the screen is short (landscape phones). Elements fade up in turn on open; Reduce Motion skips that, and Reduce Transparency makes the panel solid.
+- **Landing screen** (the opening screen) → **Get Started** (sign-up) or **I already have an account** (login). A **Golf Course Admin Login** button is also shown unless the build is a store build (`EXPO_PUBLIC_STORE_BUILD=1`, set in the `preview` and `production` EAS profiles). The "By continuing, you're accepting our Terms of Use and Privacy Notice" line has **Terms of Use** and **Privacy Notice** as links (1.1.0), which open Terms and Privacy on that part, signed out; the same links sit under Sign Up on step 2.
+  - Since 2026-11-24 it is the Bento Landing board: a club photo across the top that fades into the ground colour, the white Flagrr wordmark, "Play. Earn. Redeem. Repeat." in Fraunces 700 with "Repeat." in the accent colour (Flag Green in light mode, lime in dark), then **Get Started** (green with a translucent arrow nub in light mode; lime with a fairway nub and lime arrow in dark mode), **I already have an account** (white / dark button), the Golf Course Admin Login link and the terms line, all in the system font. It follows the member's Light / Dark / System setting and no longer uses the admin console's theme. The content scrolls when the screen is short. The headline rises in on open; Reduce Motion skips that.
 - **Sign-up** is a two-step flow:
   1. Full name, email, phone, date of birth, and a **Golf Club** picker (the list of all clubs, fetched live — this is the member's "home club"), plus an optional **referral code**.
   2. Password (at least 8 characters).
@@ -14,29 +14,39 @@ Everything below describes the app as it exists today for a signed-up member. Se
 - On successful sign-up the member is logged in immediately and receives a branded welcome email (club name, a short "how it works" summary, and a link back into the app).
 - If a valid referral code was entered, the referrer is credited (see [Referrals](#referrals)). An invalid code or a referrer at their cap never blocks the sign-up.
 - **Login** is email + password, with a "keep me logged in" option. The session token is a bearer token stored on-device (AsyncStorage, which is `localStorage` on the web build); unchecking the option keeps the session in memory for that app run only. Sessions last 30 days. After 10 wrong passwords for one email within 15 minutes (or 30 from one IP address), sign-in is refused for 15 minutes with “Too many sign-in attempts. Try again in 15 minutes, or reset your password.”; resetting the password clears it. Resetting the password signs the member out on every device; changing it in Profile signs out every other device.
+- **Sign-in screens look** (Bento, 2026-11-24): Login, both sign-up steps and Forgot password use the Bento ground with the same club photo fading in at the top (contour lines only on Forgot password), a dark glass back button, labelled Bento fields (1.1.0: labels above the fields as on the boards; no wordmark, which the boards don't draw), Bento buttons, and a large Fraunces title: "Welcome back" on Login, "Create your account" with "Step 1 of 2" and a two-part progress bar on sign-up step 1, "Set a password" with "Step 2 of 2" on step 2, and "Reset Password" on Forgot password. The Golf Club picker is a bottom sheet (1.1.0); if the club list fails to load, a "Couldn’t load this" tile with **Try again** shows instead of an empty list. Date of Birth keeps the phone's own picker. After **Send it again** on the reset step, a "Code sent" toast ("Check your email for the new code.") confirms it (1.1.0). Server errors that are technical show a plain message instead. Fields, placeholders, validation messages and every other action are unchanged.
 - **Forgot password**: the member enters their email, receives a 6-digit code (valid 30 minutes, only the latest code works), then enters the code and a new password. Limits (`api/_lib/resetThrottle.ts`): at most 3 code requests per email or username in 30 minutes and 10 per IP address in an hour; 5 wrong codes for an account in 30 minutes locks it out of resetting for that window and cancels any open codes; 20 wrong codes from one IP address in an hour blocks code checks from that IP. A blocked request or code shows “Too many password reset attempts. Please contact Flagrr support at Swing@flagrr.com or 071 759 9553.” Blocks lift on their own when the window passes. Limits apply whether or not the email has an account, so they don’t reveal which emails are registered.
 
 ## Home Screen
 
-The member's dashboard, shown after login:
+The member's dashboard, shown after login. Since 2026-11-24 it uses the Bento design (tiles in the order of the Home board):
 
-- **Flagrr Cash balance** and current **tier badge** (Bronze/Silver/Gold/Platinum), with a progress bar toward the next tier and how many FC are needed.
-- **Streak card** — see [Streaks](#streaks) below.
-- **My Stats** — Rounds Played (9 holes), Rounds Played (18 holes), Flagrr Cash Earned, Flagrr Cash Redeemed, each with a period-over-period % change. A Month / Year / All toggle re-fetches these live.
-- **Points Earned Per Month** bar chart (current calendar year).
-- **Ad space** — see [Ad Space](#ad-space) below.
-- **Rewards preview** — the first 3 rewards, with a "View All" link into the full Rewards Shop.
-- A notification bell with an unread badge, and the member's avatar, in the header.
+- **Header** — today's date, a time-of-day greeting with the member's first name ("Morning, / Afternoon, / Evening,"), a notification bell with the unread count (opens Notifications) and the member's avatar or initials (opens Profile).
+- **Membership not verified** — an amber notice above the tiles: "Your club hasn't verified your membership yet — you can still earn Flagrr Cash, but tier progress is on hold."
+- **Flagrr Cash hero** — the balance (counts up each time Home opens), the tier name, a ring showing progress to the next tier with the FC still needed (since 24 Nov 2026 the ring is as wide as the tile, 96–148 pt depending on the phone, and centred under the balance) (tap for Member Tiers; "Top tier" at Platinum), and **Redeem** (opens the Rewards Shop).
+- **Streak tile** — weeks in the streak, a dot per recent week, and "N more weeks to a Y FC bonus". See [Streaks](#streaks).
+- **Resume round tile** — when a round is in progress: the next hole to play and the Stableford points so far ("14 pts thru 6"); tap to reopen the hole view. Read from the same `golfHome` call as the Course tab, refreshed each time Home opens. With no round in progress (or if that call fails) the tile is **Play a round**, which opens the Course tab.
+- **Your Club** — the home club name and crest; opens Profile.
+- **Ad space** (top banner) — see [Ad Space](#ad-space).
+- **My Stats** — Rounds (9 Holes), Rounds (18 Holes), Cash Earned, Cash Redeemed, each with a period-over-period % change ("+50% vs Last Month"; none for All). A Month / Year / All control re-fetches these live.
+- **My Stats** period (Month / Year / All): if the chosen period's numbers can't load, the previous period stays selected and "Couldn’t load your stats" explains (1.1.0).
+- **Points Earned Per Month** bar chart (the latest month highlighted), with a **My Golf** link that opens My Golf.
+- **Ad space** (second slot).
+- **Rewards preview** — the first 5 rewards with photo, name and the first option's Flagrr Cash cost; tapping a card or "View All" opens the Rewards Shop.
 
 ## Course and My Golf
 
-The tab bar has three tabs either side of the Scan button: **Home, Course, My Golf** on the left and **Rewards, Activity, Profile** on the right.
+The tab bar has two tabs either side of the Scan button: **Home, Course** on the left and **Rewards, Profile** on the right (the Bento boards' layout, in the 1.1.0 code since 24 Nov 2026; the 1.0.1 store app has six tabs). **My Golf** opens from Course's *Your game* tile and Home's *My Golf* link, and keeps the tab bar with Course lit; **Reward Activity** opens from Profile's *Reward Activity* row. It is the Bento floating glass bar: each tab shows a line icon and a label, the active tab is green (lime in dark mode) with a soft highlight that slides between tabs, and Scan is a raised fairway-green button with a lime icon and a "Scan" label. The bar slides away on every other screen and comes back with the tabs. Tapping the tab you're on scrolls it back to the top.
+
+**Movement** (1.1.0, matching the Bento prototype): a new screen slides in from the right while the one behind slides a little left and dims; Back reverses it, and on iPhones you can swipe back from anywhere on the screen (not during a round, where sideways drags move the hole map). The receipt flow (Scan, Review, Success) rises from the bottom as one card while the screen behind shrinks and dims; closing it from any step leaves the whole flow. Signing in or out cross-fades. Phones give a light tap of feedback on tab and segment changes, main buttons and Scan, and when a receipt is submitted, a reward redeemed or a round saved. With Reduce Motion on, screens simply fade.
 
 ### Course tab
 
 - **Your club:** when the member's home club has a live course map, a card with **Start a round**. Until it does, a **Coming soon** card says the club's map is on its way (members of the "My Club Isn't Listed Yet" placeholder are told their club isn't on Flagrr yet).
 - **Away courses:** every other live course map, searchable by name or town, most recently played first. Only courses Flagrr has mapped are listed, so every card matches the club's official one. If no course is live at all, the section says maps are coming soon.
-- **Round in progress:** a card to resume it or discard it. A member can have one round in progress at a time.
+- **Round in progress:** a card to resume it or discard it. A member can have one round in progress at a time. Since 2026-11-24 (Bento) it is a fairway-green tile showing the next hole to play and the Stableford points so far ("Hole 2 · 2 pts · thru 1 of 18").
+- **Your game** (Bento; always shown since 1.1.0): a tile with the member's Stableford average for the year ("–" with no finished rounds or if the stats read fails), a **My Golf** link, and the three latest rounds under **Played recently** (each opens its scorecard). It is the way into My Golf from Course even before the first round.
+- The tab's screens (Course, Start a Round, the hole view, its Scorecard / Your round / My bag sheets and the map layers, Round detail and My Golf) use the Bento look since 2026-11-24. Start a Round groups its choices into tiles (tees and holes; Handicap Index; format, allowance and putts and fairways; the handicap working). Round detail adds a header tile with the round's points and gross. The Stableford average on Course, Round detail's points and gross, and My Golf's average and stat tiles count up when the screen opens (My Golf's roll from the old to the new value when you change Month / Year / All). Nothing about scoring, saving or the order of steps changed.
 
 ### Starting a round
 
@@ -50,12 +60,12 @@ The hole view opens full screen, without the tab bar:
 - The hole is drawn tee at the bottom, green at the top, from the member's tee. Drag to move around, pinch / scroll / + and − to zoom, and the frame button to see the whole hole.
 - **Green distances** (front, middle, back) along the line from the ball to the flag. Distance arcs every 50 m and **reach / carry** numbers for bunkers and water can be turned off under the layers button.
 - **Suggested shot:** the club from the member's **bag** (their carry distances, saved to their profile; sample distances until they change them), where to aim, what it leaves and the usual miss, with a warning when a hazard is inside that miss. Tap anywhere to aim there instead, and drag the white ball to play from somewhere other than the tee.
-- A small **GPS integration coming soon** label: the ball does not follow the member's position yet.
+- The ball does not follow the member's position (no GPS); the "GPS integration coming soon" label was removed in 1.1.0 (owner decision).
 - **Score bar:** tap the number for par, − and + for one under or over, press and hold to clear a hole. It shows the result, net result and Stableford points (or net score), the shots received on the hole, and **Pick up** once a hole is worth 0 points. With putts and fairways on, a row above it takes putts and fairway hit / missed left / missed right (par 4s and 5s).
-- **Scorecard** (the card button): every hole with par, stroke index, shots, score, putts and points or net, Out / In / Total, and the round's Stableford, net, gross and handicap score (adjusted gross, each hole capped at net double bogey; a pick-up counts as net double bogey). **Finish round** is enabled once every hole has a score or a pick-up; **Discard round** deletes it.
+- **Scorecard** (the card button; horizontal since 1.1.0, as on the boards: a 9-column grid per nine with rows Hole, m, Par, SI, Shots, Score, Putts and Pts or Net, an Out / In column and, for 18 holes, a Total row; tap a hole number to go to it): every hole with par, stroke index, shots, score, putts and points or net, Out / In / Total, and the round's Stableford, net, gross and handicap score (adjusted gross, each hole capped at net double bogey; a pick-up counts as net double bogey). **Finish round** is enabled once every hole has a score or a pick-up; **Discard round** deletes it.
 - Scores save to the server as they are entered, with a copy on the device in case the signal drops ("Not saved yet · will retry" in the header until it goes through). Leaving the screen keeps the round in progress.
 
-### My Golf tab
+### My Golf
 
 Built only from rounds the member has finished in the Course tab, at home or away, for the Month, Year or All:
 - **Stableford average**, rounds played to handicap (36+ points over 18 holes, 18+ over nine), best round, and the Handicap Index as entered. Round-level numbers use 18-hole rounds when there are any in the period, otherwise nine-hole rounds.
@@ -71,6 +81,13 @@ Built only from rounds the member has finished in the Course tab, at home or awa
 ### Scanning a receipt
 
 - Tap the scan action in the centre of the tab bar → camera capture or photo upload. The image is resized to 1800px on the device before upload.
+- Screens (Bento design since 2026-11-24):
+  - **Scan**: full-screen camera with a close button, lime corner frame with a sweeping scan line (still with Reduce Motion), the "Align your receipt in the frame" hint (1.1.0; was "Align receipt or QR code", but the app reads no QR codes), an **Upload from gallery** button, a round shutter and, on phones, a **torch** button (1.1.0; it turns off when the scanner is left).
+  - **Camera permission**: a card reading "Camera access needed — Flagrr needs camera access to scan your receipts and award Flagrr Cash." with **Continue** (asks for access) and **Upload from gallery instead**, plus a close button. When access was denied for good (the phone will not ask again), **Open Settings** replaces Continue, and the camera opens as soon as the member returns with access granted (1.1.0, phones only).
+  - **Reading**: the chosen photo dimmed behind a sheet saying "Reading your receipt…" while the scan runs.
+  - **Review Receipt**: a back button and **Rescan** both return to the camera; a photo thumbnail with Merchant, Receipt Number and Date; each item with "Matched: …", "Pre-paid · Matched: …", "Already earned on another slip today" or "Not eligible for Flagrr Cash" and its FC or price; Receipt Total; Flagrr Cash Earned; **Submit Receipt**.
+  - **Receipt submitted**: "+N FC", "Submitted successfully!" and either "N Flagrr Cash added and ready to spend." with "Your new Flagrr Cash is ready to redeem on rewards at your club." or, for a flagged receipt, "Your receipt is being reviewed" with the manual-review note; **View My Flagrr Cash** (Home, then a "Receipt submitted" toast, with "+N FC once your club approves it" for a flagged receipt) and **Submit Another Receipt** (camera). The notices on Review read "…earns Flagrr Cash at the standard rate." (club between subscriptions) and "…earned at the standard away-club rate." (no rand equivalence, 1.1.0).
+  - **Receipt History** (from Profile): a summary of Flagrr Cash from approved receipts submitted this calendar month and how many receipts were submitted this month; each receipt with its date and total, then "+N FC" when approved or a Pending / Under review / Rejected label, any flag note, and **View Photo** (opens the photo full screen; X, a tap anywhere or system back closes it). The list refreshes from the server every time the screen opens, keeping the last list on show if that fails (1.1.0). With no receipts, an empty card with **Scan a receipt**.
 - The server reads the image (Tesseract OCR by default; Claude vision when `RECEIPT_EXTRACTOR=claude` is set, falling back to Tesseract) and parses merchant name, receipt/transaction/till number, date/time, line items, subtotal, VAT, and grand total.
 - Line items are matched against the club's product/activity catalog (exact, alias, or fuzzy match) to work out the Flagrr Cash the receipt is worth. The basis is the slip's grand total, else the subtotal, else the sum of items.
 - The preview result is cached for 30 minutes, and confirming a scan reuses it. The confirm step re-checks everything server-side rather than trusting the client.
@@ -100,6 +117,8 @@ Receipts that are not flagged are approved and credited immediately, with an act
 - A cancelled home club also falls back to the flat rate.
 
 ### Membership tiers
+
+**Member Tiers screen (Bento, 1.1.0):** the Flagrr Cash balance with the member's tier and multiplier ("earning ×1.5"); the unverified-membership notice when it applies; **How to Reach the Next Tier** with the Flagrr Cash still needed ("1,786 FC to Platinum"), "Earn it before this quarter ends.", a progress bar and the FC earned this quarter against the next threshold (hidden for unverified members), then three steps (Play, Earn, Upgrade); a Platinum member reads "You’ve reached the top tier" with a full bar. **Tier Benefits** lists all four tiers as rows with the multiplier badge, threshold ("From 10,000 FC a quarter"), perks ("1.5x Flagrr Cash on your receipts", "Birthday reward of 150 FC", "A bar voucher each quarter you qualify") and a Current / Next tag. The tier tabs and per-tier description sentence of 1.0.1 are gone (owner decision: the mockup layout wins; perks drop rands).
 
 Tier is based on **Flagrr Cash earned in the current calendar quarter** (Jan–Mar, Apr–Jun, Jul–Sep, Oct–Dec, UTC) — not a lifetime total, and redemptions don't count against it. A quiet quarter can only drop a member **one tier** below where they finished the previous quarter.
 
@@ -145,35 +164,54 @@ Tier is based on **Flagrr Cash earned in the current calendar quarter** (Jan–M
 - Redeeming a reward deducts the Flagrr Cash cost and issues a **QR code voucher** (code format `FLGR-XXXX-XXXX`, 90-day expiry) to present at the club. Redeeming a reward the member cannot afford is blocked.
 - Club staff validate the voucher by code or QR; the member then receives a "Reward validated" notification.
 - The Rewards Shop also has its own **ad space** slot (see below).
+- Screen (Bento design since 2026-11-24): the club name and "Rewards Shop" with the Flagrr Cash to spend (1.1.0: tapping it opens Member Tiers); a search field; All plus one filter per category that has rewards; reward cards two to a row with photo, category, title, description, option chips (when there are several; they wrap so every option shows), cost in FC and **Redeem Now**. The ad sits after the first row.
+- **Redeem confirmation** is a sheet (it was an alert): the reward photo, club and category, the chosen option, **Cost** and **Left to spend** (1.1.0; was "Balance after"), **Redeem Now** and Cancel. Redeem Now does exactly what the alert's Redeem did, opens the voucher and shows a "Reward redeemed" / "Show the voucher at the club" toast (1.1.0). A failed redeem shows "Couldn’t redeem" with the reason (for example "Not enough Flagrr Cash"); if the voucher was issued but the refresh afterwards fails, the voucher still opens (1.1.0).
+- **Not enough Flagrr Cash** stays an alert with the real shortfall ("You need N more Flagrr Cash to redeem …").
+- **No search results**: a card with "No rewards match your search." and "Try another word, or clear the search to see everything."
+- **Club not on Flagrr**: the "Nothing Here Yet" card with **Contact Support** (opens Contact Your Club) and the ad below it; the "You're Almost In the Family" alert still shows on every visit. A listed club with no rewards shows "No Rewards Yet" with no button.
 
 ### Vouchers & Reward Activity
 
-- **Reward Activity** is a chronological timeline of earn and redeem events (the most recent 100), grouped Today / Yesterday / This Week / Earlier.
-- Tapping a redeem entry opens that voucher's QR code if it is still active, or explains if it has already been used or has expired.
+- **Voucher** screen: a ticket with the reward photo, title, club, "Reward Redeemed", the QR code and voucher code, then Redeemed date, Expires date, Cost and Left to spend (1.1.0; was "Balance left"); **Back to Rewards**, plus a back button. A **Used** or **Expired** badge shows in the header when the voucher has been scanned at the club or has expired (1.1.0). A voucher past its expiry date counts as **Expired** even if the server still calls it active, because the club can no longer redeem it.
+- **Reward Activity** is a chronological timeline of earn and redeem events (the most recent 100), grouped Today / Yesterday / This Week / Earlier. An All / Earned / Redeemed control filters the list on the device. Redeem entries show their FC with a minus sign and an "Already redeemed" or "Expired" label when the voucher is used or expired (past its date counts as expired). Tapping a redeem entry opens its voucher, used and expired ones included (1.1.0; they used to show an alert); a "Receipt scanned" entry opens its receipt. With no activity, an empty card offers **Scan a receipt**.
+- Tapping a redeem entry opens that voucher's QR code if it is still active, or explains if it has already been used or has expired. Tapping a **Receipt scanned** entry opens that receipt's photo in Receipt History (1.1.0, for receipts scanned once the server has migration 052; older entries stay plain).
 
 ## Ad Space
 
 - Three placements exist: a top banner on Home, a second slot on Home, and a slot in the Rewards Shop.
 - Ads are data-driven (stored in the database) and are managed by the Flagrr super-admin team: an ad can target one or more specific clubs, or all clubs. Each has an image or video, target URL, active window (start/end dates), and display order.
 - Each ad is tappable and opens its target URL. Taps and impressions are both logged for ad-performance reporting.
-- A slot with no ad configured falls back to an inert "Ad Space" placeholder, so nothing looks broken before an ad is set up.
+- A slot with no ad booked is not shown at all: no placeholder box and no gap (owner decision, 24 Nov 2026; until then an "Ad Space" box filled the slot). An ad with no image or video still shows, as a green box with its title.
+- A small "SPONSORED" label sits above every ad. Ads never animate: no rise, reveal, parallax or press scaling.
+- Ads are never cropped (owner decisions, 25 Nov 2026; until then a fixed 180 pt high box cut pictures to fit). A slot fills the width it is given and takes the shape of its picture: one ad fits exactly; a slot that rotates through several ads takes the shape of the tallest one, so nothing below jumps, and shows each whole on a quiet band. Shapes stay between square and 3:1 (beyond that the picture shows whole on the band). Until a picture's size is known, and for a video until its first frame, the slot uses 1200 × 630, the size the admin consoles recommend (see Admin Console Features).
 
 ## Profile
 
 - **My Profile** shows name, phone, email, birthday, home club, and member-since date. Name, phone, email, and birthday are editable on the Edit Profile screen (email must be valid and unique).
 - **Avatar**: tap the profile photo to pick a new one from the photo library (resized on the device before upload).
 - **Change home club**: tap the Club field to open a picker of every club and switch at any time, with a confirmation dialog (the reward catalog and ads change to match the new club). Flagrr Cash balance, tier, and history belong to the member, not the club, so they carry over. Note that roster verification status also carries over (see [Known Limitations](Known-Limitations-and-Future-Work)).
-- **Theme**: system, light, or dark, saved to the account.
+- **Theme**: system, light, or dark, saved to the account. On iPhones, "System" follows the phone's dark mode only from version 1.1.0; the 1.0.1 store build always resolves it to light.
 - **Receipt History**: every submitted receipt with its status (Pending, Approved, or Rejected), the Flagrr Cash earned or pending, and the receipt image on demand.
 - **Refer a Friend**: see [Referrals](#referrals).
 - **Change password**: enter the current password and a new one (at least 8 characters) on the Profile screen.
 - **Export My Data**: downloads a copy of the member's own data — profile, balance, receipts, activity, vouchers, notifications, enquiries, and support tickets. Where the device can't download a file, the app says the export isn't available there.
 - **Delete account**: requires the current password, then permanently deletes the account and its data.
 - **Log out** returns to the landing screen.
+- Layout (Bento, 2026-11-24): photo (tap to change), name, club and tier; a strip with Flagrr Cash, week streak and rounds played; a **Refer a Friend** tile; then **Activity** (Reward Activity, Receipt History), **Details** (each field opens Edit Profile; Club opens the club picker), **Support** (Help Center, Contact Your Club, My Enquiries, Give Feedback), **Settings** (Appearance Light / Dark / System, Notification Preferences, Security) and **Account** (Export My Data, Terms and Privacy, Log Out, Delete Account). The Profile header no longer has its own notification bell; Notifications stays on Home.
+- **Change password** now opens from Security in a sheet (current and new password, Update Password); the checks and messages are unchanged and the sheet closes when the password changes. **Delete account** opens a sheet with the explanation and the current-password field; Delete Account still asks "Delete your account?" before anything is deleted. **Choose Golf Club** is a sheet listing every club with the home club marked; picking another still asks "Change home club?". If the list fails to load, the sheet shows "Couldn’t load clubs" with **Try again** (1.1.0; it used to be an empty box).
+- The support screens (Help Center, Contact Your Club, My Enquiries, enquiry chat, Give Feedback, My Feedback, Notification Preferences, Edit Profile, Refer a Friend, Terms and Privacy) are rebuilt to the Bento boards in 1.1.0 (labelled fields, Bento rows, sheets and buttons). Changes members will notice:
+  - **Profile**: an **Edit Profile** button in the header (as the boards draw it), Phone among the Details, and **Choose Golf Club** with a search field and club monograms.
+  - **Contact Your Club**: the enquiry type opens a bottom sheet; "Rewards and Points" is now "Rewards and Flagrr Cash" (older enquiries keep the old label, which the server stores as text).
+  - **My Enquiries**: a **+** button opens Contact Your Club; an empty list shows "No enquiries" with **Contact Your Club**; a failed load shows "Couldn’t load this" with **Try again**.
+  - **Notification Preferences** and **Refer a Friend**: a failed load shows an error with **Try again** (was an alert or an endless spinner).
+  - **Terms and Privacy**: one screen with a **Terms of Use | Privacy Policy** toggle, opening on the part a link asked for.
+  - Failure alerts show plain wording instead of technical text; messages the server writes for members are unchanged. The FAQ's tier answer drops rand values ("on your receipts", no "(R100/R200)"). The enquiry chat's message box is the Bento one (44 pt field and send button, spinner while sending).
 
 ## Notifications
 
+- **Push while the app is open:** pushes show as banners, except "Reward redeemed", which is hidden while the app is open because the app already shows its own "Reward redeemed" toast (1.1.0). It still arrives when the app is closed and is always in the in-app feed. The server tags it `data.kind = "rewardRedeemed"`; the app also recognises the title, for a server that is not yet updated.
 - An in-app notification feed (with an unread-count badge) covers every automatic event: receipt scans and approvals, redemptions and voucher validation, birthday bonuses, quarterly bar vouchers, streak bonuses, referral bonuses, club announcements, and support/enquiry replies. Tapping an enquiry notification opens that chat.
+- The Notifications screen (Bento, 1.1.0) groups the feed under Today, Yesterday, This Week and Earlier. Each row has an unread dot, a bell (unread) or check (read), the title, the body and a time: the clock time for Today and Yesterday, the weekday for This Week (the date when it is exactly a week old) and the date for Earlier, in the phone's own format. Enquiry rows open the chat; other rows have **View**, which marks them read (if that fails, the row stays unread and a message says so). A gear in the header opens Notification Preferences. With nothing in the feed it shows "No notifications yet" / "Updates about your receipts, rewards and enquiries will show here."
 - **Notification Preferences** has three switches that control which categories also send a phone push: **Account activity**, **Support replies**, and **Announcements**. The in-app feed is unaffected.
 - Real phone push is wired end-to-end in the code (the app requests permission and registers an Expo push token on native builds; the server sends through Expo). It does nothing on the web build, and whether it works on real devices depends on the EAS credentials (Apple APNs key, Android FCM) being configured — unverified from the repo. See [Known Limitations](Known-Limitations-and-Future-Work).
 
@@ -182,12 +220,20 @@ Tier is based on **Flagrr Cash earned in the current calendar quarter** (Jan–M
 - **Help Center**: searchable FAQ (how Flagrr Cash is earned, redeeming rewards, tiers and what they give, streaks, using a voucher, why a receipt might not be approved, changing club) plus three short help articles.
 - **Contact Your Club**: a form (name, phone, email, enquiry type, message) that opens an **enquiry** with the club. **My Enquiries** lists them, and each opens a chat thread where club admins reply.
 - **Give Feedback**: submit a bug, feedback, or improvement ticket to the Flagrr team.
+- **My Feedback** (1.1.0; Profile → Support, under Give Feedback): every Give Feedback submission, newest activity first, with its category, latest message, a status (**Sent**, **In progress**, **Resolved**) and the time; a red dot marks a reply from the Flagrr team the member has not opened (also on the Profile row). **+** opens Give Feedback; an empty list shows "No feedback yet" with **Give Feedback**; a failed load shows "Couldn’t load your feedback" with **Try again**. Opening one shows the thread: the member's messages on the right, the team's on the left labelled "Flagrr Support", each with date and time, and the same message box as an enquiry chat. A reply on a Resolved thread reopens it (Sent). The "Reply to your feedback" notification opens the thread.
 - **Terms & Privacy**: in-app legal text.
 - **Export my data** includes the member's golf settings and every round they have kept.
 - Public pages `privacy.html`, `support.html`, and `delete-account.html` are served with the web build for app-store listings.
 
+## iPhone Duo (1.1.0, native app)
+
+- On the iPhone Duo, iOS keeps a vertical strip down the right-hand edge (camera, clock, status icons) in every posture. Where iOS reports that strip, the **Bento tab bar is drawn vertically in the strip** (owner request and decision, 25 Nov 2026), at its bottom, below the camera and clock: the round Scan button on top, then a glass column of Home, Course, Rewards and Profile with labels, the open tab highlighted. It behaves as the bottom bar does on other phones (re-tap scrolls to top, My Golf keeps Course lit, pushed screens slide it away, here sideways). The first attempt used the iOS system tab bar; on a real Duo (TestFlight build 8) it was missing at launch and flipped between horizontal and vertical, so it was replaced.
+- Every member screen keeps its content, buttons and overlays clear of the strip (and any other side safe area): Bento screens, bottom sheets, alerts, toasts, the scan camera and its permission card, and the hole view (top card, distance card, map buttons, shot card, score bar).
+- Checked in the Xcode 27.2 iPhone Duo simulator (closed, open and half open); not yet on a real Duo.
+
 ## App-wide UX details
 
-- A branded in-app alert/confirm modal is used everywhere instead of the browser's native `alert`/`confirm`, so every dialog matches the app's look and feel, including on the web build.
-- Motion follows one system (`mobile/src/theme/motion.ts`): screens slide in with native iOS-style pushes, the balance and stats roll up, cards and buttons scale under the finger, the selected tab pops, and success screens pop their QR code or trophy. Reduce Motion in the phone's accessibility settings turns all of it off.
+- A branded in-app alert/confirm modal is used everywhere instead of the browser's native `alert`/`confirm`, so every dialog matches the app's look and feel, including on the web build. Since 2026-11-24 it is the Bento alert: a centred card with the title and message in the system font, and full-width buttons under hairlines (two side by side with Cancel on the right, otherwise stacked). The default action is green (lime in dark mode), destructive actions are red, Cancel is plain. Titles, messages, buttons and what each button does are unchanged.
+- The round sheets in the hole view (Scorecard, Your round, My bag) are Bento sheets: a rounded card inset from the screen edges with a close button, rising from the bottom over a dimmed backdrop. Their content is unchanged.
+- Motion follows one system (`mobile/src/theme/motion.ts`): screens slide in with native iOS-style pushes, the balance and stats roll up, cards and buttons scale under the finger, the tab highlight slides to the selected tab, switching tabs cross-fades with the new screen settling into place, alerts scale in and sheets rise, and success screens pop their QR code or trophy. Reduce Motion in the phone's accessibility settings turns all of it off (tabs and alerts then only fade).
 - The web build includes a PWA manifest and a minimal service worker (no offline caching).

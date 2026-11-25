@@ -1,4 +1,5 @@
 import { sql } from './db';
+import { activityHasReceiptId } from './activityReceiptLink';
 import { sendPushToUser } from './pushNotifications';
 
 export const LOW_CONFIDENCE_THRESHOLD = 55; // tesseract.js confidence is 0-100
@@ -111,6 +112,7 @@ export async function evaluateFraudSignals(params: {
 export type FraudResolution = 'confirmed' | 'cleared';
 
 export interface ResolvedFlaggedReceipt {
+  receiptId: string;
   userId: string;
   pointsAwarded: number | null;
   courseName: string;
@@ -183,6 +185,7 @@ export async function resolveFlaggedReceipt(params: {
   if (updatedRows.length === 0) return null;
 
   return {
+    receiptId: params.receiptId,
     userId: existing.user_id,
     pointsAwarded: existing.points_awarded,
     courseName: existing.course_name,
@@ -214,7 +217,7 @@ export async function applyFraudConfirmationEffects(receipt: ResolvedFlaggedRece
 
   const body =
     `A receipt you submitted${receipt.courseName ? ` at ${receipt.courseName}` : ''} was confirmed as fraudulent: ${reason}` +
-    (points > 0 ? ` ${points} Flagrr Cash awarded for it has been reversed from your balance.` : '');
+    (points > 0 ? ` ${points} Flagrr Cash awarded for it has been reversed.` : '');
   await sql`insert into notifications (user_id, title, body) values (${receipt.userId}, 'Receipt rejected', ${body})`;
   await sendPushToUser(receipt.userId, { title: 'Receipt rejected', body }, 'accountActivity');
 }
@@ -241,14 +244,22 @@ export async function applyApprovalEffects(receipt: ResolvedFlaggedReceipt): Pro
     values (${receipt.userId}, ${submitted.getFullYear()}, ${submitted.getMonth() + 1}, ${points})
     on conflict (user_id, year, month) do update set value = monthly_points.value + excluded.value
   `;
-  await sql`
-    insert into activity (user_id, type, title, subtitle, amount)
-    values (${receipt.userId}, 'earn', 'Receipt scanned', ${receipt.courseName || null}, ${points})
-  `;
+  // Links the Reward Activity row to this receipt (migration 052), when the column exists.
+  if (await activityHasReceiptId()) {
+    await sql`
+      insert into activity (user_id, type, title, subtitle, amount, receipt_id)
+      values (${receipt.userId}, 'earn', 'Receipt scanned', ${receipt.courseName || null}, ${points}, ${receipt.receiptId})
+    `;
+  } else {
+    await sql`
+      insert into activity (user_id, type, title, subtitle, amount)
+      values (${receipt.userId}, 'earn', 'Receipt scanned', ${receipt.courseName || null}, ${points})
+    `;
+  }
 
   const body =
     `Your receipt${receipt.courseName ? ` at ${receipt.courseName}` : ''} was reviewed and approved. ` +
-    `${points} Flagrr Cash has been added to your balance.`;
+    `${points} Flagrr Cash has been added.`;
   await sql`insert into notifications (user_id, title, body) values (${receipt.userId}, 'Receipt approved', ${body})`;
   await sendPushToUser(receipt.userId, { title: 'Receipt approved', body }, 'accountActivity');
 }

@@ -100,6 +100,10 @@ export function AdMediaField({ mediaType, previewUrl, onPicked }: Props) {
           );
         })}
       </View>
+      {/* Owner decision 25 Nov 2026: ads keep this shape on every screen, so say which size fits. */}
+      <Text style={a ? [styles.adminPlaceholderText, { color: a.ink2, textAlign: 'center' }] : [styles.placeholderText, { color: colors.textSecondary, textAlign: 'center' }]}>
+        Best at 1200 × 630 pixels (landscape). Members see the whole picture.
+      </Text>
     </View>
   );
 }
@@ -107,7 +111,8 @@ export function AdMediaField({ mediaType, previewUrl, onPicked }: Props) {
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
     container: { alignItems: 'center', gap: spacing.sm },
-    preview: { width: 220, height: 124 },
+    // The ad's own shape (AdSpace AD_ASPECT_RATIO, 1200 x 630).
+    preview: { width: 220, aspectRatio: 1200 / 630 },
     previewMedia: { width: '100%', height: '100%', borderRadius: radius.md },
     placeholder: {
       width: '100%',

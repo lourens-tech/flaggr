@@ -1,46 +1,46 @@
-import React, { useCallback, useState, useMemo } from 'react';
-import { ActivityIndicator, FlatList, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import React, { useCallback, useState } from 'react';
+import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/types';
-import { ScreenHeader } from '../../components/common/ScreenHeader';
 import { useApp } from '../../context/AppContext';
-import { enquiryStatusBadges, fontFamily, fontSize, radius, screenPadding, spacing } from '../../theme';
-import { useThemeColors, type ThemeColors } from '../../context/ThemeContext';
+import { useBento } from '../../context/ThemeContext';
+import { friendlyError } from '../../utils/errors';
+import { relativeTime } from '../../utils/relativeTime';
+import { Appear, BentoIcon, BentoScreen, BentoTile, EmptyState, GlassIconButton, LoadError, StatusPill, type PillTone } from '../../components/bento';
 import type { EnquiryStatus, MyEnquirySummary } from '../../data/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'MyEnquiries'>;
 
-// A fixed, theme-invariant palette — these are small self-contained status
-// chips (own bg + fg pair), not surfaces that should flip with dark mode.
-function relativeTime(iso: string): string {
-  const diffMs = Date.now() - new Date(iso).getTime();
-  const mins = Math.floor(diffMs / 60000);
-  if (mins < 1) return 'just now';
-  if (mins < 60) return `${mins}m ago`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  return `${days}d ago`;
-}
+const STATUS: Record<EnquiryStatus, { label: string; tone: PillTone }> = {
+  pending: { label: 'Pending', tone: 'warn' },
+  in_progress: { label: 'Chat in Progress', tone: 'accent' },
+  resolved: { label: 'Resolved', tone: 'muted' },
+};
 
+// Layout from G-E-EnquiriesLive / EnquiriesLoading and AppEnquiriesEmpty.
 export function MyEnquiriesScreen({ navigation }: Props) {
-  const colors = useThemeColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { t } = useBento();
   const { listMyEnquiries } = useApp();
   const [enquiries, setEnquiries] = useState<MyEnquirySummary[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  // Bumped by Try again to run the same load as a focus does.
+  const [attempt, setAttempt] = useState(0);
 
+  // Reloads, with the spinner, every time the screen comes into view.
   useFocusEffect(
     useCallback(() => {
       let cancelled = false;
       (async () => {
         setLoading(true);
+        setError(null);
         try {
           const rows = await listMyEnquiries();
           if (!cancelled) setEnquiries(rows);
+        } catch (err) {
+          // Owner decision (24 Nov 2026): a failed load shows a message with Try again (it used to look like "no enquiries").
+          if (!cancelled) setError(friendlyError(err));
         } finally {
           if (!cancelled) setLoading(false);
         }
@@ -49,86 +49,80 @@ export function MyEnquiriesScreen({ navigation }: Props) {
         cancelled = true;
       };
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []),
+    }, [attempt]),
   );
-
-  const renderItem = ({ item }: { item: MyEnquirySummary }) => {
-    const badge = enquiryStatusBadges(colors)[item.status];
-    return (
-      <TouchableOpacity
-        style={styles.row}
-        onPress={() => navigation.navigate('EnquiryChat', { enquiryId: item.id })}
-        activeOpacity={0.8}
-      >
-        <View style={{ flex: 1 }}>
-          <View style={styles.rowTop}>
-            <Text style={styles.enquiryType}>{item.enquiryType}</Text>
-            {item.hasUnread ? <View style={styles.unreadDot} /> : null}
-          </View>
-          <Text style={styles.lastMessage} numberOfLines={1}>{item.lastMessage ?? '—'}</Text>
-          <Text style={styles.meta}>{relativeTime(item.updatedAt)}</Text>
-        </View>
-        <View style={[styles.badge, { backgroundColor: badge.bg }]}>
-          <Text style={[styles.badgeText, { color: badge.fg }]}>{badge.label}</Text>
-        </View>
-        <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
-      </TouchableOpacity>
-    );
-  };
 
   return (
-    <View style={styles.screen}>
-      <StatusBar barStyle="light-content" />
-      <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
-        <ScreenHeader title="My Enquiries" onBack={() => navigation.goBack()} />
-      </SafeAreaView>
-
+    <BentoScreen
+      title="My Enquiries"
+      onBack={() => navigation.goBack()}
+      // Approved small addition (24 Nov 2026): "+" opens Contact.
+      headerRight={<GlassIconButton icon="plus" accessibilityLabel="New enquiry" onPress={() => navigation.navigate('Contact')} />}
+    >
+      <View style={{ height: 4 }} />
       {loading ? (
-        <ActivityIndicator color={colors.clubGreen} style={{ marginTop: spacing.xl }} />
+        <View style={{ alignItems: 'center', paddingVertical: 36 }}>
+          <ActivityIndicator size="large" color={t.accent} />
+        </View>
+      ) : error ? (
+        <LoadError body={error} onRetry={() => setAttempt((a) => a + 1)} />
+      ) : enquiries.length === 0 ? (
+        <Appear>
+          <EmptyState
+            icon="chatBubbleWide"
+            title="No enquiries"
+            body="You haven't sent any enquiries yet."
+            // Approved small addition (24 Nov 2026): "Contact Your Club" on the empty list.
+            actionLabel="Contact Your Club"
+            onAction={() => navigation.navigate('Contact')}
+          />
+        </Appear>
       ) : (
-        <FlatList
-          data={enquiries}
-          keyExtractor={(e) => e.id}
-          renderItem={renderItem}
-          contentContainerStyle={styles.listContent}
-          ListEmptyComponent={
-            <Text style={styles.emptyText}>You haven't sent any enquiries yet.</Text>
-          }
-        />
+        <Appear>
+          <BentoTile padding={0} innerStyle={{ paddingHorizontal: 16 }}>
+            {enquiries.map((item, i) => {
+              const status = STATUS[item.status];
+              return (
+                <Pressable
+                  key={item.id}
+                  onPress={() => navigation.navigate('EnquiryChat', { enquiryId: item.id })}
+                  accessibilityRole="button"
+                  style={({ pressed }) => ({
+                    flexDirection: 'row',
+                    alignItems: 'flex-start',
+                    gap: 12,
+                    paddingVertical: 13,
+                    borderTopWidth: i ? 1 : 0,
+                    borderTopColor: t.hair,
+                    opacity: pressed ? 0.7 : 1,
+                  })}
+                >
+                  <View style={{ width: 40, height: 40, borderRadius: 13, marginTop: 2, backgroundColor: t.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
+                    <BentoIcon name="chatBubble" size={20} color={t.accent} strokeWidth={1.8} />
+                  </View>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <Text style={{ flexShrink: 1, fontSize: 15, fontWeight: '600', color: t.ink }}>{item.enquiryType}</Text>
+                      {/* An unread club reply; clears once the chat has been opened. */}
+                      {item.hasUnread ? <View accessibilityRole="image" accessibilityLabel="Unread reply" style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: t.danger }} /> : null}
+                    </View>
+                    <Text numberOfLines={1} style={{ fontSize: 13, color: t.muted, marginTop: 2 }}>
+                      {item.lastMessage ?? '—'}
+                    </Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 }}>
+                      <StatusPill label={status.label} tone={status.tone} />
+                      <Text style={{ fontSize: 12, color: t.muted }}>{relativeTime(item.updatedAt)}</Text>
+                    </View>
+                  </View>
+                  <View style={{ marginTop: 12 }}>
+                    <BentoIcon name="chevronRight" size={16} color={t.muted} strokeWidth={1.8} />
+                  </View>
+                </Pressable>
+              );
+            })}
+          </BentoTile>
+        </Appear>
       )}
-    </View>
+    </BentoScreen>
   );
-}
-
-function createStyles(colors: ThemeColors) {
-  return StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.background },
-  headerSafeArea: { backgroundColor: colors.clubGreen },
-  listContent: { padding: screenPadding, gap: spacing.sm },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    backgroundColor: colors.background,
-    borderWidth: 0.5,
-    borderColor: colors.clubGreen,
-    borderRadius: radius.md,
-    padding: spacing.sm,
-    marginBottom: spacing.sm,
-  },
-  rowTop: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  enquiryType: { fontFamily: fontFamily.bodySemiBold, fontSize: fontSize.body, color: colors.textPrimary },
-  unreadDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.negative },
-  lastMessage: { fontFamily: fontFamily.body, fontSize: fontSize.tiny, color: colors.textSecondary, marginTop: 2 },
-  meta: { fontFamily: fontFamily.body, fontSize: 10, color: colors.textSecondary, marginTop: 2 },
-  badge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: radius.pill },
-  badgeText: { fontFamily: fontFamily.bodySemiBold, fontSize: 9 },
-  emptyText: {
-    fontFamily: fontFamily.body,
-    fontSize: fontSize.body,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginTop: spacing.xl,
-  },
-});
 }

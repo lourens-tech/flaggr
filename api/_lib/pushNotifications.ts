@@ -39,7 +39,16 @@ interface ExpoPushResult {
 
 // Shared by sendPushToUser/sendPushToAdmin — sends to every given token and
 // cleans up any Expo reports as no-longer-registered on the device.
-async function deliverPush(tokens: Array<{ token: string }>, message: { title: string; body: string }): Promise<void> {
+// `data.kind` lets the app recognise a push it already shows in its own UI
+// (for example "rewardRedeemed": the app shows a toast, so it hides the banner
+// while open). Older app builds ignore it.
+export interface PushMessage {
+  title: string;
+  body: string;
+  data?: { kind: string };
+}
+
+async function deliverPush(tokens: Array<{ token: string }>, message: PushMessage): Promise<void> {
   if (tokens.length === 0) return;
   try {
     const headers: Record<string, string> = { 'Content-Type': 'application/json', Accept: 'application/json' };
@@ -49,7 +58,7 @@ async function deliverPush(tokens: Array<{ token: string }>, message: { title: s
       method: 'POST',
       headers,
       body: JSON.stringify(
-        tokens.map((t) => ({ to: t.token, title: message.title, body: message.body, sound: 'default' })),
+        tokens.map((t) => ({ to: t.token, title: message.title, body: message.body, sound: 'default', ...(message.data ? { data: message.data } : {}) })),
       ),
     });
     const json = (await res.json().catch(() => null)) as { data?: ExpoPushResult[] } | null;
@@ -73,7 +82,7 @@ async function deliverPush(tokens: Array<{ token: string }>, message: { title: s
 // service to accept sends.
 export async function sendPushToUser(
   userId: string,
-  message: { title: string; body: string },
+  message: PushMessage,
   category: NotificationCategory,
 ): Promise<void> {
   const prefRows = (await sql`

@@ -208,6 +208,9 @@ export interface ActivityEntry {
   subtitle: string;
   amount: number;
   voucherId: string | null;
+  // The receipt a "Receipt scanned" row came from (API, migration 052); null for every other row,
+  // for rows written before 1.1.0, and from a server without the migration.
+  receiptId?: string | null;
   date: string;
 }
 
@@ -218,6 +221,8 @@ export interface AppNotification {
   date: string;
   read: boolean;
   enquiryId: string | null;
+  // Set on "Reply to your feedback" notifications (API, migration 053); absent from older servers.
+  supportTicketId?: string | null;
 }
 
 export interface NotificationPreferences {
@@ -250,4 +255,35 @@ export interface MyEnquiryThread {
   status: EnquiryStatus;
   enquiryType: string;
   messages: EnquiryMessage[];
+}
+
+// My Feedback (owner decisions 24 and 25 Nov 2026): the member's Give Feedback
+// submissions, the Flagrr team's replies, and the member's own replies.
+export type FeedbackCategory = 'bug' | 'general_feedback' | 'improvement';
+export type FeedbackStatus = 'open' | 'in_progress' | 'resolved';
+
+export interface MyFeedbackSummary {
+  id: string;
+  category: FeedbackCategory | null;
+  status: FeedbackStatus;
+  createdAt: string;
+  updatedAt: string;
+  lastMessage: string | null;
+  hasUnread: boolean;
+}
+
+export interface FeedbackMessage {
+  id: string;
+  // 'requester' is the member, 'agent' the Flagrr team.
+  senderType: 'requester' | 'agent';
+  body: string;
+  createdAt: string;
+}
+
+export interface MyFeedbackThread {
+  id: string;
+  category: FeedbackCategory | null;
+  status: FeedbackStatus;
+  createdAt: string;
+  messages: FeedbackMessage[];
 }
