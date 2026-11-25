@@ -231,7 +231,8 @@ export function BentoButton({
           borderColor: colors.border,
           flexDirection: 'row',
           alignItems: 'center',
-          justifyContent: nub ? 'space-between' : 'center',
+          // While loading the nub is hidden and the spinner sits in the middle (every busy-button board).
+          justifyContent: nub && !loading ? 'space-between' : 'center',
           paddingLeft: nub ? 20 : 20,
           paddingRight: nub ? (height - nubSize) / 2 : 20,
           paddingVertical: nub ? (height - nubSize) / 2 : 12,
@@ -241,11 +242,12 @@ export function BentoButton({
       ]}
     >
       {loading ? (
-        <ActivityIndicator color={colors.fg} style={{ flex: nub ? undefined : 0 }} />
+        // No flex: on web `flex: 0` became `0 1 0%` and squeezed the spinner's box to 0 px; the row centres it.
+        <ActivityIndicator color={colors.fg} />
       ) : (
         <Text style={[bentoType.button, { color: colors.fg, flexShrink: 1, textAlign: nub ? 'left' : 'center' }]}>{label}</Text>
       )}
-      {nub ? (
+      {nub && !loading ? (
         <View style={{ width: nubSize, height: nubSize, borderRadius: nubSize / 2, backgroundColor: colors.nubBg, alignItems: 'center', justifyContent: 'center' }}>
           <BentoIcon name="arrowUpRight" size={17} color={colors.nubFg} strokeWidth={2} />
         </View>
