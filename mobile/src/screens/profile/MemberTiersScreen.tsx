@@ -11,10 +11,12 @@ import type { TierName } from '../../data/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'MemberTiers'>;
 
+// Owner-approved wording (25 Nov 2026): tiers qualify on Flagrr Cash earned per calendar
+// quarter (api/_lib/tiers.ts); bonuses: api/_lib/streakRewards.ts, tierRewards.ts, referrals.ts.
 const STEPS = [
-  { number: '01', title: 'Play', body: 'Play rounds at your club and stay active on Flagrr.' },
-  { number: '02', title: 'Earn', body: 'Earn Flagrr Cash through qualifying activities.' },
-  { number: '03', title: 'Upgrade', body: 'As your activity grows, unlock the next tier and enjoy enhanced benefits.' },
+  { number: '01', title: 'Scan', body: 'Scan your receipts from your club.' },
+  { number: '02', title: 'Earn', body: 'Every receipt earns Flagrr Cash, plus bonuses for streaks, birthdays and referrals.' },
+  { number: '03', title: 'Upgrade', body: 'Earn enough this quarter to move up a tier and earn more on your receipts.' },
 ];
 
 // Tier multipliers for the badges and the balance card: the ones the server applies

@@ -565,9 +565,9 @@ One screen with two internal steps, `request` and `reset`.
     - "{pointsToNextTier} pts to {nextTier}". **At top tier this renders "0 pts to "** with nothing after it (`nextTier` is null; a bug to resolve).
   - **Unverified banner** (when `verifiedMember` is false; mint background, alert icon): "Your club hasn't verified your membership yet, so tier progress is on hold — you can still earn and redeem Flagrr Cash as normal. Ask your golf club to add you to their member list."
   - **"How to Reach the Next Tier"** (lime heading on dark green) with three numbered steps:
-    - "01" "Play": "Play rounds at your club and stay active on Flagrr."
-    - "02" "Earn": "Earn Flagrr Cash through qualifying activities."
-    - "03" "Upgrade": "As your activity grows, unlock the next tier and enjoy enhanced benefits."
+    - "01" "Scan": "Scan your receipts from your club."
+    - "02" "Earn": "Every receipt earns Flagrr Cash, plus bonuses for streaks, birthdays and referrals."
+    - "03" "Upgrade": "Earn enough this quarter to move up a tier and earn more on your receipts."
   - **"Tier Benefits"** sheet (ground colour, rounded top):
     - Underline tabs "Bronze", "Silver", "Gold", "Platinum". The default selection is the user's own tier.
     - Gold pill "{TIER} MEMBER" with a crown.
