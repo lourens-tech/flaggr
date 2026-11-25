@@ -20,6 +20,7 @@ export function BentoSheet({
   children,
   footer,
   scroll = true,
+  closeDisabled = false,
 }: {
   visible: boolean;
   title: string;
@@ -28,6 +29,9 @@ export function BentoSheet({
   children: React.ReactNode;
   footer?: React.ReactNode;
   scroll?: boolean;
+  // While the sheet is busy (e.g. redeeming), the × is dimmed and does nothing (board G-C-RedeemBusy).
+  // The caller still guards onClose for the backdrop and the system back gesture.
+  closeDisabled?: boolean;
 }) {
   const { t } = useBento();
   const insets = useSafeAreaInsets();
@@ -97,10 +101,13 @@ export function BentoSheet({
             </View>
             <Pressable
               onPress={onClose}
+              disabled={closeDisabled}
               accessibilityRole="button"
               accessibilityLabel="Close"
+              accessibilityState={{ disabled: closeDisabled }}
+              aria-disabled={closeDisabled}
               hitSlop={5}
-              style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: t.seg, alignItems: 'center', justifyContent: 'center' }}
+              style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: t.seg, alignItems: 'center', justifyContent: 'center', opacity: closeDisabled ? 0.45 : 1 }}
             >
               <BentoIcon name="close" size={16} color={t.ink} strokeWidth={1.8} />
             </Pressable>

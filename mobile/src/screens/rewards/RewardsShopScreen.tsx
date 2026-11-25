@@ -196,7 +196,7 @@ export function RewardsShopScreen({ navigation }: Props) {
         </>
       )}
 
-      <BentoSheet visible={confirm !== null} title="Redeem reward?" onClose={() => (redeeming ? undefined : setConfirm(null))}>
+      <BentoSheet visible={confirm !== null} title="Redeem reward?" onClose={() => (redeeming ? undefined : setConfirm(null))} closeDisabled={redeeming}>
         {confirm ? (
           <View>
             <View style={{ flexDirection: 'row', gap: 14, alignItems: 'center' }}>

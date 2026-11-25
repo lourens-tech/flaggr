@@ -159,7 +159,8 @@ export function EmptyState({
     <BentoTile padding={18} style={style}>
       <View style={{ alignItems: 'center', paddingVertical: 18, paddingHorizontal: 8 }}>
         <View style={{ width: 64, height: 64, borderRadius: 22, backgroundColor: t.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
-          <BentoIcon name={icon} size={28} color={t.accent} strokeWidth={1.7} />
+          {/* 30 pt, stroke 1.7: every empty-state drawing on the boards (22 of 22). */}
+          <BentoIcon name={icon} size={30} color={t.accent} strokeWidth={1.7} />
         </View>
         <Text accessibilityRole="header" style={[bentoType.number, { fontSize: 22, lineHeight: 26, color: t.ink, marginTop: 14, textAlign: 'center' }]}>
           {title}

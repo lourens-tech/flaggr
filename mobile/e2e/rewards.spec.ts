@@ -545,7 +545,9 @@ test.describe('Rewards Shop', () => {
     await expect(s.getByRole('progressbar')).toBeAttached(); // spinner inside Redeem Now
     await expect(s.getByRole('button', { name: 'Cancel' })).toBeDisabled();
     await s.getByRole('button', { name: 'Cancel' }).click({ force: true });
-    await s.getByRole('button', { name: 'Close' }).last().click();
+    // Board G-C-RedeemBusy: the × is dimmed and disabled while redeeming (it was only ignored).
+    await expect(s.getByRole('button', { name: 'Close' }).last()).toBeDisabled();
+    await s.getByRole('button', { name: 'Close' }).last().click({ force: true });
     await s.getByRole('button', { name: 'Close' }).first().click({ position: { x: 30, y: 60 }, force: true });
     await expect(s.getByRole('heading', { name: 'Redeem reward?' })).toBeVisible();
     release();

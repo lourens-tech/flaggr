@@ -121,9 +121,9 @@ export const bentoDark: BentoTokens = {
   contour: 'rgba(205,222,92,0.10)',
   onHero: '#FFFFFF',
   onHeroMuted: 'rgba(255,255,255,0.86)',
-  negative: '#F0A07A',
-  warnBg: 'rgba(232,176,72,0.14)',
-  warnInk: '#F1D39B',
+  negative: '#E39A7B', // main dark boards (7 uses: deltas, "Not eligible"); the kept-board kit had #F0A07A
+  warnBg: 'rgba(233,196,106,0.14)', // main dark boards (notices); kit had rgba(232,176,72,.14)
+  warnInk: '#F2D78E', // main dark boards (notice text and icons); kit had #F1D39B
   dangerSoft: 'rgba(200,50,42,0.10)',
   dangerInk: '#F0918A',
   pillWarnBg: 'rgba(233,196,106,0.16)',
