@@ -754,7 +754,7 @@ Inside `ScanFlow`: Review replaces itself with Success (Back can't resubmit); "S
     4. Get the Expo push token.
     5. `POST /api/profile?action=registerPushToken` `{token, platform}`. Errors are ignored.
   - It re-runs at every restore and login, so the prompt reappears only if the OS allows it.
-- **Foreground presentation:** the handler shows the banner, list entry and sound; it does not set a badge.
+- **Foreground presentation:** the handler shows the banner, list entry and sound; it does not set a badge. **1.1.0 (25 Nov 2026):** a "Reward redeemed" push (`data.kind = "rewardRedeemed"`, or that title) is not shown while the app is open, because the app shows its own toast; the deprecated `shouldShowAlert` flag is no longer set (on iOS it shows a banner by itself).
 - **Tap handling:**
   - Any notification tap (native) runs `navigationRef.navigate('Notifications')` if navigation is ready. The payload is **not** used: an enquiry reply, for example, does not open that chat.
   - If the member is not signed in (or an admin session is active), the `Notifications` route does not exist and the tap does nothing (React Navigation warns in development).
@@ -1096,7 +1096,7 @@ Verified against code on 2026-11-24 (branch `claude/member-store-build`, working
 
 #### Scan Receipt (`mobile/src/screens/receipts/ScanReceiptScreen.tsx`)
 
-> **1.1.0 (phase 3, 25 Nov 2026), what changed from the 1.0.1 description below:** Bento camera chrome matched to the boards (frame and hint positions, 34 pt Reading ring, blurred Close and hint). Torch button on phones (approved addition; `enableTorch`; off whenever the screen loses focus). Camera access denied for good: **Open Settings** (`Linking.openSettings()`) replaces Continue, and the permission is re-read when the app returns to the foreground (phones; web always reports `canAskAgain`). A failed capture or photo pick now shows an alert (was silent). Error alerts use `friendlyError` (technical text → plain message; member-facing server text kept). Everything else below is unchanged.
+> **1.1.0 (phase 3, 25 Nov 2026), what changed from the 1.0.1 description below:** Bento camera chrome matched to the boards (frame and hint positions; the hint reads "Align your receipt in the frame", owner decision 25 Nov 2026, 34 pt Reading ring, blurred Close and hint). Torch button on phones (approved addition; `enableTorch`; off whenever the screen loses focus). Camera access denied for good: **Open Settings** (`Linking.openSettings()`) replaces Continue, and the permission is re-read when the app returns to the foreground (phones; web always reports `canAskAgain`). A failed capture or photo pick now shows an alert (was silent). Error alerts use `friendlyError` (technical text → plain message; member-facing server text kept). Everything else below is unchanged.
 
 One screen with four visual modes: **blank** (permission unknown), **Camera permission card**, **Live camera**, **Reading** (processing).
 
@@ -1774,7 +1774,7 @@ Verified against the code on branch `claude/member-store-build` (working tree, 2
 
 #### Voucher (`mobile/src/screens/rewards/VoucherScreen.tsx`)
 
-> **1.1.0 (phase 3, 25 Nov 2026), what changed:** **Left to spend** (was "Balance left"). A **Used** (status `redeemed`) or **Expired** (status `expired`) badge sits in the header's right slot (owner-approved; no board places it). No share button. Everything else below is unchanged.
+> **1.1.0 (phase 3, 25 Nov 2026), what changed:** **Left to spend** (was "Balance left"). A **Used** (status `redeemed`) or **Expired** (status `expired`) badge sits in the header's right slot (owner-approved; no board places it). From 25 Nov 2026 an `active` voucher whose `expiresAt` has passed also shows **Expired** (`mobile/src/utils/vouchers.ts`, `voucherStatus`), matching staff redeem, which refuses past-date vouchers. No share button. Everything else below is unchanged.
 
 - **Reached from:**
   - Rewards Shop, automatically after a successful redeem (`navigate('Voucher', { voucherId })`).
@@ -1828,7 +1828,7 @@ Verified against the code on branch `claude/member-store-build` (working tree, 2
 
 #### Reward Activity (`mobile/src/screens/rewards/RewardsActivityScreen.tsx`)
 
-> **1.1.0 (phase 3, 25 Nov 2026), what changed:** Bento rows from the main boards (system-font amounts, earn/redeem chips, "Already redeemed" grey and "Expired" red pills), natural-width filter, `EmptyState`. "Receipt scanned" rows with a `receiptId` (API, migration 052) open `ReceiptHistory` with that `receiptId`, which opens the receipt's photo (owner decision); rows without one stay inert. Every tap and alert below is unchanged.
+> **1.1.0 (phase 3, 25 Nov 2026), what changed:** Bento rows from the main boards (system-font amounts, earn/redeem chips, "Already redeemed" grey and "Expired" red pills), natural-width filter, `EmptyState`. "Receipt scanned" rows with a `receiptId` (API, migration 052) open `ReceiptHistory` with that `receiptId`, which opens the receipt's photo (owner decision); rows without one stay inert. From 25 Nov 2026 (owner decision) every redeem row whose voucher is found opens the Voucher screen, used and expired ones included, where the badge shows; the "Voucher expired" and "Already redeemed" alerts below are gone. The pill uses `voucherStatus`, so a past-date voucher shows **Expired**. "Voucher not found" is unchanged.
 
 - **Reached from:**
   - Tab bar tab **Activity** (icon `activity`, label "Activity") in the live 6-tab bar.
@@ -2505,7 +2505,7 @@ Conventions used below:
 
 #### Member Profile (`screens/profile/MemberProfileScreen.tsx`)
 
-> **1.1.0 (phase 3, 25 Nov 2026), what changed from the 1.0.1 description below:** Bento layout per the boards: 68 pt avatar with camera badge, an **Edit Profile** header button (as on the boards; opens the same Edit Profile), Phone among the Details rows, Log Out as a secondary button and Delete Account as a red link. Password and Delete sheets use labelled fields with eye toggles; the delete copy says "Flagrr Cash" (was "points"). **Choose Golf Club** has search (approved) and club monograms; a failed list still shows an empty box. Alerts use `friendlyError` (technical text → plain message; member-facing server text kept). Everything else below is unchanged.
+> **1.1.0 (phase 3, 25 Nov 2026), what changed from the 1.0.1 description below:** Bento layout per the boards: 68 pt avatar with camera badge, an **Edit Profile** header button (as on the boards; opens the same Edit Profile), Phone among the Details rows, Log Out as a secondary button and Delete Account as a red link. Password and Delete sheets use labelled fields with eye toggles; the delete copy says "Flagrr Cash" (was "points"). **Choose Golf Club** has search (approved) and club monograms; a failed list shows "Couldn’t load clubs" with the error and **Try again**, which reloads it (owner decision 25 Nov 2026). Alerts use `friendlyError` (technical text → plain message; member-facing server text kept). Everything else below is unchanged.
 
 - **Reached from:**
   - Bottom tab bar `Profile` tab (`MainTabNavigator`, 6 tabs today: Home, Course, MyGolf, Rewards, Activity, Profile; Scan sits in the custom `BentoTabBar`).
@@ -2531,7 +2531,7 @@ Conventions used below:
      - `Club` → `user.homeClub`; shows `Updating…` while a club change is in flight.
      - `Member Since` → `user.memberSince` same dd/mm/yyyy device-locale format. Not tappable (no chevron, 16 pt spacer instead).
      - Accessibility label per row: `<label>: <value>`; tappable rows have role button.
-  8. Section `Support`: rows `Help Center` (icon info), `Contact Your Club` (icon golfFlag), `My Enquiries` (icon bell), `Give Feedback` (icon check).
+  8. Section `Support`: rows `Help Center` (icon info), `Contact Your Club` (icon golfFlag), `My Enquiries` (icon bell), `Give Feedback` (icon check), and from 1.1.0 `My Feedback` (icon chatBubble; a red dot and the name "My Feedback, unread reply" while a team reply is unread, checked with `GET ?action=myFeedback` each time Profile comes into view; a failed check shows no dot).
   9. Section `Settings`: `Appearance` label + segmented control (`Light` / `Dark` / `System`, accessibility label `Theme`, radio group) showing the current `ThemeContext.preference`; row `Notification Preferences` (icon bell); row `Security` with sub-line `Change your password` (icon info).
   10. Section `Account`: row `Export My Data` (icon arrowUpRight; spinner replaces chevron while busy); row `Terms and Privacy` (icon info); row `Log Out` (icon back, "plain": no chevron); row `Delete Account` (icon close, danger red text + red-tinted icon chip, no chevron).
   - Not shown although available in state: `unreadNotificationCount` is destructured but unused (no bell/badge on Profile); tier is not tappable (Member Tiers is not reachable from here); `verifiedMember` not shown; `courseLogoUrl` not shown.
@@ -2550,6 +2550,7 @@ Conventions used below:
 | Contact Your Club | `navigate('Contact')` | Always |
 | My Enquiries | `navigate('MyEnquiries')` | Always |
 | Give Feedback | `navigate('GiveFeedback')` | Always |
+| My Feedback (1.1.0) | `navigate('MyFeedback')` | Always |
 | Appearance segment (Light/Dark/System) | `updateThemePreference(v)` → `POST /api/profile?action=themePreference` `{ preference }` → `user.themePreference` set → `ThemeContext.setPreference()` (applies theme, persists to AsyncStorage). Re-tapping the current segment still calls the server. | Whole control ignores touches (`pointerEvents="none"`) while saving; no visible spinner |
 | Notification Preferences | `navigate('NotificationPreferences')` | Always |
 | Security (`Change your password`) | Opens **Change your password** sheet | Always |
@@ -2918,6 +2919,15 @@ Conventions used below:
   - Not shown by any board: status badge (all three states); loading state and `Enquiry` fallback title; sending spinner; disabled send on empty draft; `Couldn’t load enquiry` (and its 12 s repeat); `Couldn’t send message`; resolved-thread reopen on reply; live polling/push refresh; entry from Notifications; arrival via Contact replace.
 
 ---
+
+#### My Feedback and Feedback Thread (`screens/profile/MyFeedbackScreen.tsx`, `FeedbackThreadScreen.tsx`), new in 1.1.0
+
+Owner decisions 24 and 25 Nov 2026; mockup approved 25 Nov 2026. Layout and rules mirror My Enquiries and Enquiry Chat.
+
+- **Reached from:** Profile → Support → `My Feedback`; a "Reply to your feedback" notification (`supportTicketId`) opens the thread directly (the row has a chevron, no `View`).
+- **List:** `GET /api/profile?action=myFeedback` on every focus (spinner). Rows: chatBubble chip, category title (`Bug Found` / `General Feedback` / `Improvement Idea`, or `Feedback` when none), red unread dot, last message (one line, `—` when none), status pill (`open` → **Sent**, warn; `in_progress` → **In progress**, accent; `resolved` → **Resolved**, muted), relative time of the last activity, chevron. Header `+` (label "Give Feedback") opens Give Feedback. Empty: "No feedback yet" / "Ideas, bugs and kind words you send from Give Feedback show up here, with the Flagrr team’s replies." with **Give Feedback**. Failed load: "Couldn’t load your feedback" with the error and **Try again**.
+- **Thread:** title is the category (`Feedback` while loading, with a spinner), status pill, bubbles (member right in accent; team left, labelled "Flagrr Support"), en-ZA date and time under each. `GET ?action=feedbackThread&id=` marks the team's replies read. Refreshes on focus, every 12 s and on any push received while open (`useLiveThread`). Composer as Enquiry Chat (`ChatComposer`): Send disabled for a blank draft, spinner while sending, draft kept on failure. `POST ?action=feedbackReply` returns the updated thread (a Resolved thread becomes Sent).
+- **Alerts:** "Couldn’t load feedback" (thread load fails; the spinner stays and the 12 s refresh tries again); "Couldn’t send message" (reply fails). Both use `friendlyError`.
 
 #### Give Feedback (`screens/profile/GiveFeedbackScreen.tsx`)
 

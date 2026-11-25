@@ -241,9 +241,11 @@ export const api = {
   myEnquiries: () => request<MyEnquirySummary[]>('/profile?action=myEnquiries'),
 
   enquiryThread: (id: string) => request<MyEnquiryThread>(`/profile?action=enquiryThread&id=${id}`),
-  // My Feedback (read only): Give Feedback submissions and the Flagrr team's replies.
+  // My Feedback: Give Feedback submissions, the Flagrr team's replies, and the member's replies.
   myFeedback: () => request<MyFeedbackSummary[]>('/profile?action=myFeedback'),
-  feedbackThread: (id: string) => request<MyFeedbackThread>(`/profile?action=feedbackThread&id=${id}`),
+  feedbackThread: (id: string) => request<MyFeedbackThread>(`/profile?action=feedbackThread&id=${encodeURIComponent(id)}`),
+  replyToFeedback: (ticketId: string, message: string) =>
+    request<MyFeedbackThread>('/profile?action=feedbackReply', { method: 'POST', body: { ticketId, message } }),
 
   replyToEnquiry: (enquiryId: string, message: string) =>
     request<EnquiryMessage[]>('/profile?action=enquiryReply', { method: 'POST', body: { enquiryId, message } }),

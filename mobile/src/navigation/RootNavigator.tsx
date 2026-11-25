@@ -20,6 +20,8 @@ import { EditProfileScreen } from '../screens/profile/EditProfileScreen';
 import { TermsPrivacyScreen } from '../screens/profile/TermsPrivacyScreen';
 import { MyEnquiriesScreen } from '../screens/profile/MyEnquiriesScreen';
 import { EnquiryChatScreen } from '../screens/profile/EnquiryChatScreen';
+import { MyFeedbackScreen } from '../screens/profile/MyFeedbackScreen';
+import { FeedbackThreadScreen } from '../screens/profile/FeedbackThreadScreen';
 import { NotificationPreferencesScreen } from '../screens/profile/NotificationPreferencesScreen';
 import { RoundSetupScreen } from '../screens/golf/RoundSetupScreen';
 import { CourseGuideScreen } from '../screens/golf/CourseGuideScreen';
@@ -112,6 +114,8 @@ export function RootNavigator() {
           <Stack.Screen name="TermsPrivacy" component={TermsPrivacyScreen} />
           <Stack.Screen name="MyEnquiries" component={MyEnquiriesScreen} />
           <Stack.Screen name="EnquiryChat" component={EnquiryChatScreen} />
+          <Stack.Screen name="MyFeedback" component={MyFeedbackScreen} />
+          <Stack.Screen name="FeedbackThread" component={FeedbackThreadScreen} />
           <Stack.Screen name="NotificationPreferences" component={NotificationPreferencesScreen} />
           <Stack.Screen name="RoundSetup" component={RoundSetupScreen} />
           {/* No swipe-back during a round: horizontal drags on the hole map must stay with the map. */}

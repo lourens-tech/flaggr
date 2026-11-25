@@ -10,13 +10,14 @@ import { friendlyError } from '../../utils/errors';
 import { haptic } from '../../utils/haptics';
 import { bentoType } from '../../theme/bento';
 import { BentoButton, BentoField, BentoIcon, BentoScreen, type BentoIconName } from '../../components/bento';
+import { FEEDBACK_CATEGORY_LABELS } from './feedbackLabels';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'GiveFeedback'>;
 
 const CATEGORIES: Array<{ value: FeedbackCategory; label: string; icon: BentoIconName }> = [
-  { value: 'bug', label: 'Bug Found', icon: 'alertTriangle' },
-  { value: 'general_feedback', label: 'General Feedback', icon: 'chatBubble' },
-  { value: 'improvement', label: 'Improvement Idea', icon: 'sparkle' },
+  { value: 'bug', label: FEEDBACK_CATEGORY_LABELS.bug, icon: 'alertTriangle' },
+  { value: 'general_feedback', label: FEEDBACK_CATEGORY_LABELS.general_feedback, icon: 'chatBubble' },
+  { value: 'improvement', label: FEEDBACK_CATEGORY_LABELS.improvement, icon: 'sparkle' },
 ];
 
 // Goes straight to the Flagrr team (as an email + a Support Centre ticket),

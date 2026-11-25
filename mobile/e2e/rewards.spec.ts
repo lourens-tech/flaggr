@@ -1002,26 +1002,35 @@ test.describe('Reward Activity', () => {
     await expect(txt(page, 'FLGR-V1-QX2M')).toBeVisible();
   });
 
-  test('Tap › redeemed voucher shows “Already redeemed” alert; OK dismisses', async ({ page }) => {
+  // Owner decision 25 Nov 2026: used and expired vouchers open the Voucher screen with
+  // their badge (no alert); an active voucher past its date counts as Expired.
+  test('Tap › redeemed voucher opens the Voucher with the “Used” badge', async ({ page }) => {
     await openActivity(page);
     await page.getByRole('button', { name: /^18 Hole Round redeemed/ }).click();
-    const a = alertBox(page);
-    await expect(a.getByRole('heading', { name: 'Already redeemed' })).toBeVisible();
-    await expect(a).toContainText('18 Hole Round has already been scanned and redeemed at the club.');
-    await expect(a.getByRole('button')).toHaveText(['OK']);
-    await a.getByRole('button', { name: 'OK' }).click();
+    await expect(heading(page, '18 Hole Round')).toBeVisible();
+    await expect(txt(page, 'Used')).toBeVisible();
+    await expect(txt(page, 'Expired')).toHaveCount(0);
     await expect(alertBox(page)).toHaveCount(0);
-    await expect(heading(page, 'Reward Activity')).toBeVisible();
   });
 
-  test('Tap › expired voucher shows “Voucher expired” alert with “ — {label}”; OK dismisses', async ({ page }) => {
+  test('Tap › expired voucher opens the Voucher (“ — {label}”) with the “Expired” badge', async ({ page }) => {
     await openActivity(page);
     await page.getByRole('button', { name: /^Pro Shop Voucher redeemed/ }).click();
-    const a = alertBox(page);
-    await expect(a.getByRole('heading', { name: 'Voucher expired' })).toBeVisible();
-    await expect(a).toContainText('Pro Shop Voucher — Option A has expired.');
-    await a.getByRole('button', { name: 'OK' }).click();
+    await expect(heading(page, 'Pro Shop Voucher — Option A')).toBeVisible();
+    await expect(txt(page, 'Expired')).toBeVisible();
+    await expect(txt(page, 'Used')).toHaveCount(0);
     await expect(alertBox(page)).toHaveCount(0);
+  });
+
+  test('Past its date › an “active” voucher shows “Expired” in Activity and on the Voucher', async ({ page }) => {
+    const past = new Date(Date.now() - 86_400_000).toISOString();
+    await patchJson(page, VOUCHERS, (list) => list.map((v: any) => (v.id === 'v1' ? { ...v, expiresAt: past } : v)));
+    await openActivity(page);
+    const row = page.getByRole('button', { name: /^9 Hole Round redeemed/ });
+    await expect(row).toContainText('Expired');
+    await row.click();
+    await expect(heading(page, '9 Hole Round')).toBeVisible();
+    await expect(txt(page, 'Expired')).toBeVisible();
   });
 
   test('Tap › voucher missing locally shows “Voucher not found” alert (curly apostrophes)', async ({ page }) => {

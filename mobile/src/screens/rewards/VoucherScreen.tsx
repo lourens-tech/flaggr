@@ -9,6 +9,7 @@ import { bentoBrand, bentoType } from '../../theme/bento';
 import { PopIn } from '../../components/motion';
 import { Appear, BentoButton, BentoScreen, BentoTile, Parallax, StatusPill } from '../../components/bento';
 import { LinearGradient } from 'expo-linear-gradient';
+import { voucherStatus } from '../../utils/vouchers';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Voucher'>;
 
@@ -38,9 +39,11 @@ export function VoucherScreen({ route, navigation }: Props) {
   const title = `${voucher.rewardTitle}${voucher.variantLabel && voucher.variantLabel !== 'Standard' ? ` — ${voucher.variantLabel}` : ''}`;
 
   // Owner-approved status badge (24 Nov 2026): "Used" once the club has scanned the
-  // voucher, "Expired" once it has expired. An active voucher shows no badge.
+  // voucher, "Expired" once it has expired or is past its date (25 Nov 2026).
+  // An active voucher shows no badge.
+  const status = voucherStatus(voucher);
   const badge =
-    voucher.status === 'redeemed' ? <StatusPill label="Used" tone="muted" /> : voucher.status === 'expired' ? <StatusPill label="Expired" tone="danger" /> : undefined;
+    status === 'redeemed' ? <StatusPill label="Used" tone="muted" /> : status === 'expired' ? <StatusPill label="Expired" tone="danger" /> : undefined;
 
   return (
     <BentoScreen title="Voucher" onBack={() => navigation.goBack()} headerRight={badge}>

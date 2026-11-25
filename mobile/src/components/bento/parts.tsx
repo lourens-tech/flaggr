@@ -200,10 +200,12 @@ export function ChatDay({ label }: { label: string }) {
   return <Text style={{ textAlign: 'center', fontSize: 12, fontWeight: '600', letterSpacing: 0.12 * 12, textTransform: 'uppercase', color: t.muted, marginVertical: 4 }}>{label}</Text>;
 }
 
-export function ChatBubble({ text, mine, meta }: { text: string; mine: boolean; meta?: string }) {
+// `sender` labels the other side's bubbles (e.g. "Flagrr Support" in My Feedback).
+export function ChatBubble({ text, mine, meta, sender }: { text: string; mine: boolean; meta?: string; sender?: string }) {
   const { t } = useBento();
   return (
     <View style={{ alignItems: mine ? 'flex-end' : 'flex-start', gap: 4 }}>
+      {sender ? <Text style={{ fontSize: 12, fontWeight: '600', color: t.muted, marginLeft: 4 }}>{sender}</Text> : null}
       <View
         style={{
           maxWidth: '78%',

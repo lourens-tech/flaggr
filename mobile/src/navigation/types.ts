@@ -157,6 +157,8 @@ export type RootStackParamList = {
   TermsPrivacy: { section?: 'terms' | 'privacy' } | undefined;
   MyEnquiries: undefined;
   EnquiryChat: { enquiryId: string };
+  MyFeedback: undefined;
+  FeedbackThread: { ticketId: string };
   NotificationPreferences: undefined;
   RoundSetup: { golfCourseId: string };
   CourseGuide: { roundId: string };

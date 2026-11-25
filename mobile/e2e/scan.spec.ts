@@ -188,7 +188,7 @@ test.describe('Scan Receipt', () => {
     await see(page, 'Upload from gallery instead');
     await expect(button(page, 'Close')).toBeVisible();
     // Camera-mode controls are not shown yet
-    await notSee(page, 'Align receipt or QR code');
+    await notSee(page, 'Align your receipt in the frame');
   });
 
   test('Permission card › Close goes back to Home', async ({ page }) => {
@@ -201,7 +201,7 @@ test.describe('Scan Receipt', () => {
   test('Permission card › Continue asks for the camera and switches to live camera mode', async ({ page }) => {
     await openScan(page);
     await button(page, 'Continue').click();
-    await see(page, 'Align receipt or QR code');
+    await see(page, 'Align your receipt in the frame');
     await notSee(page, PERM_TITLE);
   });
 
@@ -386,7 +386,7 @@ test.describe('Scan Receipt', () => {
       await openSignedIn(page);
       await scanTabButton(page).click();
       await see(page, 'Scan Receipt');
-      await see(page, 'Align receipt or QR code');
+      await see(page, 'Align your receipt in the frame');
       await expect(page.getByRole('button', { name: 'Upload from gallery', exact: true }).filter({ visible: true })).toBeVisible();
       await see(page, 'Upload from gallery');
       await expect(page.getByRole('button', { name: 'Scan receipt', exact: true }).filter({ visible: true })).toHaveCount(1);
@@ -399,7 +399,7 @@ test.describe('Scan Receipt', () => {
     test('Camera mode › shutter takes a photo, reads it and opens Review', async ({ page }) => {
       await openSignedIn(page);
       await scanTabButton(page).click();
-      await see(page, 'Align receipt or QR code');
+      await see(page, 'Align your receipt in the frame');
       await cameraReady(page);
       const req = page.waitForRequest((r) => r.url().includes('/api/receipts?action=scan') && r.method() === 'POST');
       await page.getByRole('button', { name: 'Scan receipt', exact: true }).filter({ visible: true }).click();
@@ -411,7 +411,7 @@ test.describe('Scan Receipt', () => {
     test('Camera mode › “Upload from gallery” opens the file chooser and reaches Review', async ({ page }) => {
       await openSignedIn(page);
       await scanTabButton(page).click();
-      await see(page, 'Align receipt or QR code');
+      await see(page, 'Align your receipt in the frame');
       await pickPhoto(page, 'Upload from gallery');
       await see(page, 'Review Receipt');
     });
@@ -419,9 +419,9 @@ test.describe('Scan Receipt', () => {
     test('Camera mode › Close goes back to the tab', async ({ page }) => {
       await openSignedIn(page);
       await scanTabButton(page).click();
-      await see(page, 'Align receipt or QR code');
+      await see(page, 'Align your receipt in the frame');
       await button(page, 'Close').click();
-      await notSee(page, 'Align receipt or QR code');
+      await notSee(page, 'Align your receipt in the frame');
       await expectTab(page, 'Home');
     });
 
@@ -429,12 +429,12 @@ test.describe('Scan Receipt', () => {
       await scenario(page, { scan: 'dup' });
       await openSignedIn(page);
       await scanTabButton(page).click();
-      await see(page, 'Align receipt or QR code');
+      await see(page, 'Align your receipt in the frame');
       await cameraReady(page);
       await page.getByRole('button', { name: 'Scan receipt', exact: true }).filter({ visible: true }).click();
       await see(appAlert(page), 'Already redeemed');
       await button(appAlert(page), 'OK').click();
-      await see(page, 'Align receipt or QR code');
+      await see(page, 'Align your receipt in the frame');
     });
 
     test('Camera mode › Review Back returns to the live camera and the previous photo is no longer shown', async ({ page }) => {
@@ -443,7 +443,7 @@ test.describe('Scan Receipt', () => {
       await pickPhoto(page, 'Upload from gallery');
       await see(page, 'Review Receipt');
       await button(page, 'Back').click();
-      await see(page, 'Align receipt or QR code');
+      await see(page, 'Align your receipt in the frame');
       await notSee(page, 'Reading your receipt…');
       await expect(page.getByLabel('Your receipt photo').filter({ visible: true })).toHaveCount(0);
     });

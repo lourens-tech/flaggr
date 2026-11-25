@@ -2,14 +2,22 @@ import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
+// Pushes the app already confirms on screen while it is open. Owner decision
+// (25 Nov 2026): after a redeem the member sees the "Reward redeemed" toast, so
+// the push banner is hidden while the app is open (it still arrives when the
+// app is closed, and the in-app Notifications list still has it). The title
+// check covers a server that doesn't send `data.kind` yet.
+export function isShownInApp(content: { title?: string | null; data?: Record<string, unknown> | null }): boolean {
+  return content.data?.kind === 'rewardRedeemed' || content.title === 'Reward redeemed';
+}
+
+// Called only while the app is open. `shouldShowAlert` is left out on purpose:
+// it is deprecated and on iOS it shows a banner on its own.
 Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
+  handleNotification: async (notification) => {
+    const show = !isShownInApp(notification.request.content);
+    return { shouldPlaySound: show, shouldSetBadge: false, shouldShowBanner: show, shouldShowList: show };
+  },
 });
 
 export interface RegisteredPushToken {

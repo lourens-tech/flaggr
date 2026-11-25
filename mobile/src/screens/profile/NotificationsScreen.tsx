@@ -85,6 +85,8 @@ export function NotificationsScreen({ navigation }: Props) {
                     onOpen={() => {
                       if (!n.read) markNotificationRead(n.id);
                       if (n.enquiryId) navigation.navigate('EnquiryChat', { enquiryId: n.enquiryId });
+                      // "Reply to your feedback" opens that thread (approved My Feedback mockup, 25 Nov 2026).
+                      else if (n.supportTicketId) navigation.navigate('FeedbackThread', { ticketId: n.supportTicketId });
                     }}
                     // Owner decision (24 Nov 2026): no silent failures. "View" only marks the row read, so a
                     // failure says so (the row is unread again); opening an enquiry still goes ahead.
@@ -104,9 +106,14 @@ export function NotificationsScreen({ navigation }: Props) {
   );
 }
 
+// Rows that open something: an enquiry reply opens the chat, a feedback reply its thread.
+function opensSomething(n: AppNotification): boolean {
+  return Boolean(n.enquiryId || n.supportTicketId);
+}
+
 // One row (board G-A-NotifGroups): an unread dot, a 40 pt chip (bell when unread,
 // check when read), title and time, body, then a chevron for enquiry replies or a
-// "View" link that only marks the row read. Only enquiry rows are tappable.
+// "View" link that only marks the row read. Only enquiry and feedback reply rows are tappable.
 function NotificationRow({
   n,
   time,
@@ -140,7 +147,7 @@ function NotificationRow({
         </View>
         <Text style={{ fontSize: 14, lineHeight: 20, color: t.muted, marginTop: 3 }}>{n.body}</Text>
       </View>
-      {n.enquiryId ? (
+      {opensSomething(n) ? (
         <View style={{ alignSelf: 'center' }}>
           <BentoIcon name="chevronRight" size={16} color={t.muted} strokeWidth={1.8} />
         </View>
@@ -158,7 +165,7 @@ function NotificationRow({
     </View>
   );
   const divider = first ? null : { borderTopWidth: 1, borderTopColor: t.hair };
-  if (!n.enquiryId) {
+  if (!opensSomething(n)) {
     return (
       <View testID={`notification-${n.id}`} style={divider}>
         {content}

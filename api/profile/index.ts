@@ -10,6 +10,7 @@ import {
   createSupportTicket,
   fetchMemberFeedbackThread,
   listMemberFeedback,
+  replyToMemberFeedback,
   SUPPORT_TICKET_CATEGORIES,
   type SupportTicketCategory,
 } from '../_lib/supportTickets';
@@ -82,6 +83,11 @@ interface RegisterPushTokenBody {
   platform?: PushPlatform;
 }
 
+interface FeedbackReplyBody {
+  ticketId?: string;
+  message?: string;
+}
+
 interface EnquiryReplyBody {
   enquiryId?: string;
   message?: string;
@@ -142,7 +148,8 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
   }
 
   // My Feedback: the member's own Give Feedback submissions and the Flagrr
-  // team's replies (owner decision 24 Nov 2026). Read only.
+  // team's replies (owner decision 24 Nov 2026); the member replies with
+  // ?action=feedbackReply below (owner decision 25 Nov 2026).
   if (action === 'myFeedback' && req.method === 'GET') {
     res.status(200).json(await listMemberFeedback(authed.id));
     return;
@@ -434,6 +441,17 @@ export default withErrorHandling(async (req: VercelRequest, res: VercelResponse)
     });
 
     res.status(200).json({ ok: true, ticketId });
+    return;
+  }
+
+  if (action === 'feedbackReply') {
+    const { ticketId, message } = req.body as FeedbackReplyBody;
+    const body = message?.trim();
+    if (!body) throw new HttpError(400, 'message is required');
+    const id = uuidOrNotFound(ticketId, 'Feedback');
+    const thread = await replyToMemberFeedback(id, authed.id, body);
+    if (!thread) throw new HttpError(404, 'Feedback not found');
+    res.status(200).json(thread);
     return;
   }
 

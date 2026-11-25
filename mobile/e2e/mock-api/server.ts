@@ -158,6 +158,13 @@ function fresh() {
           { id: 'fm2', senderType: 'agent', body: 'Thanks for the idea. We have passed it to the team working on the hole maps.', createdAt: daysAgo(1), readByRequester: false },
         ],
       },
+      {
+        id: 'fb2', category: 'general_feedback', status: 'resolved', createdAt: daysAgo(25), updatedAt: daysAgo(21),
+        messages: [
+          { id: 'fm3', senderType: 'requester', body: 'Love the new scorecard.', createdAt: daysAgo(25), readByRequester: true },
+          { id: 'fm4', senderType: 'agent', body: 'Glad you like it, thanks for telling us.', createdAt: daysAgo(21), readByRequester: true },
+        ],
+      },
     ] as any[],
     enquiries: [
       { id: 'e1', enquiryType: 'Bookings', status: 'in_progress', createdAt: daysAgo(3), updatedAt: daysAgo(2), lastMessage: 'Thanks, we have booked your tee time.', hasUnread: true,
@@ -356,6 +363,18 @@ function route(p: string, method: string, q: URLSearchParams, body: any, authed:
       const f = s.feedback.find((x) => x.id === q.get('id'));
       if (!f) return [404, { error: 'Feedback not found' }];
       f.messages.forEach((m: any) => { m.readByRequester = true; }); // opening the thread marks replies read, as the server does
+      return [200, { id: f.id, category: f.category, status: f.status, createdAt: f.createdAt, messages: f.messages.map(({ readByRequester, ...m }: any) => m) }];
+    }
+    if (action === 'feedbackReply') {
+      // The member's reply (owner decision 25 Nov 2026); a resolved thread reopens ('open'), as the server does.
+      const f = s.feedback.find((x) => x.id === body.ticketId);
+      const text = String(body.message ?? '').trim();
+      if (!text) return [400, { error: 'message is required' }];
+      if (!f) return [404, { error: 'Feedback not found' }];
+      f.messages.push({ id: `${f.id}r${f.messages.length + 1}`, senderType: 'requester', body: text, createdAt: daysAgo(0), readByRequester: true });
+      f.updatedAt = daysAgo(0);
+      if (f.status === 'resolved') f.status = 'open';
+      s.feedback = [f, ...s.feedback.filter((x) => x !== f)];
       return [200, { id: f.id, category: f.category, status: f.status, createdAt: f.createdAt, messages: f.messages.map(({ readByRequester, ...m }: any) => m) }];
     }
     if (action === 'referralInfo') return [200, { code: 'FLG7K2', memberBonus: 15, courseBonus: 500, redeemedCount: 2, maxRedemptions: 10 }];

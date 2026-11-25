@@ -4,6 +4,7 @@ import type { StackScreenProps } from '@react-navigation/stack';
 import type { RootStackParamList } from '../../navigation/types';
 import { useApp } from '../../context/AppContext';
 import { showAlert } from '../../utils/alert';
+import { voucherStatus } from '../../utils/vouchers';
 import { useBento } from '../../context/ThemeContext';
 import { bentoType } from '../../theme/bento';
 import type { ActivityEntry } from '../../data/types';
@@ -62,17 +63,9 @@ export function RewardsActivityScreen({ navigation }: Props) {
       showAlert('Voucher not found', 'We couldn’t find this voucher’s details.');
       return;
     }
-    if (voucher.status === 'active') {
-      navigation.navigate('Voucher', { voucherId: voucher.id });
-      return;
-    }
-    const label = voucher.variantLabel && voucher.variantLabel !== 'Standard' ? ` — ${voucher.variantLabel}` : '';
-    showAlert(
-      voucher.status === 'expired' ? 'Voucher expired' : 'Already redeemed',
-      voucher.status === 'expired'
-        ? `${voucher.rewardTitle}${label} has expired.`
-        : `${voucher.rewardTitle}${label} has already been scanned and redeemed at the club.`,
-    );
+    // Owner decision 25 Nov 2026: every voucher opens the Voucher screen; used and
+    // expired ones show their badge there instead of an alert.
+    navigation.navigate('Voucher', { voucherId: voucher.id });
   };
 
   const grouped = useMemo(() => {
@@ -89,9 +82,10 @@ export function RewardsActivityScreen({ navigation }: Props) {
   const statusPill = (entry: ActivityEntry) => {
     if (entry.type !== 'redeem' || !entry.voucherId) return null;
     const v = vouchers.find((x) => x.id === entry.voucherId);
-    if (!v || v.status === 'active') return null;
+    const status = v ? voucherStatus(v) : 'active';
+    if (!v || status === 'active') return null;
     // Reward Activity board: "Already redeemed" grey, "Expired" red.
-    return v.status === 'expired' ? <StatusPill label="Expired" tone="danger" /> : <StatusPill label="Already redeemed" tone="muted" />;
+    return status === 'expired' ? <StatusPill label="Expired" tone="danger" /> : <StatusPill label="Already redeemed" tone="muted" />;
   };
 
   return (

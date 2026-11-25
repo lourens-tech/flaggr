@@ -150,7 +150,7 @@ test.describe('Member Profile', () => {
     // Refer a Friend hero
     await expect(btn(page, 'Refer a Friend')).toContainText('Bring your four-ball');
     for (const s of ['Activity', 'Details', 'Support', 'Settings', 'Account']) await expect(T(page, s).first()).toBeVisible();
-    for (const r of ['Reward Activity', 'Receipt History', 'Help Center', 'Contact Your Club', 'My Enquiries', 'Give Feedback', 'Notification Preferences', 'Export My Data', 'Terms and Privacy', 'Log Out', 'Delete Account'])
+    for (const r of ['Reward Activity', 'Receipt History', 'Help Center', 'Contact Your Club', 'My Enquiries', 'Give Feedback', 'My Feedback, unread reply', 'Notification Preferences', 'Export My Data', 'Terms and Privacy', 'Log Out', 'Delete Account'])
       await expect(btn(page, r)).toBeVisible();
     await expect(btn(page, 'Security')).toContainText('Change your password');
     await expect(T(page, 'Appearance')).toBeVisible();
@@ -209,6 +209,7 @@ test.describe('Member Profile', () => {
       ['Contact Your Club', (p) => heading(p, 'Contact Us')],
       ['My Enquiries', (p) => heading(p, 'My Enquiries')],
       ['Give Feedback', (p) => heading(p, 'Give Feedback')],
+      ['My Feedback, unread reply', (p) => heading(p, 'My Feedback')],
       ['Notification Preferences', (p) => heading(p, 'Notification Preferences')],
       ['Terms and Privacy', (p) => heading(p, 'Terms and Privacy')],
     ];
@@ -544,15 +545,24 @@ test.describe('Member Profile', () => {
     await expect(btn(page, 'Club: Strand Golf Club')).toBeVisible();
   });
 
-  test('Club › course list failure leaves an empty list with no message', async ({ page }) => {
+  // Owner decision 25 Nov 2026: a failed club list shows a message with Try again (it used to be an empty box).
+  test('Club › course list failure shows “Couldn’t load clubs” with Try again, which loads the list', async ({ page }) => {
     await scenario(page, { fail: { 'GET /api/courses': 500 } });
     await openProfile(page);
     await btn(page, 'Club: Strand Golf Club').click();
     const s = sheet(page, 'Choose Golf Club');
     await expect(s).toBeVisible();
+    await expect(s.getByRole('heading', { name: 'Couldn’t load clubs' })).toBeVisible();
+    await expect(s.getByText(SERVER)).toBeVisible();
     await expect(spinner(s)).toHaveCount(0);
     await expect(s.getByRole('radio')).toHaveCount(0);
     await noAlert(page);
+    await scenario(page, { fail: { 'GET /api/courses': 0 } }); // 0 = stop failing
+    const loads = page.waitForRequest((r) => /\/api\/courses(\?|$)/.test(r.url()) && r.method() === 'GET');
+    await s.getByRole('button', { name: 'Try again' }).click();
+    await loads;
+    await expect(s.getByRole('radio', { name: 'Strand Golf Club' })).toBeVisible();
+    await expect(s.getByRole('heading', { name: 'Couldn’t load clubs' })).toHaveCount(0);
   });
 
   // Approved small addition (24 Nov 2026): search in Choose Golf Club.
@@ -1573,5 +1583,190 @@ test.describe('Terms and Privacy', () => {
     await expect(T(page, '1. Introduction')).toBeVisible();
     await back(page);
     await expect(page.getByText('Get Started')).toBeVisible();
+  });
+});
+
+// ================================================================ My Feedback
+// Owner decisions 24 and 25 Nov 2026 (mockup approved 25 Nov): members read the Flagrr team's
+// replies to Give Feedback and reply in the thread. Sample data: fb1 "Improvement Idea" (In progress,
+// unread team reply) and fb2 "General Feedback" (Resolved, all read).
+
+test.describe('My Feedback', () => {
+  const FB1_REPLY = 'Thanks for the idea. We have passed it to the team working on the hole maps.';
+
+  test('Profile row › “My Feedback” under Give Feedback with an unread dot; the dot clears once the thread is read', async ({ page }) => {
+    await openProfile(page);
+    const row = btn(page, 'My Feedback, unread reply');
+    await expect(row).toBeVisible();
+    await expect(row.getByRole('img', { name: 'Unread reply' })).toHaveCount(1);
+    await row.click();
+    await expect(heading(page, 'My Feedback')).toBeVisible();
+    await T(page, 'Improvement Idea').click();
+    await expect(heading(page, 'Improvement Idea')).toBeVisible();
+    await back(page);
+    await expect(heading(page, 'My Feedback')).toBeVisible();
+    await back(page);
+    await expectOnProfile(page);
+    await expect(btn(page, 'My Feedback')).toBeVisible();
+    await expect(btn(page, 'My Feedback, unread reply')).toHaveCount(0);
+    await expect(btn(page, 'My Feedback').getByRole('img', { name: 'Unread reply' })).toHaveCount(0);
+  });
+
+  test('List › category, latest message, status words, relative time; newest first; unread dot on the unread row only', async ({ page }) => {
+    await openFromProfile(page, 'My Feedback, unread reply', 'My Feedback');
+    await expect(page.getByText(/^(Improvement Idea|General Feedback)$/).filter({ visible: true })).toHaveText(['Improvement Idea', 'General Feedback']);
+    await expect(T(page, FB1_REPLY)).toBeVisible();
+    await expect(T(page, 'In progress')).toBeVisible();
+    await expect(T(page, '1d ago')).toBeVisible();
+    await expect(T(page, 'Glad you like it, thanks for telling us.')).toBeVisible();
+    await expect(T(page, 'Resolved')).toBeVisible();
+    await expect(T(page, '21d ago')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Improvement Idea, unread reply. In progress', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'General Feedback. Resolved', exact: true })).toBeVisible();
+  });
+
+  test('List › feedback just sent shows first, as “Sent” and “just now”', async ({ page }) => {
+    await apiPost(page, '/api/profile?action=feedbackCreate', { category: 'bug', message: 'The scorecard did not save my last hole.' });
+    await openFromProfile(page, 'My Feedback, unread reply', 'My Feedback');
+    await expect(page.getByText(/^(Bug Found|Improvement Idea|General Feedback)$/).filter({ visible: true })).toHaveText(['Bug Found', 'Improvement Idea', 'General Feedback']);
+    await expect(T(page, 'Sent')).toBeVisible();
+    await expect(T(page, 'just now')).toBeVisible();
+  });
+
+  test('List › “Give Feedback” (+) opens Give Feedback', async ({ page }) => {
+    await openFromProfile(page, 'My Feedback, unread reply', 'My Feedback');
+    await btn(page, 'Give Feedback').click();
+    await expect(heading(page, 'Give Feedback')).toBeVisible();
+    await back(page);
+    await expect(heading(page, 'My Feedback')).toBeVisible();
+  });
+
+  test('List › empty state “No feedback yet” with Give Feedback, which opens Give Feedback', async ({ page }) => {
+    await fulfill(page, { method: 'GET', path: '/api/profile', action: 'myFeedback' }, 200, []);
+    await openFromProfile(page, 'My Feedback', 'My Feedback');
+    await expect(heading(page, 'No feedback yet')).toBeVisible();
+    await expect(T(page, 'Ideas, bugs and kind words you send from Give Feedback show up here, with the Flagrr team’s replies.')).toBeVisible();
+    await page.getByRole('button', { name: 'Give Feedback', exact: true }).filter({ visible: true }).last().click();
+    await expect(heading(page, 'Give Feedback')).toBeVisible();
+  });
+
+  test('List › failed load shows “Couldn’t load your feedback” with Try again, which loads the list', async ({ page }) => {
+    await scenario(page, { fail: { 'GET /api/profile?action=myFeedback': 500 } });
+    await openFromProfile(page, 'My Feedback', 'My Feedback'); // no dot: Profile's own check failed quietly
+    await expect(heading(page, 'Couldn’t load your feedback')).toBeVisible();
+    await expect(T(page, SERVER)).toBeVisible();
+    await noAlert(page);
+    await scenario(page, { fail: { 'GET /api/profile?action=myFeedback': 0 } }); // 0 = stop failing
+    const loads = page.waitForRequest((r) => r.url().includes('action=myFeedback') && r.method() === 'GET');
+    await btn(page, 'Try again').click();
+    await loads;
+    await expect(T(page, 'Improvement Idea')).toBeVisible();
+    await expect(heading(page, 'Couldn’t load your feedback')).toHaveCount(0);
+  });
+
+  test('Thread › title, status, member bubble, “Flagrr Support” reply, en-ZA times, message box; opening marks it read', async ({ page }) => {
+    const before = await apiGet(page, '/api/profile?action=myFeedback');
+    expect(before.find((f: any) => f.id === 'fb1').hasUnread).toBe(true);
+    await openFromProfile(page, 'My Feedback, unread reply', 'My Feedback');
+    await T(page, 'Improvement Idea').click();
+    await expect(heading(page, 'Improvement Idea')).toBeVisible();
+    await expect(T(page, 'In progress')).toBeVisible();
+    await expect(T(page, 'Could the hole map show the distance to the back of the green too?')).toBeVisible();
+    await expect(T(page, FB1_REPLY)).toBeVisible();
+    await expect(T(page, 'Flagrr Support')).toHaveCount(1);
+    const thread = await apiGet(page, '/api/profile?action=feedbackThread&id=fb1');
+    for (const m of thread.messages) {
+      const ts = await page.evaluate((iso) => new Date(iso).toLocaleString('en-ZA', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }), m.createdAt);
+      await expect(T(page, ts).first()).toBeVisible();
+    }
+    await expect(page.getByPlaceholder('Type a message…')).toBeVisible();
+    await expect(btn(page, 'Send message')).toBeDisabled();
+    const after = await apiGet(page, '/api/profile?action=myFeedback');
+    expect(after.find((f: any) => f.id === 'fb1').hasUnread).toBe(false);
+  });
+
+  test('Thread › loading shows the “Feedback” title and a spinner', async ({ page }) => {
+    await openFromProfile(page, 'My Feedback, unread reply', 'My Feedback');
+    const release = await hold(page, { method: 'GET', path: '/api/profile', action: 'feedbackThread' });
+    await T(page, 'Improvement Idea').click();
+    await expect(heading(page, 'Feedback')).toBeVisible();
+    await expect(spinner(page)).toBeVisible();
+    release();
+    await expect(heading(page, 'Improvement Idea')).toBeVisible();
+  });
+
+  test('Thread › reply: spinner while sending, bubble added, draft cleared, sent as { ticketId, message }', async ({ page }) => {
+    await openFromProfile(page, 'My Feedback, unread reply', 'My Feedback');
+    await T(page, 'Improvement Idea').click();
+    const box = page.getByPlaceholder('Type a message…');
+    await box.fill('   ');
+    await expect(btn(page, 'Send message')).toBeDisabled();
+    await box.fill('  Brilliant, thank you!  ');
+    let sent: any = null;
+    page.on('request', (r) => { if (r.url().includes('action=feedbackReply')) sent = r.postDataJSON(); });
+    const release = await hold(page, { method: 'POST', path: '/api/profile', action: 'feedbackReply' });
+    await btn(page, 'Send message').click();
+    await expect(spinner(btn(page, 'Send message'))).toBeVisible();
+    release();
+    await expect(T(page, 'Brilliant, thank you!')).toBeVisible();
+    await expect(box).toHaveValue('');
+    expect(sent).toEqual({ ticketId: 'fb1', message: 'Brilliant, thank you!' });
+    await expect(T(page, 'In progress')).toBeVisible();
+    const t = await apiGet(page, '/api/profile?action=feedbackThread&id=fb1');
+    expect(t.messages.at(-1)).toMatchObject({ senderType: 'requester', body: 'Brilliant, thank you!' });
+  });
+
+  test('Thread › a reply on a Resolved thread reopens it (“Sent”), and it moves to the top of the list', async ({ page }) => {
+    await openFromProfile(page, 'My Feedback, unread reply', 'My Feedback');
+    await T(page, 'General Feedback').click();
+    await expect(heading(page, 'General Feedback')).toBeVisible();
+    await expect(T(page, 'Resolved')).toBeVisible();
+    await page.getByPlaceholder('Type a message…').fill('One more idea: a dark scorecard.');
+    await btn(page, 'Send message').click();
+    await expect(T(page, 'One more idea: a dark scorecard.')).toBeVisible();
+    await expect(T(page, 'Sent')).toBeVisible();
+    await expect(T(page, 'Resolved')).toHaveCount(0);
+    await back(page);
+    await expect(heading(page, 'My Feedback')).toBeVisible();
+    await expect(page.getByText(/^(Improvement Idea|General Feedback)$/).filter({ visible: true })).toHaveText(['General Feedback', 'Improvement Idea']);
+  });
+
+  test('Thread › send failure shows “Couldn’t send message” and keeps the draft', async ({ page }) => {
+    await scenario(page, { fail: { 'POST /api/profile?action=feedbackReply': 500 } });
+    await openFromProfile(page, 'My Feedback, unread reply', 'My Feedback');
+    await T(page, 'Improvement Idea').click();
+    await page.getByPlaceholder('Type a message…').fill('Hello?');
+    await btn(page, 'Send message').click();
+    await expectAlert(page, 'Couldn’t send message', SERVER);
+    await tapAlert(page, 'Couldn’t send message', 'OK');
+    await expect(page.getByPlaceholder('Type a message…')).toHaveValue('Hello?');
+  });
+
+  test('Thread › load failure shows “Couldn’t load feedback” and the spinner stays', async ({ page }) => {
+    await openFromProfile(page, 'My Feedback, unread reply', 'My Feedback');
+    await scenario(page, { fail: { 'GET /api/profile?action=feedbackThread': 500 } });
+    await T(page, 'Improvement Idea').click();
+    await expectAlert(page, 'Couldn’t load feedback', SERVER);
+    await tapAlert(page, 'Couldn’t load feedback', 'OK');
+    await expect(heading(page, 'Feedback')).toBeVisible();
+    await expect(spinner(page)).toBeVisible();
+    await expect(page.getByPlaceholder('Type a message…')).toHaveCount(0);
+  });
+
+  test('Notification › “Reply to your feedback” opens its thread (no View link) and marks it read', async ({ page }) => {
+    const now = new Date().toISOString();
+    await fulfill(page, { method: 'GET', path: '/api/notifications' }, 200, [
+      { id: 'nf1', title: 'Reply to your feedback', body: `Flagrr Support replied: ${FB1_REPLY}`, date: now, read: false, enquiryId: null, supportTicketId: 'fb1' },
+    ]);
+    await openSignedIn(page);
+    await page.getByRole('button', { name: /^Notifications/ }).filter({ visible: true }).first().click();
+    await expect(heading(page, 'Notifications')).toBeVisible();
+    await expect(btn(page, 'View, Reply to your feedback')).toHaveCount(0);
+    let marked = false;
+    page.on('request', (r) => { if (r.url().includes('/api/notifications') && r.method() === 'POST') marked = true; });
+    await btn(page, `Reply to your feedback. Flagrr Support replied: ${FB1_REPLY}`).click();
+    await expect(heading(page, 'Improvement Idea')).toBeVisible();
+    await expect(T(page, 'Flagrr Support')).toBeVisible();
+    await expect.poll(() => marked).toBe(true);
   });
 });

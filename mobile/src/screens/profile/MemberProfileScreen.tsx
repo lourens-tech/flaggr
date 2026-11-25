@@ -1,6 +1,6 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
-import type { CompositeScreenProps } from '@react-navigation/native';
+import { useFocusEffect, type CompositeScreenProps } from '@react-navigation/native';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MainTabParamList, RootStackParamList } from '../../navigation/types';
@@ -26,6 +26,7 @@ import {
   CountUp,
   Eyebrow,
   GlassIconButton,
+  LoadError,
   SegmentedControl,
 } from '../../components/bento';
 
@@ -55,6 +56,25 @@ export function MemberProfileScreen({ navigation }: Props) {
   const [savingTheme, setSavingTheme] = useState(false);
   const [courses, setCourses] = useState<Course[]>([]);
   const [loadingCourses, setLoadingCourses] = useState(false);
+  const [coursesError, setCoursesError] = useState<string | null>(null);
+  // My Feedback row's red dot: a Flagrr team reply the member hasn't opened yet (approved
+  // mockup, 25 Nov 2026). Rechecked each time Profile comes into view; a failed check just
+  // shows no dot (the My Feedback screen itself says when it can't load).
+  const [feedbackUnread, setFeedbackUnread] = useState(false);
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      api
+        .myFeedback()
+        .then((rows) => {
+          if (!cancelled) setFeedbackUnread(rows.some((r) => r.hasUnread));
+        })
+        .catch(() => {});
+      return () => {
+        cancelled = true;
+      };
+    }, []),
+  );
   const [clubQuery, setClubQuery] = useState('');
   const [changingClub, setChangingClub] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
@@ -77,17 +97,24 @@ export function MemberProfileScreen({ navigation }: Props) {
     setClubQuery('');
   };
 
-  const openClubPicker = async () => {
-    setSheet('club');
+  const loadCourses = async () => {
     setLoadingCourses(true);
+    setCoursesError(null);
     try {
       setCourses(await api.courses());
-    } catch {
-      // Today's behaviour: the list stays empty with no message (G-E-ClubEmpty, open question for the owner).
+    } catch (err) {
+      // Owner decision (25 Nov 2026): a failed load shows a message with Try again
+      // (it used to leave an empty box).
       setCourses([]);
+      setCoursesError(friendlyError(err));
     } finally {
       setLoadingCourses(false);
     }
+  };
+
+  const openClubPicker = () => {
+    setSheet('club');
+    void loadCourses();
   };
 
   const handleSelectClub = (course: Course) => {
@@ -317,6 +344,13 @@ export function MemberProfileScreen({ navigation }: Props) {
           <BentoRow icon="golfFlag" label="Contact Your Club" onPress={() => navigation.navigate('Contact')} />
           <BentoRow icon="bellRound" label="My Enquiries" onPress={() => navigation.navigate('MyEnquiries')} />
           <BentoRow icon="check" label="Give Feedback" onPress={() => navigation.navigate('GiveFeedback')} />
+          <BentoRow
+            icon="chatBubble"
+            label="My Feedback"
+            accessibilityLabel={feedbackUnread ? 'My Feedback, unread reply' : 'My Feedback'}
+            trailing={feedbackUnread ? <View accessibilityRole="image" accessibilityLabel="Unread reply" style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: t.danger }} /> : null}
+            onPress={() => navigation.navigate('MyFeedback')}
+          />
         </BentoRowGroup>
       </Section>
 
@@ -443,6 +477,8 @@ export function MemberProfileScreen({ navigation }: Props) {
             <View style={{ alignItems: 'center', paddingVertical: 34 }}>
               <ActivityIndicator size="large" color={t.accent} />
             </View>
+          ) : coursesError ? (
+            <LoadError title="Couldn’t load clubs" body={coursesError} onRetry={() => void loadCourses()} style={{ marginTop: 12 }} />
           ) : (
             <View
               accessibilityRole="radiogroup"

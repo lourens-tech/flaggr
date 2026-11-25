@@ -257,8 +257,8 @@ export interface MyEnquiryThread {
   messages: EnquiryMessage[];
 }
 
-// My Feedback (owner decision 24 Nov 2026): the member's Give Feedback
-// submissions and the Flagrr team's replies. Read only.
+// My Feedback (owner decisions 24 and 25 Nov 2026): the member's Give Feedback
+// submissions, the Flagrr team's replies, and the member's own replies.
 export type FeedbackCategory = 'bug' | 'general_feedback' | 'improvement';
 export type FeedbackStatus = 'open' | 'in_progress' | 'resolved';
 

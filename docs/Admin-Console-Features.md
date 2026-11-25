@@ -92,7 +92,7 @@ Sidebar groups: Clubs (Courses, Course Maps) · Insights (Reports, Golf) · Enga
 
 Inbox and Profile only (sidebar and phone tabs). Cannot see clubs, ads, rewards, reports or agent management.
 
-Replying to a member's Give Feedback ticket (an agent or a super admin, `supportAgentReply`) also sends that member an in-app notification and a push under their "Support replies" setting: "Reply to your feedback", "Flagrr Support replied: {message}" (added 24 Nov 2026; the wording is new and waits for the owner's approval). Replies to course admin and staff tickets notify no member.
+Replying to a member's Give Feedback ticket (an agent or a super admin, `supportAgentReply`) also sends that member an in-app notification and a push under their "Support replies" setting: "Reply to your feedback", "Flagrr Support replied: {message}" (added 24 Nov 2026; wording approved with the My Feedback mockup, 25 Nov 2026). Members can reply in the thread from the app (My Feedback, 1.1.0): the reply shows in the ticket as the requester's message, unread for agents, and reopens a resolved ticket; no email is sent. Replies to course admin and staff tickets notify no member.
 
 ## Audit log
 

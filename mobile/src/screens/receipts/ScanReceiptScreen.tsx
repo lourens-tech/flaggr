@@ -310,7 +310,7 @@ function ScanFrame() {
         />
       </View>
       <View style={[styles.hint, webBlur(16)]}>
-        <Text style={{ fontSize: 14, color: '#FFFFFF' }}>Align receipt or QR code</Text>
+        <Text style={{ fontSize: 14, color: '#FFFFFF' }}>Align your receipt in the frame</Text>
       </View>
     </View>
   );

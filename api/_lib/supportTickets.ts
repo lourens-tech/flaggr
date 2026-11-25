@@ -115,9 +115,10 @@ export async function markThreadReadByAgent(ticketId: string): Promise<void> {
 
 // ── Member side: Give Feedback replies (owner decision, 24 Nov 2026) ──────────
 // A member's Give Feedback submission is a support ticket with
-// requester_type = 'member'. Members can list their own submissions and read
-// the thread with the Flagrr team's replies (api/profile ?action=myFeedback,
-// ?action=feedbackThread), and get a notification when an agent replies.
+// requester_type = 'member'. Members can list their own submissions, read
+// the thread with the Flagrr team's replies and reply in it (api/profile
+// ?action=myFeedback, ?action=feedbackThread, ?action=feedbackReply), and get
+// a notification when an agent replies.
 
 export interface MemberFeedbackSummaryDto {
   id: string;
@@ -168,6 +169,21 @@ export async function fetchMemberFeedbackThread(ticketId: string, userId: string
   await markThreadReadByRequester(ticketId);
   const t = owned[0];
   return { id: t.id, category: t.category, status: t.status, createdAt: t.created_at, messages: await listSupportTicketMessages(ticketId) };
+}
+
+/** The member's reply in one of their own feedback threads (owner decision
+ * 25 Nov 2026: two-way, like My Enquiries). Returns the updated thread, or
+ * null if it isn't theirs. A reply on a resolved thread reopens it ('open',
+ * shown as "Sent"), as a course admin's follow-up does; it shows as unread in
+ * the Support Centre, which is how agents see follow-ups (no email). */
+export async function replyToMemberFeedback(ticketId: string, userId: string, body: string) {
+  const owned = (await sql`
+    select id from support_tickets
+    where id = ${ticketId} and requester_type = 'member' and requester_user_id = ${userId}
+  `) as Array<{ id: string }>;
+  if (owned.length === 0) return null;
+  await addRequesterMessage(ticketId, body);
+  return fetchMemberFeedbackThread(ticketId, userId);
 }
 
 export const FEEDBACK_REPLY_TITLE = 'Reply to your feedback';

@@ -6,6 +6,7 @@ import type { RootStackParamList } from '../../navigation/types';
 import { useApp } from '../../context/AppContext';
 import { useBento } from '../../context/ThemeContext';
 import { friendlyError } from '../../utils/errors';
+import { relativeTime } from '../../utils/relativeTime';
 import { Appear, BentoIcon, BentoScreen, BentoTile, EmptyState, GlassIconButton, LoadError, StatusPill, type PillTone } from '../../components/bento';
 import type { EnquiryStatus, MyEnquirySummary } from '../../data/types';
 
@@ -16,17 +17,6 @@ const STATUS: Record<EnquiryStatus, { label: string; tone: PillTone }> = {
   in_progress: { label: 'Chat in Progress', tone: 'accent' },
   resolved: { label: 'Resolved', tone: 'muted' },
 };
-
-function relativeTime(iso: string): string {
-  const diffMs = Date.now() - new Date(iso).getTime();
-  const mins = Math.floor(diffMs / 60000);
-  if (mins < 1) return 'just now';
-  if (mins < 60) return `${mins}m ago`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  return `${days}d ago`;
-}
 
 // Layout from G-E-EnquiriesLive / EnquiriesLoading and AppEnquiriesEmpty.
 export function MyEnquiriesScreen({ navigation }: Props) {
