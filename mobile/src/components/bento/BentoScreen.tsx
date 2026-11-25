@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 import { useBento } from '../../context/ThemeContext';
 import { bentoLayout as L, bentoType, TAB_BAR_CLEARANCE } from '../../theme/bento';
-import { useSystemTabBar } from '../../hooks/useVerticalBarTabs';
+import { useVerticalTabBar } from '../../hooks/useVerticalBarTabs';
 import { useNativeDriver } from '../../theme/motion';
 import { BentoScrollContext } from './motion';
 import { registerScrollToTop } from '../../navigation/scrollToTop';
@@ -83,7 +83,7 @@ export function BentoScreen({
 }) {
   const { t, scheme } = useBento();
   const insets = useSafeAreaInsets();
-  const systemTabs = useSystemTabBar();
+  const verticalTabs = useVerticalTabBar();
   const scrollY = useRef(new Animated.Value(0)).current;
   const scrollTop = useRef(0);
   const content = useRef<ViewInstance>(null);
@@ -102,8 +102,8 @@ export function BentoScreen({
   // side (status, camera) that content must not sit under; 0 on other phones held upright.
   const padLeft = L.screenPadding + insets.left;
   const padRight = L.screenPadding + insets.right;
-  // The system tab bar (iPhone Duo) is part of the safe area, so it needs no extra clearance.
-  const bottom = (tabBar && !systemTabs ? TAB_BAR_CLEARANCE : 40) + insets.bottom;
+  // In the iPhone Duo's strip the tab bar sits in the side safe area, so the bottom needs no clearance.
+  const bottom = (tabBar && !verticalTabs ? TAB_BAR_CLEARANCE : 40) + insets.bottom;
 
   const barOpacity = scrollY.interpolate({ inputRange: [BAR_FROM, BAR_TO], outputRange: [0, 1], extrapolate: 'clamp' });
   const barShift = scrollY.interpolate({ inputRange: [BAR_FROM, BAR_TO], outputRange: [-10, 0], extrapolate: 'clamp' });

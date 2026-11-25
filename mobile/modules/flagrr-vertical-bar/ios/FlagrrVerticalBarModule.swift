@@ -22,15 +22,6 @@ public class FlagrrVerticalBarModule: Module {
       }
     }.runOnQueue(.main)
 
-    // Asks iOS to rebuild the vertical bar's contents. iOS reads them when the window first
-    // appears; the system tab bar is mounted after that (once JavaScript has decided to use
-    // it), and until something else changes, the strip would not show it.
-    AsyncFunction("refreshAsync") { () -> Void in
-      MainActor.assumeIsolated {
-        FlagrrVerticalBarModule.requestVerticalBarUpdate()
-      }
-    }.runOnQueue(.main)
-
     OnStartObserving {
       Task { @MainActor in self.startObserving() }
     }
@@ -57,34 +48,6 @@ public class FlagrrVerticalBarModule: Module {
     }
     registration = nil
     observedWindow = nil
-  }
-
-  // Workaround: react-native-screens attaches its UITabBarController when the host view
-  // reaches the window, sized to the host's bounds at that moment (its fix for
-  // software-mansion/react-native-screens#4989). On a fresh launch that host has not been
-  // laid out yet, and UIKit does not rebuild the tab bar for the vertical bar until the
-  // traits change (a fold or unfold). So: briefly flip each tab bar controller's horizontal
-  // size class, which makes UIKit lay the bar out again, then ask for the vertical bar
-  // configuration to be read again.
-  @MainActor
-  static func requestVerticalBarUpdate() {
-    guard #available(iOS 27.1, *), let root = currentWindow()?.rootViewController else { return }
-    var tabControllers: [UITabBarController] = []
-    var stack: [UIViewController] = [root]
-    while let vc = stack.popLast() {
-      if let tabs = vc as? UITabBarController { tabControllers.append(tabs) }
-      stack.append(contentsOf: vc.children)
-      if let presented = vc.presentedViewController { stack.append(presented) }
-    }
-    for tabs in tabControllers {
-      let current = tabs.traitCollection.horizontalSizeClass
-      tabs.traitOverrides.horizontalSizeClass = current == .regular ? .compact : .regular
-      DispatchQueue.main.async {
-        tabs.traitOverrides.remove(UITraitHorizontalSizeClass.self)
-        tabs.setNeedsUpdateOfVerticalBarConfiguration()
-        root.setNeedsUpdateOfVerticalBarConfiguration()
-      }
-    }
   }
 
   @MainActor

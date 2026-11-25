@@ -3,11 +3,13 @@ export interface FaqEntry {
   answer: string;
 }
 
+// Wording approved by the owner on 25 Nov 2026; facts checked against the server
+// (api/_lib/tiers.ts, streakRewards.ts, referrals.ts, receipts). Keep them in step.
 export const faqs: FaqEntry[] = [
   {
-    question: 'How Do I Earn Flagrr Cash?',
+    question: 'How do I earn Flagrr Cash?',
     answer:
-      'You can earn Flagrr Cash by playing qualifying rounds, scanning eligible receipts, participating in promotions, and completing selected in-app activities.',
+      'Scan your receipts from your golf club. Your club sets how much Flagrr Cash a receipt earns, and your tier can add to it. Receipts from other Flagrr clubs earn at the standard rate. You also get bonuses for weekly streaks, on your birthday, and when a friend or a golf club joins with your referral code.',
   },
   {
     question: 'How do I redeem rewards?',
@@ -16,7 +18,7 @@ export const faqs: FaqEntry[] = [
   {
     question: 'How do membership tiers work?',
     answer:
-      'Your tier is based on Flagrr Cash earned during the current quarter (Jan–Mar, Apr–Jun, Jul–Sep, Oct–Dec), not a lifetime total — it recalculates each quarter. A quiet quarter can only drop you one tier below where you finished the previous one, so you won’t fall all the way back to Bronze in one go.',
+      'Your tier is based on Flagrr Cash earned during the current quarter (Jan–Mar, Apr–Jun, Jul–Sep, Oct–Dec), not a lifetime total — it recalculates each quarter. A quiet quarter can only drop you one tier below where you finished the previous one, so you won’t fall all the way back to Bronze in one go. Tiers need a verified club membership: until your club verifies you, you stay on Bronze.',
   },
   {
     question: 'What do the tiers actually get me?',
@@ -39,12 +41,12 @@ export const faqs: FaqEntry[] = [
   },
   {
     question: 'Can I change my selected club?',
-    answer: 'Yes — open My Profile and tap Club to switch your home club at any time.',
+    answer: 'Yes. Open Profile and tap Club to switch your home club at any time.',
   },
 ];
 
 export const articles = [
-  { title: 'How Do I Earn Flagrr Cash?', summary: 'Learn how to earn Flagrr Cash through qualifying...' },
-  { title: 'How Do I Redeem Rewards?', summary: 'Learn how to redeem your Flagrr Cash for rewards...' },
-  { title: 'Getting Started With Flagrr', summary: 'Everything you need to know as a new member...' },
+  { title: 'How Do I Earn Flagrr Cash?', summary: 'Scan receipts from your club, plus bonuses for streaks, birthdays and referrals.' },
+  { title: 'How Do I Redeem Rewards?', summary: 'Choose a reward in the Rewards Shop and show your voucher at the club.' },
+  { title: 'Getting Started With Flagrr', summary: 'Pick your club, scan your first receipt and grow your tier each quarter.' },
 ];

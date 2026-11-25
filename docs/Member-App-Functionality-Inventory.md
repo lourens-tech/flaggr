@@ -851,7 +851,7 @@ Inside `ScanFlow`: Review replaces itself with Success (Back can't resubmit); "S
   - `home`: Home, after the monthly chart.
   - `rewardsShop`: Rewards Shop, in the empty state and after the first grid row (other inventory).
 - **Data:** `me.ads`, fetched in `loadAll` only. The client filters by placement and keeps the server's order (placement, sort order, created). There is no refresh until the next `loadAll`.
-- **Slot:** full width, radius `radius.md` (15 pt), cover crop. **1.1.0 (25 Nov 2026):** a fixed 1200 × 630 shape (`AD_ASPECT_RATIO`) instead of a fixed 180 pt height, so it grows with the width (owner decision).
+- **Slot:** full width, radius `radius.md` (15 pt), cover crop. **1.1.0 (25 Nov 2026):** no fixed height: the slot takes its pictures' shape (tallest in a rotating slot, 1:1 to 3:1, 1200 × 630 until known), pictures uncropped (`contain`) on a `seg` band (owner decisions).
 - **"SPONSORED" label:** 12 pt, 600, letter-spaced, muted, above every **real** ad. Not shown on the empty placeholder.
 - **Placeholder states:**
   - No active ad for the slot: a dark-green box with "Ad Space" in lime Fraunces 700. No label, not tappable (owner decision 24 Nov 2026: from the 1.1.0 store build the empty slot is not shown at all).

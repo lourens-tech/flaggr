@@ -12,12 +12,16 @@ interface Props {
   style?: StyleProp<ViewStyle>;
 }
 
-// Every ad slot keeps one shape, the upload size the admin consoles ask for
-// (1200 x 630, see AdMediaField), and fills the width it is given (owner
-// decision 25 Nov 2026). On a phone that is about the old fixed 180 pt height;
-// on wide screens (the opened iPhone Duo, iPad) the slot grows in step, so the
-// whole advert shows instead of a cropped strip.
+// Ads are never cropped (owner, 25 Nov 2026, after seeing cropped ads on the iPhone Duo).
+// The slot fills the width it is given and takes the shape of its pictures: one ad fits
+// exactly; a slot that rotates through several takes the shape of its tallest picture
+// (so nothing below jumps as they rotate) and shows each one whole, on a quiet band.
+// Shapes stay between square and 3:1; until a picture's size is known (and for
+// video until its first frame), the slot uses the recommended upload shape, 1200 x 630.
 export const AD_ASPECT_RATIO = 1200 / 630;
+const MIN_RATIO = 1;
+const MAX_RATIO = 3;
+const clampRatio = (r: number) => Math.min(MAX_RATIO, Math.max(MIN_RATIO, r));
 
 // How long an image/gif ad stays up before revolving to the next one in the
 // slot. A gif has no "it just finished playing" signal the way video does
@@ -47,6 +51,28 @@ export function AdSpace({ placement, style }: Props) {
 
   const ad = slotAds[index];
   const canRevolve = slotAds.length > 1;
+
+  // Each ad's own width / height, once known.
+  const [ratios, setRatios] = useState<Record<string, number>>({});
+  useEffect(() => {
+    let cancelled = false;
+    for (const a of slotAds) {
+      if (a.mediaType === 'video' || !a.imageUrl) continue;
+      Image.getSize(
+        a.imageUrl,
+        (w, h) => {
+          if (!cancelled && w > 0 && h > 0) setRatios((r) => (r[a.id] === w / h ? r : { ...r, [a.id]: w / h }));
+        },
+        () => {},
+      );
+    }
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slotKey]);
+  const known = slotAds.map((a) => ratios[a.id]).filter((r): r is number => typeof r === 'number');
+  const slotRatio = clampRatio(known.length ? Math.min(...known) : AD_ASPECT_RATIO);
 
   const advance = useCallback(() => {
     setIndex((i) => (slotAds.length === 0 ? 0 : (i + 1) % slotAds.length));
@@ -78,6 +104,18 @@ export function AdSpace({ placement, style }: Props) {
     p.play();
   });
 
+  // A video's shape comes from its first video track.
+  useEffect(() => {
+    if (!videoSource || !ad) return;
+    const id = ad.id;
+    const sub = player.addListener('videoTrackChange', ({ videoTrack }) => {
+      const size = videoTrack?.size;
+      if (size && size.width > 0 && size.height > 0) setRatios((r) => (r[id] === size.width / size.height ? r : { ...r, [id]: size.width / size.height }));
+    });
+    return () => sub.remove();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [player, videoSource, ad?.id]);
+
   useEffect(() => {
     if (!videoSource || loopVideo || !isFocused) return;
     const subscription = player.addListener('playToEnd', advance);
@@ -100,10 +138,10 @@ export function AdSpace({ placement, style }: Props) {
       <Text style={styles.placeholderText}>{ad.title || 'Ad Space'}</Text>
     </View>
   ) : ad.mediaType === 'video' ? (
-    <VideoView player={player} style={styles.image} contentFit="cover" nativeControls={false} />
+    <VideoView player={player} style={styles.image} contentFit="contain" nativeControls={false} />
   ) : (
     // Ads never move (the prototype's ad images are static, unlike reward and club photos).
-    <Image source={{ uri: ad.imageUrl }} style={styles.image} resizeMode="cover" />
+    <Image source={{ uri: ad.imageUrl }} style={styles.image} resizeMode="contain" />
   );
 
   const dots = canRevolve ? (
@@ -126,7 +164,7 @@ export function AdSpace({ placement, style }: Props) {
     return (
       <View style={style}>
         {label}
-        <View style={styles.box}>
+        <View style={[styles.box, { aspectRatio: slotRatio, backgroundColor: t.seg }]}>
           {content}
           {dots}
         </View>
@@ -138,7 +176,7 @@ export function AdSpace({ placement, style }: Props) {
     <View style={style}>
     {label}
     <TouchableOpacity
-      style={styles.box}
+      style={[styles.box, { aspectRatio: slotRatio, backgroundColor: t.seg }]}
       activeOpacity={0.85}
       onPress={() => {
         logAdClick(ad.id);
@@ -156,7 +194,7 @@ export function AdSpace({ placement, style }: Props) {
 
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
-  box: { width: '100%', aspectRatio: AD_ASPECT_RATIO, borderRadius: radius.md, overflow: 'hidden' },
+  box: { width: '100%', aspectRatio: AD_ASPECT_RATIO, borderRadius: radius.md, overflow: 'hidden' }, // aspectRatio overridden per slot
   image: { width: '100%', height: '100%' },
   placeholder: { backgroundColor: colors.darkGreen, alignItems: 'center', justifyContent: 'center' },
   placeholderText: { fontFamily: 'Fraunces_700Bold', fontSize: fontSize.title, color: colors.lime },

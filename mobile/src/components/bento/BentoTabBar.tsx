@@ -8,6 +8,7 @@ import { E2E_INSTANT_MOTION, bentoDuration, bentoEasing, prefersReducedMotion, u
 import { PressableScale } from '../motion/PressableScale';
 import { BentoIcon, type BentoIconName } from './BentoIcon';
 import { Glass } from './primitives';
+import { useVerticalTabBar } from '../../hooks/useVerticalBarTabs';
 
 // Floating glass tab bar with the raised Scan button in the middle.
 //
@@ -51,6 +52,8 @@ export function BentoTabBarView({
   const { width: windowWidth } = useWindowDimensions();
   // Keep clear of side safe areas (the iPhone Duo's camera strip when closed).
   const insets = useSafeAreaInsets();
+  // iPhone Duo: drawn vertically in the strip iOS keeps down one edge (owner decision 25 Nov 2026).
+  const vertical = useVerticalTabBar();
   const width = windowWidth - insets.left - insets.right;
   const scanAt = Math.floor(tabs.length / 2);
   const slots = tabs.length + 1;
@@ -98,12 +101,13 @@ export function BentoTabBarView({
   }, [hidden, hide, fade]);
   const barTravel = L.tabBarHeight * 1.4; // .tb.hide{transform:translateY(140%)}: 140% of the bar's own height
 
+  // The indicator slides along the bar: x positions when horizontal, y when vertical.
   const onSlotLayout = (i: number) => (e: LayoutChangeEvent) => {
-    const lx = e.nativeEvent.layout.x;
+    const lx = vertical ? e.nativeEvent.layout.y : e.nativeEvent.layout.x;
     setXs((m) => (m[i] === lx ? m : { ...m, [i]: lx }));
   };
 
-  const renderTab = (tab: BentoTab, i: number) => {
+  const renderTab = (tab: BentoTab, i: number, w: number = slotW) => {
     const on = i === activeIndex;
     const label = LABELS[tab.name] ?? tab.name;
     return (
@@ -115,7 +119,7 @@ export function BentoTabBarView({
         accessibilityLabel={label}
         accessibilityState={{ selected: on }}
         aria-selected={on}
-        style={{ width: slotW, minHeight: 58, alignItems: 'center', justifyContent: 'center', gap: 4 }}
+        style={{ width: w, minHeight: 58, alignItems: 'center', justifyContent: 'center', gap: 4 }}
       >
         <BentoIcon name={ICONS[tab.name] ?? 'home'} size={23} color={on ? t.accent : t.tabOff} strokeWidth={on ? 2 : 1.6} />
         <Text numberOfLines={1} maxFontSizeMultiplier={1.3} style={[on ? bentoType.tabOn : bentoType.tabOff, { color: on ? t.accent : t.tabOff }]}>
@@ -125,23 +129,20 @@ export function BentoTabBarView({
     );
   };
 
-  const items: React.ReactNode[] = tabs.map(renderTab);
-  items.splice(
-    scanAt,
-    0,
+  const scanButton = (w: number, lift: boolean) => (
     <PressableScale
       key="__scan"
       onPress={onScanPress}
       pressedScale={0.9}
       accessibilityRole="button"
       accessibilityLabel="Scan receipt"
-      style={{ width: slotW, alignItems: 'center', gap: 4 }}
+      style={{ width: w, alignItems: 'center', gap: 4 }}
     >
       <View
         style={{
           width: L.scanSize,
           height: L.scanSize,
-          marginTop: -L.scanLift,
+          marginTop: lift ? -L.scanLift : 0,
           borderRadius: L.scanRadius,
           backgroundColor: bentoBrand.fairway,
           alignItems: 'center',
@@ -154,8 +155,53 @@ export function BentoTabBarView({
       <Text numberOfLines={1} maxFontSizeMultiplier={1.3} style={[bentoType.tabOn, { color: t.ink }]}>
         Scan
       </Text>
-    </PressableScale>,
+    </PressableScale>
   );
+
+  if (vertical) {
+    // In the iPhone Duo's strip (Duo boards): Scan as the round button above a glass column
+    // of the four tabs, at the bottom of the strip, below iOS's camera, clock and status icons.
+    // Pushed screens slide it out sideways, off the edge it sits on.
+    const pillW = Math.min(vertical.width - 8, 68);
+    const travel = (vertical.width + 24) * (vertical.side === 'right' ? 1 : -1);
+    return (
+      <Animated.View
+        pointerEvents={hidden ? 'none' : 'box-none'}
+        aria-hidden={hidden}
+        style={{
+          position: 'absolute',
+          [vertical.side]: 0,
+          width: vertical.width,
+          bottom: insets.bottom + 16,
+          alignItems: 'center',
+          gap: 14,
+          display: gone ? 'none' : 'flex',
+          opacity: fade,
+          transform: [{ translateX: hide.interpolate({ inputRange: [0, 1], outputRange: [0, travel] }) }],
+        }}
+      >
+        {scanButton(pillW, false)}
+        <Glass
+          radius={pillW / 2}
+          blur={24}
+          saturate={1.7}
+          accessibilityRole="tablist"
+          style={{ width: pillW, paddingVertical: 6, alignItems: 'center', boxShadow: `0 16px 34px -18px rgba(17,20,18,0.45), ${t.insetHighlight}` }}
+        >
+          {targetX !== undefined ? (
+            <Animated.View
+              pointerEvents="none"
+              style={{ position: 'absolute', left: 4, top: 0, width: pillW - 8, height: 58, borderRadius: 22, backgroundColor: t.accentSoft, transform: [{ translateY: x }] }}
+            />
+          ) : null}
+          {tabs.map((tab, i) => renderTab(tab, i, pillW))}
+        </Glass>
+      </Animated.View>
+    );
+  }
+
+  const items: React.ReactNode[] = tabs.map((tab, i) => renderTab(tab, i));
+  items.splice(scanAt, 0, scanButton(slotW, true));
 
   return (
     <Animated.View

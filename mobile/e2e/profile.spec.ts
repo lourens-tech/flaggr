@@ -953,7 +953,7 @@ test.describe('Notification Preferences', () => {
 
 test.describe('Help Center', () => {
   const FAQ_Q = [
-    'How Do I Earn Flagrr Cash?',
+    'How do I earn Flagrr Cash?',
     'How do I redeem rewards?',
     'How do membership tiers work?',
     'What do the tiers actually get me?',
@@ -962,13 +962,13 @@ test.describe('Help Center', () => {
     'Why was my receipt not approved?',
     'Can I change my selected club?',
   ];
-  const A1 = 'You can earn Flagrr Cash by playing qualifying rounds, scanning eligible receipts, participating in promotions, and completing selected in-app activities.';
+  const A1 = 'Scan your receipts from your golf club. Your club sets how much Flagrr Cash a receipt earns, and your tier can add to it. Receipts from other Flagrr clubs earn at the standard rate. You also get bonuses for weekly streaks, on your birthday, and when a friend or a golf club joins with your referral code.';
   const A2 = 'Open the Rewards Shop, choose a reward you can afford, and tap Redeem Now to receive a QR voucher.';
-  const A8 = 'Yes — open My Profile and tap Club to switch your home club at any time.';
+  const A8 = 'Yes. Open Profile and tap Club to switch your home club at any time.';
   const ARTICLES = [
-    ['How Do I Earn Flagrr Cash?', 'Learn how to earn Flagrr Cash through qualifying...'],
-    ['How Do I Redeem Rewards?', 'Learn how to redeem your Flagrr Cash for rewards...'],
-    ['Getting Started With Flagrr', 'Everything you need to know as a new member...'],
+    ['How Do I Earn Flagrr Cash?', 'Scan receipts from your club, plus bonuses for streaks, birthdays and referrals.'],
+    ['How Do I Redeem Rewards?', 'Choose a reward in the Rewards Shop and show your voucher at the club.'],
+    ['Getting Started With Flagrr', 'Pick your club, scan your first receipt and grow your tier each quarter.'],
   ];
 
   test('Help Center › greeting, hero, search, support row, 3 articles and 8 FAQs (first open)', async ({ page }) => {
@@ -1003,11 +1003,12 @@ test.describe('Help Center', () => {
 
   test('Help Center › search filters FAQs and hides Latest Articles when no article matches', async ({ page }) => {
     await openFromProfile(page, 'Help Center', 'Help Center');
-    await page.getByPlaceholder('Search').fill('VOUCHER');
+    // "QR" is in two FAQ answers and no article (the articles mention vouchers since the 25 Nov 2026 text).
+    await page.getByPlaceholder('Search').fill('QR');
     await expect(T(page, 'Latest Articles')).toHaveCount(0);
     await expect(T(page, 'How do I redeem rewards?')).toBeVisible();
-    await expect(T(page, 'What do the tiers actually get me?')).toBeVisible();
     await expect(T(page, 'Where can I use my reward voucher?')).toBeVisible();
+    await expect(T(page, 'What do the tiers actually get me?')).toHaveCount(0);
     await expect(T(page, 'How do membership tiers work?')).toHaveCount(0);
     // Open state is by index: the first match is now open.
     await expect(T(page, A2)).toBeVisible();
@@ -1017,7 +1018,7 @@ test.describe('Help Center', () => {
 
   test('Help Center › search filters articles by title or summary', async ({ page }) => {
     await openFromProfile(page, 'Help Center', 'Help Center');
-    await page.getByPlaceholder('Search').fill('new member');
+    await page.getByPlaceholder('Search').fill('first receipt');
     await expect(T(page, 'Latest Articles')).toBeVisible();
     await expect(T(page, 'Getting Started With Flagrr')).toBeVisible();
     await expect(T(page, 'How Do I Redeem Rewards?')).toHaveCount(0);
@@ -1066,7 +1067,7 @@ test.describe('Contact Your Club', () => {
     await expect(page.getByPlaceholder('Type Your Message Here')).toBeVisible();
     await expect(T(page, 'Submit Enquiry')).toBeVisible();
     await expect(T(page, 'Frequently Asked Questions')).toBeVisible();
-    await expect(T(page, 'You can earn Flagrr Cash by playing qualifying rounds, scanning eligible receipts, participating in promotions, and completing selected in-app activities.')).toBeVisible();
+    await expect(T(page, 'Scan your receipts from your golf club. Your club sets how much Flagrr Cash a receipt earns, and your tier can add to it. Receipts from other Flagrr clubs earn at the standard rate. You also get bonuses for weekly streaks, on your birthday, and when a friend or a golf club joins with your referral code.')).toBeVisible();
     await T(page, 'How do I redeem rewards?').click();
     await expect(T(page, 'Open the Rewards Shop, choose a reward you can afford, and tap Redeem Now to receive a QR voucher.')).toBeVisible();
   });

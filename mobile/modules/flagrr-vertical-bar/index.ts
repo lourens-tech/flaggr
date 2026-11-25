@@ -7,7 +7,6 @@ type EdgeEvent = { edge: VerticalBarEdge };
 
 type FlagrrVerticalBarModule = {
   getEdgeAsync(): Promise<VerticalBarEdge>;
-  refreshAsync(): Promise<void>;
   addListener(event: 'onChange', listener: (e: EdgeEvent) => void): { remove(): void };
 };
 
@@ -31,12 +30,3 @@ export function addVerticalBarEdgeListener(listener: (edge: VerticalBarEdge) => 
   return () => sub.remove();
 }
 
-/** Asks iOS to rebuild the vertical bar's contents (after the system tab bar mounts). */
-export async function refreshVerticalBarAsync(): Promise<void> {
-  if (!native) return;
-  try {
-    await native.refreshAsync();
-  } catch {
-    // Nothing to do: the strip refreshes on the next posture change anyway.
-  }
-}
