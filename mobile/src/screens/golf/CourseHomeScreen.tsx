@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Image, Platform, Pressable, RefreshControl, Text, TextInput, View, type TextStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import Svg, { Path } from 'react-native-svg';
 import { useFocusEffect } from '@react-navigation/native';
 import type { CompositeScreenProps } from '@react-navigation/native';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
@@ -14,7 +15,7 @@ import { bentoBrand, bentoType } from '../../theme/bento';
 import { bentoEasing, prefersReducedMotion, useNativeDriver } from '../../theme/motion';
 import type { GolfCourseSummaryDto, GolfHomeDto, GolfStatsDto } from '../../golf/dto';
 import { holeResult, roundTotals } from '../../golf/scoring';
-import { Appear, BentoButton, BentoIcon, BentoScreen, BentoTile, CountUp, Eyebrow, H1, StatusPill } from '../../components/bento';
+import { Appear, BentoButton, BentoIcon, BentoScreen, BentoTile, CONTOURS, CountUp, Eyebrow, H1, StatusPill } from '../../components/bento';
 import { GolfLoadError, GolfLoading } from '../../components/golf/GolfSheet';
 
 type Props = CompositeScreenProps<BottomTabScreenProps<MainTabParamList, 'Course'>, NativeStackScreenProps<RootStackParamList>>;
@@ -145,9 +146,37 @@ export function CourseHomeScreen({ navigation }: Props) {
 
       {home ? (
         <>
-          {/* The board's hero photo is a club photo the API doesn't return: drawn without it. */}
+          {/* The board's hero photo: the club's cover photo from the admin console (owner decision,
+              25 Nov 2026). A club without one gets the Bento contour lines on fairway green. */}
           <Appear>
             <BentoTile tone="hero" padding={0} innerStyle={{ height: 200 }}>
+              {home.clubCoverUrl ? (
+                <Image
+                  source={{ uri: home.clubCoverUrl }}
+                  resizeMode="cover"
+                  accessible={false}
+                  testID="course-hero-photo"
+                  style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+                />
+              ) : (
+                <Svg
+                  pointerEvents="none"
+                  testID="course-hero-contours"
+                  width="100%"
+                  height="100%"
+                  viewBox="0 0 390 200"
+                  preserveAspectRatio="xMidYMid slice"
+                  fill="none"
+                  stroke={bentoBrand.lime}
+                  strokeOpacity={0.16}
+                  strokeWidth={1.2}
+                  style={{ position: 'absolute', top: 0, left: 0 }}
+                >
+                  {CONTOURS.map((d) => (
+                    <Path key={d} d={d} />
+                  ))}
+                </Svg>
+              )}
               <LinearGradient
                 pointerEvents="none"
                 colors={['rgba(10,24,17,0.1)', 'rgba(10,24,17,0.85)']}

@@ -42,6 +42,7 @@ The tab bar has two tabs either side of the Scan button: **Home, Course** on the
 
 ### Course tab
 
+- **Play a round** (the top tile, 1.1.0 build 10): shows the member's club cover photo, the one the club uploads in its admin console (Club Settings, "Change cover photo…"), under a dark fade with "Play a round" and "Hole maps, distances and your scorecard". A club without a cover photo gets the Bento contour lines on fairway green instead (owner decision, 25 Nov 2026). The photo comes in the `golfHome` response as `clubCoverUrl`.
 - **Your club:** when the member's home club has a live course map, a card with **Start a round**. Until it does, a **Coming soon** card says the club's map is on its way (members of the "My Club Isn't Listed Yet" placeholder are told their club isn't on Flagrr yet).
 - **Away courses:** every other live course map, searchable by name or town, most recently played first. Only courses Flagrr has mapped are listed, so every card matches the club's official one. If no course is live at all, the section says maps are coming soon.
 - **Round in progress:** a card to resume it or discard it. A member can have one round in progress at a time. Since 2026-11-24 (Bento) it is a fairway-green tile showing the next hole to play and the Stableford points so far ("Hole 2 · 2 pts · thru 1 of 18").

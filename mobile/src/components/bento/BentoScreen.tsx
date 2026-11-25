@@ -13,7 +13,7 @@ import { registerScrollToTop } from '../../navigation/scrollToTop';
 import { Glass, GlassIconButton, NavTitle } from './primitives';
 
 // The faint contour lines across the top of every board.
-const CONTOURS = [
+export const CONTOURS = [
   'M-40 40 C 90 10, 190 90, 300 40 S 430 70, 460 30',
   'M-34 66 C 90 40, 190 112, 300 68 S 430 94, 460 60',
   'M-28 92 C 90 70, 190 134, 300 96 S 430 118, 460 90',

@@ -171,6 +171,18 @@ test.describe('Course tab', () => {
     await expect(page.getByText('Round in progress')).toHaveCount(0);
   });
 
+  test('Course › top tile shows the club cover photo, or the contour lines when the club has none', async ({ page }) => {
+    await openCourse(page);
+    await expect(page.getByRole('heading', { name: 'Play a round' })).toBeVisible();
+    await expect(page.getByTestId('course-hero-photo')).toHaveCount(0);
+    await expect(page.getByTestId('course-hero-contours')).toHaveCount(1);
+    await scenario(page, { clubCover: true });
+    await openCourse(page);
+    await expect(page.getByRole('heading', { name: 'Play a round' })).toBeVisible();
+    await expect(page.getByTestId('course-hero-photo')).toHaveCount(1);
+    await expect(page.getByTestId('course-hero-contours')).toHaveCount(0);
+  });
+
   test('Course › reached from Home “Play a round” tile', async ({ page }) => {
     await openSignedIn(page);
     await page.getByLabel('Play a round: open the Course tab').click();

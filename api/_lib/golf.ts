@@ -225,13 +225,16 @@ async function writeEntries(round: RoundRow, entries: HoleEntry[], complete: boo
 
 async function homeStatus(user: AuthedUser) {
   const rows = (await sql`
-    select c.name, c.is_placeholder, g.id as golf_course_id, g.status
+    select c.name, c.is_placeholder, c.cover_image_url, g.id as golf_course_id, g.status
     from courses c left join golf_courses g on g.club_id = c.id
     where c.id = ${user.courseId}
-  `) as Array<{ name: string; is_placeholder: boolean; golf_course_id: string | null; status: string | null }>;
+  `) as Array<{ name: string; is_placeholder: boolean; cover_image_url: string | null; golf_course_id: string | null; status: string | null }>;
   const r = rows[0];
   return {
     clubName: r?.name ?? '',
+    // The club's cover photo from the admin console (a JPEG data URI, at most 960 px wide:
+    // pickAndResizeCoverImage). The member app's Course tab shows it in the top tile.
+    clubCoverUrl: r?.cover_image_url ?? null,
     isPlaceholderClub: r?.is_placeholder ?? false,
     homeGolfCourseId: r?.status === 'live' ? r.golf_course_id : null,
   };
@@ -260,6 +263,7 @@ export async function handleGolfAction(action: string, req: VercelRequest, res: 
     ]);
     res.status(200).json({
       clubName: home.clubName,
+      clubCoverUrl: home.clubCoverUrl,
       isPlaceholderClub: home.isPlaceholderClub,
       homeCourse: courseRows.filter((c) => c.id === home.homeGolfCourseId).map((c) => courseSummary(c, user.courseId))[0] ?? null,
       courses: courseRows.map((c) => courseSummary(c, user.courseId)),

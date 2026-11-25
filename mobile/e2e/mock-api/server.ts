@@ -43,13 +43,16 @@ type Scenario = {
   noEnquiries: boolean; placeholder: boolean; unverified: boolean; balance: number; topTier: boolean; noRounds: boolean;
   manyActivity: boolean; // seed 120 activity rows so the server's latest-100 cap shows
   resolvedEnquiry: boolean; // the seeded enquiry e1 is Resolved
+  clubCover: boolean; // the club has a cover photo (golfHome sends clubCoverUrl)
   fail: Record<string, number>; // "METHOD /api/path?action=x" (or "/api/path") -> HTTP status to return
 };
 const DEFAULT_SCENARIO: Scenario = {
   scan: 'normal', slowScan: false, flagged: false, noReceipts: false, noRewards: false, noActivity: false, noNotifications: false,
-  noEnquiries: false, placeholder: false, unverified: false, balance: 12480, topTier: false, noRounds: false, manyActivity: false, resolvedEnquiry: false, fail: {},
+  noEnquiries: false, placeholder: false, unverified: false, balance: 12480, topTier: false, noRounds: false, manyActivity: false, resolvedEnquiry: false, clubCover: false, fail: {},
 };
 let scenario: Scenario = structuredClone(DEFAULT_SCENARIO);
+// A 1x1 green PNG standing in for a club's cover photo (admin uploads are JPEG data URIs).
+const CLUB_COVER = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNgYGD4DwABBAEAwS2OUAAAAABJRU5ErkJggg==';
 
 // ---------------- sample data ----------------
 // Golf settings are part of the seed: /api/__reset restores them so no test leaks an edited Index or format into the next.
@@ -224,7 +227,7 @@ function me(period: string) {
 function golf(action: string, method: string, q: URLSearchParams, body: any): [number, unknown] {
   const rounds = scenario.noRounds ? [] : state.rounds;
   const inProgress = state.rounds.find((x) => x.status === 'in_progress') ?? null;
-  if (action === 'golfHome') return [200, { clubName: 'Strand Golf Club', isPlaceholderClub: scenario.placeholder, homeCourse: scenario.placeholder ? null : summary, courses: [summary], recentCourseIds: [COURSE_ID], inProgress, profile }];
+  if (action === 'golfHome') return [200, { clubName: 'Strand Golf Club', clubCoverUrl: scenario.clubCover ? CLUB_COVER : null, isPlaceholderClub: scenario.placeholder, homeCourse: scenario.placeholder ? null : summary, courses: [summary], recentCourseIds: [COURSE_ID], inProgress, profile }];
   if (action === 'golfCourse') return [200, { ...summary, map }];
   if (action === 'golfProfile') { if (method === 'POST') Object.assign(profile, body); return [200, profile]; }
   if (action === 'golfRoundStart') {

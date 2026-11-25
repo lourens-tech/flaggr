@@ -1,6 +1,6 @@
 // Bento design system for the member app redesign. Tokens: theme/bento.ts.
 export { BentoIcon, type BentoIconName } from './BentoIcon';
-export { BentoScreen, ContourBackdrop } from './BentoScreen';
+export { BentoScreen, CONTOURS, ContourBackdrop } from './BentoScreen';
 export { BentoSheet } from './BentoSheet';
 export { BentoTabBarView, bentoTabScreenOptions } from './BentoTabBar';
 export { showToast, ToastHost } from './Toast';
