@@ -53,6 +53,9 @@ export interface RoundDto {
 
 export interface GolfHomeDto {
   clubName: string;
+  // The member's club cover photo (admin console upload, a data URI), or null when the club
+  // has none. Optional: an API from before 1.1.0 build 10 doesn't send it.
+  clubCoverUrl?: string | null;
   isPlaceholderClub: boolean;
   homeCourse: GolfCourseSummaryDto | null; // null until the club's map is live
   courses: GolfCourseSummaryDto[]; // every live map

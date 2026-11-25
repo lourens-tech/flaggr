@@ -105,7 +105,7 @@ Use test receipts that trigger a flag: a very unclear photo (low OCR confidence)
 
 ## 7. Tiers
 
-- [ ] Member Tiers lists all four tiers as rows with the correct multiplier, threshold and perks (no rands), marks the member's tier Current and the next one Next, shows "N FC to {next tier}" with this quarter's FC (verified members) or "You’ve reached the top tier" with a full bar (Platinum), in light and dark.
+- [ ] Member Tiers lists all four tiers as rows with the correct multiplier, threshold and perks (no rands), marks the member's tier Current and the next one Next, shows "N FC to {next tier}" with this quarter's FC (verified members) or "You’ve reached the top tier" with a full bar (Platinum), then the three steps 01 Scan, 02 Earn, 03 Upgrade (no "Play rounds" or "qualifying activities" wording), in light and dark.
 - [ ] Notifications: groups and row times look right in the phone's own time format; the header gear opens Notification Preferences; an account with no notifications shows "No notifications yet"; VoiceOver reads the View button as "View, {title}".
 - [ ] Scanning a receipt applies the correct earning multiplier for the member's current tier (verify the awarded FC = base points × multiplier, rounded).
 - [ ] An unverified member (not on the club roster) stays at Bronze however much they earn; once the club verifies them, the tier updates.
@@ -192,6 +192,7 @@ Use test receipts that trigger a flag: a very unclear photo (low OCR confidence)
 Needs migration `048` applied and at least one live course map.
 
 - [ ] The tab bar shows Home, Course, Scan, Rewards, Profile and fits a 360-wide phone (1.1.0; the 1.0.1 store app has six tabs). My Golf opens from Course's Your game tile and from Home; Reward Activity opens from Profile.
+- [ ] The Course tab's top tile (Play a round) shows the club's cover photo when the club has uploaded one in Club Settings, and the contour lines on green when it hasn't, in light and dark.
 - [ ] A member whose club has no live map sees **Coming soon** on the Course tab (and the away courses below it) and on My Golf until they finish a round.
 - [ ] Away courses: search by name and by town; a recently played course is listed first.
 - [ ] Start a round: men's / ladies' and tees change the lengths and ratings; the Course and Playing Handicap match the working shown (for example index 14.2, White men's 70.0 / 120, par 72: course 13, playing 12 at 95%). A plus index like +1.4 is accepted; 55 or 14.25 is refused.

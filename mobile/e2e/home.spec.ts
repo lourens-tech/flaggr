@@ -825,12 +825,12 @@ test.describe('Member Tiers', () => {
     expect(await tierFill(page)).toBe('64%');
   });
 
-  test('Tiers › “How to Reach the Next Tier” with 01 Play / 02 Earn / 03 Upgrade', async ({ page }) => {
+  test('Tiers › “How to Reach the Next Tier” with 01 Scan / 02 Earn / 03 Upgrade', async ({ page }) => {
     await openSignedIn(page);
     await openTiers(page);
     await expect(text(page, 'How to Reach the Next Tier')).toBeVisible();
-    for (const s of ['01', 'Play', 'Play rounds at your club and stay active on Flagrr.', '02', 'Earn', 'Earn Flagrr Cash through qualifying activities.',
-      '03', 'Upgrade', 'As your activity grows, unlock the next tier and enjoy enhanced benefits.']) {
+    for (const s of ['01', 'Scan', 'Scan your receipts from your club.', '02', 'Earn', 'Every receipt earns Flagrr Cash, plus bonuses for streaks, birthdays and referrals.',
+      '03', 'Upgrade', 'Earn enough this quarter to move up a tier and earn more on your receipts.']) {
       await expect(text(page, s)).toBeVisible();
     }
   });
