@@ -204,7 +204,7 @@ Tier is based on **Flagrr Cash earned in the current calendar quarter** (Jan–M
   - **My Enquiries**: a **+** button opens Contact Your Club; an empty list shows "No enquiries" with **Contact Your Club**; a failed load shows "Couldn’t load this" with **Try again**.
   - **Notification Preferences** and **Refer a Friend**: a failed load shows an error with **Try again** (was an alert or an endless spinner).
   - **Terms and Privacy**: one screen with a **Terms of Use | Privacy Policy** toggle, opening on the part a link asked for.
-  - Failure alerts show plain wording instead of technical text; messages the server writes for members are unchanged. The FAQ's tier answer drops rand values ("on your receipts", no "(R100/R200)"). The enquiry chat keeps its previous message box for now.
+  - Failure alerts show plain wording instead of technical text; messages the server writes for members are unchanged. The FAQ's tier answer drops rand values ("on your receipts", no "(R100/R200)"). The enquiry chat's message box is the Bento one (44 pt field and send button, spinner while sending).
 
 ## Notifications
 

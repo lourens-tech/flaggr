@@ -87,8 +87,9 @@ export function ToastHost() {
               ],
         }}
       >
-        <View style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: bentoBrand.fairway, alignItems: 'center', justifyContent: 'center' }}>
-          <BentoIcon name="check" size={17} color={bentoBrand.lime} strokeWidth={2} />
+        {/* Lime circle with a fairway check, as the motion prototype's toast (17 pt, stroke 2.6) and the kit's .toast .ti draw it. */}
+        <View style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: bentoBrand.lime, alignItems: 'center', justifyContent: 'center' }}>
+          <BentoIcon name="check" size={17} color={bentoBrand.fairway} strokeWidth={2.6} />
         </View>
         <View style={{ flex: 1 }}>
           <Text style={{ fontSize: 14, fontWeight: '600', color: '#FFFFFF' }}>{toast.title}</Text>

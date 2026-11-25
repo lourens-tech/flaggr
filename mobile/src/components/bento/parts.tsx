@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Platform, Pressable, Text, TextInput, View, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, Text, TextInput, View, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
 import { useBento } from '../../context/ThemeContext';
 import { bentoLayout as L, bentoType } from '../../theme/bento';
 import { BentoIcon, type BentoIconName } from './BentoIcon';
@@ -14,7 +14,8 @@ import { haptic } from '../../utils/haptics';
 // Every area uses these instead of drawing its own, so the app stays consistent.
 
 // ── Rows inside a tile ────────────────────────────────────────────────────────
-// Min 56 pt tall, 16 pt sides, a hairline between rows, an optional 40 pt icon chip.
+// As the profile boards draw them: 13 pt above and below (66 pt with the 40 pt icon chip), 16 pt sides,
+// a hairline between rows inset 16 pt from both edges, a 17 pt chevron. Rows stay full-width tap targets.
 
 export function BentoRowGroup({ children, style }: { children: React.ReactNode; style?: StyleProp<ViewStyle> }) {
   const { t } = useBento();
@@ -22,7 +23,8 @@ export function BentoRowGroup({ children, style }: { children: React.ReactNode; 
   return (
     <BentoTile padding={0} style={style}>
       {rows.map((row, i) => (
-        <View key={i} style={i > 0 ? { borderTopWidth: 1, borderTopColor: t.hair } : undefined}>
+        <View key={i}>
+          {i > 0 ? <View style={{ height: 1, marginHorizontal: 16, backgroundColor: t.hair }} /> : null}
           {row}
         </View>
       ))}
@@ -68,7 +70,7 @@ export function BentoRow({
   const chipBg = tone === 'danger' ? t.dangerSoft : tone === 'muted' ? t.seg : t.accentSoft;
   const chipFg = tone === 'danger' ? t.danger : tone === 'muted' ? t.muted : t.accent;
   const body = (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56, paddingHorizontal: 16, paddingVertical: 10 }}>
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56, paddingHorizontal: 16, paddingVertical: 13 }}>
       {icon ? (
         <View style={{ width: 40, height: 40, borderRadius: 13, backgroundColor: chipBg, alignItems: 'center', justifyContent: 'center' }}>
           <BentoIcon name={icon} size={20} color={chipFg} strokeWidth={1.8} />
@@ -90,7 +92,7 @@ export function BentoRow({
         </Text>
       ) : null}
       {trailing}
-      {showChevron ? <BentoIcon name="chevronRight" size={18} color={t.muted} strokeWidth={1.8} /> : null}
+      {showChevron ? <BentoIcon name="chevronRight" size={17} color={t.muted} strokeWidth={2} /> : null}
     </View>
   );
   if (!onPress) return body;
@@ -251,8 +253,12 @@ export function ChatComposer({
         placeholderTextColor={t.muted}
         accessibilityLabel="Message"
         multiline
+        // Web: a multiline field is a textarea that defaults to two rows; one row matches the 44 pt board
+        // field (it still grows to maxHeight). Native ignores this for multiline sizing.
+        {...(Platform.OS === 'web' ? { numberOfLines: 1 } : null)}
         style={[
-          { flex: 1, minHeight: 48, maxHeight: 120, paddingHorizontal: 18, paddingTop: 13, paddingBottom: 13, borderRadius: 24, borderWidth: 1, borderColor: t.hair, backgroundColor: t.tile, color: t.ink, fontSize: 16 },
+          // 44 pt field, radius 22, 15 pt text (boards G-E-ChatLive / ChatSending); grows to 120 pt for long messages.
+          { flex: 1, minHeight: 44, maxHeight: 120, paddingHorizontal: 16, paddingTop: 11, paddingBottom: 11, borderRadius: 22, borderWidth: 1, borderColor: t.hair, backgroundColor: t.tile, color: t.ink, fontSize: 15 },
           Platform.OS === 'web' ? ({ outlineStyle: 'none' } as unknown as TextStyle) : null,
         ]}
       />
@@ -267,9 +273,15 @@ export function ChatComposer({
         accessibilityLabel="Send message"
         accessibilityState={{ disabled: !canSend, busy: sending }}
         aria-busy={sending}
-        style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center', opacity: canSend ? 1 : 0.45 }}
+        // Boards: 44 pt; accent with the send icon when it can send, accent with a spinner while sending,
+        // and grey (seg) with a muted icon while there is nothing to send.
+        style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: canSend || sending ? t.accent : t.seg, alignItems: 'center', justifyContent: 'center' }}
       >
-        <BentoIcon name="send" size={20} color={t.accentInk} strokeWidth={1.9} />
+        {sending ? (
+          <ActivityIndicator color={t.accentInk} size="small" />
+        ) : (
+          <BentoIcon name="send" size={20} color={canSend ? t.accentInk : t.muted} strokeWidth={1.8} />
+        )}
       </Pressable>
     </Glass>
   );

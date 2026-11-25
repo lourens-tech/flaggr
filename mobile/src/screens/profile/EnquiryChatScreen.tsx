@@ -1,19 +1,15 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { ScrollViewInstance } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/types';
-import { TextField } from '../../components/common/TextField';
 import { useApp } from '../../context/AppContext';
 import { useBento } from '../../context/ThemeContext';
 import { useLiveThread } from '../../hooks/useLiveThread';
 import { showAlert } from '../../utils/alert';
 import { friendlyError } from '../../utils/errors';
-import { screenPadding, spacing } from '../../theme';
-import type { ThemeColors } from '../../context/ThemeContext';
-import { useBentoLegacy } from '../../components/bento/legacy';
-import { BentoScreen, ChatBubble, StatusPill, type PillTone } from '../../components/bento';
+import { BentoScreen, ChatBubble, ChatComposer, StatusPill, type PillTone } from '../../components/bento';
 import type { EnquiryStatus, MyEnquiryThread } from '../../data/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'EnquiryChat'>;
@@ -31,8 +27,7 @@ function formatTime(iso: string): string {
 // Layout from G-E-ChatLive / ChatLoading / ChatSending / ChatResolved / ChatNew.
 export function EnquiryChatScreen({ navigation, route }: Props) {
   const { t } = useBento();
-  const { colors } = useBentoLegacy();
-  const composerStyles = useMemo(() => createComposerStyles(colors), [colors]);
+  const insets = useSafeAreaInsets();
   const { enquiryId } = route.params;
   const { getEnquiryThread, replyToEnquiry } = useApp();
   const [thread, setThread] = useState<MyEnquiryThread | null>(null);
@@ -101,38 +96,11 @@ export function EnquiryChatScreen({ navigation, route }: Props) {
         )}
       </BentoScreen>
 
-      {/* Composer kept as before: the shared ChatComposer has no sending spinner yet (see report). */}
+      {/* Bento composer (G-E-ChatLive / ChatSending): same rules as before: Send is disabled until
+          something is typed and while sending, shows a spinner while sending, and keeps the draft on failure. */}
       {!loading && thread ? (
-        <View style={composerStyles.composer}>
-          <View style={{ flex: 1 }}>
-            <TextField placeholder="Type a message…" variant="onLight" value={draft} onChangeText={setDraft} multiline />
-          </View>
-          <TouchableOpacity onPress={handleSend} disabled={sending || !draft.trim()} style={composerStyles.sendButton} accessibilityLabel="Send message" accessibilityRole="button">
-            {sending ? <ActivityIndicator color={colors.white} size="small" /> : <Ionicons name="send" size={18} color={colors.white} />}
-          </TouchableOpacity>
-        </View>
+        <ChatComposer value={draft} onChangeText={setDraft} onSend={handleSend} sending={sending} bottomInset={insets.bottom} />
       ) : null}
     </KeyboardAvoidingView>
   );
-}
-
-function createComposerStyles(colors: ThemeColors) {
-  return StyleSheet.create({
-    composer: {
-      flexDirection: 'row',
-      alignItems: 'flex-end',
-      gap: spacing.sm,
-      padding: screenPadding,
-      borderTopWidth: 1,
-      borderTopColor: colors.border,
-    },
-    sendButton: {
-      width: 44,
-      height: 44,
-      borderRadius: 22,
-      backgroundColor: colors.darkGreen,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-  });
 }

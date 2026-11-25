@@ -832,7 +832,7 @@ Inside `ScanFlow`: Review replaces itself with Success (Back can't resubmit); "S
 - `showToast(title, subtitle?)`, with `ToastHost` mounted at the root.
 - **Look:**
   - A dark "island" pill: width min(340, screen − 32), min height 54, radius 27.
-  - A lime check in a fairway circle, a white 14 pt semibold title, and a 12 pt 70%-white subtitle.
+  - A fairway check in a lime circle (1.1.0, as the prototype and kit draw it; 1.0.1 had a lime check in a fairway circle), a white 14 pt semibold title, and a 12 pt 70%-white subtitle.
   - Positioned 11 pt from the top on iPhones with a Dynamic Island (safe-area top 54 or more), otherwise safe-area top + 8.
   - Not tappable (`pointerEvents: none`). It is a polite live region.
 - **Motion:**
@@ -2875,7 +2875,7 @@ Conventions used below:
 
 #### Enquiry Chat (`screens/profile/EnquiryChatScreen.tsx`)
 
-> **1.1.0 (phase 3, 25 Nov 2026), what changed from the 1.0.1 description below:** Bento title, centred status pill and `ChatBubble`s (member bubbles use the accent colour, lime in dark mode). The message box is unchanged (still the legacy `TextField` composer with its sending spinner). Polling, auto-scroll and alerts are unchanged. Alerts use `friendlyError` (technical text → plain message; member-facing server text kept). Everything else below is unchanged.
+> **1.1.0 (phase 3, 25 Nov 2026), what changed from the 1.0.1 description below:** Bento title, centred status pill and `ChatBubble`s (member bubbles use the accent colour, lime in dark mode). The message box is the Bento `ChatComposer` (44 pt field, "Type a message…", 44 pt Send: grey and disabled until something is typed, a spinner while sending; the draft is kept on failure), same rules as the legacy composer it replaces. Polling, auto-scroll and alerts are unchanged. Alerts use `friendlyError` (technical text → plain message; member-facing server text kept). Everything else below is unchanged.
 
 - **Reached from:**
   - My Enquiries → row.
