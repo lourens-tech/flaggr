@@ -12,8 +12,12 @@ interface Props {
   style?: StyleProp<ViewStyle>;
 }
 
-// Doubled from the original 90px placeholder height.
-const AD_SPACE_HEIGHT = 180;
+// Every ad slot keeps one shape, the upload size the admin consoles ask for
+// (1200 x 630, see AdMediaField), and fills the width it is given (owner
+// decision 25 Nov 2026). On a phone that is about the old fixed 180 pt height;
+// on wide screens (the opened iPhone Duo, iPad) the slot grows in step, so the
+// whole advert shows instead of a cropped strip.
+export const AD_ASPECT_RATIO = 1200 / 630;
 
 // How long an image/gif ad stays up before revolving to the next one in the
 // slot. A gif has no "it just finished playing" signal the way video does
@@ -152,7 +156,7 @@ export function AdSpace({ placement, style }: Props) {
 
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
-  box: { height: AD_SPACE_HEIGHT, borderRadius: radius.md, overflow: 'hidden' },
+  box: { width: '100%', aspectRatio: AD_ASPECT_RATIO, borderRadius: radius.md, overflow: 'hidden' },
   image: { width: '100%', height: '100%' },
   placeholder: { backgroundColor: colors.darkGreen, alignItems: 'center', justifyContent: 'center' },
   placeholderText: { fontFamily: 'Fraunces_700Bold', fontSize: fontSize.title, color: colors.lime },

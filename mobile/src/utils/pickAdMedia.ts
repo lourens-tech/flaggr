@@ -4,7 +4,9 @@ import { File } from 'expo-file-system';
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import type { AdMediaType } from '../data/types';
 
-const AD_IMAGE_MAX_WIDTH = 960;
+// The recommended ad size (1200 x 630, AdMediaField) is kept at full width: the app
+// shows ads across the whole content width, up to about 870 pt on the opened iPhone Duo.
+const AD_IMAGE_MAX_WIDTH = 1200;
 const JPEG_QUALITY = 0.7;
 // A short, heavily-compressed clip only — same base64-length ceiling the
 // backend enforces (api/admin/index.ts MAX_GIF_BASE64_LENGTH/MAX_VIDEO_BASE64_LENGTH),

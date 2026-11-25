@@ -342,7 +342,7 @@ export function CourseGuideScreen({ navigation, route }: Props) {
     return (
       <View style={{ flex: 1, backgroundColor: t.ground }}>
         <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
-        <View style={{ position: 'absolute', left: 32, right: 32, top: insets.top + 252, alignItems: 'center', gap: 16 }}>
+        <View style={{ position: 'absolute', left: 32 + insets.left, right: 32 + insets.right, top: insets.top + 252, alignItems: 'center', gap: 16 }}>
           <View style={{ width: 56, height: 56, borderRadius: 13, backgroundColor: t.warnBg, alignItems: 'center', justifyContent: 'center' }}>
             <BentoIcon name="golfWarning" size={27} color={t.warnInk} strokeWidth={1.8} />
           </View>
@@ -390,7 +390,7 @@ export function CourseGuideScreen({ navigation, route }: Props) {
             showRings={rings}
             showHazards={hazards}
             draggedBall={draggedBall}
-            insets={{ top: headerBottom + 8, bottom: scoreH + (collapsed ? 70 : shotCardH) + 24, left: 10, right: 60 }}
+            insets={{ top: headerBottom + 8, bottom: scoreH + (collapsed ? 70 : shotCardH) + 24, left: 10 + insets.left, right: 60 + insets.right }}
             onTouchStart={() => setLayersOpen(false)}
             onBallMove={(p) => {
               setBall(p);
@@ -404,7 +404,7 @@ export function CourseGuideScreen({ navigation, route }: Props) {
         </View>
       ) : (
         // G-D-HoleNoMap: the message in a tile on the plain ground.
-        <View style={{ position: 'absolute', left: 24, right: 24, top: headerBottom + 100 }}>
+        <View style={{ position: 'absolute', left: 24 + insets.left, right: 24 + insets.right, top: headerBottom + 100 }}>
           <BentoTile padding={20}>
             <View style={{ alignItems: 'center', gap: 12, paddingVertical: 10, paddingHorizontal: 4 }}>
               <View style={{ width: 64, height: 64, borderRadius: 20, backgroundColor: t.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
@@ -420,7 +420,7 @@ export function CourseGuideScreen({ navigation, route }: Props) {
       <MapGlass
         solid={!hasMap}
         radius={28}
-        style={{ position: 'absolute', left: 12, right: 12, top: headerTop, padding: 10, zIndex: 3 }}
+        style={{ position: 'absolute', left: 12 + insets.left, right: 12 + insets.right, top: headerTop, padding: 10, zIndex: 3 }}
         onLayout={(ev) => setHeaderH(Math.round(ev.nativeEvent.layout.height))}
       >
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
@@ -513,7 +513,7 @@ export function CourseGuideScreen({ navigation, route }: Props) {
             pointerEvents="none"
             accessibilityRole="image"
             accessibilityLabel={gd ? `Green: front ${gd[0]}, middle ${gd[1]}, back ${gd[2]} metres` : undefined}
-            style={{ position: 'absolute', right: 12, top: greenTop, paddingVertical: 10, paddingHorizontal: 14, gap: 2, zIndex: 2 }}
+            style={{ position: 'absolute', right: 12 + insets.right, top: greenTop, paddingVertical: 10, paddingHorizontal: 14, gap: 2, zIndex: 2 }}
             onLayout={(ev) => setGreenH(Math.round(ev.nativeEvent.layout.height))}
           >
             {(
@@ -530,7 +530,7 @@ export function CourseGuideScreen({ navigation, route }: Props) {
             ))}
           </MapGlass>
 
-          <View style={{ position: 'absolute', right: 12, top: controlsTop, gap: 8, zIndex: 2 }}>
+          <View style={{ position: 'absolute', right: 12 + insets.right, top: controlsTop, gap: 8, zIndex: 2 }}>
             <MapButton icon="plus" label="Zoom in" onPress={() => mapRef.current?.zoomBy(1.35)} />
             <MapButton icon="golfMinus" label="Zoom out" onPress={() => mapRef.current?.zoomBy(1 / 1.35)} />
             <MapButton icon="golfFit" label="Show the whole hole" onPress={() => mapRef.current?.fit()} />
@@ -539,7 +539,7 @@ export function CourseGuideScreen({ navigation, route }: Props) {
           {layersOpen ? (
             <View
               accessibilityViewIsModal={false}
-              style={{ position: 'absolute', right: 64, top: controlsTop + 70, width: 262, paddingVertical: 4, paddingHorizontal: 16, borderRadius: 22, backgroundColor: t.tile, boxShadow: '0 18px 40px -16px rgba(0,0,0,0.55)', zIndex: 4 }}
+              style={{ position: 'absolute', right: 64 + insets.right, top: controlsTop + 70, width: 262, paddingVertical: 4, paddingHorizontal: 16, borderRadius: 22, backgroundColor: t.tile, boxShadow: '0 18px 40px -16px rgba(0,0,0,0.55)', zIndex: 4 }}
             >
               <LayerRow t={t} title="Distance arcs" sub="Every 50 m from your ball" value={rings} onChange={setRings} />
               <LayerRow t={t} title="Hazard distances" sub="Reach / carry, in metres" value={hazards} onChange={setHazards} sep />
@@ -551,7 +551,7 @@ export function CourseGuideScreen({ navigation, route }: Props) {
               accessibilityLiveRegion="polite"
               aria-live="polite"
               pointerEvents="box-none"
-              style={{ position: 'absolute', left: 12, right: 66, bottom: scoreH + 12, gap: 12, zIndex: 2 }}
+              style={{ position: 'absolute', left: 12 + insets.left, right: 66 + insets.right, bottom: scoreH + 12, gap: 12, zIndex: 2 }}
             >
               {!collapsed && (custom || !atTee) ? (
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
@@ -633,7 +633,9 @@ export function CourseGuideScreen({ navigation, route }: Props) {
           right: 0,
           bottom: 0,
           paddingTop: 12,
-          paddingHorizontal: 14 + Math.max(insets.left, insets.right),
+          // Each side its own inset: on the iPhone Duo only one side has the vertical strip.
+          paddingLeft: 14 + insets.left,
+          paddingRight: 14 + insets.right,
           paddingBottom: Math.max(26, insets.bottom),
           backgroundColor: t.tile,
           borderTopWidth: 1,

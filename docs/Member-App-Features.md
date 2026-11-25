@@ -183,6 +183,7 @@ Tier is based on **Flagrr Cash earned in the current calendar quarter** (Jan–M
 - Each ad is tappable and opens its target URL. Taps and impressions are both logged for ad-performance reporting.
 - A slot with no ad booked is not shown at all: no placeholder box and no gap (owner decision, 24 Nov 2026; until then an "Ad Space" box filled the slot). An ad with no image or video still shows, as a green box with its title.
 - A small "SPONSORED" label sits above every ad. Ads never animate: no rise, reveal, parallax or press scaling.
+- Every ad slot has one shape, 1200 × 630 (about 1.9 to 1), and fills the width it is given (owner decision, 25 Nov 2026; it was a fixed 180 pt high). On a phone that is about the old height; on wide screens (the opened iPhone Duo, iPad) the ad grows in step, so the whole advert shows instead of a cropped strip. The admin consoles tell ad makers that size (see Admin Console Features).
 
 ## Profile
 
@@ -223,6 +224,12 @@ Tier is based on **Flagrr Cash earned in the current calendar quarter** (Jan–M
 - **Terms & Privacy**: in-app legal text.
 - **Export my data** includes the member's golf settings and every round they have kept.
 - Public pages `privacy.html`, `support.html`, and `delete-account.html` are served with the web build for app-store listings.
+
+## iPhone Duo (1.1.0, native app)
+
+- On the iPhone Duo, iOS keeps a vertical strip down the right-hand edge (camera, clock, status icons) in every posture. Where iOS reports that strip, the member tabs are the **system tab bar, which iOS places vertically in the strip** (owner request, 25 Nov 2026): Home, Course, Rewards and Profile as icons, the open one in the Flagrr green, and Scan at the bottom of the strip, which opens the scan flow. Other phones keep the Bento glass tab bar. Pushed screens cover the strip's tab bar as they cover the Bento bar.
+- Every member screen keeps its content, buttons and overlays clear of the strip (and any other side safe area): Bento screens, bottom sheets, alerts, toasts, the scan camera and its permission card, and the hole view (top card, distance card, map buttons, shot card, score bar).
+- Checked in the Xcode 27.2 iPhone Duo simulator (closed, open and half open); not yet on a real Duo.
 
 ## App-wide UX details
 

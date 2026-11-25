@@ -58,13 +58,14 @@ export function ToastHost() {
 
   if (!toast) return null;
 
-  const w = Math.min(340, width - 32);
+  // Sized and centred within the side safe areas (the iPhone Duo's vertical strip is one).
+  const w = Math.min(340, width - insets.left - insets.right - 32);
   // The island sits ~11 pt from the top on iPhones that have one.
   const top = Platform.OS === 'ios' && insets.top >= 54 ? 11 : insets.top + 8;
   const reduced = prefersReducedMotion();
 
   return (
-    <View pointerEvents="none" style={{ position: 'absolute', top, left: 0, right: 0, alignItems: 'center', zIndex: 1000 }}>
+    <View pointerEvents="none" style={{ position: 'absolute', top, left: insets.left, right: insets.right, alignItems: 'center', zIndex: 1000 }}>
       <Animated.View
         accessibilityLiveRegion="polite"
         accessibilityRole="alert"

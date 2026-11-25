@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Modal, Platform, Pressable, StyleSheet, Text, View, useWindowDimensions, type ViewStyle } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBento } from '../../context/ThemeContext';
 import { bentoDuration, bentoEasing, prefersReducedMotion, useNativeDriver } from '../../theme/motion';
 import { activeAdminAlertHost, dismissAlert, subscribeAlert, type AlertButtonConfig, type AlertConfig } from '../../utils/alertStore';
@@ -57,7 +58,9 @@ export function AppAlertHost() {
   // on the boards; one, or three or more, stack.
   const twoUp = config.buttons.length === 2;
   const buttons = twoUp ? [...config.buttons].sort((a, b) => Number(a.style === 'cancel') - Number(b.style === 'cancel')) : config.buttons;
-  const cardWidth = Math.min(296, width - 48);
+  // Centred in the space between the side safe areas (the iPhone Duo's vertical strip is one).
+  const insets = useSafeAreaInsets();
+  const cardWidth = Math.min(296, width - insets.left - insets.right - 48);
 
   // The Modal mounts only while an alert is showing, so on the web its portal
   // is added last and draws above any sheet that is already open.
@@ -66,7 +69,7 @@ export function AppAlertHost() {
   return (
     <Modal visible transparent animationType="none" onRequestClose={dismissAlert} statusBarTranslucent>
       <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: t.scrim, opacity: fade }, Platform.OS === 'web' ? webBlur : null]} />
-      <View style={styles.center} pointerEvents="box-none">
+      <View style={[styles.center, { paddingLeft: insets.left, paddingRight: insets.right }]} pointerEvents="box-none">
         <Animated.View
           accessibilityViewIsModal
           accessibilityRole="alert"

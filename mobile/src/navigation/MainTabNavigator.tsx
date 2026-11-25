@@ -6,6 +6,8 @@ import { RewardsShopScreen } from '../screens/rewards/RewardsShopScreen';
 import { MemberProfileScreen } from '../screens/profile/MemberProfileScreen';
 import { bentoTabScreenOptions } from '../components/bento/BentoTabBar';
 import { CourseHomeScreen } from '../screens/golf/CourseHomeScreen';
+import { useSystemTabBar } from '../hooks/useVerticalBarTabs';
+import { MemberSystemTabNavigator } from './MemberSystemTabNavigator';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
@@ -14,6 +16,9 @@ const Tab = createBottomTabNavigator<MainTabParamList>();
 // is drawn once above the whole stack (MemberTabBar), so it can slide away
 // on pushed screens; this navigator draws none.
 export function MainTabNavigator() {
+  // iPhone Duo: the system tab bar, which iOS puts in the vertical strip.
+  const systemTabs = useSystemTabBar();
+  if (systemTabs) return <MemberSystemTabNavigator />;
   return (
     <Tab.Navigator screenOptions={bentoTabScreenOptions} tabBar={() => null}>
       <Tab.Screen name="Home" component={HomeScreen} />

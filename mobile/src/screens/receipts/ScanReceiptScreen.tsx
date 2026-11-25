@@ -145,7 +145,7 @@ export function ScanReceiptScreen({ navigation }: Props) {
   };
 
   const topBar = (withClose: boolean, right: React.ReactNode = null) => (
-    <View style={[styles.topBar, { top: insets.top + 8 }]}>
+    <View style={[styles.topBar, { top: insets.top + 8, left: 20 + insets.left, right: 20 + insets.right }]}>
       {withClose ? <DarkCircle icon="closeWide" label="Close" onPress={() => navigation.goBack()} /> : <View style={styles.spacer} />}
       <Text style={[bentoType.navTitle, { color: '#FFFFFF' }]} accessibilityRole="header">
         Scan Receipt
@@ -164,7 +164,7 @@ export function ScanReceiptScreen({ navigation }: Props) {
         {topBar(false)}
         <View
           accessibilityLiveRegion="polite"
-          style={[styles.readingSheet, { backgroundColor: t.tile, bottom: 12 + Math.max(0, insets.bottom - 12) }]}
+          style={[styles.readingSheet, { backgroundColor: t.tile, bottom: 12 + Math.max(0, insets.bottom - 12), left: 12 + insets.left, right: 12 + insets.right }]}
         >
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
             <RingSpinner track={t.track} color={t.accent} />
@@ -189,7 +189,7 @@ export function ScanReceiptScreen({ navigation }: Props) {
       <View style={styles.screen}>
         <StatusBar barStyle="light-content" />
         {topBar(true)}
-        <View style={styles.permWrap}>
+        <View style={[styles.permWrap, { paddingLeft: 20 + insets.left, paddingRight: 20 + insets.right }]}>
           <View style={[styles.permCard, { backgroundColor: t.tile }]}>
             <View style={[styles.permIcon, { backgroundColor: t.accentSoft }]}>
               <BentoIcon name="camera" size={34} color={t.accent} strokeWidth={1.7} />
@@ -235,7 +235,7 @@ export function ScanReceiptScreen({ navigation }: Props) {
       )}
       <ScanFrame />
       {/* AppScan board: 44 pt above the bottom edge, clear of the home indicator. */}
-      <View style={[styles.controls, { bottom: Math.max(44, insets.bottom + 10) }]}>
+      <View style={[styles.controls, { bottom: Math.max(44, insets.bottom + 10), paddingLeft: 36 + insets.left, paddingRight: 36 + insets.right }]}>
         <PressableScale onPress={handleUpload} accessibilityRole="button" accessibilityLabel="Upload from gallery" style={styles.galleryButton}>
           <View style={styles.galleryIcon}>
             <BentoIcon name="gallery" size={24} color="#FFFFFF" strokeWidth={1.7} />
@@ -271,6 +271,8 @@ function DarkCircle({ icon, label, onPress }: { icon: BentoIconName; label: stri
 // Lime corner brackets, a sweeping scan line, and the alignment hint.
 function ScanFrame() {
   const { width, height } = useWindowDimensions();
+  // Centred between the side safe areas (the iPhone Duo's vertical strip is one).
+  const insets = useSafeAreaInsets();
   // AppScan board at 390 x 844: frame 164 pt from the top and 432 tall, hint 22 below it.
   // Scaled with the window height so the frame and hint clear the controls on short phones.
   const frameTop = Math.round((height * 164) / 844);
@@ -289,8 +291,8 @@ function ScanFrame() {
   }, [sweep]);
   const travel = frameH / 2 - 24;
   return (
-    <View pointerEvents="none" style={[styles.frameWrap, { top: frameTop }]}>
-      <View aria-hidden style={{ width: width - 88, height: frameH }}>
+    <View pointerEvents="none" style={[styles.frameWrap, { top: frameTop, left: insets.left, right: insets.right }]}>
+      <View aria-hidden style={{ width: width - insets.left - insets.right - 88, height: frameH }}>
         {(['tl', 'tr', 'br', 'bl'] as const).map((c, i) => (
           <View
             key={c}

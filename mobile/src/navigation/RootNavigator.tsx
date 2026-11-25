@@ -9,6 +9,7 @@ import { ScanFlowNavigator } from './ScanFlowNavigator';
 import { MyGolfScreen } from '../screens/golf/MyGolfScreen';
 import { RewardsActivityScreen } from '../screens/rewards/RewardsActivityScreen';
 import { MemberTabBar } from './MemberTabBar';
+import { useSystemTabBar } from '../hooks/useVerticalBarTabs';
 import { ReceiptHistoryScreen } from '../screens/receipts/ReceiptHistoryScreen';
 import { MemberTiersScreen } from '../screens/profile/MemberTiersScreen';
 import { NotificationsScreen } from '../screens/profile/NotificationsScreen';
@@ -50,6 +51,9 @@ export function RootNavigator() {
   const { t } = useBento();
   const { isAuthenticated, isInitializing } = useApp();
   const { isAdminAuthenticated, isInitializing: isAdminInitializing, admin, staffWelcomePending } = useAdmin();
+  // iPhone Duo: the member tabs are the system tab bar (MainTabNavigator), so no Bento bar on top.
+  // Read before the loading return, so the edge is known by the time the tabs first render.
+  const systemTabs = useSystemTabBar();
 
   if (isInitializing || isAdminInitializing) {
     // Restoring a stored session (member and/or admin) before deciding which
@@ -74,7 +78,7 @@ export function RootNavigator() {
       layout={({ children, state, navigation }) => (
         <View style={{ flex: 1, backgroundColor: '#000' }}>
           {children}
-          {memberSignedIn ? <MemberTabBar state={state} navigation={navigation} /> : null}
+          {memberSignedIn && !systemTabs ? <MemberTabBar state={state} navigation={navigation} /> : null}
         </View>
       )}
     >

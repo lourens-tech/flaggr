@@ -70,7 +70,8 @@ export function BentoSheet({
       <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: t.scrim, opacity: fade }, Platform.OS === 'web' ? webBlur : null]}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close" />
       </Animated.View>
-      <View style={styles.dock} pointerEvents="box-none">
+      {/* Docked between the side safe areas (the iPhone Duo's vertical strip is one). */}
+      <View style={[styles.dock, { paddingLeft: 8 + insets.left, paddingRight: 8 + insets.right }]} pointerEvents="box-none">
         <Animated.View
           accessibilityViewIsModal
           style={{
